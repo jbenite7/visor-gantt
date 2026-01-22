@@ -1,72 +1,51 @@
-# Roadmap de Desarrollo: Visor MPP
+# Roadmap: Visor MPP Web
 
-Este documento define la estrategia de desarrollo incremental ("pequeñas victorias") para el proyecto `visor-mpp`.
+## Estado Actual: Preparando Fase 7 (Implementación Vision 2026) 🚀
 
-## 1. Propósito Central
+### ✅ Fase 1: Fundación (Completada)
 
-Crear una herramienta web ligera, rápida y "Mobile First" que permita a usuarios visualizar archivos de Microsoft Project (.mpp) sin licencias costosas ni software instalado, desplegable fácilmente en hosting compartido.
+- Scaffolding completo (Docker, docs, git).
+- Backend PHP con parser XML (MSPDI).
+- Frontend con upload y tabla de tareas.
+- Simplificado a XML-only (sin Java).
 
-## 2. Nivel de Madurez
+### ✅ Fase 2: Visualización Gantt (Completada)
 
-**Estado Actual**: 🌱 **Inicial** (Scaffolding completado).
-El proyecto cuenta con la estructura base, entorno de desarrollo y documentación inicial. No hay lógica de negocio implementada aún.
+- Integración de Frappe Gantt librerías.
+- Estructura basica de visualización.
 
-## 3. Estrategia de Implementación (3 Meses)
+### ✅ Fase 3: Gestión de Proyectos (Completada)
 
-### Fase 1: Núcleo y Parsing (Mes 1)
+- Sistema de Archivos: CRUD completo en backend (`ProjectStorage.php`).
+- Persistencia: Detección automática de duplicados y manejo de IDs.
+- API: Endpoints para renombrar, duplicar y eliminar.
 
-Objetivo: Lograr que el sistema "lea" un archivo y devuelva datos crudos.
+### ✅ Fase 4: Control de Versiones (Completada)
 
-- [x] **Victoria 1: Cimientos Sólidos** (Completado)
-  - Scaffolding, Docker, Git, CI básico.
-- [ ] **Victoria 2: Endpoint de Recepción**
-  - Backend PHP que acepta 'POST' de archivos.
-  - Validación de extensiones y manejo de errores.
-- [ ] **Victoria 3: El Motor de Parsing**
-  - Implementación de librería PHP para leer `.mpp`.
-  - Extracción de datos clave: Nombre proyecto, Tareas (Lista plana).
-  - _Reto_: Si PHP puro falla, implementar fallback a XML o script Python.
-- [ ] **Victoria 4: API JSON Estructurada**
-  - Estandarizar la salida del backend (JSON predecible para el front).
+- Agrupación Inteligente: Proyectos se agrupan por `versionGroup`.
+- Detección de Similitud: Algoritmo >70% match sugiere versionamiento.
+- Flujo de Carga: Opciones para "Nuevo", "Versión" o "Sobreescribir".
 
-### Fase 2: Visualización Básica (Mes 1-2)
+### ✅ Fase 5: UI/UX & Mejoras (Completada)
 
-Objetivo: Mostrar los datos al usuario de forma legible.
+- Interfaz Compacta: Diseño optimizado para evitar scroll excesivo.
+- Botones de Acción: Renombrar, Duplicar (Copia/Versión), Eliminar.
+- Acciones de Grupo: Duplicar última versión y eliminar grupo completo.
+- Internacionalización: Fechas y horas adaptadas a la región del usuario.
 
-- [ ] **Victoria 5: UI de Carga Robusta**
-  - Drag & Drop con feedback visual de progreso.
-  - Manejo de errores en interfaz (archivo corrupto, formato inválido).
-- [ ] **Victoria 6: La Grilla de Datos (DataGrid)**
-  - Tabla responsive para listar tareas.
-  - Columnas: ID, Nombre, Duración, Inicio, Fin.
-  - Adaptación Mobile: Ocultar columnas menos críticas en pantallas pequeñas.
+### ✅ Fase 6: Visión Futura (Completada)
 
-### Fase 3: Gantt y Experiencia (Mes 2-3)
+- Diseño Conceptual UI 2026 "Project Hyper-View".
+- Diseño Conceptual UI 2026 "Project Hyper-View".
+- Integración de identidad corporativa AIA (Colores y Tipografía) desde `manual-de-marca-aia.json`.
 
-Objetivo: Valor añadido visual y pulido.
+## Próximos Pasos (Fase 7)
 
-- [ ] **Victoria 7: Gantt Chart Básico**
-  - Renderizado visual de barras de tareas en el tiempo.
-  - Dependencias simples.
-- [ ] **Victoria 8: Navegación Temporal (Zoom/Scroll)**
-  - Controles para moverse en el tiempo dentro del Gantt.
-- [ ] **Victoria 9: Optimización Mobile**
-  - Asegurar que el Gantt sea navegable con touch.
+1.  **Migración a UI 2026**: Implementar el "Bento Grid" y "Dynamic Island".
+2.  **Transiciones**: Integrar animaciones fluidas (Framer Motion / CSS View Transitions).
+3.  **Refactor CSS**: Reemplazar estilos actuales con la nueva paleta y glassmorphism.
 
-### Fase 4: Producción y Mantenimiento (Continuo)
+## Fase 8: Funcionalidades de Datos (Completada) ✅
 
-- [ ] **Victoria 10: Preparación para Hosting**
-  - Script de limpieza para producción (eliminar archivos dev).
-  - Verificación en entorno tipo cPanel.
-
-## 4. Análisis DOFA Técnico (Snapshot Inicial)
-
-- **Fortalezas**: Stack simple (PHP/JS) ideal para el entorno destino.
-- **Oportunidades**: Convertirse en una herramienta "go-to" para PMs sin licencia.
-- **Debilidades**: El parsing de `.mpp` propietario es complejo y propenso a errores sin librerías oficiales de MS.
-- **Amenazas**: Cambios en formato `.mpp` en nuevas versiones de MS Project.
-
-## 5. Próximos Pasos Inmediatos
-
-1. Investigar y seleccionar librería PHP para parsing.
-2. Crear endpoint `POST /upload`.
+1.  **Exportación XLSX**: Descargar tabla con columnas activas (Soporte de tipos: Texto para EDT, Fechas dd/mm/yyyy, Booleanos Sí/No).
+2.  **Reordenamiento**: Drag & Drop para ordenar columnas (SortableJS).

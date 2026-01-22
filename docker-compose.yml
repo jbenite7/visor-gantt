@@ -3,12 +3,11 @@ version: '3.8'
 services:
   web:
     build: 
-      context: ../docker
+      context: ./docker
       dockerfile: Dockerfile
     ports:
       - "8080:80"
     volumes:
-      - ../frontend/public:/var/www/html
-      - ../backend:/var/www/backend
+      - .:/var/www/html
     environment:
-      - APACHE_DOCUMENT_ROOT=/var/www/html
+      - APACHE_DOCUMENT_ROOT=/var/www/html/frontend/public

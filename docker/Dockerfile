@@ -9,5 +9,5 @@ RUN apt-get update && apt-get install -y \
 # Habilitar mod_rewrite
 RUN a2enmod rewrite
 
-# Ajustar permisos (opcional, útil para desarrollo)
+# Permisos para uploads
 RUN chown -R www-data:www-data /var/www/html

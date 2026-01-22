@@ -1,0 +1,113 @@
+{
+  "brandName": "Arquitectos e Ingenieros Asociados (AIA)",
+  "version": "1.0",
+  "lastUpdated": "2025-07-30T12:02:51-05:00",
+  "brandVoice": {
+    "description": "La voz de AIA es clara, confiable e inspiradora. Refleja 75 años de experiencia liderando arquitectura, ingeniería y construcción con soluciones sostenibles, eficientes e innovadoras. Construimos con +CERTEZA, integrando tecnología, talento y visión a largo plazo. Actuamos con honestidad, respeto y excelencia, dejando una huella positiva en las personas, los proyectos y el entorno. Somos progreso que se construye con propósito."
+  },
+  "typography": {
+    "primaryFont": {
+      "name": "Montserrat",
+      "usage": "Usa Montserrat solo en títulos, cifras o llamados visuales como redes e infografías.",
+      "weights": ["SemiBold (600)", "Bold (700)"]
+    },
+    "secondaryFont": {
+      "name": "Inter",
+      "usage": "Usa Inter para textos, informes y piezas internas. Es sobria, clara y legible.",
+      "weights": ["Regular (400)", "Medium (500)"]
+    },
+    "rules": [
+      "Máximo 2 fuentes por pieza.",
+      "Prioriza legibilidad, orden y jerarquía.",
+      "Evita abusar de mayúsculas, estilos o tamaños muy pequeños.",
+      "La tipografía también comunica la forma en que hacemos las cosas."
+    ]
+  },
+  "colorPalettes": {
+    "usageGuide": "Usa el verde AIA para lo corporativo y cultural, naranja para construcción, azul para arquitectura y verde agua para proyectos. Combina siempre con neutros: blanco, grises o arenas. No satures. Máximo dos colores principales por pieza. Usa acentos suaves (salvia, beige) en fondos, botones o gráficas. Prioriza claridad, orden y jerarquía visual. Evita sombras y degradados. Prefiere fondos blancos y estilo limpio. Asegura coherencia visual. Usa los colores con intención y propósito. Menos es más.",
+    "palettes": {
+      "corporate": {
+        "name": "AIA Corporativo",
+        "colors": [
+          {"name": "Oscuro", "hex": "#1a3c2a", "description": "Para textos sobre fondos claros o acentos de contraste.", "isPrincipal": false},
+          {"name": "Principal", "hex": "#1a5633", "description": "El color insignia para logos, títulos y elementos clave.", "isPrincipal": true},
+          {"name": "Medio", "hex": "#4a7c64", "description": "Ideal para subtítulos, íconos o gráficos secundarios.", "isPrincipal": false},
+          {"name": "Claro", "hex": "#8cb4a1", "description": "Úsalo para fondos de secciones o elementos visuales sutiles.", "isPrincipal": false},
+          {"name": "Muy Claro", "hex": "#d5e5db", "description": "Perfecto para fondos de tarjetas o toques de color muy suaves.", "isPrincipal": false}
+        ]
+      },
+      "construction": {
+        "name": "AIA Construcción",
+        "colors": [
+          {"name": "Oscuro", "hex": "#8b4011", "description": "Aporta contraste y seriedad en detalles sobre fondos claros.", "isPrincipal": false},
+          {"name": "Principal", "hex": "#e87722", "description": "El acento para todo lo relacionado con construcción y obra.", "isPrincipal": true},
+          {"name": "Medio", "hex": "#f0a05e", "description": "Útil para gráficos, botones secundarios o áreas destacadas.", "isPrincipal": false},
+          {"name": "Claro", "hex": "#f6c79b", "description": "Aplícalo en fondos de infografías o como un toque cálido.", "isPrincipal": false},
+          {"name": "Muy Claro", "hex": "#fbead9", "description": "Para fondos que requieran una calidez y sutileza máximas.", "isPrincipal": false}
+        ]
+      },
+      "architecture": {
+        "name": "AIA Arquitectura",
+        "colors": [
+          {"name": "Oscuro", "hex": "#2a5a8f", "description": "Para textos o detalles que necesiten un contraste fuerte y sobrio.", "isPrincipal": false},
+          {"name": "Principal", "hex": "#4a81bd", "description": "El color para comunicar diseño, planos y visión arquitectónica.", "isPrincipal": true},
+          {"name": "Medio", "hex": "#7da5d3", "description": "Excelente para diagramas, íconos o como color de apoyo.", "isPrincipal": false},
+          {"name": "Claro", "hex": "#b1cae6", "description": "Ideal para fondos de secciones o para resaltar áreas sutilmente.", "isPrincipal": false},
+          {"name": "Muy Claro", "hex": "#e6f0fa", "description": "Un fondo muy ligero para tarjetas con un toque azulado.", "isPrincipal": false}
+        ]
+      },
+      "projects": {
+        "name": "AIA Proyectos",
+        "colors": [
+          {"name": "Oscuro", "hex": "#007a71", "description": "Aporta profundidad y contraste en detalles sobre fondos neutros.", "isPrincipal": false},
+          {"name": "Principal", "hex": "#00a499", "description": "El acento para innovación, sostenibilidad y proyectos especiales.", "isPrincipal": true},
+          {"name": "Medio", "hex": "#5ec9bd", "description": "Úsalo para gráficos o botones que necesiten un toque vibrante.", "isPrincipal": false},
+          {"name": "Claro", "hex": "#ace5e0", "description": "Perfecto para fondos de infografías o para resaltar información.", "isPrincipal": false},
+          {"name": "Muy Claro", "hex": "#e3f9f7", "description": "Un fondo de sección sutil para dar color sin distraer.", "isPrincipal": false}
+        ]
+      },
+      "alerts": {
+        "name": "Alertas",
+        "colors": [
+          {"name": "Oscuro", "hex": "#9a1f1f", "description": "Para bordes o íconos en notificaciones de error críticas.", "isPrincipal": false},
+          {"name": "Principal", "hex": "#e53935", "description": "El color estándar para mensajes de error o acciones destructivas.", "isPrincipal": true},
+          {"name": "Medio", "hex": "#ed7472", "description": "Úsalo para fondos de banners de alerta o para resaltar texto.", "isPrincipal": false},
+          {"name": "Claro", "hex": "#f5b1b0", "description": "Para fondos de notificaciones de error menos intrusivas.", "isPrincipal": false},
+          {"name": "Muy Claro", "hex": "#fdecec", "description": "Un fondo sutil para indicar un estado de error en un campo.", "isPrincipal": false}
+        ]
+      },
+      "warnings": {
+        "name": "Advertencias",
+        "colors": [
+          {"name": "Oscuro", "hex": "#a0731a", "description": "Para íconos o bordes en mensajes de advertencia importantes.", "isPrincipal": false},
+          {"name": "Principal", "hex": "#ffca28", "description": "Para notificaciones o pasos que requieren atención del usuario.", "isPrincipal": true},
+          {"name": "Medio", "hex": "#ffd966", "description": "Ideal para fondos de banners de advertencia o para resaltar texto.", "isPrincipal": false},
+          {"name": "Claro", "hex": "#ffecb3", "description": "Úsalo para fondos de tooltips o mensajes de advertencia sutiles.", "isPrincipal": false},
+          {"name": "Muy Claro", "hex": "#fff8e1", "description": "Un fondo suave para campos que necesitan validación o atención.", "isPrincipal": false}
+        ]
+      },
+      "typographyAndGrays": {
+        "name": "Tipografía y Grises",
+        "colors": [
+          {"name": "Texto Principal", "hex": "#1C1C1E", "description": "Úsalo para títulos y párrafos principales para máxima legibilidad.", "isPrincipal": true},
+          {"name": "Texto Secundario", "hex": "#4A4A4D", "description": "Ideal para subtítulos o texto de apoyo que requiere menos énfasis.", "isPrincipal": false},
+          {"name": "Terciario / Bordes", "hex": "#A9A9A9", "description": "Perfecto para notas al pie, captions o bordes sutiles de elementos.", "isPrincipal": false},
+          {"name": "Separadores", "hex": "#D1D1D1", "description": "Aplica este tono para líneas divisorias que estructuran el contenido.", "isPrincipal": false},
+          {"name": "Fondo Secundario", "hex": "#EAEAEA", "description": "Excelente para fondos de tarjetas o secciones con leve contraste.", "isPrincipal": false}
+        ]
+      },
+      "backgroundsAndNeutrals": {
+        "name": "Fondos y Neutros",
+        "colors": [
+          {"name": "Linen (Principal)", "hex": "#F4F1EA", "description": "Es la base principal para todos los fondos, aportando calidez y elegancia.", "isPrincipal": true},
+          {"name": "Alabaster", "hex": "#FAFAFA", "description": "Alternativa limpia y minimalista si se busca más neutralidad.", "isPrincipal": false},
+          {"name": "Beige", "hex": "#F5F5DC", "description": "Ideal para destacar recuadros de información o citas sin saturar.", "isPrincipal": false},
+          {"name": "Gris Claro", "hex": "#EAEAEA", "description": "Funciona como fondo de apoyo para diferenciar áreas de contenido.", "isPrincipal": false}
+        ]
+      }
+    }
+  },
+  "graphicUsage": {
+    "rules": "Usa el color de cada línea: verde AIA para lo corporativo, naranja para construcción, azul para arquitectura y verde agua para proyectos. En cada gráfica, aplica el tono principal para datos clave, medios para comparativos y claros para fondo o contexto. No mezcles colores de líneas distintas. Usa máximo 4 colores por visual. Asegura contraste. No uses blanco ni negro. El color debe informar, no decorar. Mantén orden, jerarquía y consistencia visual."
+  }
+}
