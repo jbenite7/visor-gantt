@@ -1249,15 +1249,32 @@ function renderGantt(tasks) {
 
     // Initialize Cutoff Date Input
     const dateInput = document.getElementById("cutoff-date");
-    if (dateInput && !dateInput.value) {
-      dateInput.value = new Date().toISOString().split("T")[0];
+    if (dateInput) {
+      // Default to TODAY as requested
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const dd = String(today.getDate()).padStart(2, "0");
+      dateInput.value = `${yyyy}-${mm}-${dd}`;
     }
 
-    // Render initial line
+    // [SCROLL-GLITCH-FIX]
+    // The library auto-scrolls to 'Today'. We want to scroll to Start.
+    // To prevent the visual 'jump', we hide the container initially and reveal it after our scroll.
+    ganttContainer.style.opacity = 0;
+    ganttContainer.style.transition = "opacity 0.2s";
+
+    // Render initial line and fix visuals
     setTimeout(() => {
       renderCutoffLine();
       fixMilestoneShapes(); // Fix diamonds
-    }, 500);
+      scrollToStart(); // Scroll to project start
+
+      // Reveal chart
+      requestAnimationFrame(() => {
+        ganttContainer.style.opacity = 1;
+      });
+    }, 100); // 100ms allows the library to maximize dimensions/render before we scroll
 
     applyScrollLock();
   } catch (e) {
@@ -1555,7 +1572,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const dateInput = document.getElementById("cutoff-date");
   if (dateInput) {
-    dateInput.value = todayStr;
+    // dateInput.value = todayStr; // Disable default today
     dateInput.addEventListener("change", renderCutoffLine);
   }
 });
+
+// ==== Auto Scroll Logic ====
+function scrollToStart() {
+  const container = document.querySelector(".gantt-container");
+  if (!container) return;
+
+  // Strategy: Iterate over all bars to find the minimum X position
+  const bars = container.querySelectorAll(".bar");
+  if (bars.length === 0) return;
+
+  let minX = Infinity;
+
+  bars.forEach((bar) => {
+    let x = parseFloat(bar.getAttribute("x"));
+
+    // Fallback for milestones or groups using transforms if X is missing
+    if (isNaN(x)) {
+      const rect = bar.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      // Calculate relative X based on current scroll
+      x = container.scrollLeft + (rect.left - containerRect.left);
+    }
+
+    if (!isNaN(x) && x < minX) {
+      minX = x;
+    }
+  });
+
+  if (minX !== Infinity) {
+    // Scroll to Minimum X - 50px padding to show the start clearly
+    // But ensure we don't scroll into negative (before start of chart)
+    container.scrollLeft = Math.max(0, minX - 50);
+    console.log("Auto-scrolled Gantt to X:", minX);
+  }
+}
