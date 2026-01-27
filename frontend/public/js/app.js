@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     dropZone.classList.add("dragover");
   });
   dropZone.addEventListener("dragleave", () =>
-    dropZone.classList.remove("dragover")
+    dropZone.classList.remove("dragover"),
   );
   dropZone.addEventListener("drop", (e) => {
     e.preventDefault();
@@ -128,7 +128,7 @@ async function loadSavedProjects() {
                           }, event)">🗑</button>
                       </div>
                     </div>
-                  `
+                  `,
                     )
                     .join("")}
                 </div>
@@ -236,7 +236,7 @@ function duplicateProject(id, currentName, event) {
 function performDuplicate(id, defaultName, asVersion) {
   const newName = prompt(
     asVersion ? "Nombre de la versión:" : "Nombre de la copia:",
-    defaultName
+    defaultName,
   );
   if (newName && newName.trim() !== "") {
     const formData = new FormData();
@@ -366,7 +366,7 @@ async function uploadFile(
   file,
   overwriteId = null,
   versionOf = null,
-  forceNew = false
+  forceNew = false,
 ) {
   const dropZone = document.getElementById("drop-zone");
   dropZone.innerHTML = `<div class="loader"></div><p>Procesando <strong>${file.name}</strong>...</p>`;
@@ -419,7 +419,7 @@ async function uploadFile(
                     ${candidates
                       .map(
                         (c) =>
-                          `<option value="${c.id}">${c.name} (${c.similarity}%)</option>`
+                          `<option value="${c.id}">${c.name} (${c.similarity}%)</option>`,
                       )
                       .join("")}
                 </select>`;
@@ -521,7 +521,7 @@ function deleteProjectGroup(groupId, count, event) {
   event.stopPropagation();
   if (
     !confirm(
-      `¿Estás seguro de que deseas eliminar TODO el grupo de ${count} proyectos/versiones?`
+      `¿Estás seguro de que deseas eliminar TODO el grupo de ${count} proyectos/versiones?`,
     )
   ) {
     return;
@@ -687,7 +687,7 @@ function renderProject(data) {
 
   // Calculate max outline level for level buttons
   const maxLevel = Math.max(
-    ...data.tasks.map((t) => t.outlineLevel || t.OutlineLevel || 1)
+    ...data.tasks.map((t) => t.outlineLevel || t.OutlineLevel || 1),
   );
 
   resultsSection.innerHTML = `
@@ -718,7 +718,7 @@ function renderProject(data) {
       ${Array.from({ length: maxLevel }, (_, i) => i + 1)
         .map(
           (level) =>
-            `<button class="level-btn" onclick="expandToLevel(${level})">${level}</button>`
+            `<button class="level-btn" onclick="expandToLevel(${level})">${level}</button>`,
         )
         .join("")}
       <button class="level-btn level-btn-all" onclick="expandAll()">Todo</button>
@@ -726,6 +726,18 @@ function renderProject(data) {
     
     <div id="table-view" class="view-container"></div>
     <div id="gantt-view" class="view-container hidden">
+      <div class="gantt-controls">
+        <div class="control-group">
+            <label for="cutoff-date" style="font-size: 0.8rem; margin-right: 0.5rem;">Fecha Corte:</label>
+            <input type="date" id="cutoff-date" class="date-input" onchange="renderCutoffLine()">
+        </div>
+        <div class="gantt-zoom-group">
+            <button class="zoom-btn" onclick="changePViewMode('Day')">Día</button>
+            <button class="zoom-btn active" onclick="changePViewMode('Week')">Semana</button>
+            <button class="zoom-btn" onclick="changePViewMode('Month')">Mes</button>
+        </div>
+        <button class="fullscreen-btn" onclick="toggleGanttFullscreen()">⛶ Pantalla Completa</button>
+      </div>
       <div id="gantt-chart"></div>
     </div>
   `;
@@ -790,7 +802,7 @@ function renderColumnSelector(availableColumns) {
           } onchange="onColumnToggle()">
           <span>${translateColumn(col)}</span>
         </label>
-      `
+      `,
         )
         .join("")}
     </div>
@@ -824,50 +836,93 @@ function exportToExcel() {
   // Filter activeColumnsOrder to only show visible ones, maintaining order
   const orderedVisible = activeColumnsOrder.filter((c) => visible.includes(c));
 
-  // Prepare data
+  // Track which columns are dates for later formatting
+  const dateColumns = [];
+
+  // Prepare data - keep dates as Date objects for Excel
   const dataToExport = currentProjectData.tasks.map((task) => {
     const row = {};
     orderedVisible.forEach((col) => {
       let val = task[col];
-      // Format dates strictly to dd/mm/yyyy HH:mm
-      if (col === "start" || col === "finish") {
+      const translatedCol = translateColumn(col);
+
+      // Handle dates - keep as Date objects for Excel native format
+      if (
+        col === "start" ||
+        col === "Start" ||
+        col === "finish" ||
+        col === "Finish"
+      ) {
+        if (!dateColumns.includes(translatedCol)) {
+          dateColumns.push(translatedCol);
+        }
         if (val) {
           const d = new Date(val);
-          const day = String(d.getDate()).padStart(2, "0");
-          const month = String(d.getMonth() + 1).padStart(2, "0");
-          const year = d.getFullYear();
-          val = `${day}/${month}/${year}`;
+          if (!isNaN(d.getTime())) {
+            val = d; // Keep as Date object
+          } else {
+            val = null;
+          }
         } else {
-          val = "-";
+          val = null;
         }
-      } else if (col === "Summary" || col === "Critical") {
-        // Format Booleans
+      } else if (
+        col === "Summary" ||
+        col === "isSummary" ||
+        col === "Critical" ||
+        col === "Milestone" ||
+        col === "isMilestone" ||
+        col === "Active" ||
+        col === "Manual" ||
+        col === "Recurring" ||
+        col === "EffortDriven" ||
+        col === "Estimated" ||
+        col === "OverAllocated"
+      ) {
+        // Format Booleans: 0/1, true/false -> Sí/No
         val = val == 1 || val === "true" || val === true ? "Sí" : "No";
       }
-      row[translateColumn(col)] = val;
+      row[translatedCol] = val;
     });
     return row;
   });
 
-  // Create workbook
-  const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+  // Create workbook with date detection
+  const worksheet = XLSX.utils.json_to_sheet(dataToExport, { cellDates: true });
 
-  // Force WBS/EDT column to Text format
+  // Get the range of the worksheet
   const range = XLSX.utils.decode_range(worksheet["!ref"]);
-  const encodedEDT = translateColumn("WBS");
 
-  // Find column index for EDT
-  let edtColIndex = -1;
-  // Check headers (first row)
+  // Find column indices for EDT and date columns
+  const columnIndices = {};
   for (let C = range.s.c; C <= range.e.c; ++C) {
     const cell = worksheet[XLSX.utils.encode_cell({ r: 0, c: C })];
-    if (cell && cell.v === encodedEDT) {
-      edtColIndex = C;
-      break;
+    if (cell) {
+      columnIndices[cell.v] = C;
     }
   }
 
-  if (edtColIndex !== -1) {
+  // Apply date format (dd/mm/yyyy) to date columns
+  dateColumns.forEach((colName) => {
+    const colIndex = columnIndices[colName];
+    if (colIndex === undefined) return;
+
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+      const cellRef = XLSX.utils.encode_cell({ r: R, c: colIndex });
+      if (!worksheet[cellRef] || worksheet[cellRef].v === null) {
+        // Set empty cells to "-"
+        worksheet[cellRef] = { t: "s", v: "-" };
+        continue;
+      }
+      // Apply date format
+      worksheet[cellRef].t = "d"; // Date type
+      worksheet[cellRef].z = "dd/mm/yyyy"; // Date format
+    }
+  });
+
+  // Force WBS/EDT column to Text format
+  const edtColIndex = columnIndices[translateColumn("WBS")];
+  if (edtColIndex !== undefined) {
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
       const cellRef = XLSX.utils.encode_cell({ r: R, c: edtColIndex });
       if (!worksheet[cellRef]) continue;
@@ -893,7 +948,7 @@ function toggleColumnSelector() {
 
 function onColumnToggle() {
   const checkboxes = document.querySelectorAll(
-    '#column-selector input[type="checkbox"]:checked'
+    '#column-selector input[type="checkbox"]:checked',
   );
   const selected = Array.from(checkboxes).map((cb) => cb.value);
   saveVisibleColumns(selected);
@@ -902,7 +957,7 @@ function onColumnToggle() {
 
 function selectAllColumns() {
   const checkboxes = document.querySelectorAll(
-    '#column-selector input[type="checkbox"]'
+    '#column-selector input[type="checkbox"]',
   );
   checkboxes.forEach((cb) => (cb.checked = true));
   onColumnToggle();
@@ -910,7 +965,7 @@ function selectAllColumns() {
 
 function selectDefaultColumns() {
   const checkboxes = document.querySelectorAll(
-    '#column-selector input[type="checkbox"]'
+    '#column-selector input[type="checkbox"]',
   );
   checkboxes.forEach((cb) => (cb.checked = DEFAULT_COLUMNS.includes(cb.value)));
   onColumnToggle();
@@ -1010,16 +1065,16 @@ function renderTable() {
             .map(
               (task) => `
             <tr class="${task.isSummary ? "summary-row" : ""} ${
-                task.isMilestone ? "milestone-row" : ""
-              }" data-task-id="${task.id}">
+              task.isMilestone ? "milestone-row" : ""
+            }" data-task-id="${task.id}">
               ${cols
                 .map(
                   (col) =>
-                    `<td>${formatCellValue(task[col], col, task, tasks)}</td>`
+                    `<td>${formatCellValue(task[col], col, task, tasks)}</td>`,
                 )
                 .join("")}
             </tr>
-          `
+          `,
             )
             .join("")}
         </tbody>
@@ -1042,13 +1097,13 @@ function formatCellValue(value, colName, task, allTasks) {
     if (taskHasChildren) {
       const isCollapsed = collapsedTasks.has(task.id);
       const icon = isCollapsed ? "▶" : "▼";
-      return `<span style="padding-left: ${indent}px">
+      return `<span style="display: inline-block; text-align: left; padding-left: ${indent}px">
         <button class="collapse-btn" onclick="toggleCollapse(${task.id})">${icon}</button>
         ${prefix}${value}
       </span>`;
     }
 
-    return `<span style="padding-left: ${
+    return `<span style="display: inline-block; text-align: left; padding-left: ${
       indent + 20
     }px">${prefix}${value}</span>`;
   }
@@ -1068,6 +1123,22 @@ function formatCellValue(value, colName, task, allTasks) {
   }
   if (colName === "predecessors") {
     return Array.isArray(value) ? value.join(", ") : "-";
+  }
+  // Handle binary/boolean fields: 0/1, true/false -> Sí/No
+  if (
+    colName === "Summary" ||
+    colName === "isSummary" ||
+    colName === "Critical" ||
+    colName === "Milestone" ||
+    colName === "isMilestone" ||
+    colName === "Active" ||
+    colName === "Manual" ||
+    colName === "Recurring" ||
+    colName === "EffortDriven" ||
+    colName === "Estimated" ||
+    colName === "OverAllocated"
+  ) {
+    return value == 1 || value === "true" || value === true ? "Sí" : "No";
   }
   if (typeof value === "boolean") {
     return value ? "Sí" : "No";
@@ -1120,27 +1191,73 @@ function renderGantt(tasks) {
     custom_class: task.isSummary
       ? "bar-summary"
       : task.isMilestone
-      ? "bar-milestone"
-      : "",
+        ? "bar-milestone"
+        : String(task.Critical) === "1" || task.Critical === true
+          ? "bar-critical"
+          : "bar-standard",
   }));
 
   try {
-    new Gantt("#gantt-chart", ganttTasks, {
+    window.ganttInstance = new Gantt("#gantt-chart", ganttTasks, {
       view_mode: "Week",
       date_format: "YYYY-MM-DD",
       language: "es",
       custom_popup_html: function (task) {
+        // Calculate Theoretical Progress
+        const dateInput = document.getElementById("cutoff-date");
+        let theoretical = 0;
+        let diffText = "";
+
+        if (dateInput && dateInput.value) {
+          const cutoff = new Date(dateInput.value);
+          const start = new Date(task.start);
+          const end = new Date(task.end);
+
+          if (cutoff < start) {
+            theoretical = 0;
+          } else if (cutoff >= end) {
+            theoretical = 100;
+          } else {
+            const totalDuration = end - start;
+            const elapsed = cutoff - start;
+            if (totalDuration > 0) {
+              theoretical = Math.round((elapsed / totalDuration) * 100);
+            }
+          }
+
+          // Calculate Difference
+          const actual = parseFloat(task.progress);
+          const diff = actual - theoretical;
+          const diffColor = diff >= 0 ? "green" : "red";
+          diffText = `<p style="font-size: 0.8em; margin-top: 4px;">Dedv: <strong style="color: ${diffColor}">${diff > 0 ? "+" : ""}${diff}%</strong></p>`;
+        }
+
         return `
           <div class="gantt-popup">
             <h4>${task.name}</h4>
             <p>Inicio: ${formatDate(task.start)}</p>
             <p>Fin: ${formatDate(task.end)}</p>
-            <p>Progreso: ${task.progress}%</p>
-            ${task.dependencies ? `<p>Pred: ${task.dependencies}</p>` : ""}
+            <div style="margin-top: 6px; border-top: 1px solid #eee; padding-top: 4px;">
+                <p>Real: <strong>${task.progress}%</strong></p>
+                <p>Teórico: <strong>${theoretical}%</strong></p>
+                ${diffText}
+            </div>
           </div>
         `;
       },
     });
+
+    // Initialize Cutoff Date Input
+    const dateInput = document.getElementById("cutoff-date");
+    if (dateInput && !dateInput.value) {
+      dateInput.value = new Date().toISOString().split("T")[0];
+    }
+
+    // Render initial line
+    setTimeout(() => {
+      renderCutoffLine();
+      fixMilestoneShapes(); // Fix diamonds
+    }, 500);
 
     applyScrollLock();
   } catch (e) {
@@ -1184,7 +1301,7 @@ function applyScrollLock() {
         scrollLockAxis = null;
       }, 150);
     },
-    { passive: false }
+    { passive: false },
   );
 }
 
@@ -1192,15 +1309,14 @@ function applyScrollLock() {
 function formatDate(dateStr) {
   if (!dateStr) return "-";
   try {
-    const opts = {
-      year: "numeric",
-      month: "numeric",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    };
-    // Use browser's locale (navigator.language) to detect user's region/preference
-    return new Date(dateStr).toLocaleString(navigator.language, opts);
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "-";
+
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+
+    return `${day}/${month}/${year}`;
   } catch {
     return dateStr;
   }
@@ -1220,3 +1336,226 @@ function formatDuration(durStr) {
   }
   return durStr.replace("PT", "").toLowerCase();
 }
+
+// ==== Gantt Controls ====
+function changePViewMode(mode) {
+  if (window.ganttInstance) {
+    window.ganttInstance.change_view_mode(mode);
+    setTimeout(() => {
+      renderCutoffLine();
+      fixMilestoneShapes();
+    }, 300);
+
+    // Update active button state
+    document.querySelectorAll(".zoom-btn").forEach((btn) => {
+      btn.classList.remove("active");
+      if (
+        btn.textContent.includes(
+          mode === "Day" ? "Día" : mode === "Week" ? "Semana" : "Mes",
+        )
+      ) {
+        btn.classList.add("active");
+      }
+    });
+  }
+}
+
+function toggleGanttFullscreen() {
+  const container = document.getElementById("gantt-view");
+  const btn = document.querySelector(".fullscreen-btn");
+
+  if (!container.classList.contains("fullscreen-mode")) {
+    container.classList.add("fullscreen-mode");
+    btn.textContent = "✕ Salir";
+    // Force redraw significantly later to ensure transition finishes
+    setTimeout(() => {
+      if (window.ganttInstance) {
+        window.ganttInstance.refresh(window.ganttInstance.tasks);
+        setTimeout(renderCutoffLine, 100);
+      }
+    }, 300);
+  } else {
+    container.classList.remove("fullscreen-mode");
+    btn.textContent = "⛶ Pantalla Completa";
+    setTimeout(() => {
+      if (window.ganttInstance) {
+        window.ganttInstance.refresh(window.ganttInstance.tasks);
+        setTimeout(renderCutoffLine, 100);
+      }
+    }, 300);
+  }
+}
+
+// ==== Cutoff Line Logic ====
+function renderCutoffLine() {
+  if (!window.ganttInstance) return;
+
+  const dateInput = document.getElementById("cutoff-date");
+  if (!dateInput || !dateInput.value) return;
+
+  const cutoffDate = new Date(dateInput.value);
+  const gantt = window.ganttInstance;
+
+  // Find SVG container
+  const svg = document.querySelector("#gantt-chart svg");
+  if (!svg) return;
+
+  // Remove existing line
+  const existing = svg.querySelector(".cutoff-line-group");
+  if (existing) existing.remove();
+
+  // Calculate X position
+  // Frappe Gantt stores column width and start date internally
+  // We can infer X by using the built-in helper if available, or manual calc
+  // gantt.gantt_start is the start date of the chart
+
+  if (!gantt.gantt_start) return;
+
+  const diff = cutoffDate - gantt.gantt_start;
+  const diffHours = diff / (1000 * 60 * 60);
+
+  // Column width depends on view mode.
+  // Day: step 24, padding etc.
+  // Simplified: Use the 'x' of a dummy task or internal props?
+  // Proper way:
+  let x = 0;
+
+  // Frappe Gantt internal logic (reverse engineered basics)
+  // It maps date to x.
+  // We can try to rely on the date mapping of the chart if exposed,
+  // or calculate manually:
+  // x = (date - start) / step * column_width
+
+  // Let's rely on mapping a known task date vs x? No, unreliable.
+  // Let's look at options.step and options.column_width
+
+  const step = gantt.options.step;
+  const columnWidth = gantt.options.column_width;
+
+  // Calculate X
+  // View Mode factors:
+  // Day: step = 24 (1 day = 24h)
+  // Week: step = 24 * 7 ?? No, usually 'Week' view implies specific drawing.
+
+  // Actually, Frappe Gantt creates ".grid-row" or ".grid-header".
+  // Let's try to calculate relative to gantt_start.
+
+  // Standard Frappe Calc:
+  // Day: X per hour? Or X per day?
+  // Usually: (date - gantt_start) / (1000*60*60*24) * column_width
+  // But view_mode influences scale.
+
+  // Let's try a simpler strategy:
+  // In 'Day' view, column_width is per Day usually (or simplified).
+  // In 'Week', column_width is per Week? Or per Day restricted?
+  // Let's iterate tasks to find one close to date? No.
+
+  // Let's use pure math based on typical Frappe config.
+  // NOTE: Frappe Gantt 1.0.4 logic
+  let scale = 24; // Hours per step
+  if (gantt.options.view_mode === "Day") scale = 24; // column_width per day?
+  // Actually in Frappe:
+  // Day -> step 24, column_width 38
+  // Week -> step 24*7, column_width 140
+  // Month -> step 24*30, column_width 120
+
+  // Wait, let's try to find the 'today' line and move it?
+  // The 'today' line is a path with class 'today-highlight'.
+  // If we can control 'today' date passed to Gantt, we win.
+  // But we initialized it already.
+
+  // PLAN B: Manual Draw with calibration
+  // We will calculate Offset Days from gantt_start
+  const daysFromStart = diffHours / 24;
+
+  // Width per day
+  let widthPerDay = 0;
+  if (gantt.options.view_mode === "Day") {
+    widthPerDay = gantt.options.column_width;
+  } else if (gantt.options.view_mode === "Week") {
+    widthPerDay = gantt.options.column_width / 7;
+  } else if (gantt.options.view_mode === "Month") {
+    widthPerDay = gantt.options.column_width / 30;
+  }
+
+  x = daysFromStart * widthPerDay;
+
+  // Adjust for padding usually in Frappe GS
+  // Side padding is commonly applied to grid
+  // But SVG 0,0 usually aligns with gantt_start in the grid area.
+
+  // Let's draw and see.
+  const height = svg.getAttribute("height");
+
+  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  g.classList.add("cutoff-line-group");
+
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line.setAttribute("x1", x);
+  line.setAttribute("y1", 0);
+  line.setAttribute("x2", x);
+  line.setAttribute("y2", height);
+  line.classList.add("cutoff-line");
+
+  g.appendChild(line);
+  svg.appendChild(g);
+}
+
+// ==== Milestone Diamond Fix (Deep Analysis) ====
+// Frappe Gantt renders bars as Rects. Rotating a non-square rect looks like a tilted bar.
+// We must force milestones to be perfect squares and re-center them.
+function fixMilestoneShapes() {
+  // 1. Find all milestone bars
+  const milestones = document.querySelectorAll(".bar-milestone .bar");
+
+  milestones.forEach((rect) => {
+    // Check if already fixed to avoid double processing (optional)
+    if (rect.getAttribute("data-diamond-fixed")) return;
+
+    // 2. Get current geometry
+    const x = parseFloat(rect.getAttribute("x"));
+    const y = parseFloat(rect.getAttribute("y"));
+    const width = parseFloat(rect.getAttribute("width"));
+    const height = parseFloat(rect.getAttribute("height"));
+
+    // 3. Define diamond size (e.g., 20px)
+    const size = 18;
+
+    // 4. Calculate center of original bar
+    const cx = x + width / 2;
+    const cy = y + height / 2;
+
+    // 5. New coordinates to center the square
+    const newX = cx - size / 2;
+    const newY = cy - size / 2;
+
+    // 6. Apply new attributes
+    rect.setAttribute("width", size);
+    rect.setAttribute("height", size);
+    rect.setAttribute("x", newX);
+    rect.setAttribute("y", newY);
+    rect.setAttribute("rx", "0");
+    rect.setAttribute("ry", "0");
+
+    // Mark as fixed
+    rect.setAttribute("data-diamond-fixed", "true");
+
+    // The CSS rule '.bar-milestone .bar { transform: rotate(45deg); transform-origin: center; }'
+    // handles the rotation. The JS just ensures it's a square centered on the correct spot.
+  });
+}
+
+// Initial Listener to set date input default
+document.addEventListener("DOMContentLoaded", () => {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, "0"); // Months start at 0!
+  const dd = String(today.getDate()).padStart(2, "0");
+  const todayStr = `${yyyy}-${mm}-${dd}`;
+
+  const dateInput = document.getElementById("cutoff-date");
+  if (dateInput) {
+    dateInput.value = todayStr;
+    dateInput.addEventListener("change", renderCutoffLine);
+  }
+});

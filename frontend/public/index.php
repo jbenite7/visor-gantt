@@ -86,6 +86,9 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <!-- SortableJS (Drag & Drop) -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="js/GanttGrid.js"></script>
+    <script src="js/GanttChart.js"></script>
+    <script src="js/GanttEditor.js"></script>
     <script src="js/app.js"></script>
 </body>
 

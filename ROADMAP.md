@@ -45,6 +45,12 @@
 2.  **Transiciones**: Integrar animaciones fluidas (Framer Motion / CSS View Transitions).
 3.  **Refactor CSS**: Reemplazar estilos actuales con la nueva paleta y glassmorphism.
 
+## Fase 9: Refinamiento Visual Gantt (Completada) ✅
+
+1.  **Datos Estratégicos**: Tooltips con cálculo de desviación en tiempo real.
+2.  **Controles de Vista**: Zoom y Fullscreen robusto con ajuste de altura dinámico.
+3.  **Estilizado Avanzado**: Hitos en forma de diamante (CSS+JS patch) y paleta de alto contraste.
+
 ## Fase 8: Funcionalidades de Datos (Completada) ✅
 
 1.  **Exportación XLSX**: Descargar tabla con columnas activas (Soporte de tipos: Texto para EDT, Fechas dd/mm/yyyy, Booleanos Sí/No).

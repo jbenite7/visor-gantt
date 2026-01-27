@@ -4,7 +4,14 @@ Visor web "Mobile First" diseñado para visualizar archivos de Microsoft Project
 
 ## Descripción
 
-Este proyecto permite a los usuarios subir archivos `.mpp`, procesarlos en el servidor y visualizar su contenido (Tareas, Cronograma, Recursos) en una interfaz moderna y adaptativa, sin necesidad de tener Microsoft Project instalado.
+Este proyecto permite a los usuarios subir archivos `.mpp`, procesarlos en el servidor y:
+
+- **Visualización Gantt Avanzada**:
+  - Zoom (Día/Semana/Mes) y Pantalla Completa.
+  - Hitos en forma de diamante y barras de alto contraste.
+  - **Análisis de Progreso**: Línea de fecha de corte y cálculo automático de desviación (Real vs Teórico).
+- **Control de Versiones y Agrupación**: Gestión inteligente de versiones de cronogramas.
+- Visualizar su contenido (Tareas, Cronograma, Recursos) en una interfaz moderna y adaptativa, sin necesidad de tener Microsoft Project instalado.
 
 ## Stack Tecnológico
 
