@@ -1,28 +1,76 @@
 :root {
-  /* AIA Identity Colors */
-  --aia-green: #1a5633; /* Corporativo Principal */
-  --aia-green-dark: #1a3c2a; /* Corporativo Oscuro (Fondos) */
-  --aia-teal: #00a499; /* Proyectos Principal */
-  --aia-teal-light: #5ec9bd;
-  --aia-orange: #e87722; /* Construccion Principal */
-  --aia-orange-light: #f0a05e;
+  /* =========================================
+     AIA Brand Identity - Total Adoption v1.0
+     Source: manual-de-marca-aia.json
+     ========================================= */
 
-  /* Neutrals */
-  --aia-linen: #f4f1ea; /* Fondo Base Claro */
+  /* --- CORPORATE (Verde AIA) --- */
+  --aia-corp-dark: #1a3c2a;
+  --aia-corp-main: #1a5633;
+  --aia-corp-mid: #4a7c64;
+  --aia-corp-light: #8cb4a1;
+  --aia-corp-xlight: #d5e5db;
+
+  /* --- CONSTRUCTION (Naranja) --- */
+  --aia-const-dark: #8b4011;
+  --aia-const-main: #e87722;
+  --aia-const-mid: #f0a05e;
+  --aia-const-light: #f6c79b;
+  --aia-const-xlight: #fbead9;
+
+  /* --- ARCHITECTURE (Azul) --- */
+  --aia-arch-dark: #2a5a8f;
+  --aia-arch-main: #4a81bd;
+  --aia-arch-mid: #7da5d3;
+  --aia-arch-light: #b1cae6;
+  --aia-arch-xlight: #e6f0fa;
+
+  /* --- PROJECTS (Verde Agua) --- */
+  --aia-proj-dark: #007a71;
+  --aia-proj-main: #00a499;
+  --aia-proj-mid: #5ec9bd;
+  --aia-proj-light: #ace5e0;
+  --aia-proj-xlight: #e3f9f7;
+
+  /* --- ALERTS (Rojo) --- */
+  --aia-alert-dark: #9a1f1f;
+  --aia-alert-main: #e53935;
+  --aia-alert-mid: #ed7472;
+  --aia-alert-light: #f5b1b0;
+  --aia-alert-xlight: #fdecec;
+
+  /* --- WARNINGS (Amarillo/Ambar) --- */
+  --aia-warn-dark: #a0731a;
+  --aia-warn-main: #ffca28;
+  --aia-warn-mid: #ffd966;
+  --aia-warn-light: #ffecb3;
+  --aia-warn-xlight: #fff8e1;
+
+  /* --- TYPOGRAPHY & GRAYS --- */
+  --text-main: #1c1c1e; /* Principal */
+  --text-secondary: #4a4a4d; /* Secundario */
+  --text-muted: #a9a9a9; /* Terciario/Bordes */
+  --border-color: #d1d1d1; /* Separadores */
+  --bg-secondary: #eaeaea; /* Fondo Secundario */
+
+  /* --- BACKGROUNDS & NEUTRALS --- */
+  --aia-linen: #f4f1ea; /* Base Principal */
   --aia-alabaster: #fafafa; /* Superficies */
-  --text-main: #1c1c1e;
-  --text-muted: #4a4a4d;
-  --border-color: #d1d1d1;
+  --aia-beige: #f5f5dc; /* Destacados */
 
-  /* Functional Mappings */
-  --primary-color: var(--aia-teal);
-  --primary-hover: #007a71;
+  /* --- FUNCTIONAL MAPPING --- */
+  --primary-color: var(--aia-corp-main); /* Default to Corporate Green */
+  --primary-dark: var(--aia-corp-dark);
+  --primary-light: var(--aia-corp-light);
+
+  --secondary-color: var(--aia-proj-main); /* Projects Teal */
+
   --bg-color: var(--aia-linen);
   --card-bg: #ffffff;
-  --app-header-bg: var(--aia-green);
+  --app-header-bg: var(--aia-corp-dark);
 
   --radius: 12px;
-  --shadow: 0 4px 12px -2px rgba(26, 60, 42, 0.15); /* Sombra con tinte verde */
+  --shadow: 0 4px 12px -2px rgba(26, 60, 42, 0.15);
 }
 
 * {
@@ -75,7 +123,7 @@ body {
 
 .sidebar-header {
   padding: 1.5rem;
-  background: var(--aia-green-dark);
+  background: var(--aia-corp-dark);
   color: white;
   display: flex;
   justify-content: space-between;
@@ -114,7 +162,7 @@ body {
 
 /* Header Adjustments */
 .app-header {
-  background: var(--aia-green); /* Restore AIA Green background */
+  background: var(--aia-corp-main); /* Restore AIA Green background */
   margin-bottom: 0;
   padding: 1rem;
   text-align: left;
@@ -209,7 +257,7 @@ body {
 .sidebar-header {
   height: 64px;
   min-height: 64px;
-  background: var(--aia-green-dark);
+  background: var(--aia-corp-dark);
 }
 
 /* Ensure versions are visible */
@@ -244,7 +292,7 @@ body {
 
 .drop-zone:hover,
 .drop-zone.dragover {
-  background-color: #eff6ff;
+  background-color: var(--aia-corp-xlight);
   transform: scale(1.02);
 }
 
@@ -283,7 +331,7 @@ body {
 
 /* Loader */
 .loader {
-  border: 4px solid #f3f3f3;
+  border: 4px solid var(--aia-linen);
   border-top: 4px solid var(--primary-color);
   border-radius: 50%;
   width: 30px;
@@ -356,14 +404,14 @@ body {
 }
 
 .data-table th {
-  background: #f8fafc;
+  background: var(--aia-alabaster);
   font-weight: 600;
   vertical-align: middle; /* Headers centrados verticalmente */
 }
 
 .summary-row {
   font-weight: 600;
-  background-color: #f1f5f9;
+  background-color: var(--aia-beige);
 }
 
 .milestone-row {
@@ -396,7 +444,7 @@ body {
 }
 
 .toggle-btn:hover {
-  background: #f8fafc;
+  background: var(--aia-alabaster);
 }
 
 .toggle-btn.active {
@@ -440,7 +488,7 @@ body {
 
 /* Frappe Gantt Customization */
 .bar-summary .bar {
-  fill: #64748b !important;
+  fill: var(--text-secondary) !important;
 }
 
 .bar-milestone .bar {
@@ -459,7 +507,7 @@ body {
 .gantt-popup p {
   margin: 0.25rem 0;
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .no-data,
@@ -519,7 +567,7 @@ body {
 
 .column-checkbox.sortable-ghost {
   opacity: 0.5;
-  background: #e2e8f0;
+  background: var(--bg-secondary);
   border: 1px dashed var(--primary-color);
 }
 
@@ -536,13 +584,13 @@ body {
 }
 
 .btn-export {
-  background: #10b981; /* Green for Excel */
+  background: var(--aia-corp-main); /* Green for Excel */
   color: white;
-  border: 1px solid #059669;
+  border: 1px solid var(--aia-corp-dark);
 }
 
 .btn-export:hover {
-  background: #059669;
+  background: var(--aia-corp-dark);
 }
 
 .column-checkbox input {
@@ -582,13 +630,13 @@ body {
 }
 
 .collapse-btn:hover {
-  background: #e2e8f0;
+  background: var(--bg-secondary);
   color: var(--primary-color);
 }
 
 /* Summary row with collapse icon */
 .summary-row .collapse-btn {
-  color: #475569;
+  color: var(--text-secondary);
 }
 
 /* Level Selector Bar */
@@ -632,8 +680,8 @@ body {
 }
 
 .level-btn-all:hover {
-  background: #10b981;
-  border-color: #10b981;
+  background: var(--aia-corp-main);
+  border-color: var(--aia-corp-main);
 }
 
 /* Saved Projects Section */
@@ -728,13 +776,13 @@ body {
   cursor: pointer;
   padding: 0.4rem;
   font-size: 1rem;
-  color: var(--aia-teal);
+  color: var(--aia-proj-main);
   transition: all 0.2s;
   border-radius: 6px;
 }
 
 .action-btn:hover {
-  background-color: var(--aia-teal);
+  background-color: var(--aia-proj-main);
   color: white;
   transform: translateY(-2px);
   box-shadow: 0 2px 4px rgba(0, 164, 153, 0.2);
@@ -746,7 +794,9 @@ body {
   cursor: pointer;
   padding: 0.4rem;
   font-size: 1rem;
-  color: var(--aia-orange); /* Usamos naranja para borrar (advertencia/obra) */
+  color: var(
+    --aia-alert-main
+  ); /* Usamos rojo para borrar (acciones destructivas) */
   transition: all 0.2s;
   border-radius: 6px;
 }
@@ -849,9 +899,9 @@ body {
 }
 
 .modal-btn.danger {
-  background: #ef4444;
+  background: var(--aia-alert-main);
   color: white;
-  border-color: #ef4444;
+  border-color: var(--aia-alert-main);
 }
 
 /* Gantt Controls */
@@ -883,7 +933,7 @@ body {
 }
 
 .zoom-btn:hover {
-  background: #e2e8f0;
+  background: var(--bg-secondary);
 }
 
 .zoom-btn.active {
@@ -904,7 +954,7 @@ body {
 
 .fullscreen-btn:hover {
   color: var(--text-color);
-  background: #e2e8f0;
+  background: var(--bg-secondary);
 }
 
 /* Fullscreen Mode - Reverted to Full Coverage per user request */
@@ -944,7 +994,7 @@ body {
   height: 8px;
 }
 .fullscreen-mode ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--border-color);
   border-radius: 4px;
 }
 
@@ -958,7 +1008,7 @@ body {
 
 /* Gantt Custom Colors */
 .bar-critical .bar {
-  fill: #ef4444 !important; /* Red */
+  fill: var(--aia-alert-main) !important; /* Red */
 }
 
 .bar-critical .bar-label {
@@ -966,20 +1016,20 @@ body {
 }
 
 .bar-standard .bar {
-  fill: #d1fae5 !important; /* Very light green (emerald-100) for better contrast */
-  stroke: #10b981 !important; /* Darker border */
+  fill: var(--aia-corp-xlight) !important;
+  stroke: var(--aia-corp-main) !important;
   stroke-width: 1px;
 }
 
 /* Dark text for standard bars */
 .bar-standard .bar-label {
-  fill: #064e3b !important; /* Dark emerald */
+  fill: var(--aia-corp-dark) !important;
   font-weight: 600;
 }
 
 /* Progress Bar - Make it extremely visible based on feedback */
 .bar-progress {
-  fill: #000 !important;
+  fill: var(--text-main) !important;
   fill-opacity: 0.6 !important;
   /* Removed clip-path to ensure it renders normally first */
 }
@@ -991,24 +1041,24 @@ body {
 
 /* Cutoff Line */
 .cutoff-line {
-  stroke: #ef4444;
+  stroke: var(--aia-alert-main);
   stroke-width: 2;
   stroke-dasharray: 5, 5;
 }
 
 .cutoff-label {
-  fill: #ef4444;
+  fill: var(--aia-alert-main);
   font-size: 12px;
   font-weight: bold;
 }
 
 /* Milestones - Diamond Shape */
 .bar-milestone .bar {
-  fill: #f59e0b !important; /* Amber-500 */
+  fill: var(--aia-warn-main) !important; /* Amber-500 */
   transform-box: fill-box;
   transform-origin: center;
   transform: rotate(45deg);
-  stroke: #b45309 !important; /* Amber-700 */
+  stroke: var(--aia-warn-dark) !important; /* Amber-700 */
   stroke-width: 1px;
 }
 
@@ -1019,7 +1069,7 @@ body {
 
 /* Adjust milestone label to not overlap the diamond corners */
 .bar-milestone .bar-label {
-  fill: #78350f !important; /* Amber-900 */
+  fill: var(--aia-warn-dark) !important; /* Amber-900 */
   font-weight: 700;
   transform: translateX(10px); /* Nudge text away from diamond */
 }
