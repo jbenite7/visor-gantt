@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visor MPP</title>
+    <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -32,7 +33,15 @@
 
         <!-- Main Content -->
         <div class="main-content">
-
+            <!-- Top Bar with Logo -->
+            <header class="main-top-bar">
+                <div id="top-bar-actions" class="top-bar-actions">
+                    <!-- Dynamic Actions Injected Here -->
+                </div>
+                <a href="https://www.aia.com.co" target="_blank" rel="noopener noreferrer" class="brand-logo" title="AIA - Construimos por Naturaleza">
+                    <img src="logo.png" alt="AIA">
+                </a>
+            </header>
 
             <main class="container-fluid">
                 <section class="upload-section">

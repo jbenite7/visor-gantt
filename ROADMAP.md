@@ -112,3 +112,28 @@
 - [x] Docker: Configuración de `APACHE_DOCUMENT_ROOT` dinámico
 - [x] Docker Compose: Eliminada declaración `version` obsoleta
 - [x] `.gitignore`: Exclusión de `backend/debug_log.txt`
+
+## ✅ Fase 15: Identidad y Estabilidad (Completada)
+
+**Fecha**: 2026-01-29
+
+- [x] Agregado Favicon (`favicon.png`) al proyecto.
+- [x] Agregado Logo Corporativo (`logo.png`) en posición fija superior derecha con estilo Glassmorphism.
+- [x] Corrección de `ReferenceError: dateInput is not defined` en `app.js`.
+- [x] Corrección de `SyntaxError` en `app.js` causado por inyección de código incorrecta.
+
+## ✅ Fase 16: Simplificación de Interfaz Gantt (Completada)
+
+**Fecha**: 2026-01-29
+
+- [x] Eliminada barra naranja de controles del Gantt (`gantt-controls`)
+  - Removidos controles de "Fecha Corte"
+  - Removidos botones de zoom (Día/Semana/Mes)
+  - Removido botón de Pantalla Completa
+  - Interfaz simplificada mostrando directamente el chart
+- [x] Reestructuración de navegación
+  - Botones movidos desde `toolbar-row` hacia `main-top-bar`
+  - Eliminado completamente el `toolbar-row`
+  - Botones ahora se inyectan dinámicamente en `top-bar-actions`
+  - Mejorado el alineamiento vertical y espaciado uniforme de todos los botones
+  - **Nota**: Los controles del Gantt (Día/Semana/Mes/Fecha Corte) permanecen en su ubicación original dentro de la vista Gantt

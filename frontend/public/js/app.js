@@ -690,20 +690,19 @@ function renderProject(data) {
     ...data.tasks.map((t) => t.outlineLevel || t.OutlineLevel || 1),
   );
 
-  resultsSection.innerHTML = `
-    <!-- [GREEN] Single Toolbar Row -->
-    <div class="toolbar-row">
-        <div class="toolbar-left">
-            <button class="btn-back" onclick="location.reload()">← Subir otro</button>
-        </div>
-        
-        <div class="toolbar-right view-toggle">
-            <button id="btn-table" class="toggle-btn active" onclick="showView('table')">Tabla</button>
-            <button id="btn-gantt" class="toggle-btn" onclick="showView('gantt')">Gantt</button>
-            <button id="btn-columns" class="toggle-btn" onclick="toggleColumnSelector()">⚙ Columnas</button>
-            <button class="toggle-btn btn-export" onclick="exportToExcel()" title="Descargar como Excel">📥 Descargar</button>
-        </div>
+  // Inject buttons into main-top-bar
+  const topBarActions = document.getElementById("top-bar-actions");
+  topBarActions.innerHTML = `
+    <button class="btn-back" onclick="location.reload()">← Subir otro</button>
+    <div class="view-toggle">
+      <button id="btn-table" class="toggle-btn active" onclick="showView('table')">Tabla</button>
+      <button id="btn-gantt" class="toggle-btn" onclick="showView('gantt')">Gantt</button>
+      <button id="btn-columns" class="toggle-btn" onclick="toggleColumnSelector()">⚙ Columnas</button>
+      <button class="toggle-btn btn-export" onclick="exportToExcel()" title="Descargar como Excel">📥 Descargar</button>
     </div>
+  `;
+
+  resultsSection.innerHTML = `
 
     <!-- [BLUE] Compact Project Header -->
     <div class="project-header-compact">
@@ -1390,6 +1389,7 @@ function changePViewMode(mode) {
       setTimeout(() => {
         fixMonthViewBarPositions(); // Fix bar positions for Month view (30-day bug)
         fixBarLabels(); // Fix label classes for ALL views
+        fixDependencyArrows(); // Fix arrows after bar repositioning
         bindTooltipHover(); // Re-bind popups after view mode change
       }, 150);
     }, 300);
@@ -1429,6 +1429,9 @@ function toggleGanttFullscreen() {
           renderCutoffLine();
           fixMilestoneShapes();
           alignTaskLabels();
+          fixMonthViewBarPositions(); // Fix Month view positioning
+          fixBarLabels(); // Fix label contrast classes
+          fixDependencyArrows(); // Fix arrows after refresh
           renderPreStartZone();
           scrollToStart();
           bindTooltipHover(); // Re-bind popups after fullscreen toggle
@@ -1456,6 +1459,9 @@ function toggleGanttFullscreen() {
           renderCutoffLine();
           fixMilestoneShapes();
           alignTaskLabels();
+          fixMonthViewBarPositions(); // Fix Month view positioning
+          fixBarLabels(); // Fix label contrast classes
+          fixDependencyArrows(); // Fix arrows after refresh
           renderPreStartZone();
           scrollToStart();
           bindTooltipHover(); // Re-bind popups after fullscreen toggle
@@ -1704,6 +1710,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const dd = String(today.getDate()).padStart(2, "0");
   const todayStr = `${yyyy}-${mm}-${dd}`;
 
+  const dateInput = document.getElementById("cutoff-date");
   if (dateInput) {
     // dateInput.value = todayStr; // Disable default today
     dateInput.addEventListener("change", renderCutoffLine);
@@ -1721,10 +1728,15 @@ function parseSafeDate(dateStr) {
   return new Date(dateStr);
 }
 
-// ==== Fix Gantt Date Range (Frappe Month View Bug Workaround) ====
-// Frappe Gantt in Month view calculates absurd gantt_start dates (e.g., 2.5 years before tasks).
-// This function forces a tighter date range based on actual task dates + padding.
+// ==== Fix Gantt Date Range (Universal Alignment) ====
+// DISABLED: This function was causing bars to render at incorrect dates
+// by forcefully overriding gantt_start/gantt_end.
+// Frappe Gantt handles date calculation correctly on its own.
 function fixGanttDateRange() {
+  // DISABLED - Let Frappe Gantt calculate dates naturally
+  return;
+
+  /* ORIGINAL CODE COMMENTED OUT:
   const gantt = window.ganttInstance;
   if (!gantt || !gantt.tasks || gantt.tasks.length === 0) return;
 
@@ -1742,45 +1754,50 @@ function fixGanttDateRange() {
 
   if (!minDate || !maxDate) return;
 
-  // Add padding: 1 month before min, 1 month after max
+  // Add padding: Start from 1 month before min task, aligned to 1st
   const paddedStart = new Date(minDate);
   paddedStart.setMonth(paddedStart.getMonth() - 1);
-  paddedStart.setDate(1); // Start of month for cleaner alignment
+  paddedStart.setDate(1);
+  paddedStart.setHours(0, 0, 0, 0);
 
   const paddedEnd = new Date(maxDate);
   paddedEnd.setMonth(paddedEnd.getMonth() + 2);
-  paddedEnd.setDate(0); // End of month
+  paddedEnd.setDate(0);
 
-  // Only override if Frappe's calculation is wildly off
+  // Compare with current start
   const currentStart = gantt.gantt_start;
-  const diffDays = (minDate - currentStart) / (1000 * 60 * 60 * 24);
+  const diffTime = Math.abs(currentStart.getTime() - paddedStart.getTime());
+  const diffDays = diffTime / (1000 * 60 * 60 * 24);
 
-  // If Frappe's start is more than 60 days before our min task, it's probably wrong
-  if (diffDays > 60) {
+  // We enforce this if the difference is significant (> 2 days)
+  // This ensures we don't re-render if it's already aligned.
+  if (diffDays > 2) {
     console.log(
-      `[fixGanttDateRange] Correcting gantt_start from ${currentStart.toISOString()} to ${paddedStart.toISOString()}`,
+      `[fixGanttDateRange] Aligning chart start to: ${paddedStart.toISOString()}`,
     );
     gantt.gantt_start = paddedStart;
     gantt.gantt_end = paddedEnd;
 
-    // Force re-render to apply new date bounds
-    // Note: This is heavy, but necessary for correct positioning
-    gantt.refresh(gantt.tasks);
-
-    // Apply Month view bar position fix AFTER refresh completes
-    // The refresh is asynchronous so we need a delay
-    if (gantt.options.view_mode === "Month") {
-      setTimeout(() => {
-        fixMonthViewBarPositions();
-        bindTooltipHover(); // Re-bind popups after Month view refresh
-      }, 100);
-    } else {
-      // For Day/Week views, also re-bind after refresh
-      setTimeout(() => {
-        bindTooltipHover(); // Re-bind popups after Day/Week refresh
-      }, 100);
+    try {
+      // Trigger Single Render
+      gantt.render();
+    } catch (err) {
+      console.error("[fixGanttDateRange] Render failed:", err);
+      return;
     }
+
+    // Re-schedule post-render fixes
+    // We do this immediately after render trigger
+    setTimeout(() => {
+      if (gantt.options.view_mode === "Month") {
+        fixMonthViewBarPositions();
+      } else {
+        fixDependencyArrows();
+      }
+      bindTooltipHover();
+    }, 100);
   }
+  */
 }
 
 // ==== Helper: Calculate X Position for Month View (Uses Real Calendar Days) ====
@@ -1838,6 +1855,9 @@ function fixMonthViewBarPositions() {
   // Use global helper for X position calculation
   const getXPositionForDate = (date) =>
     getXForDateInMonthView(date, ganttStart, columnWidth);
+
+  // Initialize/Reset the global position map
+  window._monthViewBarPositions = {};
 
   // Process all bar wrappers
   const barWrappers = document.querySelectorAll(
@@ -1899,7 +1919,6 @@ function fixMonthViewBarPositions() {
     }
 
     // Store corrected positions for arrow recalculation
-    window._monthViewBarPositions = window._monthViewBarPositions || {};
     window._monthViewBarPositions[taskId] = {
       x: newX,
       width: newWidth,
@@ -1910,7 +1929,7 @@ function fixMonthViewBarPositions() {
   });
 
   // Fix dependency arrows
-  fixMonthViewArrows();
+  fixDependencyArrows();
 
   console.log(
     "[fixMonthViewBarPositions] Corrected bar positions, labels, and arrows for Month view",
@@ -1963,46 +1982,244 @@ function fixBarLabels() {
   console.log("[fixBarLabels] Updated label classes for current view");
 }
 
-// ==== Fix Month View Arrows (Dependency Lines) ====
-// Recalculates arrow paths using corrected bar positions
-function fixMonthViewArrows() {
+// ==== Fix Arrows for ALL Views (Dependency Lines) ====
+// Recalculates arrow paths using:
+// 1. Corrected Month positions (if available)
+// 2. DOM positions (for Day/Week views)
+function fixDependencyArrows() {
   const gantt = window.ganttInstance;
-  if (!gantt || !window._monthViewBarPositions) return;
+  if (!gantt) return;
 
-  const arrows = document.querySelectorAll("#gantt-chart .arrow");
+  // Position Helper
+  const getTaskPosition = (taskId) => {
+    // Priority 2: DOM Reading (Standard for All Views now)
+    const bar = document.querySelector(
+      `#gantt-chart .bar-wrapper[data-id="${taskId}"] .bar`,
+    );
+    if (bar) {
+      // Use getBBox for safer dimension reading if available, fallback to attributes
+      let x = parseFloat(bar.getAttribute("x"));
+      let y = parseFloat(bar.getAttribute("y"));
+      let width = parseFloat(bar.getAttribute("width"));
+      let height = parseFloat(bar.getAttribute("height"));
+
+      return {
+        x: x || 0,
+        y: y || 0,
+        width: width || 0,
+        height: height || 0, // Ensure we have a height
+        endX: (x || 0) + (width || 0),
+      };
+    }
+    return null;
+  };
+
+  // Selector robusto: incluye .arrow y path con atributo data-from
+  const arrows = document.querySelectorAll(
+    "#gantt-chart .arrow, #gantt-chart path[data-from]",
+  );
+
+  let fixedCount = 0;
 
   arrows.forEach((arrow) => {
+    // Ensure it has the arrow class for styling
+    arrow.classList.add("arrow");
+
     const fromId = arrow.getAttribute("data-from");
     const toId = arrow.getAttribute("data-to");
 
     if (!fromId || !toId) return;
 
-    const fromPos = window._monthViewBarPositions[fromId];
-    const toPos = window._monthViewBarPositions[toId];
+    const fromPos = getTaskPosition(fromId);
+    const toPos = getTaskPosition(toId);
 
-    if (!fromPos || !toPos) return;
+    if (!fromPos || !toPos) {
+      return;
+    }
 
-    // Calculate arrow path
-    // Arrow goes from end of "from" bar to start of "to" bar
-    const startX = fromPos.endX;
-    const startY = fromPos.y + fromPos.height / 2;
-    const endX = toPos.x;
-    const endY = toPos.y + toPos.height / 2;
+    // Detect Dependency Type
+    // We need to look at the Target Task's _rawPredecessors to find the suffix for this fromId
+    let depType = "FS"; // Default Finish-to-Start
 
-    // Create new path with bezier curve or simple lines
-    let newPath;
+    const targetTask = gantt.tasks.find((t) => String(t.id) === toId);
+    if (targetTask && targetTask._rawPredecessors) {
+      // Find the raw predecessor string that matches fromId
+      const predString = targetTask._rawPredecessors.find((p) => {
+        // p could be "10" or "10SS" or "10FF+3d"
+        // Regex to match ID at start
+        const match = p.match(/^(\d+)/);
+        return match && match[1] === fromId;
+      });
 
-    if (endY === startY) {
-      // Same row: simple horizontal line
-      newPath = `M ${startX} ${startY} L ${endX} ${endY}`;
+      if (predString) {
+        if (predString.includes("SS")) depType = "SS";
+        else if (predString.includes("FF")) depType = "FF";
+        else if (predString.includes("SF")) depType = "SF";
+        else if (predString.includes("FC"))
+          depType = "FS"; // Spanish FC = FS
+        else depType = "FS";
+      }
+    }
+
+    // Determine Start and End coordinates based on Type
+    let startX, startY, endX, endY;
+
+    // Source Point
+    if (depType === "SS" || depType === "SF") {
+      // Start of Predecessor
+      startX = fromPos.x;
+      startY = fromPos.y + fromPos.height / 2;
     } else {
-      // Different rows: L-shaped or curved path
-      const midX = startX + 10;
-      newPath = `M ${startX} ${startY} H ${midX} V ${endY} L ${endX} ${endY}`;
+      // Finish of Predecessor (FS, FF)
+      startX = fromPos.endX;
+      startY = fromPos.y + fromPos.height / 2;
+    }
+
+    // Target Point
+    if (depType === "FF" || depType === "SF") {
+      // Finish of Successor
+      endX = toPos.endX;
+      endY = toPos.y + toPos.height / 2;
+    } else {
+      // Start of Successor (FS, SS)
+      endX = toPos.x;
+      endY = toPos.y + toPos.height / 2;
+    }
+
+    // Adjust margins
+    if (depType === "FS" || depType === "FF") startX += 0; // Predecessor right side
+    if (depType === "SS" || depType === "SF") startX -= 2; // Predecessor left side
+
+    if (depType === "FS" || depType === "SS") endX -= 2; // Successor left side
+    if (depType === "FF" || depType === "SF") endX += 2; // Successor right side
+
+    // Path Logic with SMOOTH CURVES
+    let newPath = "";
+    const curveRadius = 8; // Radius for curve smoothness
+
+    // Standard FS (Finish to Start)
+    if (depType === "FS") {
+      if (endX > startX + 20) {
+        // Standard forward with smooth curve
+        const midX = startX + 15;
+
+        if (Math.abs(endY - startY) < curveRadius * 2) {
+          // Nearly horizontal - simple path
+          newPath = `M ${startX} ${startY} L ${endX} ${endY}`;
+        } else {
+          // Vertical distance is significant - use smooth corner
+          const direction = endY > startY ? 1 : -1;
+          newPath = `M ${startX} ${startY} 
+                     H ${midX - curveRadius}
+                     Q ${midX} ${startY} ${midX} ${startY + curveRadius * direction}
+                     V ${endY - curveRadius * direction}
+                     Q ${midX} ${endY} ${midX + curveRadius} ${endY}
+                     L ${endX} ${endY}`;
+        }
+      } else {
+        // Backwards or tight - multiple smooth curves
+        const midY = startY + (endY - startY) / 2;
+        const h1 = startX + 10;
+        const h2 = endX - 10;
+        const dir1 = midY > startY ? 1 : -1;
+        const dir2 = endY > midY ? 1 : -1;
+
+        newPath = `M ${startX} ${startY} 
+                   H ${h1 - curveRadius} 
+                   Q ${h1} ${startY} ${h1} ${startY + curveRadius * dir1}
+                   V ${midY - curveRadius * dir1}
+                   Q ${h1} ${midY} ${h1 + curveRadius} ${midY}
+                   H ${h2 - curveRadius}
+                   Q ${h2} ${midY} ${h2} ${midY + curveRadius * dir2}
+                   V ${endY - curveRadius * dir2}
+                   Q ${h2} ${endY} ${h2 + curveRadius} ${endY}
+                   L ${endX} ${endY}`;
+      }
+    }
+    // SS (Start to Start) - Circuit to Left with smooth curves
+    else if (depType === "SS") {
+      const backX = Math.min(startX, endX) - 15;
+      const direction = endY > startY ? 1 : -1;
+
+      newPath = `M ${startX} ${startY} 
+                 H ${backX + curveRadius}
+                 Q ${backX} ${startY} ${backX} ${startY + curveRadius * direction}
+                 V ${endY - curveRadius * direction}
+                 Q ${backX} ${endY} ${backX + curveRadius} ${endY}
+                 L ${endX} ${endY}`;
+    }
+    // FF (Finish to Finish) - Circuit to Right with smooth curves
+    else if (depType === "FF") {
+      const fwdX = Math.max(startX, endX) + 15;
+      const direction = endY > startY ? 1 : -1;
+
+      newPath = `M ${startX} ${startY} 
+                 H ${fwdX - curveRadius}
+                 Q ${fwdX} ${startY} ${fwdX} ${startY + curveRadius * direction}
+                 V ${endY - curveRadius * direction}
+                 Q ${fwdX} ${endY} ${fwdX - curveRadius} ${endY}
+                 L ${endX} ${endY}`;
+    }
+    // SF (Start to Finish) with smooth curves
+    else if (depType === "SF") {
+      const backX = startX - 15;
+      const direction = endY > startY ? 1 : -1;
+
+      newPath = `M ${startX} ${startY} 
+                 H ${backX - curveRadius}
+                 Q ${backX} ${startY} ${backX} ${startY + curveRadius * direction}
+                 V ${endY - curveRadius * direction}
+                 Q ${backX} ${endY} ${backX + curveRadius} ${endY}
+                 L ${endX} ${endY}`;
     }
 
     arrow.setAttribute("d", newPath);
+    // [Fix] Ensure the arrowhead marker is always applied
+    if (!arrow.getAttribute("marker-end")) {
+      arrow.setAttribute("marker-end", "url(#arrow)");
+    }
+    fixedCount++;
   });
+
+  // [Fix] Maintain arrowheads even after refresh
+  ensureArrowMarker();
+
+  console.log(
+    `[fixDependencyArrows] Adjusted ${fixedCount} dependency arrows (Types enabled).`,
+  );
+}
+
+// Helper to ensure the SVG Arrow Marker exists (Robust check)
+function ensureArrowMarker() {
+  // Target generic SVG container or specific gantt class
+  const svg =
+    document.querySelector(".gantt-container svg") ||
+    document.querySelector("svg");
+  if (!svg) return;
+
+  let defs = svg.querySelector("defs");
+  if (!defs) {
+    defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    svg.insertBefore(defs, svg.firstChild);
+  }
+
+  let marker = defs.querySelector("#arrow");
+  if (!marker) {
+    marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+    marker.setAttribute("id", "arrow");
+    marker.setAttribute("viewBox", "0 0 10 10");
+    marker.setAttribute("refX", "5");
+    marker.setAttribute("refY", "5");
+    marker.setAttribute("markerWidth", "6");
+    marker.setAttribute("markerHeight", "6");
+    marker.setAttribute("orient", "auto-start-reverse");
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+    path.setAttribute("fill", "#a3a3ff"); // Match arrow color
+    marker.appendChild(path);
+    defs.appendChild(marker);
+  }
 }
 
 // Check where to scroll (Project Start)
