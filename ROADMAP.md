@@ -102,3 +102,13 @@
 
 - [x] Añadido `bindTooltipHover()` en `changePViewMode()` después del setTimeout interno
 - [x] Añadido `bindTooltipHover()` en ambos bloques de `toggleGanttFullscreen()` (entrar y salir)
+
+## ✅ Fase 14: Reestructuración del Proyecto (Completada)
+
+**Fecha**: 2026-01-29
+
+- [x] Proyecto movido a directorio independiente: `/Developer/visor-gantt`
+- [x] Nombre del proyecto estandarizado como "Visor Gantt"
+- [x] Docker: Configuración de `APACHE_DOCUMENT_ROOT` dinámico
+- [x] Docker Compose: Eliminada declaración `version` obsoleta
+- [x] `.gitignore`: Exclusión de `backend/debug_log.txt`

@@ -7,6 +7,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Reorganización del Proyecto**: El proyecto fue movido a un directorio independiente: `/Developer/visor-gantt`.
+- **Docker - DocumentRoot Dinámico**: Se configuró Apache para leer la variable de entorno `APACHE_DOCUMENT_ROOT` dinámicamente, eliminando rutas hardcodeadas.
+- **Docker Compose**: Removida declaración obsoleta `version: '3.8'` (no requerida desde Docker Compose v2+).
+
+### Fixed
+
+- **Exclusión de Logs**: Añadido `backend/debug_log.txt` al `.gitignore` para evitar trackear archivos de depuración.
+
 ## [0.5.0] - 2026-01-29
 
 ### Fixed
