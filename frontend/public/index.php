@@ -10,8 +10,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
-    <!-- Frappe Gantt -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@1.0.4/dist/frappe-gantt.min.css">
+    <!-- DHTMLX Gantt (Standard/GPL) -->
+    <link rel="stylesheet" href="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.css">
+    <style>
+        /* DHTMLX Custom Overrides */
+        .gantt_task_line.critical-task {
+            background-color: #ef4444;
+            border-color: #b91c1c;
+        }
+
+        .gantt_task_line.critical-task .gantt_task_progress {
+            background-color: #991b1b;
+        }
+    </style>
 </head>
 
 <body>
@@ -38,6 +49,7 @@
                 <button id="toggle-sidebar-mobile" class="icon-btn mobile-hamburger-btn" aria-label="Abrir menú" style="color: var(--color-text-main); font-size: 1.5rem;">☰</button>
                 <div id="top-bar-actions" class="top-bar-actions">
                     <!-- Dynamic Actions Injected Here -->
+                    <button class="toggle-btn" onclick="openHolidaysModal()" title="Gestionar Días No Laborables" style="margin-right: 10px;">📅 Calendario</button>
                 </div>
                 <a href="https://www.aia.com.co" target="_blank" rel="noopener noreferrer" class="brand-logo" title="AIA - Construimos por Naturaleza">
                     <img src="logo.png" alt="AIA">
@@ -85,14 +97,15 @@
         </div>
     </div>
 
-    <!-- Frappe Gantt JS -->
-    <script src="https://cdn.jsdelivr.net/npm/frappe-gantt@1.0.4/dist/frappe-gantt.umd.js"></script>
+    <!-- DHTMLX Gantt JS -->
+    <script src="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.js"></script>
     <!-- SheetJS (Excel) -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <!-- SortableJS (Drag & Drop) -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 
     <script src="js/app.js?v=<?php echo time(); ?>"></script>
+    <script src="js/holidays.js?v=<?php echo time(); ?>"></script>
 </body>
 
 </html>

@@ -311,7 +311,7 @@ class ProjectStorage
                     'name' => $task['Name'] ?? 'Tarea sin nombre',
                     'start' => $start,
                     'finish' => $finish,
-                    'dur' => $task['Duration'] ?? '',
+                    'dur' => $task['duration'] ?? $task['Duration'] ?? 0,
                     'pct' => $task['PercentComplete'] ?? 0,
                     'level' => $task['OutlineLevel'] ?? 1,
                     'summary' => ($task['Summary'] ?? 0) == 1 ? 'true' : 'false',

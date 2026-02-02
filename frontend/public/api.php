@@ -245,6 +245,32 @@ if ($action === 'upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $parser = new ProjectParser();
         $data = $parser->parse($tempPath);
 
+        // --- CPM CALCULATION ENGINE INTEGRATION ENABLED ---
+        // Se ha corregido la lógica de mapeo y calendario.
+        try {
+            require_once __DIR__ . '/../../backend/src/bootstrap.php';
+
+            $mapper = new \Domain\Scheduling\Mapper\TaskDataMapper();
+            $calendar = new \Domain\Scheduling\Service\CalendarService(); // Domain Service (Saturdays OK)
+            $calculator = new \Domain\Scheduling\Service\CPMCalculatorService($calendar);
+
+            $domainData = $mapper->toDomain($data->tasks);
+            $startDateStr = $data->startDate ?: date('Y-m-d 08:00:00');
+            $projectStart = new DateTimeImmutable($startDateStr);
+
+            $calculatedTasks = $calculator->calculate(
+                $domainData['tasks'],
+                $domainData['dependencies'],
+                $projectStart
+            );
+
+            $data->tasks = $mapper->mergeCalculation($data->tasks, $calculatedTasks);
+            file_put_contents($baseDir . '/backend/debug_log.txt', date('Y-m-d H:i:s') . " - CPM Calculation Success for: {$originalName}\n", FILE_APPEND);
+        } catch (Exception $cpmEx) {
+            file_put_contents($baseDir . '/backend/debug_log.txt', date('Y-m-d H:i:s') . " - CPM Error: " . $cpmEx->getMessage() . "\n", FILE_APPEND);
+        }
+        // ------------------------------------------
+
         // Guardar proyecto persistentemente
         $storage = new ProjectStorage();
         $dataArray = json_decode(json_encode($data), true); // Convert to array

@@ -502,18 +502,25 @@
 
   .zoom-btn {
     padding: 0.35rem 0.75rem;
-    font-size: 0.8rem;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1;
     border: 1px solid var(--color-border);
     background: white;
+    color: var(--color-text-secondary);
+    min-width: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 
     &:hover {
-      background: var(--color-bg-surface-secondary);
+      background: var(--aia-corp-xlight);
+      color: var(--aia-corp-dark);
+      border-color: var(--aia-corp-light);
     }
 
-    &.active {
-      background: var(--color-primary);
-      color: white;
-      border-color: var(--color-primary);
+    &:active {
+      background: var(--aia-corp-light);
     }
   }
 
@@ -958,4 +965,194 @@
   color: var(--color-text-muted);
   font-size: 0.75rem;
   justify-content: flex-end;
+}
+/* --- Gantt DHTMLX Brand Overrides (AIA) --- */
+
+/* 1. Standard Task (Blue - AIA Architecture) - WAS GREEN */
+.gantt_task_line.aia-task {
+  background-color: var(--aia-arch-light) !important;
+  border-color: var(--aia-arch-main) !important;
+}
+.gantt_task_line.aia-task .gantt_task_progress {
+  background-color: var(--aia-arch-dark) !important;
+  opacity: 0.6;
+}
+
+/* 2. Summary/Project Bar (Green - AIA Corp) - WAS BLUE */
+/* Priority: This must override critical red if applied to summary */
+.gantt_task_line.aia-summary,
+.gantt_project.aia-summary,
+.gantt_project {
+  background-color: var(--aia-corp-light) !important;
+  border-color: var(--aia-corp-main) !important;
+}
+.gantt_task_line.aia-summary .gantt_task_progress,
+.gantt_project .gantt_task_progress {
+  background-color: var(--aia-corp-dark) !important;
+  opacity: 0.6 !important;
+}
+.gantt_project .gantt_task_content {
+  color: var(
+    --color-text-main
+  ) !important; /* Green background needs dark text usually, or check contrast */
+}
+
+/* 3. Critical Path (Red - AIA Alert) - HIGHEST PRIORITY for Standard Tasks */
+.gantt_task_line.aia-critical,
+.gantt_task_line.aia-task.aia-critical,
+.aia-critical {
+  background-color: var(--aia-alert-main) !important;
+  border-color: var(--aia-alert-dark) !important;
+}
+.gantt_task_line.aia-critical .gantt_task_progress,
+.gantt_project.aia-critical .gantt_task_progress {
+  background-color: var(--aia-alert-dark) !important;
+}
+
+/* 4. Milestones (Diamond) */
+/* Default: Blue (matches Standard Task) */
+.gantt_milestone,
+.aia-milestone {
+  background-color: var(--aia-arch-main) !important; /* Blue */
+  border: 1px solid var(--aia-arch-dark) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+
+  /* Force diamond shape even if rendered as a div/bar */
+  width: 14px !important;
+  height: 14px !important;
+  transform: rotate(45deg) !important;
+  transform-origin: center !important;
+  border-radius: 0 !important;
+
+  /* Center in row if it's a task_line */
+  margin-top: 2px !important;
+}
+
+/* Specific override for Critical Milestones -> Red */
+.aia-milestone.aia-critical,
+.gantt_milestone.aia-critical {
+  background-color: var(--aia-alert-main) !important;
+  border-color: var(--aia-alert-dark) !important;
+}
+
+/* 5. Text Colors inside bars */
+.gantt_task_content {
+  color: var(--color-text-main);
+  font-weight: 500;
+}
+.aia-summary .gantt_task_content,
+.gantt_project .gantt_task_content {
+  color: white !important;
+}
+.aia-critical .gantt_task_content {
+  color: white !important;
+}
+
+/* 6. Side Labels (Adaptive outside text) */
+.gantt_side_content {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  overflow: visible !important;
+}
+
+.gantt_side_content.gantt_right {
+  color: var(--aia-corp-dark);
+  font-weight: 600;
+  padding-left: 10px;
+}
+
+/* Fix for Milestones: UN-ROTATE labels since parent is 45deg */
+.gantt_task_line[class*="milestone"] .gantt_side_content,
+.aia-milestone .gantt_side_content {
+  transform: rotate(-45deg) !important;
+  transform-origin: left center !important;
+  display: inline-block !important;
+  white-space: nowrap !important;
+  position: absolute !important;
+  left: 20px !important;
+  top: 0px !important;
+  width: 600px !important; /* Ensure it doesn't wrap */
+}
+
+/* If parent bar is critical, make side label red too */
+.aia-critical .gantt_side_content.gantt_right,
+.gantt_task_line.aia-critical + .gantt_side_content.gantt_right {
+  color: var(--aia-alert-dark) !important;
+}
+
+/* --- Holidays Modal Styles --- */
+.holidays-manager {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 55vh;
+}
+
+.holidays-list-container {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 1rem;
+}
+
+.holidays-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.holidays-table th,
+.holidays-table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.holidays-table th {
+  background: var(--aia-alabaster);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.add-holiday-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+}
+
+.date-input,
+.text-input {
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.action-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: white;
+  font-weight: 500;
+}
+
+.action-btn.success {
+  background-color: var(--aia-corp-main);
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--aia-alert-main);
+}
+
+.hint-text {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  margin-top: 0.5rem;
+  font-style: italic;
 }

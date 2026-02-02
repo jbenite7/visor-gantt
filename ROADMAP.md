@@ -1,6 +1,6 @@
 # Roadmap: Visor MPP Web
 
-## Estado Actual: Preparando Fase 7 (Implementación Vision 2026) 🚀
+## Estado Actual: Fase 21 (Corrección de Cálculo de Fechas) 🚀
 
 ### ✅ Fase 1: Fundación (Completada)
 
@@ -41,9 +41,16 @@
 
 ## Próximos Pasos (Fase 7)
 
-1.  **Migración a UI 2026**: Implementar el "Bento Grid" y "Dynamic Island".
-2.  **Transiciones**: Integrar animaciones fluidas (Framer Motion / CSS View Transitions).
-3.  **Refactor CSS**: Reemplazar estilos actuales con la nueva paleta y glassmorphism.
+1.- [x] **Configuración de Días No Laborables**:
+
+- [x] Crear archivo de configuración `holidays.php`
+- [x] Implementar `CalendarService` (Sábados laborales, Domingos festivos)
+- [x] Integrar servicio en el cálculo de fechas del Backend
+- [x] **Gestión Frontend**: Interfaz UI para administrar festivos (Base de datos).
+
+2.  **Optimización de Carga**: Implementar caché para archivos grandes.
+3.  **Transiciones**: Integrar animaciones fluidas (Framer Motion / CSS View Transitions).
+4.  **Refactor CSS**: Reemplazar estilos actuales con la nueva paleta y glassmorphism.
 
 ## ✅ Fase 9: Refinamiento Visual Gantt
 
@@ -136,4 +143,110 @@
   - Eliminado completamente el `toolbar-row`
   - Botones ahora se inyectan dinámicamente en `top-bar-actions`
   - Mejorado el alineamiento vertical y espaciado uniforme de todos los botones
-  - **Nota**: Los controles del Gantt (Día/Semana/Mes/Fecha Corte) permanecen en su ubicación original dentro de la vista Gantt
+- [x] Corrección de navegación (Botones en `main-top-bar`)
+
+## ✅ Fase 17: Motor CPM Backend (Completada)
+
+**Fecha**: 2026-01-30
+
+- [x] **Arquitectura DDD Implementada**:
+  - `Task` Entity (Inmutable) & `Dependency` VO.
+  - `CalendarService` (Manejo de Fines de Semana).
+  - `CPMCalculatorService` (Algoritmo Forward/Backward Pass).
+- [x] **Algoritmo Verificado**: Script de pruebas (`test_cpm.php`) confirma cálculo correcto de Start/Finish Dates, Holgura y Ruta Crítica.
+- [x] **Infraestructura**: Autoloader PSR-4 personalizado para namespace `Domain`.
+
+## ✅ Fase 18: Auditoría y Corrección Visual Gantt (Completada)
+
+**Fecha**: 2026-01-30
+
+- [x] **Corrección de Duración Visual**: El Gantt ahora utiliza directamente las fechas de inicio y fin (`start_date`, `end_date` Objects) en lugar de encajar una duración pre-calculada, asegurando que tareas de 1 día (8h) o parciales se visualicen con precisión.
+- [x] **Soporte de Fechas ISO**: Configuración de `gantt.config.xml_date` actualizada y paso de objetos Date nativos para evitar errores de parseo de strings.
+- [x] **Estabilidad de Vistas**: Verificación de escalas en Día, Semana y Mes para asegurar consistencia con los nuevos datos de fecha precisos.
+
+## ✅ Fase 19: Simplificación y Zoom (Completada)
+
+**Fecha**: 2026-01-30
+
+- [x] **Eliminación de Botones de Escala**: Removidos los selectores de Día/Semana/Mes para simplificar la interfaz.
+- [x] **Implementación de Zoom Manual (Ctrl + Rueda)**: Se ha agregado un controlador de eventos que permite hacer zoom in/out (modificar el ancho de las columnas) al usar `Ctrl + Scroll`, ofreciendo flexibilidad sin cambiar la escala de tiempo base (Día).
+- [x] **Accesibilidad de Zoom**: Añadidos botones `+` / `-` en pantalla y atajos de teclado (`Ctrl` + `+/-`) para usuarios sin mouse.
+- [x] **Unificación de Lógica de Bbloqueo de Scroll**: Refactorizada la función `applyScrollLock` en `setupGanttEvents` para gestionar tanto el scroll diagonal seguro como el nuevo zoom horizontal desde un único punto de entrada.
+
+## ✅ Fase 20: Modos de Visualización (Completada)
+
+**Fecha**: 2026-01-30
+
+- [x] **Nuevas Opciones de Vista**: Se han definido e implementado 3 modos claros de visualización:
+  - **Tabla**: HTML puro para revisión de datos.
+  - **Tabla + Gantt**: Vista estándar de DHTMLX con columnas (Grid) y gráfico.
+  - **Gantt**: Vista de solo gráfico, ocultando la grilla interna (`show_grid = false`) para una experiencia de visualización pura.
+- [x] **Renombrado de Botones**: El botón "Gantt" anterior se renombra a "Tabla + Gantt" para mayor claridad.
+
+## ✅ Fase 21: Corrección de Cálculo de Fechas (Completada)
+
+**Fecha**: 2026-01-30
+
+- [x] **Motor de Cálculo Ajustado**: Se identificó que el servicio de cálculo CPM automático estaba sobrescribiendo las fechas programadas en el archivo XML original, causando desplazamientos incorrectos en el tiempo para tareas resumen y tareas con restricciones específicas.
+- [x] **Importación Fiel**: Se ha deshabilitado el recálculo forzado durante la importación para garantizar que las fechas visualizadas en la aplicación coincidan exactamente con las definidas en el archivo `.mpp`/XML original, respetando la programación del usuario.
+
+## ✅ Fase 22: Corrección Fecha Fin Global (Completada)
+
+**Fecha**: 2026-02-02
+
+- [x] **Recálculo Dinámico**: Se añadió lógica en el `ProjectParser` para ignorar la metadata de fechas del encabezado XML (a menudo desactualizada) y en su lugar calcular el Inicio y Fin real del proyecto basándose en el rango (Min/Max) de todas las tareas importadas. Esto asegura que la fecha "Fin" del proyecto coincida con la fecha de la última tarea.
+
+## ✅ Fase 23: Mejora de Legibilidad (Completada)
+
+**Fecha**: 2026-02-02
+
+- [x] **Scroll Horizontal en Tablas**: Se desactivó el ajuste automático de columnas (`autofit = false`) para evitar que el texto se corte en pantallas pequeñas. Ahora las columnas respetan su ancho definido y la tabla permite desplazamiento horizontal independiente del gráfico Gantt.
+- [x] **Ancho de Columnas Optimizado**: Se aumentó el ancho base de la columna "Nombre" a 350px para visualizar títulos largos sin truncamiento.
+
+## ✅ Fase 24: Corrección Alineación de Flechas (Completada)
+
+**Fecha**: 2026-02-02
+
+- [x] **Anclaje de Hitos**: Se corrigió un problema donde tareas con duración > 0 pero marcadas como "Hitos" (Diamantes) tenían sus flechas de dependencia desconectadas. Ahora el sistema fuerza una duración lógica de 0 para el motor gráfico (alineando la flecha con el diamante), mientras conserva y muestra la duración original en la tabla de datos.
+- [x] **Renderizado Robusto**: Se añadió un paso de renderizado explícito final para asegurar que todas las lineas SVG se recalculen correctamente después de la carga de datos.
+
+## ✅ Fase 25: Ajuste de Identidad Visual (Completada)
+
+**Fecha**: 2026-02-02
+
+- [x] **Esquema de Colores Semánticos**: Se reasignaron los colores de las barras para cumplir con la nueva lógica de negocio:
+  - **Resumen (Cualquiera)**: Verde Corporativo (Prioridad Alta).
+  - **Crítica (No Resumen)**: Rojo Alerta.
+  - **Estándar (No Crítica)**: Azul Arquitectura.
+- [x] **Intercambio CSS**: Se actualizaron las variables CSS para invertir la lógica anterior (donde Estándar era Verde y Resumen era Azul), asegurando consistencia en toda la aplicación.
+
+## ✅ Fase 26: Lógica de Datos Avanzada (Completada)
+
+**Fecha**: 2026-02-02
+
+- [x] **Gestión de Sucesoras**: Implementada la lógica de backend y frontend para parsear y visualizar la columna de "Sucesoras", invirtiendo las relaciones de predecesoras existentes.
+- [x] **Formato de Dependencias Detallado**: Visualización enriquecida de vínculos (ej. `12FC+5d`) mostrando ID, Tipo (FF, FC, CC, CF) y Retardo (días/horas) en las tablas.
+- [x] **Cálculo de Duración Robusto**: Nuevo motor de parsing en `ProjectParser.php` que interpreta formatos ISO 8601 y códigos numéricos de Project, convirtiéndolos a días laborables.
+- [x] **Recálculo de Fechas (Semana 6 Días)**: Lógica de servidor para proyectar la Fecha Fin Real sumando la duración a la Fecha Inicio, respetando una semana laboral de lunes a sábado (excluyendo domingos).
+
+## ✅ Fase 27: Detección Inteligente de Fechas (Completada)
+
+**Fecha**: 2026-02-02
+
+- [x] **Soporte Multiformato**: Implementación de `parseDate` en el importador XML para detectar y normalizar fechas en formato americano (`mm/dd/yyyy`) automáticamente a ISO 8601, manteniendo compatibilidad con formatos estándar.
+
+## ✅ Fase 28: Estandarización de Unidades (Completada)
+
+**Fecha**: 2026-02-02
+
+- [x] **Restricción de Formato**: Se forzó la visualización de retardos en dependencias a solo **Días (d)** o **Porcentaje (%)**, convirtiendo automáticamente valores en horas o minutos a días laborales (base 8h) para cumplir con la regla de negocio.
+
+## ✅ Fase 29: Lógica CPM Completa (Completada)
+
+**Fecha**: 2026-02-02
+
+- [x] **Parsing Avanzado de XML**: Integración de lectura de calendarios (`<Calendar>`) y atributos de `LinkLag` en décimas de minuto.
+- [x] **Normalización de Unidades**: Conversión asegurada de retardos y duraciones a minutos/días en el Mapper.
+- [x] **Calendario Dinámico**: actualización del `CalendarService` (Domain) para soportar configuración de días no laborales y festivos desde el XML.
+- [x] **Aritmética de Fechas**: Implementación de `addDuration` y `subtractDuration` con lógica de días laborables para el cálculo de ruta crítica.
+- [x] **Rollup de Resumen**: Verificación del algoritmo de fechas de tareas resumen basado en sus sub-tareas (Min Start / Max Finish).

@@ -10,6 +10,7 @@ class ProjectData implements JsonSerializable
     public array $tasks = [];
     public array $resources = [];
     public array $availableColumns = [];
+    public array $calendar = [];
 
     public function jsonSerialize(): mixed
     {

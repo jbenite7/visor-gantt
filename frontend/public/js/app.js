@@ -648,6 +648,7 @@ const COLUMN_TRANSLATIONS = {
   ResourceUID: "UID de recurso",
   // Dependencies
   predecessors: "Predecesoras",
+  successors: "Sucesoras",
   PredecessorLink: "Vínculo predecesor",
   // Constraints
   ConstraintType: "Tipo de restricción",
@@ -714,7 +715,8 @@ function renderProject(data) {
     <button class="btn-back" onclick="location.reload()">← Subir otro</button>
     <div class="view-toggle">
       <button id="btn-table" class="toggle-btn active" onclick="showView('table')">Tabla</button>
-      <button id="btn-gantt" class="toggle-btn" onclick="showView('gantt')">Gantt</button>
+      <button id="btn-mixed" class="toggle-btn" onclick="showView('mixed')">Tabla + Gantt</button>
+      <button id="btn-gantt-only" class="toggle-btn" onclick="showView('gantt')">Gantt</button>
       <button id="btn-columns" class="toggle-btn" onclick="toggleColumnSelector()">⚙ Columnas</button>
       <button class="toggle-btn btn-export" onclick="exportToExcel()" title="Descargar como Excel">📥 Descargar</button>
     </div>
@@ -754,10 +756,10 @@ function renderProject(data) {
             <label for="cutoff-date" style="font-size: 0.8rem; margin-right: 0.5rem;">Fecha Corte:</label>
             <input type="date" id="cutoff-date" class="date-input" onchange="renderCutoffLine()">
         </div>
+
         <div class="gantt-zoom-group">
-            <button class="zoom-btn" onclick="changePViewMode('Day')">Día</button>
-            <button class="zoom-btn active" onclick="changePViewMode('Week')">Semana</button>
-            <button class="zoom-btn" onclick="changePViewMode('Month')">Mes</button>
+            <button class="zoom-btn" onclick="zoomGantt(1)" title="Acercar (Ctrl +)">＋</button>
+            <button class="zoom-btn" onclick="zoomGantt(-1)" title="Alejar (Ctrl -)">－</button>
         </div>
         <button class="fullscreen-btn" onclick="toggleGanttFullscreen()">⛶ Pantalla Completa</button>
       </div>
@@ -976,6 +978,12 @@ function onColumnToggle() {
   const selected = Array.from(checkboxes).map((cb) => cb.value);
   saveVisibleColumns(selected);
   renderTable();
+
+  // If Gantt is visible, re-render it to update columns
+  const ganttView = document.getElementById("gantt-view");
+  if (ganttView && !ganttView.classList.contains("hidden")) {
+    renderGantt(currentProjectData.tasks);
+  }
 }
 
 function selectAllColumns() {
@@ -1145,7 +1153,29 @@ function formatCellValue(value, colName, task, allTasks) {
     return value + "%";
   }
   if (colName === "predecessors") {
+    // Hide for summary tasks
+    if (task.isSummary) return "-";
+
+    // Check if we have detailed links in PredecessorLink
+    if (task.PredecessorLink && Array.isArray(task.PredecessorLink)) {
+      return formatDependencyList(task.PredecessorLink);
+    }
+    // Fallback to simple array
     return Array.isArray(value) ? value.join(", ") : "-";
+  }
+  if (colName === "successors") {
+    // Hide for summary tasks
+    if (task.isSummary) return "-";
+
+    // Value for successors is now array of objects {id, Type, LinkLag ...}
+    // But check if it's array of objects or simple IDs (backwards compat)
+    if (Array.isArray(value) && value.length > 0) {
+      if (typeof value[0] === "object") {
+        return formatDependencyList(value);
+      }
+      return value.join(", ");
+    }
+    return "-";
   }
   // Handle binary/boolean fields: 0/1, true/false -> Sí/No
   if (
@@ -1170,22 +1200,42 @@ function formatCellValue(value, colName, task, allTasks) {
 }
 
 // ==== View Switching ====
+// ==== View Switching ====
 function showView(view) {
   const tableView = document.getElementById("table-view");
   const ganttView = document.getElementById("gantt-view");
+
   const btnTable = document.getElementById("btn-table");
-  const btnGantt = document.getElementById("btn-gantt");
+  const btnMixed = document.getElementById("btn-mixed");
+  const btnGantt = document.getElementById("btn-gantt-only");
+
+  // Reset active classes
+  if (btnTable) btnTable.classList.remove("active");
+  if (btnMixed) btnMixed.classList.remove("active");
+  if (btnGantt) btnGantt.classList.remove("active");
 
   if (view === "table") {
+    // HTML Table View
     tableView.classList.remove("hidden");
     ganttView.classList.add("hidden");
-    btnTable.classList.add("active");
-    btnGantt.classList.remove("active");
-  } else {
+    if (btnTable) btnTable.classList.add("active");
+  } else if (view === "mixed") {
+    // Table + Gantt (Standard DHTMLX)
     tableView.classList.add("hidden");
     ganttView.classList.remove("hidden");
-    btnTable.classList.remove("active");
-    btnGantt.classList.add("active");
+    if (btnMixed) btnMixed.classList.add("active");
+
+    // Enable Grid
+    gantt.config.show_grid = true;
+    renderGantt(currentProjectData.tasks);
+  } else if (view === "gantt") {
+    // Pure Gantt (No Grid)
+    tableView.classList.add("hidden");
+    ganttView.classList.remove("hidden");
+    if (btnGantt) btnGantt.classList.add("active");
+
+    // Disable Grid
+    gantt.config.show_grid = false;
     renderGantt(currentProjectData.tasks);
   }
 }
@@ -1203,102 +1253,261 @@ function renderGantt(tasks) {
     return;
   }
 
-  // Transform to Frappe Gantt format WITH dependencies
-  // [FIX] Use global cache to bypass Frappe Gantt property filtering
-  window.ganttTaskCache = {};
-
-  const ganttTasks = validTasks.map((task) => {
-    // Calculate custom attributes
-    const durationText = formatDuration(task.duration || task.Duration);
-    const isCritical = String(task.Critical) === "1" || task.Critical === true;
-    const predecessorsList = (task.predecessors || []).join(", ");
-
-    // Store in proper Frappe format
-    const ganttTask = {
-      id: String(task.id || task.UID),
-      name: task.name || task.Name,
-      start: (task.start || task.Start).split("T")[0],
-      end: (task.finish || task.Finish).split("T")[0],
-      progress: task.percentComplete || task.PercentComplete || 0,
-      dependencies: predecessorsList, // Frappe Gantt expects comma-separated IDs
-      custom_class: task.isSummary
-        ? "bar-summary"
-        : task.isMilestone
-          ? isCritical
-            ? "bar-critical-milestone"
-            : "bar-milestone"
-          : isCritical
-            ? "bar-critical" // Apply critical class based on logic
-            : "bar-standard",
-    };
-
-    // Save extended data to cache
-    window.ganttTaskCache[ganttTask.id] = {
-      ...ganttTask,
-      _duration_text: durationText,
-      _is_critical: isCritical,
-      _predecessors_list: predecessorsList,
-    };
-
-    return ganttTask;
-  });
-
+  // Transform to DHTMLX Format
   try {
-    console.log("Renderizando Gantt con Popup Mejorado v2"); // Debug flag
-    window.ganttInstance = new Gantt("#gantt-chart", ganttTasks, {
-      view_mode: "Week",
-      date_format: "YYYY-MM-DD",
-      language: "es",
-      popup_trigger: "mouseover", // We keep this as default, but we hide .popup-wrapper via CSS
+    const dhtmlxTasks = validTasks.map((task) => {
+      // Usar objetos Date directamente para mayor precisión en la visualización
+      const startDate = new Date(task.start || task.Start);
+      const endDate = new Date(task.finish || task.Finish);
+
+      // Determine Type (Task, Project/Summary, Milestone)
+      let type = "task";
+      // Check for Summary flags (MS Project uses 'Summary'='1' or 'true')
+      if (
+        task.Summary === "1" ||
+        task.Summary === true ||
+        task.isSummary === true
+      ) {
+        type = "project";
+      }
+      // Check for Milestone flags OR Duration = 0
+      const durationVal = parseFloat(task.duration || task.Duration || 0);
+      if (
+        task.Milestone === "1" ||
+        task.Milestone === true ||
+        task.isMilestone === true ||
+        durationVal === 0
+      ) {
+        type = "milestone";
+      }
+
+      const isMilestone = type === "milestone";
+
+      return {
+        ...task, // Inherit all original properties for custom columns
+        id: task.id || task.UID,
+        text: task.name || task.Name,
+        start_date: startDate,
+        end_date: isMilestone ? startDate : endDate, // Snap finish to start for milestones
+        type: type, // Set DHTMLX type
+        progress: (task.percentComplete || task.PercentComplete || 0) / 100,
+        parent: 0,
+        original_duration: durationVal, // Store for display
+        duration: isMilestone ? 0 : durationVal, // Force 0 for physics/arrows
+
+        isCritical:
+          String(task.isCritical) === "1" ||
+          task.isCritical === true ||
+          String(task.Critical) === "1" ||
+          task.Critical === true,
+        totalFloat: task.totalFloat,
+        readonly: true,
+      };
     });
 
-    // Initialize Cutoff Date Input
-    const dateInput = document.getElementById("cutoff-date");
-    if (dateInput) {
-      // Default to TODAY as requested
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, "0");
-      const dd = String(today.getDate()).padStart(2, "0");
-      dateInput.value = `${yyyy}-${mm}-${dd}`;
+    const dhtmlxLinks = [];
+    validTasks.forEach((task) => {
+      if (task.PredecessorLink && Array.isArray(task.PredecessorLink)) {
+        task.PredecessorLink.forEach((link) => {
+          dhtmlxLinks.push({
+            id: task.id + "-" + link.PredecessorUID, // unique link id
+            source: link.PredecessorUID,
+            target: task.id,
+            type: "0",
+          });
+        });
+      }
+    });
+
+    const ganttData = {
+      data: dhtmlxTasks,
+      links: dhtmlxLinks,
+    };
+
+    // Initialize DHTMLX
+    const container = document.getElementById("gantt-chart");
+    container.innerHTML = ""; // Clear
+    ganttContainer.style.opacity = 1; // Show
+
+    // Config params (Apply BEFORE init/render)
+    // Disable autofit to strictly honor column widths (prevent truncation)
+    gantt.config.autofit = false;
+
+    gantt.config.xml_date = "%Y-%m-%d %H:%i";
+    gantt.config.readonly = true;
+    gantt.config.duration_unit = "day";
+
+    // Enforce Day View by default
+    gantt.config.scale_unit = "day";
+    gantt.config.date_scale = "%d %M";
+    gantt.config.subscales = [];
+    gantt.config.scale_height = 50;
+    gantt.config.min_column_width = 50;
+
+    // Dynamic Columns based on Visible Columns
+    const visibleCols = getVisibleColumns();
+    // Reorder based on activeColumnsOrder if available
+    let orderedCols = visibleCols;
+    if (activeColumnsOrder) {
+      orderedCols = activeColumnsOrder.filter((c) => visibleCols.includes(c));
     }
 
-    // [SCROLL-GLITCH-FIX]
-    // The library auto-scrolls to 'Today'. We want to scroll to Start.
-    // To prevent the visual 'jump', we hide the container initially and reveal it after our scroll.
-    ganttContainer.style.opacity = 0;
-    ganttContainer.style.transition = "opacity 0.2s";
+    // Calculate Dynamic Width for "Name" column
+    let maxNameLength = 20; // min base
+    if (dhtmlxTasks && dhtmlxTasks.length > 0) {
+      dhtmlxTasks.forEach((t) => {
+        if (t.text && t.text.length > maxNameLength) {
+          maxNameLength = t.text.length;
+        }
+      });
+    }
+    // Approx 8px per char + padding. Cap at 600px to overlap excessively long but allow reasonable read.
+    const calculatedNameWidth = Math.min(Math.max(350, maxNameLength * 8), 600);
 
-    // Render initial line and fix visuals
-    setTimeout(() => {
-      fixGanttDateRange(); // Fix Frappe's absurd date calculations (especially Month view)
+    gantt.config.columns = orderedCols.map((col) => {
+      // Special mappings for DHTMLX reserved names
+      if (col === "name" || col === "Name") {
+        return {
+          name: "text",
+          label: translateColumn(col),
+          tree: true,
+          width: calculatedNameWidth, // Dynamic Width
+          resize: true,
+        };
+      }
+      if (col === "start" || col === "Start") {
+        return {
+          name: "start_date",
+          label: translateColumn(col),
+          align: "center",
+          width: 120, // Increased from 90
+        };
+      }
+      if (col === "finish" || col === "Finish") {
+        return {
+          name: "end_date",
+          label: translateColumn(col),
+          align: "center",
+          width: 120, // Increased from 90
+        };
+      }
+      if (col === "duration" || col === "Duration") {
+        return {
+          name: "duration",
+          label: translateColumn(col),
+          align: "center",
+          width: 70,
+          template: function (obj) {
+            // Show original duration if available (preserve XML truth), else calculated
+            const d =
+              obj.original_duration !== undefined
+                ? obj.original_duration
+                : obj.duration;
+            return Math.round(d * 10) / 10 + " días";
+          },
+        };
+      }
+      if (col === "percentComplete" || col === "PercentComplete") {
+        return {
+          name: "progress",
+          label: "%",
+          align: "center",
+          width: 50,
+          template: function (obj) {
+            return Math.round((obj.progress || 0) * 100) + "%";
+          },
+        };
+      }
 
-      // Apply other visual fixes (these don't depend on refresh timing)
-      renderCutoffLine();
-      fixMilestoneShapes(); // Fix diamonds
-      alignTaskLabels(); // Fix text alignment (Left)
-      renderPreStartZone();
-      scrollToStart(); // Scroll to project start
-      bindTooltipHover(); // MANUALLY BIND TOOLTIPS
+      // Generic Columns
+      return {
+        name: col,
+        label: translateColumn(col),
+        align: "center",
+        width: 80,
+        resize: true,
+        template: function (obj) {
+          // Formatting for boolean/generic
+          const val = obj[col];
+          if (typeof val === "boolean" || val === "true" || val === "false") {
+            return val === true || val === "true" ? "Sí" : "No";
+          }
+          return val !== undefined ? val : "-";
+        },
+      };
+    });
 
-      // fixMonthViewBarPositions must run AFTER any possible refresh from fixGanttDateRange
-      // Use additional delay to ensure Frappe's render cycle completes
-      setTimeout(() => {
-        fixMonthViewBarPositions(); // Fix bar positions for Month view (30-day bug)
-        fixBarLabels(); // Fix label classes for ALL views (unify styles)
+    // Brand Language Styling (AIA)
+    // Brand Language Styling (AIA)
+    gantt.templates.task_class = function (start, end, task) {
+      // Priority 1: Summary Tasks are ALWAYS Green (Corporate)
+      // User Rule: "Actividad o hito resumen=Si, critica=Si: Verde Corporativo"
+      if (
+        task.type === "project" ||
+        task.summary === true ||
+        task.Summary === "1"
+      ) {
+        return "aia-summary"; // Green
+      }
 
-        // Ensure fixing dependency arrows and tooltips again just in case
-        fixDependencyArrows();
-        bindTooltipHover();
+      // Priority 2: Critical Tasks are Red
+      // User Rule: "Actividad o hito resumen=No, critica=Si: Roja"
+      if (task.isCritical) {
+        return "aia-critical"; // Red
+      }
 
-        // Reveal chart only after all corrections are applied
-        requestAnimationFrame(() => {
-          ganttContainer.style.opacity = 1;
-        });
-      }, 150);
-    }, 300); // Increased to 300ms to ensure flex layout settles
+      // Priority 3: Standard Tasks / Milestones are Blue
+      // User Rule: "Actividad o hito resumen=No, critica=No: Azul"
+      if (task.type === "milestone") {
+        return "aia-milestone"; // Blue (default style updated in CSS)
+      }
 
-    applyScrollLock();
+      return "aia-task"; // Blue
+    };
+
+    // Label Positioning (Adaptive: inside if fits, right side if not)
+    gantt.templates.rightside_text = function (start, end, task) {
+      if (task.type === "milestone") return task.text;
+
+      // Simple heuristic: 7px per character + some margin
+      const columnWidth = gantt.config.min_column_width || 50;
+      const barWidth = (task.duration || 1) * columnWidth;
+      const estimatedTextWidth = task.text.length * 7;
+
+      if (estimatedTextWidth > barWidth - 10) {
+        return task.text;
+      }
+      return "";
+    };
+
+    // Alias for compatibility if needed elsewhere
+    gantt.templates.right_side_text = gantt.templates.rightside_text;
+
+    gantt.templates.task_text = function (start, end, task) {
+      if (task.type === "milestone") return "";
+
+      const columnWidth = gantt.config.min_column_width || 50;
+      const barWidth = (task.duration || 1) * columnWidth;
+      const estimatedTextWidth = task.text.length * 7;
+
+      if (estimatedTextWidth <= barWidth - 10) {
+        return task.text;
+      }
+      return "";
+    };
+
+    // Initialize
+    gantt.init("gantt-chart");
+    gantt.clearAll();
+    gantt.parse(ganttData);
+    gantt.render(); // Explicit render to fix layout/arrow shifts
+
+    console.log("Renderizado DHTMLX completo");
+
+    // Remove old Fix functions
+    // setTimeout(() => { ... }, 300) removed.
+
+    setupGanttEvents();
   } catch (e) {
     console.error("Error rendering Gantt:", e);
     ganttContainer.innerHTML =
@@ -1306,10 +1515,13 @@ function renderGantt(tasks) {
   }
 }
 
-// ==== Scroll Lock (prevents diagonal drift) ====
-function applyScrollLock() {
+// ==== Gantt Events: Zoom & Scroll ====
+function setupGanttEvents() {
   const container = document.querySelector(".gantt-container");
   if (!container) return;
+
+  // Cleanup old listeners if needed (not strictly necessary with fresh renders, but good practice)
+  // Since we clear innerHTML of parent #gantt-chart, the container is new every time.
 
   let scrollLockAxis = null;
   let scrollLockTimeout = null;
@@ -1317,6 +1529,26 @@ function applyScrollLock() {
   container.addEventListener(
     "wheel",
     function (e) {
+      // 1. Zoom Logic (Ctrl or Cmd + Wheel)
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+
+        const delta = e.deltaY > 0 ? -5 : 5; // Down = Zoom Out, Up = Zoom In
+        const currentWidth = gantt.config.min_column_width || 50;
+        let newWidth = currentWidth + delta;
+
+        // Visual Limits
+        if (newWidth < 10) newWidth = 10;
+        if (newWidth > 200) newWidth = 200;
+
+        if (newWidth !== currentWidth) {
+          gantt.config.min_column_width = newWidth;
+          gantt.render();
+        }
+        return;
+      }
+
+      // 2. Scroll Lock Logic (Diagonal Drift Prevention)
       const absX = Math.abs(e.deltaX);
       const absY = Math.abs(e.deltaY);
       const threshold = 5;
@@ -1342,9 +1574,123 @@ function applyScrollLock() {
     },
     { passive: false },
   );
+
+  // 3. Keyboard Zoom Support (+ / -)
+  window.addEventListener("keydown", function (e) {
+    if (document.getElementById("gantt-view").classList.contains("hidden"))
+      return;
+
+    const isPlus =
+      e.key === "+" || e.code === "Equal" || e.code === "NumpadAdd";
+    const isMinus =
+      e.key === "-" || e.code === "Minus" || e.code === "NumpadSubtract";
+
+    if (e.ctrlKey || e.metaKey) {
+      if (isPlus) {
+        e.preventDefault();
+        zoomGantt(1);
+      } else if (isMinus) {
+        e.preventDefault();
+        zoomGantt(-1);
+      }
+    }
+  });
+}
+
+function zoomGantt(direction) {
+  const delta = direction > 0 ? 5 : -5;
+  const currentWidth = gantt.config.min_column_width || 50;
+  let newWidth = currentWidth + delta;
+
+  // Visual Limits
+  if (newWidth < 10) newWidth = 10;
+  if (newWidth > 200) newWidth = 200;
+
+  if (newWidth !== currentWidth) {
+    gantt.config.min_column_width = newWidth;
+    gantt.render();
+  }
 }
 
 // ==== Utilities ====
+function formatDependencyList(links) {
+  if (!links || links.length === 0) return "-";
+
+  return links
+    .map((link) => {
+      // Determine ID (PredecessorUID or id from successor object)
+      const id = link.PredecessorUID || link.id;
+
+      // Determine Type String
+      // 1=FF (FF), 2=FS (FC), 3=SF (CF), 4=SS (CC)?
+      // MSPDI Standard: 0=FF, 1=FS, 2=SF, 3=SS.
+      // DHTMLX: 0=FS, 1=SS, 2=FF, 3=SF
+      // Let's assume standard MSPDI since parsing comes from XML
+
+      let typeStr = "";
+      const type = parseInt(link.Type || 1);
+      switch (type) {
+        case 0:
+          typeStr = "FF";
+          break; // Fin-Fin
+        case 1:
+          typeStr = "FC";
+          break; // Fin-Comienzo (Standard)
+        case 2:
+          typeStr = "CF";
+          break; // Start-Finish
+        case 3:
+          typeStr = "CC";
+          break; // Start-Start
+        default:
+          typeStr = "FC";
+      }
+
+      // If Type is FC (Standard), usually we don't show it?
+      // User asked "Ver el tipo de dependencia", so show it.
+
+      // Format Lag
+      let lagStr = "";
+      const lag = parseInt(link.LinkLag || 0);
+      const format = parseInt(link.LagFormat || 7);
+
+      if (lag !== 0) {
+        const sign = lag > 0 ? "+" : "";
+
+        // Check for Percentage Formats (19, 20, 39, 57, etc.)
+        // 19=%, 20=e%, 39=%, 57=e%
+        if ([19, 20, 39, 57].includes(format)) {
+          lagStr = `${sign}${lag}%`;
+        } else {
+          // EVERYTHING else converts to Days (d)
+          // Standard MSPDI: LinkLag is in tenths of minutes.
+          // 1 day = 8 hours = 480 minutes = 4800 units.
+
+          // Calculate days with 1 decimal precision, or 2 if very small
+          let days = lag / 4800;
+
+          // If it's effectively an integer (e.g. 1.0, 5.0), show integer
+          // If it has decimals, show up to 2 decimals.
+          // Avoid scientific notation for very small numbers, just round.
+
+          const rounded = Math.round(days * 100) / 100;
+
+          // SANITY CHECK: Filter out absurd values (e.g. > 10,000 days)
+          // These usually indicate data corruption or "null date" artifacts in the XML.
+          // User reported values like 35490d which are nonsensical.
+          if (Math.abs(rounded) > 10000) {
+            lagStr = ""; // Hide the lag, just show the Type
+          } else {
+            lagStr = `${sign}${rounded}d`;
+          }
+        }
+      }
+
+      return `${id}${typeStr}${lagStr}`;
+    })
+    .join(", ");
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return "-";
   try {
@@ -1361,123 +1707,91 @@ function formatDate(dateStr) {
   }
 }
 
-function formatDuration(durStr) {
-  if (!durStr) return "-";
-  // PT8H0M0S -> 8h, PT160H0M0S -> 20d
+function formatDuration(value) {
+  // If it's a number (minutes) from backend
+  if (typeof value === "number") {
+    const days = Math.round((value / 1440) * 10) / 10; // 24h days (Calendar Time)
+    return days + " días";
+  }
+  // Legacy string handling (PT8H...)
+  if (!value) return "-";
+  const durStr = String(value);
+
   const match = durStr.match(/PT(\d+)H/);
   if (match) {
     const hours = parseInt(match[1]);
-    if (hours >= 8) {
-      const days = Math.round(hours / 8);
-      return days + "d";
-    }
-    return hours + "h";
+    const days = Math.round((hours / 24) * 10) / 10; // 24h days
+    return days + " días";
   }
   return durStr.replace("PT", "").toLowerCase();
 }
 
 // ==== Gantt Controls ====
 function changePViewMode(mode) {
-  if (window.ganttInstance) {
-    window.ganttInstance.change_view_mode(mode);
-    setTimeout(() => {
-      fixGanttDateRange(); // Fix date range before other calculations
-      renderCutoffLine();
-      fixMilestoneShapes();
-      alignTaskLabels();
-      renderPreStartZone();
-      scrollToStart(); // Realign to project start date
+  if (!gantt) return;
 
-      // fixMonthViewBarPositions must run AFTER any possible refresh from fixGanttDateRange
-      setTimeout(() => {
-        fixMonthViewBarPositions(); // Fix bar positions for Month view (30-day bug)
-        fixBarLabels(); // Fix label classes for ALL views
-        fixDependencyArrows(); // Fix arrows after bar repositioning
-        fixMonthViewBarPositions(); // Fix bar positions for Month view (30-day bug)
-        fixBarLabels(); // Fix label classes for ALL views
-        fixDependencyArrows(); // Fix arrows after bar repositioning
-        bindTooltipHover(); // RE-BIND MANUALLY
-      }, 150);
-    }, 300);
-
-    // Update active button state
-    document.querySelectorAll(".zoom-btn").forEach((btn) => {
-      btn.classList.remove("active");
-      if (
-        btn.textContent.includes(
-          mode === "Day" ? "Día" : mode === "Week" ? "Semana" : "Mes",
-        )
-      ) {
-        btn.classList.add("active");
-      }
-    });
+  // Map "Day", "Week", "Month" to DHTMLX scales
+  if (mode === "Day") {
+    gantt.config.scale_unit = "day";
+    gantt.config.date_scale = "%d %M";
+    gantt.config.subscales = [];
+    gantt.config.scale_height = 50;
+    // Adjust column width to make days readable
+    gantt.config.min_column_width = 50;
+  } else if (mode === "Week") {
+    gantt.config.scale_unit = "week";
+    gantt.config.date_scale = "Semana %W";
+    gantt.config.step = 1;
+    gantt.config.subscales = [{ unit: "day", step: 1, date: "%D %d" }];
+    gantt.config.scale_height = 50;
+    gantt.config.min_column_width = 40;
+  } else if (mode === "Month") {
+    gantt.config.scale_unit = "month";
+    gantt.config.date_scale = "%F %Y";
+    gantt.config.subscales = [{ unit: "week", step: 1, date: "Sem %W" }];
+    gantt.config.scale_height = 50;
+    gantt.config.min_column_width = 80;
   }
+
+  gantt.render();
+
+  // Update active button state
+  document.querySelectorAll(".zoom-btn").forEach((btn) => {
+    btn.classList.remove("active");
+    const btnText = btn.textContent.trim();
+    const modeMap = {
+      Day: "Día",
+      Week: "Semana",
+      Month: "Mes",
+    };
+
+    if (btnText.includes(modeMap[mode])) {
+      btn.classList.add("active");
+    }
+  });
 }
 
 function toggleGanttFullscreen() {
-  const container = document.getElementById("gantt-view");
+  const container = document.getElementById("gantt-view"); // This is the wrapper
   const btn = document.querySelector(".fullscreen-btn");
 
   if (!container.classList.contains("fullscreen-mode")) {
     container.classList.add("fullscreen-mode");
-    btn.textContent = "✕ Salir";
-    // Force redraw significantly later to ensure transition finishes
-    // Hide to avoid jump
-    const ganttContainer = document.getElementById("gantt-chart");
-    ganttContainer.style.opacity = 0;
+    if (btn) btn.textContent = "✕ Salir";
 
+    // DHTMLX needs explicit resize call when container changes
     setTimeout(() => {
-      if (window.ganttInstance) {
-        window.ganttInstance.refresh(window.ganttInstance.tasks);
-
-        // Re-apply all visual fixes
-        setTimeout(() => {
-          renderCutoffLine();
-          fixMilestoneShapes();
-          alignTaskLabels();
-          fixMonthViewBarPositions(); // Fix Month view positioning
-          fixBarLabels(); // Fix label contrast classes
-          fixDependencyArrows(); // Fix arrows after refresh
-          renderPreStartZone();
-          scrollToStart();
-          bindTooltipHover(); // RE-BIND MANUALLY
-
-          requestAnimationFrame(() => {
-            ganttContainer.style.opacity = 1;
-          });
-        }, 100);
-      }
-    }, 300);
+      gantt.setSizes();
+      gantt.render();
+    }, 100);
   } else {
     container.classList.remove("fullscreen-mode");
-    btn.textContent = "⛶ Pantalla Completa";
-
-    // Hide to avoid jump
-    const ganttContainer = document.getElementById("gantt-chart");
-    ganttContainer.style.opacity = 0;
+    if (btn) btn.textContent = "⛶ Pantalla Completa";
 
     setTimeout(() => {
-      if (window.ganttInstance) {
-        window.ganttInstance.refresh(window.ganttInstance.tasks);
-
-        // Re-apply all visual fixes
-        setTimeout(() => {
-          renderCutoffLine();
-          fixMilestoneShapes();
-          alignTaskLabels();
-          fixMonthViewBarPositions(); // Fix Month view positioning
-          fixBarLabels(); // Fix label contrast classes
-          fixDependencyArrows(); // Fix arrows after refresh
-          renderPreStartZone();
-          scrollToStart();
-          bindTooltipHover(); // RE-BIND MANUALLY
-
-          requestAnimationFrame(() => {
-            ganttContainer.style.opacity = 1;
-          });
-        }, 100);
-      }
-    }, 300);
+      gantt.setSizes();
+      gantt.render();
+    }, 100);
   }
 }
 
