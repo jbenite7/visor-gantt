@@ -1,0 +1,380 @@
+openapi: "3.0.3"
+info:
+  title: MPP Parser Service
+  description: |
+    Microservice that converts Microsoft Project .mpp files to structured JSON
+    using MPXJ (Java) via subprocess. Part of the Visor Gantt project.
+
+    The service accepts .mpp uploads via multipart/form-data, validates the
+    file, delegates conversion to MPXJ, normalizes the output, and returns
+    JSON compatible with the Gantt chart components.
+  version: "1.0.0"
+  contact:
+    name: Visor Gantt
+    url: https://github.com/visor-gantt/visor-mpp
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      description: Returns service status and MPXJ availability.
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Service status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+      tags:
+        - Health
+
+  /api/parse-mpp:
+    post:
+      summary: Parse .mpp file
+      description: |
+        Upload a Microsoft Project .mpp file for conversion to JSON.
+
+        The file is validated for extension and size, written to a temporary
+        location, converted via the MPXJ Java library, and the resulting JSON
+        is normalized to match the project's MSPTask format. Temporary files
+        are cleaned up after processing.
+      operationId: parseMpp
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Microsoft Project .mpp file
+      responses:
+        "200":
+          description: Successful conversion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectData"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          headers:
+            X-Error-Code:
+              schema:
+                type: string
+                enum: [INVALID_EXTENSION, NO_FILENAME]
+              description: Specific error code
+        "422":
+          description: Unprocessable entity (invalid file size)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          headers:
+            X-Error-Code:
+              schema:
+                type: string
+                enum: [FILE_TOO_LARGE, FILE_TOO_SMALL, INVALID_TYPE]
+              description: Specific error code
+        "500":
+          description: Server error (MPXJ failure, timeout, corrupt file)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      tags:
+        - MPP Parsing
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - mpxj_available
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          description: Service health status
+          example: ok
+        mpxj_available:
+          type: boolean
+          description: Whether the MPXJ jar file was found
+          example: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Human-readable error description
+          example: "Invalid file type '.pdf'. Only .mpp files are accepted."
+
+    ProjectData:
+      type: object
+      required:
+        - name
+        - startDate
+        - finishDate
+        - tasks
+        - resources
+        - calendar
+        - availableColumns
+      properties:
+        name:
+          type: string
+          description: Project name from the .mpp file
+          example: "Proyecto de Construcción"
+        startDate:
+          type: string
+          format: date-time
+          description: "Earliest task start date (ISO 8601)"
+          example: "2026-01-01T00:00:00"
+        finishDate:
+          type: string
+          format: date-time
+          description: "Latest task finish date (ISO 8601)"
+          example: "2026-12-31T00:00:00"
+        tasks:
+          type: array
+          description: List of project tasks
+          items:
+            $ref: "#/components/schemas/MSPTask"
+        resources:
+          type: array
+          description: List of project resources
+          items:
+            $ref: "#/components/schemas/Resource"
+        calendar:
+          type: object
+          description: Calendar definition (week days and exceptions)
+          properties:
+            weekDays:
+              type: object
+              description: Working day definitions
+              example: {}
+            exceptions:
+              type: array
+              description: Calendar exception dates
+              items:
+                type: object
+        availableColumns:
+          type: array
+          description: All unique field names present in tasks
+          items:
+            type: string
+          example:
+            - Duration
+            - Finish
+            - ID
+            - Name
+            - PercentComplete
+            - Start
+
+    MSPTask:
+      type: object
+      description: Normalized task matching the project's MSPTask interface
+      required:
+        - UID
+        - ID
+        - Name
+        - Start
+        - Finish
+      properties:
+        UID:
+          type: integer
+          description: Unique task identifier
+          example: 1
+        ID:
+          type: integer
+          description: Task ID (may match UID)
+          example: 1
+        Name:
+          type: string
+          description: Task name
+          example: "Excavación"
+        Start:
+          type: string
+          format: date-time
+          description: Planned start date (ISO 8601)
+          example: "2026-01-01T00:00:00"
+        Finish:
+          type: string
+          format: date-time
+          description: Planned finish date (ISO 8601)
+          example: "2026-01-15T00:00:00"
+        Duration:
+          type: string
+          description: Duration in ISO 8601 format
+          example: "PT120H0M0S"
+        DurationFormat:
+          type: integer
+          description: Duration format code (MS Project enum)
+          example: 7
+        PercentComplete:
+          type: integer
+          description: Completion percentage (0-100)
+          minimum: 0
+          maximum: 100
+          example: 0
+        Summary:
+          type: boolean
+          description: Whether this is a summary (parent) task
+          example: false
+        Milestone:
+          type: boolean
+          description: Whether this is a milestone task
+          example: false
+        OutlineLevel:
+          type: integer
+          description: Indentation level in the WBS hierarchy
+          minimum: 1
+          example: 1
+        WBS:
+          type: string
+          description: Work Breakdown Structure code
+          example: "1"
+        PredecessorLink:
+          type: array
+          description: Predecessor dependency links
+          items:
+            $ref: "#/components/schemas/PredecessorLink"
+        ConstraintType:
+          type: integer
+          description: Constraint type code (MS Project enum, 0=ASAP)
+          example: 0
+        ConstraintDate:
+          type: string
+          format: date-time
+          description: Constraint date if applicable
+          example: ""
+        predecessors:
+          type: array
+          description: Predecessor UIDs (computed for convenience)
+          items:
+            type: integer
+          example: [3, 5]
+        successors:
+          type: array
+          description: Computed successor links (inverted from predecessors)
+          items:
+            $ref: "#/components/schemas/SuccessorLink"
+        id:
+          type: integer
+          description: Alias for UID (frontend compatibility)
+          example: 1
+        name:
+          type: string
+          description: Alias for Name
+          example: "Excavación"
+        start:
+          type: string
+          format: date-time
+          description: Alias for Start (normalized)
+          example: "2026-01-01T00:00:00"
+        finish:
+          type: string
+          format: date-time
+          description: Alias for Finish (normalized)
+          example: "2026-01-15T00:00:00"
+        duration:
+          type: number
+          format: float
+          description: Duration in days (8-hour workday)
+          example: 15.0
+        percentComplete:
+          type: integer
+          description: Alias for PercentComplete
+          example: 0
+        isSummary:
+          type: boolean
+          description: Alias for Summary
+          example: false
+        isMilestone:
+          type: boolean
+          description: Alias for Milestone (also set if start==finish)
+          example: false
+        outlineLevel:
+          type: integer
+          description: Alias for OutlineLevel
+          example: 1
+        wbs:
+          type: string
+          description: Alias for WBS
+          example: "1"
+
+    PredecessorLink:
+      type: object
+      description: Predecessor dependency link (MS Project format)
+      properties:
+        PredecessorUID:
+          type: integer
+          description: UID of the predecessor task
+          example: 3
+        Type:
+          type: integer
+          description: "Dependency type: 1=FS, 2=FF, 3=SS, 4=SF"
+          enum: [1, 2, 3, 4]
+          example: 1
+        LinkLag:
+          type: integer
+          description: Lag duration in the unit specified by LagFormat
+          example: 0
+        LagFormat:
+          type: integer
+          description: Lag format code (MS Project enum, 7=days)
+          example: 7
+
+    SuccessorLink:
+      type: object
+      description: Computed successor link (inverted from PredecessorLink)
+      properties:
+        id:
+          type: integer
+          description: UID of the successor task
+          example: 7
+        Type:
+          type: integer
+          description: "Dependency type: 1=FS, 2=FF, 3=SS, 4=SF"
+          enum: [1, 2, 3, 4]
+          example: 1
+        LinkLag:
+          type: integer
+          description: Lag duration
+          example: 2
+        LagFormat:
+          type: integer
+          description: Lag format code
+          example: 7
+
+    Resource:
+      type: object
+      description: Project resource (worker, material, or cost)
+      properties:
+        UID:
+          type: integer
+          description: Unique resource identifier
+          example: 1
+        Name:
+          type: string
+          description: Resource name
+          example: "Juan Pérez"
+        Type:
+          type: integer
+          description: "Resource type: 0=material, 1=work (default)"
+          example: 1

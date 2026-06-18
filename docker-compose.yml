@@ -1,4 +1,17 @@
 services:
+  frontend:
+    build:
+      context: ./v2
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_MPP_PARSER_URL=http://mpp-parser:8000
+    depends_on:
+      mpp-parser:
+        condition: service_healthy
+    restart: unless-stopped
+
   web:
     build: 
       context: ./docker
@@ -15,6 +28,26 @@ services:
       - DB_PASS=visorpass
     depends_on:
       - db
+
+  mpp-parser:
+    build:
+      context: ./services/mpp-parser
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./services/mpp-parser/libs:/app/libs
+    environment:
+      - MPXJ_JAR_PATH=/app/libs/mpxj.jar
+      - MPXJ_TIMEOUT=${MPXJ_TIMEOUT:-30}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
 
   db:
     image: postgres:15

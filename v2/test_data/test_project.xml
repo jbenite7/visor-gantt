@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Project xmlns="http://schemas.microsoft.com/project">
+    <Name>Proyecto Test Dependencias Completas</Name>
+    <Title>Test Dependencias</Title>
+    <StartDate>2026-02-02T08:00:00</StartDate>
+    <FinishDate>2026-02-28T17:00:00</FinishDate>
+    <Calendar>
+        <UID>1</UID>
+        <Name>Standard</Name>
+        <IsBaseCalendar>1</IsBaseCalendar>
+        <WeekDays>
+            <WeekDay>
+                <DayType>1</DayType>
+                <DayWorking>0</DayWorking>
+            </WeekDay>
+            <WeekDay>
+                <DayType>7</DayType>
+                <DayWorking>0</DayWorking>
+            </WeekDay>
+            <WeekDay>
+                <DayType>2</DayType>
+                <DayWorking>1</DayWorking>
+                <WorkingTimes>
+                    <WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>
+                    <WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime>
+                </WorkingTimes>
+            </WeekDay>
+            <WeekDay>
+                <DayType>3</DayType>
+                <DayWorking>1</DayWorking>
+                <WorkingTimes>
+                    <WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>
+                    <WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime>
+                </WorkingTimes>
+            </WeekDay>
+            <WeekDay>
+                <DayType>4</DayType>
+                <DayWorking>1</DayWorking>
+                <WorkingTimes>
+                    <WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>
+                    <WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime>
+                </WorkingTimes>
+            </WeekDay>
+            <WeekDay>
+                <DayType>5</DayType>
+                <DayWorking>1</DayWorking>
+                <WorkingTimes>
+                    <WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>
+                    <WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime>
+                </WorkingTimes>
+            </WeekDay>
+            <WeekDay>
+                <DayType>6</DayType>
+                <DayWorking>1</DayWorking>
+                <WorkingTimes>
+                    <WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>
+                    <WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime>
+                </WorkingTimes>
+            </WeekDay>
+        </WeekDays>
+    </Calendar>
+    <Tasks>
+        <!-- Tarea Base para Referencia -->
+        <Task>
+            <UID>1</UID>
+            <ID>1</ID>
+            <Name>Tarea A (Referencia)</Name>
+            <Type>0</Type>
+            <Start>2026-02-02T08:00:00</Start>
+            <Finish>2026-02-06T17:00:00</Finish>
+            <Duration>PT40H0M0S</Duration> <!-- 5 Days -->
+            <DurationFormat>7</DurationFormat>
+            <Summary>0</Summary>
+            <OutlineLevel>1</OutlineLevel>
+            <OutlineNumber>1</OutlineNumber>
+            <WBS>1</WBS>
+        </Task>
+
+        <!-- GRUPO 1: TIPOS BASICOS -->
+        <Task>
+            <UID>2</UID>
+            <ID>2</ID>
+            <Name>Grupo Tipos Básicos</Name>
+            <Type>1</Type>
+            <Summary>1</Summary>
+            <OutlineLevel>1</OutlineLevel>
+            <OutlineNumber>2</OutlineNumber>
+            <WBS>2</WBS>
+        </Task>
+
+        <!-- FS (Fin-Comienzo) Simple -->
+        <Task>
+            <UID>3</UID>
+            <ID>3</ID>
+            <Name>Tarea B (FS Estándar)</Name>
+            <Type>0</Type>
+            <Start>2026-02-09T08:00:00</Start>
+            <Finish>2026-02-09T17:00:00</Finish>
+            <Duration>PT8H0M0S</Duration>
+            <Summary>0</Summary>
+            <OutlineLevel>2</OutlineLevel>
+            <OutlineNumber>2.1</OutlineNumber>
+            <WBS>2.1</WBS>
+            <PredecessorLink>
+                <PredecessorUID>1</PredecessorUID>
+                <Type>1</Type> <!-- FS -->
+            </PredecessorLink>
+        </Task>
+
+        <!-- SS (Comienzo-Comienzo) -->
+        <Task>
+            <UID>4</UID>
+            <ID>4</ID>
+            <Name>Tarea C (SS)</Name>
+            <Type>0</Type>
+            <Start>2026-02-02T08:00:00</Start>
+            <Finish>2026-02-02T17:00:00</Finish>
+            <Duration>PT8H0M0S</Duration>
+            <Summary>0</Summary>
+            <OutlineLevel>2</OutlineLevel>
+            <OutlineNumber>2.2</OutlineNumber>
+            <WBS>2.2</WBS>
+            <PredecessorLink>
+                <PredecessorUID>1</PredecessorUID>
+                <Type>3</Type> <!-- SS -->
+            </PredecessorLink>
+        </Task>
+
+        <!-- FF (Fin-Fin) -->
+        <Task>
+            <UID>5</UID>
+            <ID>5</ID>
+            <Name>Tarea D (FF)</Name>
+            <Type>0</Type>
+            <Start>2026-02-06T08:00:00</Start>
+            <Finish>2026-02-06T17:00:00</Finish>
+            <Duration>PT8H0M0S</Duration>
+            <Summary>0</Summary>
+            <OutlineLevel>2</OutlineLevel>
+            <OutlineNumber>2.3</OutlineNumber>
+            <WBS>2.3</WBS>
+            <PredecessorLink>
+                <PredecessorUID>1</PredecessorUID>
+                <Type>0</Type> <!-- FF -->
+            </PredecessorLink>
+        </Task>
+
+        <!-- SF (Comienzo-Fin) -->
+        <Task>
+            <UID>6</UID>
+            <ID>6</ID>
+            <Name>Tarea E (SF Rareza)</Name>
+            <Type>0</Type>
+            <Start>2026-01-30T08:00:00</Start>
+            <Finish>2026-02-02T08:00:00</Finish> <!-- Finishes when A starts -->
+            <Duration>PT8H0M0S</Duration>
+            <Summary>0</Summary>
+            <OutlineLevel>2</OutlineLevel>
+            <OutlineNumber>2.4</OutlineNumber>
+            <WBS>2.4</WBS>
+            <PredecessorLink>
+                <PredecessorUID>1</PredecessorUID>
+                <Type>2</Type> <!-- SF -->
+            </PredecessorLink>
+        </Task>
+
+
+        <!-- GRUPO 2: LAGS (RETARDOS) -->
+        <Task>
+            <UID>7</UID>
+            <ID>7</ID>
+            <Name>Grupo Lags</Name>
+            <Type>1</Type>
+            <Summary>1</Summary>
+            <OutlineLevel>1</OutlineLevel>
+            <OutlineNumber>3</OutlineNumber>
+            <WBS>3</WBS>
+        </Task>
+
+        <!-- FS + Lag Días -->
+        <Task>
+            <UID>8</UID>
+            <ID>8</ID>
+            <Name>Tarea F (FS + 2d)</Name>
+            <Type>0</Type>
+            <Start>2026-02-09T08:00:00</Start>
+            <Finish>2026-02-09T17:00:00</Finish>
+            <Duration>PT8H0M0S</Duration>
+            <Summary>0</Summary>
+            <OutlineLevel>2</OutlineLevel>
+            <OutlineNumber>3.1</OutlineNumber>
+            <WBS>3.1</WBS>
+            <PredecessorLink>
+                <PredecessorUID>1</PredecessorUID>
+                <Type>1</Type>
+                <LinkLag>9600</LinkLag> <!-- 2 Days: 4800 * 2 -->
+                <LagFormat>7</LagFormat>
+            </PredecessorLink>
+        </Task>
+
+        <!-- FS - Lag Días (Adelanto) -->
+        <Task>
+            <UID>9</UID>
+            <ID>9</ID>
+            <Name>Tarea G (FS - 1d)</Name>
+            <Type>0</Type>
+            <Start>2026-02-06T08:00:00</Start>
+            <Finish>2026-02-06T17:00:00</Finish>
+            <Duration>PT8H0M0S</Duration>
+            <Summary>0</Summary>
+            <OutlineLevel>2</OutlineLevel>
+            <OutlineNumber>3.2</OutlineNumber>
+            <WBS>3.2</WBS>
+            <PredecessorLink>
+                <PredecessorUID>1</PredecessorUID>
+                <Type>1</Type>
+                <LinkLag>-4800</LinkLag> <!-- -1 Day -->
+                <LagFormat>7</LagFormat>
+            </PredecessorLink>
+        </Task>
+
+        <!-- SS + Lag % -->
+        <Task>
+            <UID>10</UID>
+            <ID>10</ID>
+            <Name>Tarea H (SS + 50%)</Name>
+            <Type>0</Type>
+            <Start>2026-02-04T08:00:00</Start>
+            <Finish>2026-02-04T17:00:00</Finish>
+            <Duration>PT8H0M0S</Duration>
+            <Summary>0</Summary>
+            <OutlineLevel>2</OutlineLevel>
+            <OutlineNumber>3.3</OutlineNumber>
+            <WBS>3.3</WBS>
+            <PredecessorLink>
+                <PredecessorUID>1</PredecessorUID>
+                <Type>3</Type> <!-- SS -->
+                <LinkLag>50</LinkLag>
+                <LagFormat>19</LagFormat> <!-- Percentage -->
+            </PredecessorLink>
+        </Task>
+
+        <!-- COMBINACION COMPLEJA -->
+        <Task>
+            <UID>11</UID>
+            <ID>11</ID>
+            <Name>Tarea I (Múltiples Predecesoras)</Name>
+            <Type>0</Type>
+            <Start>2026-02-10T08:00:00</Start>
+            <Finish>2026-02-10T17:00:00</Finish>
+            <Duration>PT8H0M0S</Duration>
+            <Summary>0</Summary>
+            <OutlineLevel>2</OutlineLevel>
+            <OutlineNumber>3.4</OutlineNumber>
+            <WBS>3.4</WBS>
+            <PredecessorLink>
+                <PredecessorUID>8</PredecessorUID>
+                <Type>1</Type> <!-- FS -->
+            </PredecessorLink>
+            <PredecessorLink>
+                <PredecessorUID>10</PredecessorUID>
+                <Type>0</Type> <!-- FF -->
+                <LinkLag>4800</LinkLag> <!-- +1d -->
+                <LagFormat>7</LagFormat>
+            </PredecessorLink>
+        </Task>
+
+    </Tasks>
+</Project>

@@ -7,3 +7,15 @@ backend/debug_log.txt
 backend/uploads/*
 !backend/uploads/.gitkeep
 *_backup
+
+# OMO state
+.omo/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Large test files
+*.mpp
+test_project_complete.xml
+aia-ms-project/
