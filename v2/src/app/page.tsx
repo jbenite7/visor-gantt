@@ -1,44 +1,129 @@
+import Link from "next/link";
 import pool from "@/lib/db";
+import { listProjects } from "@/app/actions/project";
+import ProjectList from "@/components/ProjectList";
+
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  let dbStatus = "Desconectado 🔴";
-  let projectCount = 0;
+  let dbStatus = "Desconectado";
+  let projects: { id: string; name: string; updatedAt: Date }[] = [];
 
   try {
     const client = await pool.connect();
     try {
-      const res = await client.query("SELECT COUNT(*) FROM projects");
-      projectCount = parseInt(res.rows[0].count, 10);
-      dbStatus = "Conectado a Supabase 🟢";
+      await client.query("SELECT 1 FROM projects LIMIT 1");
+      dbStatus = "Conectado";
     } finally {
       client.release();
     }
+
+    projects = await listProjects();
   } catch (err) {
-    dbStatus = "Error de Conexión ❌ (" + (err as Error).message + ")";
+    dbStatus = "Error";
+    console.error("Home page DB error:", (err as Error).message);
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-24 bg-slate-950 text-white">
-      <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 text-transparent bg-clip-text">
-          Visor Gantt v2
-        </h1>
-        <div className="p-6 rounded-lg border border-slate-800 bg-slate-900 shadow-xl">
-          <p className="text-xl font-medium mb-2">Estado del Sistema</p>
-          <div className="flex items-center justify-center gap-2 text-lg">
-            <span>Base de Datos:</span>
-            <span className="font-bold">{dbStatus}</span>
-          </div>
-          {dbStatus.includes("Conectado") && (
-            <p className="text-slate-400 mt-2">
-              Proyectos encontrados: {projectCount}
+    <div className="min-h-screen bg-[var(--aia-alabaster)]">
+      {/* Header */}
+      <header className="px-6 py-5 bg-white border-b border-[var(--gray-200)]">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-[var(--aia-corp-dark)] font-[var(--font-heading)]">
+              Visor Gantt v2
+            </h1>
+            <p className="text-sm text-[var(--gray-500)] mt-1">
+              Next.js + PostgreSQL
             </p>
-          )}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-[var(--gray-600)]">
+              DB:
+              <span
+                className={`ml-1.5 inline-block w-2 h-2 rounded-full ${
+                  dbStatus === "Conectado"
+                    ? "bg-emerald-500"
+                    : "bg-red-500"
+                }`}
+              />
+              <span className="ml-1">{dbStatus}</span>
+            </span>
+          </div>
         </div>
-        <p className="text-slate-500 text-sm">
-          Next.js + Tailwind + Supabase (Free Tier)
-        </p>
-      </div>
+      </header>
+
+      {/* Main content */}
+      <main className="max-w-5xl mx-auto p-6">
+        {/* Action bar */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-[var(--aia-corp-dark)] font-[var(--font-heading)]">
+            Mis Proyectos
+          </h2>
+          <Link
+            href="/upload"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--aia-corp-main)] text-white text-sm font-medium hover:bg-[var(--aia-corp-dark)] transition-colors"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            Nuevo Proyecto
+          </Link>
+        </div>
+
+        {/* Project list */}
+        {projects.length > 0 ? (
+          <ProjectList projects={projects} />
+        ) : (
+          <div className="text-center py-16 rounded-xl border-2 border-dashed border-[var(--gray-300)] bg-white">
+            <svg
+              className="mx-auto w-12 h-12 text-[var(--gray-400)] mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+              />
+            </svg>
+            <p className="text-[var(--gray-600)] font-medium">
+              No hay proyectos guardados
+            </p>
+            <p className="text-sm text-[var(--gray-500)] mt-1">
+              Sube un archivo .mpp o crea uno nuevo para comenzar
+            </p>
+            <Link
+              href="/upload"
+              className="inline-block mt-4 px-5 py-2 rounded-lg bg-[var(--aia-corp-main)] text-white text-sm font-medium hover:bg-[var(--aia-corp-dark)] transition-colors"
+            >
+              Subir Archivo .mpp
+            </Link>
+          </div>
+        )}
+
+        {/* Quick links */}
+        <div className="mt-8 flex gap-4">
+          <Link
+            href="/gantt-demo"
+            className="text-sm text-[var(--aia-corp-main)] hover:text-[var(--aia-corp-dark)] font-medium transition-colors"
+          >
+            Ver Demo Gantt →
+          </Link>
+        </div>
+      </main>
     </div>
   );
 }
