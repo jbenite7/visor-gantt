@@ -61,7 +61,7 @@ export default async function Home() {
             Mis Proyectos
           </h2>
           <Link
-            href="/upload"
+            href="/project/new"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--aia-corp-main)] text-white text-sm font-medium hover:bg-[var(--aia-corp-dark)] transition-colors"
           >
             <svg
@@ -106,7 +106,7 @@ export default async function Home() {
               Sube un archivo .mpp o crea uno nuevo para comenzar
             </p>
             <Link
-              href="/upload"
+              href="/project/new"
               className="inline-block mt-4 px-5 py-2 rounded-lg bg-[var(--aia-corp-main)] text-white text-sm font-medium hover:bg-[var(--aia-corp-dark)] transition-colors"
             >
               Subir Archivo .mpp

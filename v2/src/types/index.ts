@@ -15,3 +15,15 @@ export type {
   MPPResource,
   MPPProject,
 } from "./mpp";
+
+export type { BaselineTask, Baseline } from "./baseline";
+
+export type { ResourceType, Resource, Assignment } from "./resource";
+
+export type {
+  BudgetCategory,
+  BudgetItem,
+  BudgetMapping,
+} from "./budget";
+
+export type { LOBActivity, LOBUnit } from "./lob";

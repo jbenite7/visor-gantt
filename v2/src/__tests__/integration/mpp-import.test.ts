@@ -130,7 +130,7 @@ function createMockFile(
 describe("MPP Import Integration - parseMPP API Client", () => {
   beforeEach(() => {
     mockFetch.mockReset();
-    process.env.NEXT_PUBLIC_MPP_PARSER_URL = "http://localhost:8000";
+    process.env.NEXT_PUBLIC_MPP_PARSER_URL = "http://mpp-parser:8000";
   });
 
   afterEach(() => {
@@ -163,7 +163,7 @@ describe("MPP Import Integration - parseMPP API Client", () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, options] = mockFetch.mock.calls[0];
-    expect(url).toBe("http://localhost:8000/api/parse-mpp");
+    expect(url).toBe("http://mpp-parser:8000/api/parse-mpp");
     expect(options.method).toBe("POST");
     expect(options.body).toBeInstanceOf(FormData);
   });
@@ -426,7 +426,7 @@ describe("MPP Import Integration - mppTasksToGanttTasks Transformation", () => {
 describe("MPP Import Integration - End-to-End Flow", () => {
   beforeEach(() => {
     mockFetch.mockReset();
-    process.env.NEXT_PUBLIC_MPP_PARSER_URL = "http://localhost:8000";
+    process.env.NEXT_PUBLIC_MPP_PARSER_URL = "http://mpp-parser:8000";
   });
 
   afterEach(() => {
@@ -642,7 +642,7 @@ describe("MPP Import Integration - Error Flows", () => {
 describe("MPP Import Integration - State Transitions", () => {
   beforeEach(() => {
     mockFetch.mockReset();
-    process.env.NEXT_PUBLIC_MPP_PARSER_URL = "http://localhost:8000";
+    process.env.NEXT_PUBLIC_MPP_PARSER_URL = "http://mpp-parser:8000";
   });
 
   test("idle → parsing → success state transitions", async () => {
@@ -771,7 +771,7 @@ describe("MPP Import Integration - State Transitions", () => {
 describe("MPP Import Integration - Performance", () => {
   beforeEach(() => {
     mockFetch.mockReset();
-    process.env.NEXT_PUBLIC_MPP_PARSER_URL = "http://localhost:8000";
+    process.env.NEXT_PUBLIC_MPP_PARSER_URL = "http://mpp-parser:8000";
   });
 
   test("parseMPP completes within 10 seconds for typical file", async () => {
@@ -890,7 +890,7 @@ describe("MPP Import Integration - Performance", () => {
 describe("MPP Import Integration - Edge Cases", () => {
   beforeEach(() => {
     mockFetch.mockReset();
-    process.env.NEXT_PUBLIC_MPP_PARSER_URL = "http://localhost:8000";
+    process.env.NEXT_PUBLIC_MPP_PARSER_URL = "http://mpp-parser:8000";
   });
 
   test("project with zero tasks", async () => {

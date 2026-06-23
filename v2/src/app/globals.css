@@ -1,26 +1,144 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* =========================================
+     AIA Brand Identity - OKLCH Palette
+     Source: manual-de-marca-aia.json
+     ========================================= */
+
+  /* --- CORPORATIVE (Verde AIA) --- */
+  --aia-corp-dark: oklch(35% 0.09 145);
+  --aia-corp-main: oklch(42% 0.12 145);
+  --aia-corp-mid: oklch(55% 0.1 145);
+  --aia-corp-light: oklch(75% 0.08 145);
+  --aia-corp-xlight: oklch(92% 0.04 145);
+
+  /* --- CONSTRUCTION (Naranja) --- */
+  --aia-const-dark: oklch(45% 0.15 45);
+  --aia-const-main: oklch(65% 0.2 50);
+  --aia-const-mid: oklch(75% 0.15 55);
+  --aia-const-light: oklch(85% 0.1 60);
+  --aia-const-xlight: oklch(95% 0.05 65);
+
+  /* --- ARCHITECTURE (Azul) --- */
+  --aia-arch-dark: oklch(45% 0.1 250);
+  --aia-arch-main: oklch(60% 0.15 250);
+  --aia-arch-mid: oklch(70% 0.12 250);
+  --aia-arch-light: oklch(85% 0.08 250);
+  --aia-arch-xlight: oklch(96% 0.03 250);
+
+  /* --- PROJECTS (Verde Agua) --- */
+  --aia-proj-dark: oklch(45% 0.1 180);
+  --aia-proj-main: oklch(60% 0.15 180);
+  --aia-proj-mid: oklch(75% 0.12 180);
+  --aia-proj-light: oklch(88% 0.08 180);
+  --aia-proj-xlight: oklch(97% 0.03 180);
+
+  /* --- ALERTS (Rojo) --- */
+  --aia-alert-dark: oklch(35% 0.15 25);
+  --aia-alert-main: oklch(60% 0.22 25);
+  --aia-alert-mid: oklch(70% 0.18 25);
+  --aia-alert-light: oklch(85% 0.1 25);
+  --aia-alert-xlight: oklch(96% 0.04 25);
+
+  /* --- WARNINGS (Amarillo/Ambar) --- */
+  --aia-warn-dark: oklch(55% 0.15 85);
+  --aia-warn-main: oklch(85% 0.18 85);
+  --aia-warn-mid: oklch(90% 0.15 85);
+  --aia-warn-light: oklch(95% 0.1 85);
+  --aia-warn-xlight: oklch(98% 0.05 85);
+
+  /* --- NEUTRALS & BACKGROUNDS --- */
+  --aia-linen: oklch(96% 0.01 90);
+  --aia-alabaster: oklch(98% 0.005 90);
+  --aia-beige: oklch(97% 0.02 95);
+
+  /* --- GRAYS --- */
+  --gray-50: oklch(99% 0 0);
+  --gray-100: oklch(96% 0.002 280);
+  --gray-200: oklch(92% 0.005 280);
+  --gray-300: oklch(87% 0.01 280);
+  --gray-400: oklch(70% 0.02 280);
+  --gray-500: oklch(55% 0.03 280);
+  --gray-600: oklch(45% 0.04 280);
+  --gray-700: oklch(35% 0.04 280);
+  --gray-800: oklch(25% 0.04 280);
+  --gray-900: oklch(15% 0.04 280);
+
+  /* --- FUNCTIONAL MAPPING --- */
+  --color-primary: var(--aia-corp-main);
+  --color-primary-hover: var(--aia-corp-dark);
+  --color-secondary: var(--aia-proj-main);
+  --color-bg-body: var(--aia-linen);
+  --color-bg-surface: #ffffff;
+  --color-bg-surface-secondary: var(--aia-alabaster);
+
+  /* --- TYPOGRAPHY --- */
+  --font-montserrat: Montserrat, "Aptos Display", "Segoe UI", system-ui, sans-serif;
+  --font-inter: Inter, Aptos, "Segoe UI", system-ui, sans-serif;
+  --font-heading: var(--font-montserrat);
+  --font-body: var(--font-inter);
+
+  /* --- BORDERS & SHADOWS --- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md:
+    0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg:
+    0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  /* --- GANTT METRICS --- */
+  --gantt-row-height: 38px;
+  --gantt-header-height: 85px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-background: var(--color-bg-body);
+  --color-foreground: var(--gray-900);
+  --font-sans: var(--font-inter);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg-body);
+  color: var(--gray-900);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+/* ── Gantt Bar Hover Effects ── */
+.gantt-task-bar:hover rect:first-child,
+.gantt-milestone-bar:hover,
+.gantt-summary-bar:hover line,
+.gantt-summary-bar:hover polyline {
+  filter: brightness(1.2);
+  stroke: var(--aia-proj-main);
+  stroke-width: 1.5;
+}
+
+.gantt-task-bar:hover rect:first-child {
+  stroke: var(--aia-proj-main);
+  stroke-width: 1.5;
+}
+
+.gantt-milestone-bar:hover {
+  filter: brightness(1.2);
+}
+
+.gantt-summary-bar:hover line,
+.gantt-summary-bar:hover polyline {
+  stroke-width: 2.5;
 }

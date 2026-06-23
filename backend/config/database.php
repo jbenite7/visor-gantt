@@ -8,7 +8,7 @@ class Database
 
     private function __construct()
     {
-        $host = getenv('DB_HOST') ?: 'localhost';
+        $host = getenv('DB_HOST') ?: 'db';
         $db   = getenv('DB_NAME') ?: 'visormpp';
         $user = getenv('DB_USER') ?: 'visoruser';
         $pass = getenv('DB_PASS') ?: 'visorpass';

@@ -15,7 +15,7 @@ export interface MSPTask {
   OutlineLevel: number;
   WBS: string;
   PredecessorLink?: MSPPredecessorLink[];
-  [key: string]: any; // Allow other props
+  [key: string]: unknown; // Allow other props
 }
 
 export interface MSPPredecessorLink {
@@ -59,29 +59,32 @@ export class MPPParser {
     }
 
     const xmlContent = fs.readFileSync(filePath, "utf-8");
-    const jsonObj = this.parser.parse(xmlContent);
+    const jsonObj = this.parser.parse(xmlContent) as Record<string, unknown>;
 
     if (!jsonObj.Project) {
       throw new Error("Invalid MSP XML");
     }
 
-    const root = jsonObj.Project;
+    const root = asRecord(jsonObj.Project);
 
     // 1. General Info
-    const name = root.Title || root.Name || "Proyecto Importado";
+    const name = String(root.Title || root.Name || "Proyecto Importado");
     // Ensure dates are string
-    const startDate = root.StartDate || "";
-    const finishDate = root.FinishDate || "";
+    const startDate = String(root.StartDate || "");
+    const finishDate = String(root.FinishDate || "");
 
     // 2. Resources
     const resources: MSPResource[] = [];
-    if (root.Resources && root.Resources.Resource) {
-      root.Resources.Resource.forEach((res: any) => {
+    const resourcesRoot = asRecord(root.Resources);
+    const resourceList = asArray(resourcesRoot.Resource);
+    if (resourceList.length > 0) {
+      resourceList.forEach((resource) => {
+        const res = asRecord(resource);
         if (res.Name) {
           resources.push({
-            UID: parseInt(res.UID),
-            Name: res.Name,
-            Type: parseInt(res.Type),
+            UID: parseInt(String(res.UID)),
+            Name: String(res.Name),
+            Type: parseInt(String(res.Type)),
           });
         }
       });
@@ -89,36 +92,42 @@ export class MPPParser {
 
     // 3. Tasks
     const tasks: MSPTask[] = [];
-    if (root.Tasks && root.Tasks.Task) {
-      root.Tasks.Task.forEach((t: any) => {
+    const tasksRoot = asRecord(root.Tasks);
+    const taskList = asArray(tasksRoot.Task);
+    if (taskList.length > 0) {
+      taskList.forEach((taskNode) => {
+        const t = asRecord(taskNode);
         if (t.UID == 0 && !t.Name) return; // Skip root empty
 
         // Extract Predecessors
         let preds: MSPPredecessorLink[] = [];
         if (t.PredecessorLink) {
-          preds = t.PredecessorLink.map((l: any) => ({
-            PredecessorUID: parseInt(l.PredecessorUID),
-            Type: parseInt(l.Type || 1), // Default FS
-            LinkLag: parseInt(l.LinkLag || 0),
-            LagFormat: parseInt(l.LagFormat || 7),
-          }));
+          preds = asArray(t.PredecessorLink).map((link) => {
+            const l = asRecord(link);
+            return {
+              PredecessorUID: parseInt(String(l.PredecessorUID)),
+              Type: parseInt(String(l.Type || 1)), // Default FS
+              LinkLag: parseInt(String(l.LinkLag || 0)),
+              LagFormat: parseInt(String(l.LagFormat || 7)),
+            };
+          });
         }
 
         // Parse Task
         const task: MSPTask = {
           ...t, // Copy all fields for availableColumns support
-          UID: parseInt(t.UID),
-          ID: parseInt(t.ID || t.UID),
-          Name: t.Name || "",
-          Start: t.Start || "",
-          Finish: t.Finish || "",
-          Duration: t.Duration,
-          DurationFormat: parseInt(t.DurationFormat || 7),
-          PercentComplete: parseInt(t.PercentComplete || 0),
+          UID: parseInt(String(t.UID)),
+          ID: parseInt(String(t.ID || t.UID)),
+          Name: String(t.Name || ""),
+          Start: String(t.Start || ""),
+          Finish: String(t.Finish || ""),
+          Duration: String(t.Duration || ""),
+          DurationFormat: parseInt(String(t.DurationFormat || 7)),
+          PercentComplete: parseInt(String(t.PercentComplete || 0)),
           Summary: t.Summary === 1, // fast-xml-parser might auto-convert numbers if configured, but here safe check
           Milestone: t.Milestone === 1,
-          OutlineLevel: parseInt(t.OutlineLevel || 1),
-          WBS: t.WBS || "",
+          OutlineLevel: parseInt(String(t.OutlineLevel || 1)),
+          WBS: String(t.WBS || ""),
           PredecessorLink: preds,
         };
 
@@ -142,4 +151,13 @@ export class MPPParser {
       resources,
     };
   }
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? value as Record<string, unknown> : {};
+}
+
+function asArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  return value == null ? [] : [value];
 }

@@ -1,5 +1,6 @@
 import { MSPTask, MSPPredecessorLink } from "@/lib/parser/mpp-parser";
 import { GanttTask, GanttDependency } from "@/components/gantt/types";
+import { Task } from "@/lib/scheduling/types";
 
 /**
  * Converts an ISO 8601 duration string (e.g. "PT8H0M0S", "P5D") to days.
@@ -51,13 +52,34 @@ function mapDependencyType(type: number): GanttDependency["type"] {
 /**
  * Converts MPP predecessor link lag to days.
  * LagFormat: 7=days, 8=hours, etc.
+ *
+ * # Lag Conversion Note (MPP LinkLag)
+ *
+ * MS Project stores `LinkLag` in units dictated by `LagFormat`:
+ * - 7 = days   → LinkLag is in 10-thousandths of a day (÷ 10000 = days)
+ * - 8 = hours  → LinkLag is in thousandths of an hour  (÷ 1000 / 8 = days)
+ * - 9 = minutes → LinkLag is in tenths of a minute     (÷ 10 / 60 / 8 = days)
+ *
+ * However, some MPP versions encode LinkLag differently (e.g. 10ths of minutes
+ * regardless of LagFormat, or the value is already in the target unit × 10).
+ * The current implementation uses a simplified ÷ 1000 factor, which is an
+ * approximation. This needs verification against real .mpp files.
+ *
+ * @todo Verify LinkLag conversion with real .mpp data. Collect sample files
+ *       with known lag values in each LagFormat to determine the correct divisor.
+ *
+ * @param linkLag - Raw lag value from the MPP PredecessorLink element.
+ * @param lagFormat - LagFormat integer (7=days, 8=hours, 9=minutes).
+ * @returns Lag in days.
  */
 function parseLagToDays(linkLag: number, lagFormat: number): number {
   switch (lagFormat) {
     case 7: // days
-      return linkLag / 1000; // MPP stores as 10ths of minutes? Actually format varies
+      return linkLag / 1000; // Approximate — see lag conversion note
     case 8: // hours
       return linkLag / (8 * 100);
+    case 9: // minutes
+      return linkLag / (60 * 8 * 10);
     default:
       return linkLag / 1000;
   }
@@ -71,6 +93,11 @@ function parseLagToDays(linkLag: number, lagFormat: number): number {
  * - Duration parsing (ISO 8601 → days)
  * - Dependency type mapping
  * - Milestone/summary detection
+ * - WBS code extraction
+ * - Progress mapping (both `progress` and `percentComplete`)
+ *
+ * CPM fields are left with defaults (`isCritical: false`). Run
+ * {@link mergeCPMResults} after CPM calculation to enrich these tasks.
  */
 export function mppTasksToGanttTasks(tasks: MSPTask[]): GanttTask[] {
   return tasks
@@ -97,11 +124,59 @@ export function mppTasksToGanttTasks(tasks: MSPTask[]): GanttTask[] {
         finish,
         duration,
         progress: task.PercentComplete || 0,
+        percentComplete: task.PercentComplete || 0,
         isCritical: false, // Will be calculated by CPM if needed
         isMilestone: task.Milestone,
         isSummary: task.Summary,
         outlineLevel: task.OutlineLevel || 1,
+        wbs: task.WBS || undefined,
         dependencies,
       };
     });
+}
+
+/**
+ * Merges CPM calculation results (Task[]) into GanttTask[] by matching on `id`.
+ *
+ * For each GanttTask that has a corresponding CPM Task, the following CPM fields
+ * are copied over: `isCritical`, `earlyStart`, `lateStart`, `earlyFinish`,
+ * `lateFinish`, `totalFloat`.
+ *
+ * GanttTasks without a CPM match are returned unchanged (non-destructive).
+ *
+ * Usage (typical upload flow):
+ * ```
+ * const ganttTasks = mppTasksToGanttTasks(parsedTasks);
+ * // ... run CPM calculator ...
+ * const ganttTasksWithCPM = mergeCPMResults(ganttTasks, cpmResults);
+ * ```
+ *
+ * @param ganttTasks - Initial GanttTask[] from `mppTasksToGanttTasks` or elsewhere.
+ * @param cpmTasks   - CPM-calculated Task[] (from `CPMCalculatorService.calculate`).
+ * @returns A new GanttTask[] with CPM fields merged (input arrays are NOT mutated).
+ */
+export function mergeCPMResults(
+  ganttTasks: GanttTask[],
+  cpmTasks: Task[],
+): GanttTask[] {
+  // Build a lookup map for O(1) access by task id
+  const cpmMap = new Map<string | number, Task>();
+  for (const cpmTask of cpmTasks) {
+    cpmMap.set(cpmTask.id, cpmTask);
+  }
+
+  return ganttTasks.map((gantt) => {
+    const cpm = cpmMap.get(gantt.id);
+    if (!cpm) return gantt; // No CPM data for this task — return unchanged
+
+    return {
+      ...gantt,
+      isCritical: cpm.isCritical,
+      earlyStart: cpm.earlyStart,
+      lateStart: cpm.lateStart,
+      earlyFinish: cpm.earlyFinish,
+      lateFinish: cpm.lateFinish,
+      totalFloat: cpm.totalFloat,
+    };
+  });
 }

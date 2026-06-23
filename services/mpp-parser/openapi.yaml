@@ -14,8 +14,8 @@ info:
     url: https://github.com/visor-gantt/visor-mpp
 
 servers:
-  - url: http://localhost:8000
-    description: Local development server
+  - url: http://mpp-parser:8000
+    description: Docker service name inside the Compose network
 
 paths:
   /api/health:
@@ -112,7 +112,7 @@ components:
           example: ok
         mpxj_available:
           type: boolean
-          description: Whether the MPXJ jar file was found
+          description: Whether the MPXJ runtime is importable
           example: true
 
     ErrorResponse:

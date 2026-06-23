@@ -6,6 +6,12 @@ node_modules/
 backend/debug_log.txt
 backend/uploads/*
 !backend/uploads/.gitkeep
+backend/tests/output/
+e2e-*.png
+e2e-*.txt
+gantt-responsive-fix
+v2/gantt-*.png
+v2/sidebar-*.png
 *_backup
 
 # OMO state

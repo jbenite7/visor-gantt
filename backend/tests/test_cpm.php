@@ -216,7 +216,12 @@ try {
 </body>
 </html>';
 
-    $outputPath = __DIR__ . '/../../frontend/public/cpm_test.html';
+    $outputDir = __DIR__ . '/output';
+    if (!is_dir($outputDir)) {
+        mkdir($outputDir, 0777, true);
+    }
+
+    $outputPath = $outputDir . '/cpm_test.html';
     file_put_contents($outputPath, $html);
 
     echo "--- Enhanced Visual Generated ---\n";

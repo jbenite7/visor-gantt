@@ -51,13 +51,17 @@ app.add_middleware(
 @app.get("/api/health")
 async def health_check() -> dict[str, object]:
     """Return service health status."""
-    jar_path = os.environ.get(
-        "MPXJ_JAR_PATH",
-        os.path.join(os.path.dirname(__file__), "libs", "mpxj.jar"),
-    )
+    try:
+        import mpxj  # type: ignore
+    except Exception:
+        return {
+            "status": "ok",
+            "mpxj_available": False,
+        }
+
     return {
         "status": "ok",
-        "mpxj_available": os.path.isfile(jar_path),
+        "mpxj_available": bool(mpxj.__file__),
     }
 
 

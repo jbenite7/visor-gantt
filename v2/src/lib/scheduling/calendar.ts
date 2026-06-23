@@ -62,7 +62,7 @@ export class CalendarService {
   }
 
   addDuration(start: Date, minutes: number): Date {
-    let current = new Date(start);
+    const current = new Date(start);
     const daysNeeded = Math.ceil(minutes / (this.config.hoursPerDay * 60));
 
     if (daysNeeded <= 0) return current;
@@ -71,20 +71,20 @@ export class CalendarService {
 
     for (let i = 0; i < loops; i++) {
       current.setDate(current.getDate() + 1);
-      current = this.skipNonWorkingDays(current);
+      this.skipNonWorkingDays(current);
     }
 
     return current;
   }
 
   getNextWorkingDay(date: Date): Date {
-    let d = new Date(date);
+    const d = new Date(date);
     d.setDate(d.getDate() + 1);
     return this.skipNonWorkingDays(d);
   }
 
   getPreviousWorkingDay(date: Date): Date {
-    let d = new Date(date);
+    const d = new Date(date);
     d.setDate(d.getDate() - 1);
     while (!this.isWorkingDay(d)) {
       d.setDate(d.getDate() - 1);
@@ -93,18 +93,18 @@ export class CalendarService {
   }
 
   addLag(start: Date, minutesLag: number): Date {
-    let current = new Date(start);
+    const current = new Date(start);
     const days = Math.ceil(minutesLag / (this.config.hoursPerDay * 60));
 
     for (let i = 0; i < days; i++) {
       current.setDate(current.getDate() + 1);
-      current = this.skipNonWorkingDays(current);
+      this.skipNonWorkingDays(current);
     }
     return current;
   }
 
   subtractLag(end: Date, minutesLag: number): Date {
-    let current = new Date(end);
+    const current = new Date(end);
     const days = Math.ceil(minutesLag / (this.config.hoursPerDay * 60));
 
     for (let i = 0; i < days; i++) {
@@ -117,7 +117,7 @@ export class CalendarService {
   }
 
   subtractDuration(end: Date, minutes: number): Date {
-    let current = new Date(end);
+    const current = new Date(end);
     const daysNeeded = Math.ceil(minutes / (this.config.hoursPerDay * 60));
 
     if (daysNeeded <= 0) return current;
