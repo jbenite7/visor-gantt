@@ -1,5 +1,3 @@
-import pool from "@/lib/db";
-
 export interface CalendarConfig {
   workDays: number[]; // 1=Mon, 7=Sun
   startHour: number;
@@ -22,6 +20,7 @@ export class CalendarService {
   async init(countryCode: string = "CO"): Promise<void> {
     try {
       // Hybrid Strategy: DB First
+      const { default: pool } = await import("@/lib/db");
       const client = await pool.connect();
       try {
         const res = await client.query(

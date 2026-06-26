@@ -32,8 +32,12 @@ export function getTaskWidth(
   viewport: GanttViewport,
 ): number {
   const msPerDay = 24 * 60 * 60 * 1000;
-  const durationMs = finish.getTime() - start.getTime();
-  const durationDays = Math.ceil(durationMs / msPerDay);
+  const startDay = new Date(start);
+  const finishDay = new Date(finish);
+  startDay.setHours(0, 0, 0, 0);
+  finishDay.setHours(0, 0, 0, 0);
+  const durationMs = finishDay.getTime() - startDay.getTime();
+  const durationDays = Math.floor(durationMs / msPerDay) + 1;
 
   // Calculate pixel width based on scale
   let pixelWidth: number;

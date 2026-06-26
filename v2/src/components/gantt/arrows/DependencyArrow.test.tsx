@@ -101,7 +101,7 @@ describe("DependencyArrow", () => {
   // --- Lag label -----------------------------------------------------------
 
   test("renders lag text when lag is provided and non-zero", () => {
-    render(
+    const { container } = render(
       <svg>
         <DependencyArrow
           from={{ x: 100, y: 40, isCritical: false }}
@@ -114,6 +114,9 @@ describe("DependencyArrow", () => {
     );
 
     expect(screen.getByText("+5d")).toBeInTheDocument();
+    expect(
+      container.querySelector("[data-testid='dependency-lag-badge']"),
+    ).toBeInTheDocument();
   });
 
   test("renders negative lag text correctly", () => {

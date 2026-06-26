@@ -45,6 +45,7 @@ export function taskToGanttTask(task: Task, deps: Dependency[]): GanttTask {
     earlyFinish: task.earlyFinish,
     lateFinish: task.lateFinish,
     totalFloat: task.totalFloat,
+    manualStart: task.manualStart,
   };
 }
 
@@ -72,6 +73,7 @@ export function ganttTaskToTask(gantt: GanttTask): Task {
     isMilestone: gantt.isMilestone,
     isSummary: gantt.isSummary,
     outlineLevel: gantt.outlineLevel,
+    manualStart: gantt.manualStart,
   };
 }
 

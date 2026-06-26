@@ -5,11 +5,14 @@ import type { GanttTask } from "@/components/gantt/types";
 import type { Resource, Assignment } from "@/types/resource";
 import type { BudgetItem, BudgetMapping } from "@/types/budget";
 import type { Baseline } from "@/types/baseline";
+import type { MatrixIssue, MatrixPlan } from "@/types/matrix";
 import {
   DEFAULT_PROJECT_CALENDAR,
   type ProjectCalendar,
 } from "@/types/calendar";
 import { createProjectDate } from "@/lib/date/projectDate";
+import { normalizeProjectCalendar } from "@/lib/scheduling/projectCalendar";
+import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
 
 /* ── ProjectData interface ── */
 
@@ -23,6 +26,7 @@ export interface ProjectData {
   budgetMappings: BudgetMapping[];
   baselines: Baseline[];
   calendar: ProjectCalendar;
+  matrixPlan?: MatrixPlan;
 }
 
 /* ── Serialization helpers ── */
@@ -47,11 +51,14 @@ interface SerializedGanttTask {
   earlyFinish?: string;
   lateFinish?: string;
   totalFloat?: number;
+  manualStart?: string;
   percentComplete?: number;
   wbs?: string;
   resourceNames?: string[];
   cost?: number;
   actualCost?: number;
+  matrixSource?: GanttTask["matrixSource"];
+  matrixSync?: GanttTask["matrixSync"];
 }
 
 interface SerializedBaselineTask {
@@ -81,6 +88,7 @@ function serializeTasks(tasks: GanttTask[]): SerializedGanttTask[] {
     lateStart: t.lateStart?.toISOString(),
     earlyFinish: t.earlyFinish?.toISOString(),
     lateFinish: t.lateFinish?.toISOString(),
+    manualStart: t.manualStart?.toISOString(),
   }));
 }
 
@@ -96,6 +104,7 @@ function deserializeTasks(raw: SerializedGanttTask[]): GanttTask[] {
     lateStart: t.lateStart ? new Date(t.lateStart) : undefined,
     earlyFinish: t.earlyFinish ? new Date(t.earlyFinish) : undefined,
     lateFinish: t.lateFinish ? new Date(t.lateFinish) : undefined,
+    manualStart: t.manualStart ? new Date(t.manualStart) : undefined,
   }));
 }
 
@@ -132,6 +141,7 @@ interface SerializedProjectData {
   budgetMappings: BudgetMapping[];
   baselines: SerializedBaseline[];
   calendar?: ProjectCalendar;
+  matrixPlan?: MatrixPlan;
 }
 
 function serializeProjectData(data: ProjectData): SerializedProjectData {
@@ -143,7 +153,8 @@ function serializeProjectData(data: ProjectData): SerializedProjectData {
     budgetItems: data.budgetItems,
     budgetMappings: data.budgetMappings,
     baselines: serializeBaselines(data.baselines),
-    calendar: data.calendar,
+    calendar: normalizeProjectCalendar(data.calendar),
+    matrixPlan: data.matrixPlan,
   };
 }
 
@@ -161,7 +172,8 @@ function deserializeProjectData(
     budgetItems: pd.budgetItems ?? [],
     budgetMappings: pd.budgetMappings ?? [],
     baselines: deserializeBaselines(pd.baselines ?? []),
-    calendar: pd.calendar ?? DEFAULT_PROJECT_CALENDAR,
+    calendar: normalizeProjectCalendar(pd.calendar ?? DEFAULT_PROJECT_CALENDAR),
+    matrixPlan: pd.matrixPlan,
   };
 }
 
@@ -244,6 +256,58 @@ export async function createBlankProject({
     baselines: [],
     calendar: DEFAULT_PROJECT_CALENDAR,
   });
+}
+
+export async function createMatrixProject({
+  name,
+  matrixPlan,
+}: {
+  name: string;
+  matrixPlan: MatrixPlan;
+}): Promise<{
+  success: boolean;
+  id?: string;
+  issues?: MatrixIssue[];
+  error?: string;
+}> {
+  const generated = generateScheduleFromMatrix(matrixPlan);
+  const blockingIssues = generated.issues.filter(
+    (issue) => issue.severity === "high",
+  );
+
+  if (blockingIssues.length > 0) {
+    return {
+      success: false,
+      issues: generated.issues,
+      error: "La matriz tiene errores que impiden generar el cronograma",
+    };
+  }
+
+  const matrixPlanWithLinks: MatrixPlan = {
+    ...matrixPlan,
+    cells: matrixPlan.cells.map((cell) => ({
+      ...cell,
+      generatedTaskIds: generated.provenance[cell.id] ?? [],
+      syncedTaskIds: generated.provenance[cell.id] ?? [],
+    })),
+  };
+
+  const result = await saveProject({
+    name,
+    tasks: generated.tasks,
+    resources: [],
+    assignments: [],
+    budgetItems: [],
+    budgetMappings: [],
+    baselines: [],
+    calendar: DEFAULT_PROJECT_CALENDAR,
+    matrixPlan: matrixPlanWithLinks,
+  });
+
+  return {
+    ...result,
+    issues: generated.issues,
+  };
 }
 
 /**

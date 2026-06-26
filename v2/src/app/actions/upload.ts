@@ -183,7 +183,8 @@ export async function uploadProject(formData: FormData): Promise<UploadResult> {
   }
 }
 
-function parseDurationToMinutes(duration: string, format: number): number {
+function parseDurationToMinutes(duration: string, _format: number): number {
+  void _format;
   // Simplified parser (ISO 8601 format PT8H0M0S)
   if (duration.startsWith("PT")) {
     const hours = duration.match(/(\d+)H/);

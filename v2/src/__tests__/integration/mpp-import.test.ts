@@ -334,6 +334,30 @@ describe("MPP Import Integration - mppTasksToGanttTasks Transformation", () => {
     expect(ganttTasks).toHaveLength(4);
   });
 
+  test("filters out non-root empty tasks", () => {
+    const tasksWithBlankRows: MSPTask[] = [
+      ...validProjectData.tasks,
+      {
+        UID: 99,
+        ID: 99,
+        Name: "",
+        Start: "2026-03-09T09:00",
+        Finish: "2026-03-09T19:00",
+        Duration: "1.0d",
+        DurationFormat: 7,
+        PercentComplete: 0,
+        Summary: false,
+        Milestone: true,
+        OutlineLevel: 2,
+        WBS: "1.99",
+      },
+    ];
+
+    const ganttTasks = mppTasksToGanttTasks(tasksWithBlankRows);
+    expect(ganttTasks.find((task) => task.id === 99)).toBeUndefined();
+    expect(ganttTasks).toHaveLength(4);
+  });
+
   test("handles tasks with missing dates gracefully", () => {
     const tasksWithMissingDates: MSPTask[] = [
       {

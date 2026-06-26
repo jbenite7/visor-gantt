@@ -153,11 +153,6 @@ export default function SCurveView({
     [evData],
   );
 
-  // ── Empty state checks ──
-  const hasTasks = tasks.length > 0;
-  const hasBudgetData = budgetMappings.length > 0 && budgetItems.length > 0;
-  const hasEVData = hasTasks && hasBudgetData;
-
   return (
     <div
       data-testid="s-curve-view"

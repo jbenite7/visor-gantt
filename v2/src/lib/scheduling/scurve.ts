@@ -122,6 +122,7 @@ export function getTaskBudgetedCost(
   mappings: BudgetMapping[],
   _items: BudgetItem[]
 ): number {
+  void _items;
   return mappings
     .filter((m) => m.taskId === taskId)
     .reduce((sum, m) => sum + m.amount, 0);
@@ -209,6 +210,7 @@ export function computeBudgetSCurve(
   budgetMappings: BudgetMapping[],
   budgetItems: BudgetItem[]
 ): SCurveData {
+  void budgetItems;
   if (tasks.length === 0 || budgetMappings.length === 0) {
     return { points: [], maxValue: 0 };
   }

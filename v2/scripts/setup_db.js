@@ -22,6 +22,7 @@ const sql = `
 CREATE TABLE IF NOT EXISTS projects (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
+    project_data JSONB DEFAULT '{"tasks":[],"resources":[],"assignments":[],"budgetItems":[],"budgetMappings":[],"baselines":[]}',
     start_date TIMESTAMP,
     finish_date TIMESTAMP,
     settings JSONB DEFAULT '{}',

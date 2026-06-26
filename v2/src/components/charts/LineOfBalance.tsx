@@ -3,12 +3,10 @@
 import { useMemo } from "react";
 import type { LOBActivity, LOBUnit } from "@/types/lob";
 import { computeLOBLayout } from "@/lib/scheduling/lob";
-import type { LOBLine, LOBPoint } from "@/lib/scheduling/lob";
 
 // ── Layout constants ──────────────────────────────────────────────
 
-const MARGIN = { top: 40, right: 120, bottom: 60, left: 80 };
-const TICK_INTERVAL_DAYS = 30;
+const MARGIN = { top: 40, right: 140, bottom: 60, left: 180 };
 
 // ── Helper functions ──────────────────────────────────────────────
 
@@ -49,16 +47,6 @@ function generateDateTicks(min: Date, max: Date): Date[] {
   return ticks;
 }
 
-function pointsToPolyline(points: LOBPoint[], min: Date, max: Date, width: number, height: number): string {
-  return points
-    .map((p) => {
-      const x = dateToX(p.date, min, max, width);
-      const y = unitToY(p.unitIndex, points.length > 0 ? Math.max(...points.map((pp) => pp.unitIndex)) : 1, height);
-      return `${x},${y}`;
-    })
-    .join(" ");
-}
-
 // ── Component ─────────────────────────────────────────────────────
 
 interface LineOfBalanceProps {
@@ -73,7 +61,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
   );
 
   // Responsive dimensions
-  const width = 900;
+  const width = 980;
   const height = Math.max(400, 200 + layout.totalUnits * 50);
 
   const chartWidth = width - MARGIN.left - MARGIN.right;
@@ -86,13 +74,19 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
 
   const unitLabels = useMemo(() => {
     const labels: { index: number; label: string }[] = [];
-    // Find the unitLabel from activities
+    const unitNamesByIndex = new Map<number, string>();
+    for (const unit of units) {
+      if (unit.unitName && !unitNamesByIndex.has(unit.unitIndex)) {
+        unitNamesByIndex.set(unit.unitIndex, unit.unitName);
+      }
+    }
+
     const unitLabel = activities.length > 0 ? activities[0].unitLabel : "Unidad";
     for (let i = 0; i <= layout.totalUnits; i++) {
-      labels.push({ index: i, label: `${unitLabel} ${i + 1}` });
+      labels.push({ index: i, label: unitNamesByIndex.get(i) ?? `${unitLabel} ${i + 1}` });
     }
     return labels;
-  }, [layout.totalUnits, activities]);
+  }, [layout.totalUnits, activities, units]);
 
   // ── Tolerance bands (±10% of chart height) ────────────────────
   const toleranceBandHeight = chartHeight * 0.1;

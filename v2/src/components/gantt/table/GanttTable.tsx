@@ -125,7 +125,6 @@ const toolbarBtnStyle: React.CSSProperties = {
  */
 export default function GanttTable({
   tasks,
-  onRowClick,
   selectedTaskIds,
   onTaskSelect,
   onUpdateTask,

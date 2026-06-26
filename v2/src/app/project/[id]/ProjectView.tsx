@@ -6,6 +6,10 @@ import type { GanttTask } from "@/components/gantt/types";
 import Link from "next/link";
 import { createProjectDate } from "@/lib/date/projectDate";
 import type { ProjectCalendar } from "@/types/calendar";
+import type { Resource, Assignment } from "@/types/resource";
+import type { BudgetItem, BudgetMapping } from "@/types/budget";
+import type { Baseline } from "@/types/baseline";
+import type { MatrixPlan } from "@/types/matrix";
 
 interface SerializedTask {
   id: string | number;
@@ -32,11 +36,26 @@ interface SerializedTask {
   earlyFinish?: string;
   lateFinish?: string;
   totalFloat?: number;
+  manualStart?: string;
   percentComplete?: number;
   wbs?: string;
   resourceNames?: string[];
   cost?: number;
   actualCost?: number;
+  matrixSource?: GanttTask["matrixSource"];
+}
+
+interface SerializedBaseline {
+  id: string;
+  name: string;
+  createdAt: string;
+  tasks: Array<{
+    taskId: string | number;
+    baselineStart: string;
+    baselineFinish: string;
+    baselineDuration: number;
+    baselineCost?: number;
+  }>;
 }
 
 export default function ProjectView({
@@ -44,11 +63,23 @@ export default function ProjectView({
   tasks,
   projectName,
   calendar,
+  resources,
+  assignments,
+  budgetItems,
+  budgetMappings,
+  baselines,
+  matrixPlan,
 }: {
   projectId?: string;
   tasks: SerializedTask[];
   projectName: string;
   calendar: ProjectCalendar;
+  resources: Resource[];
+  assignments: Assignment[];
+  budgetItems: BudgetItem[];
+  budgetMappings: BudgetMapping[];
+  baselines: SerializedBaseline[];
+  matrixPlan?: MatrixPlan;
 }) {
   // Deserialize ISO strings back to Date objects — memoized to avoid recreating on every render
   const deserializedTasks: GanttTask[] = useMemo(
@@ -63,9 +94,24 @@ export default function ProjectView({
         lateStart: t.lateStart ? createProjectDate(t.lateStart) : undefined,
         earlyFinish: t.earlyFinish ? createProjectDate(t.earlyFinish) : undefined,
         lateFinish: t.lateFinish ? createProjectDate(t.lateFinish) : undefined,
+        manualStart: t.manualStart ? createProjectDate(t.manualStart) : undefined,
         dependencies: t.dependencies as GanttTask["dependencies"],
       })),
     [tasks],
+  );
+
+  const deserializedBaselines: Baseline[] = useMemo(
+    () =>
+      baselines.map((baseline) => ({
+        ...baseline,
+        createdAt: createProjectDate(baseline.createdAt),
+        tasks: baseline.tasks.map((task) => ({
+          ...task,
+          baselineStart: createProjectDate(task.baselineStart),
+          baselineFinish: createProjectDate(task.baselineFinish),
+        })),
+      })),
+    [baselines],
   );
 
   return (
@@ -96,6 +142,12 @@ export default function ProjectView({
           projectName={projectName}
           tasks={deserializedTasks}
           calendar={calendar}
+          resources={resources}
+          assignments={assignments}
+          budgetItems={budgetItems}
+          budgetMappings={budgetMappings}
+          baselines={deserializedBaselines}
+          matrixPlan={matrixPlan}
           onTaskClick={(task) => console.log("Clicked:", task.name)}
         />
       </div>

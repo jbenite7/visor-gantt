@@ -30,6 +30,8 @@ export interface GanttTask {
   lateFinish?: Date;
   /** Total float / slack (days). Zero for critical tasks. */
   totalFloat?: number;
+  /** Manual start constraint created by direct date edits. */
+  manualStart?: Date;
 
   // ── Progress (MS Project naming alias) ──
   /** Percentage complete, 0–100. Alias for progress. */
@@ -48,6 +50,21 @@ export interface GanttTask {
   cost?: number;
   /** Actual cost incurred so far. */
   actualCost?: number;
+
+  // ── Programacion Matricial ──
+  /** Source matrix metadata for generated tasks. */
+  matrixSource?: {
+    matrixPlanId: string;
+    scopeId: string;
+    areaId: string;
+    cellId: string;
+    recipeId: string;
+    activityId: string;
+  };
+  matrixSync?: {
+    lastEditedAt: string;
+    lastEditedFrom: "matrix" | "gantt";
+  };
 }
 
 export interface GanttDependency {

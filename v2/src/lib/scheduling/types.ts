@@ -29,6 +29,41 @@ export interface Dependency {
   isPercentage: boolean;
 }
 
+export type ScheduleIssueKind =
+  | "missingTask"
+  | "selfDependency"
+  | "cycle"
+  | "emptyWorkWeek"
+  | "duplicateException"
+  | "invalidExceptionDate"
+  | "invalidWorkHours"
+  | "invalidHoursPerDay";
+
+export type ScheduleSeverity = "low" | "medium" | "high";
+
+export interface ScheduleIssue {
+  kind: ScheduleIssueKind;
+  severity: ScheduleSeverity;
+  taskIds: (string | number)[];
+  message: string;
+}
+
+export type BottleneckKind =
+  | "critical"
+  | "nearCritical"
+  | "dependencyConvergence"
+  | "resourceOverallocation";
+
+export interface Bottleneck {
+  kind: BottleneckKind;
+  severity: ScheduleSeverity;
+  taskIds: (string | number)[];
+  resourceId?: number;
+  date?: Date;
+  metric: string;
+  message: string;
+}
+
 export interface Task {
   id: string | number;
   name: string;

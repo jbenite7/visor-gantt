@@ -2,6 +2,10 @@
 
 import { useMemo, useState } from "react";
 import type { ProjectCalendar, CalendarException } from "@/types/calendar";
+import {
+  normalizeProjectCalendar,
+  validateProjectCalendar,
+} from "@/lib/scheduling/projectCalendar";
 
 interface CalendarSettingsViewProps {
   calendar: ProjectCalendar;
@@ -24,6 +28,18 @@ export default function CalendarSettingsView({
 }: CalendarSettingsViewProps) {
   const [holidayDate, setHolidayDate] = useState("");
   const [holidayName, setHolidayName] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const commitCalendar = (nextCalendar: ProjectCalendar) => {
+    const normalized = normalizeProjectCalendar(nextCalendar);
+    const issues = validateProjectCalendar(normalized);
+    if (issues.length > 0) {
+      setFormError(issues[0].message);
+      return;
+    }
+    setFormError(null);
+    onChange(normalized);
+  };
 
   const summary = useMemo(() => {
     const labels = DAYS.filter((day) => calendar.workDays.includes(day.id))
@@ -36,26 +52,35 @@ export default function CalendarSettingsView({
     const nextDays = calendar.workDays.includes(dayId)
       ? calendar.workDays.filter((id) => id !== dayId)
       : [...calendar.workDays, dayId].sort((a, b) => a - b);
-    onChange({ ...calendar, workDays: nextDays });
+    commitCalendar({ ...calendar, workDays: nextDays });
   };
 
   const addHoliday = () => {
-    if (!holidayDate) return;
+    if (!holidayDate) {
+      setFormError("Selecciona una fecha no laboral.");
+      return;
+    }
+    if (calendar.nonWorkingDays.some((day) => day.date === holidayDate)) {
+      setFormError("La fecha ya está configurada.");
+      return;
+    }
     const exception: CalendarException = {
       id: `${holidayDate}-${Date.now()}`,
       date: holidayDate,
       name: holidayName.trim() || "Día no laboral",
     };
-    onChange({
+    commitCalendar({
       ...calendar,
-      nonWorkingDays: [...calendar.nonWorkingDays, exception],
+      nonWorkingDays: [...calendar.nonWorkingDays, exception].sort((a, b) =>
+        a.date.localeCompare(b.date),
+      ),
     });
     setHolidayDate("");
     setHolidayName("");
   };
 
   const removeHoliday = (id: string) => {
-    onChange({
+    commitCalendar({
       ...calendar,
       nonWorkingDays: calendar.nonWorkingDays.filter((day) => day.id !== id),
     });
@@ -78,7 +103,7 @@ export default function CalendarSettingsView({
               <input
                 value={calendar.timeZone}
                 onChange={(event) =>
-                  onChange({ ...calendar, timeZone: event.target.value })
+                  commitCalendar({ ...calendar, timeZone: event.target.value })
                 }
                 className="mt-1 w-full rounded-md border border-[var(--gray-300)] px-3 py-2 text-sm"
               />
@@ -93,7 +118,7 @@ export default function CalendarSettingsView({
                 max={24}
                 value={calendar.hoursPerDay}
                 onChange={(event) =>
-                  onChange({
+                  commitCalendar({
                     ...calendar,
                     hoursPerDay: Number(event.target.value),
                   })
@@ -109,7 +134,7 @@ export default function CalendarSettingsView({
                 type="time"
                 value={calendar.startHour}
                 onChange={(event) =>
-                  onChange({ ...calendar, startHour: event.target.value })
+                  commitCalendar({ ...calendar, startHour: event.target.value })
                 }
                 className="mt-1 w-full rounded-md border border-[var(--gray-300)] px-3 py-2 text-sm"
               />
@@ -122,7 +147,7 @@ export default function CalendarSettingsView({
                 type="time"
                 value={calendar.endHour}
                 onChange={(event) =>
-                  onChange({ ...calendar, endHour: event.target.value })
+                  commitCalendar({ ...calendar, endHour: event.target.value })
                 }
                 className="mt-1 w-full rounded-md border border-[var(--gray-300)] px-3 py-2 text-sm"
               />
@@ -165,13 +190,21 @@ export default function CalendarSettingsView({
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <input
               type="date"
+              aria-label="Fecha no laboral"
               value={holidayDate}
-              onChange={(event) => setHolidayDate(event.target.value)}
+              onChange={(event) => {
+                setFormError(null);
+                setHolidayDate(event.target.value);
+              }}
               className="rounded-md border border-[var(--gray-300)] px-3 py-2 text-sm"
             />
             <input
+              aria-label="Nombre del día no laboral"
               value={holidayName}
-              onChange={(event) => setHolidayName(event.target.value)}
+              onChange={(event) => {
+                setFormError(null);
+                setHolidayName(event.target.value);
+              }}
               placeholder="Nombre"
               className="min-w-0 flex-1 rounded-md border border-[var(--gray-300)] px-3 py-2 text-sm"
             />
@@ -183,6 +216,11 @@ export default function CalendarSettingsView({
               Agregar
             </button>
           </div>
+          {formError && (
+            <p className="mt-2 text-sm font-medium text-[var(--aia-alert-main)]">
+              {formError}
+            </p>
+          )}
 
           <div className="mt-4 divide-y divide-[var(--gray-200)]">
             {calendar.nonWorkingDays.length === 0 ? (

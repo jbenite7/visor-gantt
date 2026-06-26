@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { BudgetCategory, BudgetItem } from "@/types/budget";
 import { parseBudgetCSV, validateBudgetItem } from "@/lib/budget/budgetParser";
-import { Upload, Plus, Trash2, Pencil, Download } from "lucide-react";
+import { Upload, Plus, Trash2, Pencil } from "lucide-react";
 
 /* ── Category palette (AIA-aligned) ── */
 const CATEGORY_STYLES: Record<

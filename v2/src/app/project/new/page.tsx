@@ -9,7 +9,7 @@ export default function NewProjectPage() {
             Crear cronograma
           </h1>
           <p className="text-sm text-[var(--gray-500)] mt-1">
-            Inicia un proyecto vacío y complétalo desde la hoja de tareas.
+            Inicia desde Programación Matricial o desde una hoja vacía.
           </p>
         </div>
       </header>

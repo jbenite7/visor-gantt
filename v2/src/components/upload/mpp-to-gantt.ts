@@ -101,7 +101,7 @@ function parseLagToDays(linkLag: number, lagFormat: number): number {
  */
 export function mppTasksToGanttTasks(tasks: MSPTask[]): GanttTask[] {
   return tasks
-    .filter((t) => t.UID !== 0 || t.Name) // Skip root empty task
+    .filter((t) => String(t.Name ?? "").trim().length > 0)
     .map((task) => {
       const start = new Date(task.Start || Date.now());
       const finish = new Date(task.Finish || Date.now());

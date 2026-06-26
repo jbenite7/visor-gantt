@@ -9,6 +9,8 @@ import {
   TrendingUp,
   LineChart,
   Settings,
+  AlertTriangle,
+  Grid3X3,
 } from "lucide-react";
 
 export type ViewType =
@@ -18,7 +20,9 @@ export type ViewType =
   | "network"
   | "resources"
   | "lob"
+  | "matrix"
   | "scurve"
+  | "bottlenecks"
   | "settings";
 
 interface ViewTab {
@@ -34,7 +38,9 @@ const VIEW_TABS: ViewTab[] = [
   { id: "network", label: "Diagrama Red", icon: Network },
   { id: "resources", label: "Recursos", icon: Users },
   { id: "lob", label: "Línea Balance", icon: TrendingUp },
+  { id: "matrix", label: "Matriz", icon: Grid3X3 },
   { id: "scurve", label: "Curva S", icon: LineChart },
+  { id: "bottlenecks", label: "Cuellos", icon: AlertTriangle },
   { id: "settings", label: "Configuración", icon: Settings },
 ];
 

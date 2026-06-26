@@ -27,3 +27,23 @@ export type {
 } from "./budget";
 
 export type { LOBActivity, LOBUnit } from "./lob";
+
+export type {
+  ActivityDependencyRule,
+  ActivityRecipe,
+  ActivityRecipeItem,
+  AreaNode,
+  LineOfBalanceRule,
+  MatrixCell,
+  MatrixActivityOverride,
+  MatrixGenerationResult,
+  MatrixIssue,
+  MatrixIssueKind,
+  MatrixIssueSeverity,
+  MatrixPlan,
+  MatrixSource,
+  MatrixSyncMetadata,
+  MatrixSyncConflict,
+  MatrixTemplate,
+  ScopeNode,
+} from "./matrix";

@@ -1,6 +1,6 @@
 import { ProjectData } from "@/lib/parser/mpp-parser";
 
-const DEFAULT_PARSER_URL = "http://mpp-parser:8000";
+const DEFAULT_PARSER_URL = "http://localhost:8000";
 
 /**
  * Sends an .mpp file to the Python parsing microservice and returns

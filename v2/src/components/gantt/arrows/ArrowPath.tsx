@@ -30,7 +30,6 @@ export function calculateArrowPath(
   toX: number,
   toY: number,
   type: DependencyType,
-  _rowHeight: number,
 ): string {
   // When source and target are on the same row, offset the vertical
   // segment so the arrow doesn't overlap the bar.

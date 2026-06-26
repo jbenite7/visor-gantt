@@ -37,11 +37,23 @@ export default async function ProjectPage({
     earlyFinish: t.earlyFinish?.toISOString(),
     lateFinish: t.lateFinish?.toISOString(),
     totalFloat: t.totalFloat,
+    manualStart: t.manualStart?.toISOString(),
     percentComplete: t.percentComplete,
     wbs: t.wbs,
     resourceNames: t.resourceNames,
     cost: t.cost,
     actualCost: t.actualCost,
+    matrixSource: t.matrixSource,
+  }));
+
+  const serializedBaselines = project.baselines.map((baseline) => ({
+    ...baseline,
+    createdAt: baseline.createdAt.toISOString(),
+    tasks: baseline.tasks.map((task) => ({
+      ...task,
+      baselineStart: task.baselineStart.toISOString(),
+      baselineFinish: task.baselineFinish.toISOString(),
+    })),
   }));
 
   return (
@@ -50,6 +62,12 @@ export default async function ProjectPage({
       tasks={serializedTasks}
       projectName={project.name}
       calendar={project.calendar}
+      resources={project.resources}
+      assignments={project.assignments}
+      budgetItems={project.budgetItems}
+      budgetMappings={project.budgetMappings}
+      baselines={serializedBaselines}
+      matrixPlan={project.matrixPlan}
     />
   );
 }

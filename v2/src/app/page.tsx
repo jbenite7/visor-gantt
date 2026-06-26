@@ -2,6 +2,7 @@ import Link from "next/link";
 import pool from "@/lib/db";
 import { listProjects } from "@/app/actions/project";
 import ProjectList from "@/components/ProjectList";
+import HomeMppUploadAction from "@/components/upload/HomeMppUploadAction";
 
 export const dynamic = "force-dynamic";
 
@@ -60,25 +61,27 @@ export default async function Home() {
           <h2 className="text-lg font-semibold text-[var(--aia-corp-dark)] font-[var(--font-heading)]">
             Mis Proyectos
           </h2>
-          <Link
-            href="/project/new"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--aia-corp-main)] text-white text-sm font-medium hover:bg-[var(--aia-corp-dark)] transition-colors"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <form action="/project/new" method="get">
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--aia-corp-main)] text-white text-sm font-medium hover:bg-[var(--aia-corp-dark)] transition-colors"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Nuevo Proyecto
-          </Link>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Nuevo Proyecto
+            </button>
+          </form>
         </div>
 
         {/* Project list */}
@@ -105,12 +108,7 @@ export default async function Home() {
             <p className="text-sm text-[var(--gray-500)] mt-1">
               Sube un archivo .mpp o crea uno nuevo para comenzar
             </p>
-            <Link
-              href="/project/new"
-              className="inline-block mt-4 px-5 py-2 rounded-lg bg-[var(--aia-corp-main)] text-white text-sm font-medium hover:bg-[var(--aia-corp-dark)] transition-colors"
-            >
-              Subir Archivo .mpp
-            </Link>
+            <HomeMppUploadAction />
           </div>
         )}
 

@@ -10,8 +10,20 @@ import {
   type ReactNode,
 } from "react";
 import type { GanttTask, GanttDependency } from "@/components/gantt/types";
+import type { ProjectCalendar } from "@/types/calendar";
 import { useHistory } from "@/hooks/useHistory";
 import type { Command } from "@/lib/state/history";
+import { detectBottlenecks } from "@/lib/scheduling/bottlenecks";
+import {
+  type CalendarIssue,
+  normalizeProjectCalendar,
+  validateProjectCalendar,
+} from "@/lib/scheduling/projectCalendar";
+import {
+  recalculateSchedule,
+  rewriteSuccessors,
+} from "@/lib/scheduling/scheduleEngine";
+import type { Bottleneck, ScheduleIssue } from "@/lib/scheduling/types";
 
 /* ── Helper: shift a Date by N days (immutable) ── */
 function shiftDate(date: Date, days: number): Date {
@@ -22,7 +34,10 @@ function shiftDate(date: Date, days: number): Date {
 
 /* ── Helper: calculate duration in days between two dates ── */
 function durationDays(start: Date, finish: Date): number {
-  return Math.max(1, Math.round((finish.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+  return Math.max(
+    1,
+    Math.round((finish.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1,
+  );
 }
 
 /* ── Helper: apply a single field change to a task (immutable) ── */
@@ -34,6 +49,17 @@ function applyFieldChange(
   return { ...task, [field]: value } as GanttTask;
 }
 
+function stampGanttEdit(task: GanttTask): GanttTask {
+  if (!task.matrixSource) return task;
+  return {
+    ...task,
+    matrixSync: {
+      lastEditedAt: new Date().toISOString(),
+      lastEditedFrom: "gantt",
+    },
+  };
+}
+
 /* ───────────────────── Context ───────────────────── */
 
 export interface ProjectContextValue {
@@ -43,6 +69,11 @@ export interface ProjectContextValue {
   setSelectedTaskIds: (ids: (string | number)[]) => void;
   scale: "day" | "week" | "month";
   setScale: (scale: "day" | "week" | "month") => void;
+  calendar: ProjectCalendar;
+  calendarIssues: CalendarIssue[];
+  scheduleIssues: ScheduleIssue[];
+  bottlenecks: Bottleneck[];
+  updateCalendar: (calendar: ProjectCalendar) => void;
   // Editing actions
   updateTask: (taskId: string | number, field: string, value: unknown) => void;
   moveTask: (taskId: string | number, dayDelta: number) => void;
@@ -69,120 +100,183 @@ const ProjectContext = createContext<ProjectContextValue | null>(null);
 
 interface ProjectProviderProps {
   initialTasks: GanttTask[];
+  initialCalendar?: ProjectCalendar;
   children: ReactNode;
 }
 
 export function ProjectProvider({
   initialTasks,
+  initialCalendar,
   children,
 }: ProjectProviderProps) {
-  const [tasks, setTasks] = useState<GanttTask[]>(initialTasks);
+  const normalizedInitialCalendar = useMemo(
+    () => normalizeProjectCalendar(initialCalendar),
+    [initialCalendar],
+  );
+  const initialSchedule = useMemo(
+    () =>
+      recalculateSchedule(initialTasks, {
+        calendar: normalizedInitialCalendar,
+      }),
+    [initialTasks, normalizedInitialCalendar],
+  );
+  const [tasks, setTasksState] = useState<GanttTask[]>(initialSchedule.tasks);
+  const [calendar, setCalendarState] = useState<ProjectCalendar>(
+    normalizedInitialCalendar,
+  );
+  const [calendarIssues, setCalendarIssues] = useState<CalendarIssue[]>(
+    validateProjectCalendar(normalizedInitialCalendar),
+  );
+  const [scheduleIssues, setScheduleIssues] = useState<ScheduleIssue[]>(
+    initialSchedule.issues,
+  );
   const [selectedTaskIds, setSelectedTaskIds] = useState<(string | number)[]>(
     [],
   );
   const [scale, setScale] = useState<"day" | "week" | "month">("day");
   const history = useHistory(50);
 
-  /* ── updateTask ── */
-  const updateTask = useCallback(
-    (taskId: string | number, field: string, value: unknown) => {
+  const setTasks = useCallback(
+    (updater: (prev: GanttTask[]) => GanttTask[]) => {
+      const result = recalculateSchedule(updater(tasks), { calendar });
+      setScheduleIssues(result.issues);
+      if (result.issues.length === 0) {
+        setTasksState(result.tasks);
+      }
+    },
+    [calendar, tasks],
+  );
+
+  const commitTaskChange = useCallback(
+    (
+      description: string,
+      updater: (prev: GanttTask[]) => GanttTask[],
+    ) => {
+      const previous = tasks;
+      const result = recalculateSchedule(updater(previous), { calendar });
+
+      if (result.issues.length > 0) {
+        setScheduleIssues(result.issues);
+        return;
+      }
+
+      const next = result.tasks;
       const command: Command = {
-        description: `Update ${field} on task ${taskId}`,
+        description,
         execute: () => {
-          setTasks((prev) =>
-            prev.map((t) =>
-              t.id === taskId ? applyFieldChange(t, field, value) : t,
-            ),
-          );
+          setTasksState(next);
+          setScheduleIssues([]);
+          setCalendarIssues([]);
         },
         undo: () => {
-          // Snapshot the old value at command creation time
-          setTasks((prev) =>
-            prev.map((t) =>
-              t.id === taskId ? applyFieldChange(t, field, oldValue) : t,
-            ),
-          );
+          setTasksState(previous);
+          setScheduleIssues([]);
+          setCalendarIssues([]);
         },
       };
 
-      // Capture the old value for undo
-      let oldValue: unknown;
-      setTasks((prev) => {
-        const task = prev.find((t) => t.id === taskId);
-        if (task) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          oldValue = (task as any)[field];
-        }
-        return prev;
-      });
+      history.push(command);
+    },
+    [calendar, history, tasks],
+  );
+
+  const updateCalendar = useCallback(
+    (nextCalendar: ProjectCalendar) => {
+      const normalized = normalizeProjectCalendar(nextCalendar);
+      const issues = validateProjectCalendar(normalized);
+      if (issues.length > 0) {
+        setCalendarIssues(issues);
+        return;
+      }
+
+      const previousTasks = tasks;
+      const previousCalendar = calendar;
+      const result = recalculateSchedule(previousTasks, { calendar: normalized });
+
+      if (result.issues.length > 0) {
+        setScheduleIssues(result.issues);
+        return;
+      }
+
+      const command: Command = {
+        description: "Update project calendar",
+        execute: () => {
+          setCalendarState(normalized);
+          setTasksState(result.tasks);
+          setCalendarIssues([]);
+          setScheduleIssues([]);
+        },
+        undo: () => {
+          setCalendarState(previousCalendar);
+          setTasksState(previousTasks);
+          setCalendarIssues([]);
+          setScheduleIssues([]);
+        },
+      };
 
       history.push(command);
     },
-    [history],
+    [calendar, history, tasks],
+  );
+
+  const bottlenecks = useMemo(
+    () => detectBottlenecks({ tasks, resources: [], assignments: [] }),
+    [tasks],
+  );
+
+  /* ── updateTask ── */
+  const updateTask = useCallback(
+    (taskId: string | number, field: string, value: unknown) => {
+      commitTaskChange(`Update ${field} on task ${taskId}`, (prev) => {
+        if (field === "successors") {
+          return rewriteSuccessors(prev, taskId, value as GanttDependency[]);
+        }
+
+        return prev.map((t) => {
+          if (t.id !== taskId) return t;
+
+          if (field === "dependencies") {
+            return stampGanttEdit({
+              ...t,
+              dependencies: (value as GanttDependency[]).map((dep) => ({
+                ...dep,
+                to: taskId,
+              })),
+            });
+          }
+
+          if (field === "start" && value instanceof Date) {
+            return stampGanttEdit({ ...t, start: value, manualStart: value });
+          }
+
+          if (field === "finish" && value instanceof Date) {
+            return stampGanttEdit({
+              ...t,
+              finish: value,
+              duration: durationDays(t.start, value),
+            });
+          }
+
+          return stampGanttEdit(applyFieldChange(t, field, value));
+        });
+      });
+    },
+    [commitTaskChange],
   );
 
   /* ── moveTask ── */
   const moveTask = useCallback(
     (taskId: string | number, dayDelta: number) => {
       if (dayDelta === 0) return;
-
-      // Snapshot old dates before creating the command
-      let oldStart: Date;
-      let oldFinish: Date;
-      setTasks((prev) => {
-        const task = prev.find((t) => t.id === taskId);
-        if (task) {
-          oldStart = new Date(task.start);
-          oldFinish = new Date(task.finish);
-        }
-        return prev;
-      });
-
-      const command: Command = {
-        description: `Move task ${taskId} by ${dayDelta} days`,
-        execute: () => {
-          setTasks((prev) =>
-            prev.map((t) => {
-              if (t.id !== taskId) return t;
-              const newStart = shiftDate(t.start, dayDelta);
-              const newFinish = shiftDate(t.finish, dayDelta);
-              return {
-                ...t,
-                start: newStart,
-                finish: newFinish,
-                baselineStart: t.baselineStart
-                  ? shiftDate(t.baselineStart, dayDelta)
-                  : undefined,
-                baselineFinish: t.baselineFinish
-                  ? shiftDate(t.baselineFinish, dayDelta)
-                  : undefined,
-              };
-            }),
-          );
-        },
-        undo: () => {
-          setTasks((prev) =>
-            prev.map((t) => {
-              if (t.id !== taskId) return t;
-              return {
-                ...t,
-                start: oldStart,
-                finish: oldFinish,
-                baselineStart: t.baselineStart
-                  ? shiftDate(t.baselineStart, -dayDelta)
-                  : undefined,
-                baselineFinish: t.baselineFinish
-                  ? shiftDate(t.baselineFinish, -dayDelta)
-                  : undefined,
-              };
-            }),
-          );
-        },
-      };
-
-      history.push(command);
+      commitTaskChange(`Move task ${taskId} by ${dayDelta} days`, (prev) =>
+        prev.map((t) => {
+          if (t.id !== taskId) return t;
+          const newStart = shiftDate(t.manualStart ?? t.start, dayDelta);
+          return stampGanttEdit({ ...t, start: newStart, manualStart: newStart });
+        }),
+      );
     },
-    [history],
+    [commitTaskChange],
   );
 
   /* ── resizeTask ── */
@@ -193,62 +287,28 @@ export function ProjectProvider({
       dayDelta: number,
     ) => {
       if (dayDelta === 0) return;
-
-      let oldStart: Date;
-      let oldFinish: Date;
-      let oldDuration: number;
-      setTasks((prev) => {
-        const task = prev.find((t) => t.id === taskId);
-        if (task) {
-          oldStart = new Date(task.start);
-          oldFinish = new Date(task.finish);
-          oldDuration = task.duration;
-        }
-        return prev;
-      });
-
-      const command: Command = {
-        description: `Resize task ${taskId} (${edge}) by ${dayDelta} days`,
-        execute: () => {
-          setTasks((prev) =>
-            prev.map((t) => {
-              if (t.id !== taskId) return t;
-              if (edge === "left") {
-                const newStart = shiftDate(t.start, dayDelta);
-                return {
-                  ...t,
-                  start: newStart,
-                  duration: durationDays(newStart, t.finish),
-                };
-              } else {
-                const newFinish = shiftDate(t.finish, dayDelta);
-                return {
-                  ...t,
-                  finish: newFinish,
-                  duration: durationDays(t.start, newFinish),
-                };
-              }
-            }),
-          );
-        },
-        undo: () => {
-          setTasks((prev) =>
-            prev.map((t) => {
-              if (t.id !== taskId) return t;
-              return {
+      commitTaskChange(
+        `Resize task ${taskId} (${edge}) by ${dayDelta} days`,
+        (prev) =>
+          prev.map((t) => {
+            if (t.id !== taskId) return t;
+            if (edge === "left") {
+              const newStart = shiftDate(t.start, dayDelta);
+              return stampGanttEdit({
                 ...t,
-                start: oldStart,
-                finish: oldFinish,
-                duration: oldDuration,
-              };
-            }),
-          );
-        },
-      };
-
-      history.push(command);
+                start: newStart,
+                manualStart: newStart,
+                duration: durationDays(newStart, t.finish),
+              });
+            }
+            return stampGanttEdit({
+              ...t,
+              duration: Math.max(1, t.duration + dayDelta),
+            });
+          }),
+      );
     },
-    [history],
+    [commitTaskChange],
   );
 
   /* ── createDependency ── */
@@ -259,50 +319,25 @@ export function ProjectProvider({
       type: "FS" | "SS" | "FF" | "SF",
     ) => {
       // Check if dependency already exists
-      let alreadyExists = false;
-      setTasks((prev) => {
-        const task = prev.find((t) => t.id === fromId);
-        if (task) {
-          alreadyExists = task.dependencies.some(
-            (d) => d.to === toId && d.type === type,
-          );
-        }
-        return prev;
-      });
+      const successor = tasks.find((t) => t.id === toId);
+      const alreadyExists = successor?.dependencies.some(
+        (d) => d.from === fromId && d.to === toId && d.type === type,
+      );
       if (alreadyExists) return;
 
       const newDep: GanttDependency = { from: fromId, to: toId, type };
-
-      const command: Command = {
-        description: `Create ${type} dependency ${fromId} → ${toId}`,
-        execute: () => {
-          setTasks((prev) =>
-            prev.map((t) =>
-              t.id === fromId
-                ? { ...t, dependencies: [...t.dependencies, newDep] }
-                : t,
-            ),
-          );
-        },
-        undo: () => {
-          setTasks((prev) =>
-            prev.map((t) =>
-              t.id === fromId
-                ? {
-                    ...t,
-                    dependencies: t.dependencies.filter(
-                      (d) => !(d.to === toId && d.type === type),
-                    ),
-                  }
-                : t,
-            ),
-          );
-        },
-      };
-
-      history.push(command);
+      commitTaskChange(`Create ${type} dependency ${fromId} to ${toId}`, (prev) =>
+        prev.map((t) =>
+          t.id === toId
+            ? stampGanttEdit({
+                ...t,
+                dependencies: [...t.dependencies, newDep],
+              })
+            : t,
+        ),
+      );
     },
-    [history],
+    [commitTaskChange, tasks],
   );
 
   /* ── Keyboard shortcuts: Ctrl+Z / Ctrl+Shift+Z ── */
@@ -344,6 +379,11 @@ export function ProjectProvider({
       setSelectedTaskIds,
       scale,
       setScale,
+      calendar,
+      calendarIssues,
+      scheduleIssues,
+      bottlenecks,
+      updateCalendar,
       updateTask,
       moveTask,
       resizeTask,
@@ -355,8 +395,14 @@ export function ProjectProvider({
     }),
     [
       tasks,
+      setTasks,
       selectedTaskIds,
       scale,
+      calendar,
+      calendarIssues,
+      scheduleIssues,
+      bottlenecks,
+      updateCalendar,
       updateTask,
       moveTask,
       resizeTask,

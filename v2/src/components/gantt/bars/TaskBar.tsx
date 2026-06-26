@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { GanttTask, GanttViewport } from "../types";
+import { resolveTaskLabelPlacement } from "../labelPolicy";
 import type { DragState } from "../interaction/useDragBar";
 import type { ResizeState } from "../interaction/useResizeBar";
 import type { DepEdge } from "../interaction/useCreateDependency";
@@ -32,6 +33,8 @@ interface TaskBarProps {
   ) => void;
   /** Whether this bar is the hover target during dependency creation. */
   isDepHovered?: boolean;
+  /** Let parent charts move labels to a dedicated top layer. */
+  showLabel?: boolean;
 }
 
 const BAR_PADDING_RATIO = 0.25;
@@ -53,6 +56,7 @@ export default function TaskBar({
   resizeState,
   onDepStart,
   isDepHovered,
+  showLabel = true,
 }: TaskBarProps) {
   const [isHovered, setIsHovered] = useState(false);
   const barY = y + height * BAR_PADDING_RATIO;
@@ -74,6 +78,11 @@ export default function TaskBar({
 
   const showConnPoints = onDepStart !== undefined && (isHovered || isDepHovered);
   const connCy = y + height / 2;
+  const labelPlacement = viewport
+    ? resolveTaskLabelPlacement(task, width, viewport.scale).placement
+    : width > 60
+      ? "inside"
+      : "outside-right";
 
   return (
     <g
@@ -81,9 +90,12 @@ export default function TaskBar({
       data-testid="task-bar"
       data-task-id={task.id}
       style={{ cursor: isInteractive ? "grab" : undefined }}
+      onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      <title>{task.name}</title>
+
       {/* Background rectangle */}
       <rect
         x={x}
@@ -123,13 +135,16 @@ export default function TaskBar({
       )}
 
       {/* Task name label */}
-      {width > 60 && (
+      {showLabel && labelPlacement === "inside" && (
         <text
           x={x + 5}
           y={y + height / 2}
           fill="white"
           fontSize={12}
           dominantBaseline="middle"
+          paintOrder="stroke"
+          stroke="rgba(0,0,0,0.18)"
+          strokeWidth={2}
           pointerEvents="none"
         >
           {task.name}

@@ -30,15 +30,17 @@ export default function MilestoneBar({
   ].join(" ");
 
   return (
-    <polygon
-      className="gantt-milestone-bar cursor-pointer"
-      points={points}
-      fill={color}
-      stroke={isSelected ? "var(--aia-proj-main)" : "white"}
-      strokeWidth={isSelected ? 2 : 1}
-      onClick={onClick}
-      data-testid="milestone-bar"
-      data-task-id={task.id}
-    />
+    <g onClick={onClick} data-task-id={task.id}>
+      <title>{task.name}</title>
+      <polygon
+        className="gantt-milestone-bar cursor-pointer"
+        points={points}
+        fill={color}
+        stroke={isSelected ? "var(--aia-proj-main)" : "white"}
+        strokeWidth={isSelected ? 2 : 1}
+        data-testid="milestone-bar"
+        data-task-id={task.id}
+      />
+    </g>
   );
 }

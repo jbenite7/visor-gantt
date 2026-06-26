@@ -6,7 +6,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_MPP_PARSER_URL=http://mpp-parser:8000
+      - NEXT_PUBLIC_MPP_PARSER_URL=http://localhost:8000
       - DATABASE_URL=postgresql://visoruser:visorpass@db:5432/visormpp
     depends_on:
       mpp-parser:

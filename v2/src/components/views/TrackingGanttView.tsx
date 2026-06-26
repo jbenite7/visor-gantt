@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import type { GanttTask, GanttConfig } from "@/components/gantt/types";
-import type { Baseline, BaselineTask } from "@/types/baseline";
+import type { Baseline } from "@/types/baseline";
 import type { BaselineVariance } from "@/lib/scheduling/baseline";
 import {
   saveBaseline,

@@ -3,7 +3,7 @@
  */
 
 import "@testing-library/jest-dom";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import SplitPane from "./SplitPane";
 
 // ---------------------------------------------------------------------------
@@ -39,7 +39,7 @@ describe("SplitPane", () => {
   // --- Split ratio ---------------------------------------------------------
 
   test("uses default split ratio of 40%", () => {
-    const { container } = render(
+    render(
       <div style={{ width: 1000, height: 500 }}>
         <SplitPane left="LEFT" right="RIGHT" />
       </div>,
@@ -52,7 +52,7 @@ describe("SplitPane", () => {
   });
 
   test("uses custom split ratio when defaultSplit is provided", () => {
-    const { container } = render(
+    render(
       <div style={{ width: 1000, height: 500 }}>
         <SplitPane left="LEFT" right="RIGHT" defaultSplit={60} />
       </div>,

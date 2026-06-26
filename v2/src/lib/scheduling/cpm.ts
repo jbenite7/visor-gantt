@@ -1,8 +1,16 @@
-import { CalendarService } from "./calendar";
 import { Dependency, DependencyType, Task } from "./types";
 
+export interface SchedulingCalendar {
+  getNextWorkingDay(date: Date): Date;
+  getPreviousWorkingDay(date: Date): Date;
+  addLag(start: Date, minutesLag: number): Date;
+  subtractLag(end: Date, minutesLag: number): Date;
+  addDuration(start: Date, minutes: number): Date;
+  subtractDuration(end: Date, minutes: number): Date;
+}
+
 export class CPMCalculatorService {
-  constructor(private calendar: CalendarService) {}
+  constructor(private calendar: SchedulingCalendar) {}
 
   calculate(
     tasks: Task[],

@@ -296,6 +296,28 @@ describe("generateLOBFromTasks", () => {
 });
 
 describe("generateAutomaticLOBFromTasks", () => {
+  const summaryTask = (
+    id: string,
+    name: string,
+    wbs: string,
+    outlineLevel: number,
+    start: string,
+    finish: string,
+  ): GanttTask => ({
+    id,
+    name,
+    wbs,
+    start: new Date(start),
+    finish: new Date(finish),
+    duration: 1,
+    progress: 0,
+    isCritical: false,
+    isMilestone: false,
+    isSummary: true,
+    outlineLevel,
+    dependencies: [],
+  });
+
   it("detects repetitive floor activities from task names", () => {
     const baseTask = {
       duration: 3,
@@ -345,5 +367,46 @@ describe("generateAutomaticLOBFromTasks", () => {
       "Cimbra Columnas",
     ]);
     expect(result.units).toHaveLength(4);
+  });
+
+  it("detects repetitive activities from WBS hierarchy when explicit units are absent", () => {
+    const tasks: GanttTask[] = [
+      summaryTask("contracts", "CONTRATOS", "1.1", 2, "2026-03-01", "2026-03-05"),
+      summaryTask("basements", "SÓTANOS", "1.2", 2, "2026-03-01", "2026-04-15"),
+      summaryTask("apartments", "APARTAMENTOS Y CUBIERTA", "1.3", 2, "2026-04-01", "2026-05-15"),
+      summaryTask("urbanism", "URBANISMO", "1.4", 2, "2026-05-01", "2026-06-15"),
+      summaryTask("b-arch", "Arquitectura", "1.2.1", 3, "2026-03-01", "2026-03-10"),
+      summaryTask("b-structure", "Estructura", "1.2.2", 3, "2026-03-11", "2026-03-20"),
+      summaryTask("b-networks", "Redes", "1.2.3", 3, "2026-03-21", "2026-03-30"),
+      summaryTask("a-arch", "Arquitectura", "1.3.1", 3, "2026-04-01", "2026-04-10"),
+      summaryTask("a-structure", "Estructura", "1.3.2", 3, "2026-04-11", "2026-04-20"),
+      summaryTask("a-networks", "Redes", "1.3.3", 3, "2026-04-21", "2026-04-30"),
+      summaryTask("u-arch", "Arquitectura", "1.4.1", 3, "2026-05-01", "2026-05-10"),
+      summaryTask("u-networks", "Redes", "1.4.2", 3, "2026-05-11", "2026-05-20"),
+      summaryTask("u-unique", "Paisajismo", "1.4.3", 3, "2026-05-21", "2026-05-30"),
+    ];
+
+    const result = generateAutomaticLOBFromTasks(tasks);
+
+    expect(result.detectedUnitLabel).toBe("Capítulo WBS");
+    expect(result.activities.map((activity) => activity.name)).toEqual([
+      "Arquitectura",
+      "Estructura",
+      "Redes",
+    ]);
+    expect(result.activities.find((activity) => activity.name === "Paisajismo")).toBeUndefined();
+    expect(result.activities.find((activity) => activity.name === "Arquitectura")?.taskIds).toEqual([
+      "b-arch",
+      "a-arch",
+      "u-arch",
+    ]);
+
+    const architectureUnits = result.units.filter((unit) => unit.activityId === "wbs-lob-0");
+    expect(architectureUnits.map((unit) => unit.unitName)).toEqual([
+      "SÓTANOS",
+      "APARTAMENTOS Y CUBIERTA",
+      "URBANISMO",
+    ]);
+    expect(architectureUnits.map((unit) => unit.unitIndex)).toEqual([0, 1, 2]);
   });
 });

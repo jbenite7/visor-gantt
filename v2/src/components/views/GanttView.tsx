@@ -15,10 +15,14 @@ import BudgetMapping from "@/components/budget/BudgetMapping";
 import LineOfBalance from "@/components/charts/LineOfBalance";
 import SCurveView from "@/components/views/SCurveView";
 import CalendarSettingsView from "@/components/views/CalendarSettingsView";
+import BottlenecksView from "@/components/views/BottlenecksView";
+import MatrixEditorView from "@/components/views/MatrixEditorView";
 import type { Resource, Assignment } from "@/types/resource";
 import type { BudgetItem, BudgetMapping as BudgetMappingType } from "@/types/budget";
 import type { ProjectCalendar } from "@/types/calendar";
 import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
+import type { Baseline } from "@/types/baseline";
+import type { MatrixPlan } from "@/types/matrix";
 import { ProjectProvider, useProject } from "@/lib/state/ProjectContext";
 import { useDragBar } from "@/components/gantt/interaction/useDragBar";
 import { useResizeBar } from "@/components/gantt/interaction/useResizeBar";
@@ -29,44 +33,48 @@ import {
 import ViewSidebar from "@/components/gantt/toolbar/ViewSidebar";
 import { saveProject, type ProjectData } from "@/app/actions/project";
 import { generateAutomaticLOBFromTasks } from "@/lib/scheduling/lob";
+import { detectBottlenecks } from "@/lib/scheduling/bottlenecks";
+import {
+  applyMatrixUpdate,
+  syncMatrixPlanFromTasks,
+} from "@/lib/matrix/matrixSync";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
+const AUTOSAVE_DELAY_MS = 750;
 
 interface GanttViewProps {
   projectId?: string;
   projectName?: string;
   tasks: GanttTask[];
   calendar?: ProjectCalendar;
+  resources?: Resource[];
+  assignments?: Assignment[];
+  budgetItems?: BudgetItem[];
+  budgetMappings?: BudgetMappingType[];
+  baselines?: Baseline[];
+  matrixPlan?: MatrixPlan;
   onTaskClick?: (task: GanttTask) => void;
-}
-
-const VIEW_PLACEHOLDERS: Record<ViewType, string> = {
-  gantt: "",
-  tracking: "Vista \"Seguimiento\" en desarrollo",
-  taskSheet: "Vista \"Hoja Tareas\" en desarrollo",
-  network: "Vista \"Diagrama Red\" en desarrollo",
-  resources: "Vista \"Recursos\" en desarrollo",
-  lob: "Vista \"Línea Balance\" en desarrollo",
-  scurve: "Vista \"Curva S\" en desarrollo",
-  settings: "Vista \"Configuración\" en desarrollo",
-};
-
-/* ── Baseline type (toolbar-level) ── */
-interface BaselineEntry {
-  id: string;
-  name: string;
-  snapshot: GanttTask[];
 }
 
 function GanttViewInner({
   initialProjectId,
   initialProjectName,
-  initialCalendar,
+  initialResources,
+  initialAssignments,
+  initialBudgetItems,
+  initialBudgetMappings,
+  initialBaselines,
+  initialMatrixPlan,
   onTaskClick,
 }: {
   initialProjectId?: string;
   initialProjectName?: string;
-  initialCalendar: ProjectCalendar;
+  initialResources: Resource[];
+  initialAssignments: Assignment[];
+  initialBudgetItems: BudgetItem[];
+  initialBudgetMappings: BudgetMappingType[];
+  initialBaselines: Baseline[];
+  initialMatrixPlan?: MatrixPlan;
   onTaskClick?: (task: GanttTask) => void;
 }) {
   const {
@@ -84,25 +92,35 @@ function GanttViewInner({
     redo,
     canUndo,
     canRedo,
+    scheduleIssues,
+    calendar,
+    updateCalendar,
   } = useProject();
 
   const [activeView, setActiveView] = useState<ViewType>("gantt");
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [assignments] = useState<Assignment[]>([]);
+  const [resources, setResources] = useState<Resource[]>(initialResources);
+  const [assignments] = useState<Assignment[]>(initialAssignments);
   const [resourceSubView, setResourceSubView] = useState<"sheet" | "usage" | "budget" | "mapping">("sheet");
-  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
-  const [budgetMappings, setBudgetMappings] = useState<BudgetMappingType[]>([]);
+  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>(initialBudgetItems);
+  const [budgetMappings, setBudgetMappings] =
+    useState<BudgetMappingType[]>(initialBudgetMappings);
+  const [matrixPlan, setMatrixPlan] = useState<MatrixPlan | undefined>(
+    initialMatrixPlan,
+  );
+  const syncedMatrixPlan = useMemo(
+    () => (matrixPlan ? syncMatrixPlanFromTasks(matrixPlan, tasks) : undefined),
+    [matrixPlan, tasks],
+  );
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [projectId, setProjectId] = useState<string | undefined>(initialProjectId);
   const [projectName] = useState<string>(initialProjectName ?? "Sin título");
-  const [calendar, setCalendar] = useState<ProjectCalendar>(initialCalendar);
   const isDirtyRef = useRef(false);
-  const lastSaveRef = useRef<number>(0);
-  const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const didMountSaveStateRef = useRef(false);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* ── Baselines ── */
-  const [baselines, setBaselines] = useState<BaselineEntry[]>([]);
+  const [baselines, setBaselines] = useState<Baseline[]>(initialBaselines);
   const [activeBaselineId, setActiveBaselineId] = useState<string | undefined>();
 
   /* ── Project info derived from tasks ── */
@@ -123,6 +141,30 @@ function GanttViewInner({
   const automaticLOB = useMemo(
     () => generateAutomaticLOBFromTasks(tasks),
     [tasks],
+  );
+  const bottlenecks = useMemo(
+    () => detectBottlenecks({ tasks, resources, assignments }),
+    [tasks, resources, assignments],
+  );
+  const matrixEditorKey = useMemo(
+    () =>
+      matrixPlan
+        ? JSON.stringify({
+            id: syncedMatrixPlan?.id,
+            cells: syncedMatrixPlan?.cells.map((cell) => ({
+              id: cell.id,
+              active: cell.active,
+              quantity: cell.quantity,
+              activityOverrides: cell.activityOverrides,
+              generatedTaskIds: cell.generatedTaskIds,
+              syncedTaskIds: cell.syncedTaskIds,
+              lastEditedAt: cell.lastEditedAt,
+              lastEditedFrom: cell.lastEditedFrom,
+              feedback: cell.feedback,
+            })),
+          })
+        : "no-matrix",
+    [matrixPlan, syncedMatrixPlan],
   );
 
   /* ── Add Task handler ── */
@@ -165,14 +207,16 @@ function GanttViewInner({
   /* ── Save Baseline handler ── */
   const handleSaveBaseline = useCallback(() => {
     const baselineNumber = baselines.length + 1;
-    const newBaseline: BaselineEntry = {
+    const newBaseline: Baseline = {
       id: `bl-${Date.now()}`,
       name: `Baseline ${baselineNumber}`,
-      snapshot: tasks.map((t) => ({
-        ...t,
+      createdAt: new Date(),
+      tasks: tasks.map((t) => ({
+        taskId: t.id,
         baselineStart: new Date(t.start),
         baselineFinish: new Date(t.finish),
         baselineDuration: t.duration,
+        baselineCost: t.cost,
       })),
     };
     setBaselines((prev) => [...prev, newBaseline]);
@@ -302,17 +346,29 @@ function GanttViewInner({
     );
   }, [budgetMappings]);
 
-  const markDirty = useCallback(() => {
-    isDirtyRef.current = true;
-  }, []);
+  const handleApplyMatrixPlan = useCallback(
+    (nextPlan: MatrixPlan) => {
+      const result = applyMatrixUpdate({
+        tasks,
+        currentPlan: syncedMatrixPlan ?? nextPlan,
+        nextPlan,
+      });
+
+      setMatrixPlan(result.matrixPlan);
+      setTasks(() => result.tasks);
+    },
+    [setTasks, syncedMatrixPlan, tasks],
+  );
+
+  const handleSyncMatrixFromGantt = useCallback(() => {
+    if (!syncedMatrixPlan) return;
+    setMatrixPlan(syncedMatrixPlan);
+  }, [syncedMatrixPlan]);
 
   const doSave = useCallback(async () => {
     if (!isDirtyRef.current) return;
-    const now = Date.now();
-    if (now - lastSaveRef.current < 30_000) return;
 
     isDirtyRef.current = false;
-    lastSaveRef.current = now;
     setSaveStatus("saving");
 
     try {
@@ -324,8 +380,9 @@ function GanttViewInner({
         assignments,
         budgetItems,
         budgetMappings,
-        baselines: [],
+        baselines,
         calendar,
+        matrixPlan: syncedMatrixPlan,
       };
       const result = await saveProject(data);
       if (result.success) {
@@ -340,7 +397,7 @@ function GanttViewInner({
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 3000);
     }
-  }, [projectId, projectName, tasks, resources, assignments, budgetItems, budgetMappings, calendar]);
+  }, [projectId, projectName, tasks, resources, assignments, budgetItems, budgetMappings, baselines, calendar, syncedMatrixPlan]);
 
   // Use a ref to avoid the interval effect depending on doSave's reference
   const doSaveRef = useRef(doSave);
@@ -350,21 +407,46 @@ function GanttViewInner({
   }, [doSave]);
 
   useEffect(() => {
-    autoSaveTimerRef.current = setInterval(() => {
-      doSaveRef.current();
-    }, 30_000);
-    return () => {
-      if (autoSaveTimerRef.current) clearInterval(autoSaveTimerRef.current);
-    };
-  }, []);
+    if (!didMountSaveStateRef.current) {
+      didMountSaveStateRef.current = true;
+      return;
+    }
 
-  useEffect(() => {
-    if (tasks.length > 0) markDirty();
-  }, [tasks.length, markDirty]);
-
-  useEffect(() => {
     isDirtyRef.current = true;
-  }, [resources, budgetItems, budgetMappings, calendar]);
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+    autoSaveTimerRef.current = setTimeout(() => {
+      autoSaveTimerRef.current = null;
+      doSaveRef.current();
+    }, AUTOSAVE_DELAY_MS);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [
+    tasks,
+    resources,
+    assignments,
+    budgetItems,
+    budgetMappings,
+    baselines,
+    calendar,
+    syncedMatrixPlan,
+    projectName,
+  ]);
+
+  useEffect(
+    () => () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+      void doSaveRef.current();
+    },
+    [],
+  );
 
   return (
     <div data-testid="gantt-view" className="flex flex-col h-screen">
@@ -378,7 +460,7 @@ function GanttViewInner({
           canRedo={canRedo}
           onUndo={undo}
           onRedo={redo}
-          projectName={projectInfo.name}
+          projectName={projectName}
           projectStart={projectInfo.start}
           projectFinish={projectInfo.finish}
           taskCount={projectInfo.count}
@@ -424,6 +506,7 @@ function GanttViewInner({
               right={
                 <GanttChart
                   tasks={tasks}
+                  calendar={calendar}
                   scale={scale}
                   selectedTaskIds={selectedTaskIds}
                   onTaskSelect={handleTaskSelect}
@@ -585,6 +668,16 @@ function GanttViewInner({
             </div>
           )}
 
+          {activeView === "matrix" && (
+            <MatrixEditorView
+              key={matrixEditorKey}
+              matrixPlan={syncedMatrixPlan}
+              tasks={tasks}
+              onApplyMatrixPlan={handleApplyMatrixPlan}
+              onSyncFromGantt={handleSyncMatrixFromGantt}
+            />
+          )}
+
           {activeView === "scurve" && (
             <SCurveView
               tasks={tasks}
@@ -593,10 +686,17 @@ function GanttViewInner({
             />
           )}
 
+          {activeView === "bottlenecks" && (
+            <BottlenecksView
+              issues={scheduleIssues}
+              bottlenecks={bottlenecks}
+            />
+          )}
+
           {activeView === "settings" && (
             <CalendarSettingsView
               calendar={calendar}
-              onChange={setCalendar}
+              onChange={updateCalendar}
             />
           )}
         </div>
@@ -610,18 +710,34 @@ export default function GanttView({
   projectName,
   tasks,
   calendar = DEFAULT_PROJECT_CALENDAR,
+  resources = [],
+  assignments = [],
+  budgetItems = [],
+  budgetMappings = [],
+  baselines = [],
+  matrixPlan,
   onTaskClick,
 }: GanttViewProps) {
   const initialTasksKey = tasks
     .map((task) => `${task.id}:${task.name}:${task.start.getTime()}:${task.finish.getTime()}`)
     .join("|");
+  const initialProjectKey = `${projectId ?? "draft"}:${initialTasksKey}`;
 
   return (
-    <ProjectProvider key={initialTasksKey} initialTasks={tasks}>
+    <ProjectProvider
+      key={initialProjectKey}
+      initialTasks={tasks}
+      initialCalendar={calendar}
+    >
       <GanttViewInner
         initialProjectId={projectId}
         initialProjectName={projectName}
-        initialCalendar={calendar}
+        initialResources={resources}
+        initialAssignments={assignments}
+        initialBudgetItems={budgetItems}
+        initialBudgetMappings={budgetMappings}
+        initialBaselines={baselines}
+        initialMatrixPlan={matrixPlan}
         onTaskClick={onTaskClick}
       />
     </ProjectProvider>

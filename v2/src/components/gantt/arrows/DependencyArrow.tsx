@@ -27,6 +27,8 @@ interface DependencyArrowProps {
 
 /** Arrowhead triangle size (px). */
 const ARROW_SIZE = 8;
+const LAG_BADGE_HEIGHT = 16;
+const LAG_BADGE_PADDING_X = 6;
 
 /**
  * Build an SVG polygon points string for a triangle arrowhead.
@@ -78,20 +80,21 @@ export default function DependencyArrow({
   to,
   type,
   lag,
-  rowHeight,
 }: DependencyArrowProps) {
-  const d = calculateArrowPath(from.x, from.y, to.x, to.y, type, rowHeight);
+  const d = calculateArrowPath(from.x, from.y, to.x, to.y, type);
   const direction = getArrowDirection(from.x, from.y, to.x, to.y, type);
 
   const color = from.isCritical
     ? "var(--aia-alert-main)"
     : "var(--aia-corp-mid)";
   const strokeWidth = from.isCritical ? 2 : 1;
+  const arrowOpacity = from.isCritical ? 0.78 : 0.62;
 
   // Lag label
   const showLag = lag !== undefined && lag !== 0;
   const lagText = lag !== undefined ? (lag > 0 ? `+${lag}d` : `${lag}d`) : "";
   const mid = showLag ? midPoint(from.x, from.y, to.x, to.y, type) : null;
+  const lagBadgeWidth = lagText.length * 6 + LAG_BADGE_PADDING_X * 2;
 
   return (
     <g data-testid="dependency-arrow">
@@ -103,27 +106,45 @@ export default function DependencyArrow({
         strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
+        opacity={arrowOpacity}
       />
 
       {/* Arrowhead */}
       <polygon
         points={arrowHeadPoints(to.x, to.y, direction)}
         fill={color}
+        opacity={arrowOpacity}
       />
 
       {/* Lag label */}
       {showLag && mid !== null && (
-        <text
-          x={mid.x}
-          y={mid.y}
-          fill="var(--aia-corp-mid)"
-          fontSize={10}
-          textAnchor="middle"
-          dominantBaseline="middle"
+        <g
+          data-testid="dependency-lag-badge"
           className="pointer-events-none select-none"
         >
-          {lagText}
-        </text>
+          <rect
+            x={mid.x - lagBadgeWidth / 2}
+            y={mid.y - LAG_BADGE_HEIGHT / 2}
+            width={lagBadgeWidth}
+            height={LAG_BADGE_HEIGHT}
+            fill="var(--aia-alabaster)"
+            stroke="var(--aia-corp-mid)"
+            strokeWidth={0.75}
+            rx={3}
+            opacity={0.96}
+          />
+          <text
+            x={mid.x}
+            y={mid.y}
+            fill="var(--aia-corp-dark)"
+            fontSize={10}
+            fontWeight={600}
+            textAnchor="middle"
+            dominantBaseline="middle"
+          >
+            {lagText}
+          </text>
+        </g>
       )}
     </g>
   );

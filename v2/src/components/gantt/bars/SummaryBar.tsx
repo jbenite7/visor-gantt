@@ -9,6 +9,8 @@ interface SummaryBarProps {
   color: string;
   onClick?: () => void;
   isSelected?: boolean;
+  /** Horizontal room reserved for the external summary label chip. */
+  labelReserveWidth?: number;
 }
 
 export default function SummaryBar({
@@ -20,10 +22,15 @@ export default function SummaryBar({
   color,
   onClick,
   isSelected,
+  labelReserveWidth = 0,
 }: SummaryBarProps) {
   const midY = y + height * 0.5;
   const bracketTopY = y + height * 0.3;
   const bracketLen = 8;
+  const maxReserve = Math.max(0, width - bracketLen * 3);
+  const lineStartX = x + Math.min(labelReserveWidth, maxReserve);
+  const lineEndX = x + width;
+  const rightBracketStartX = Math.max(lineStartX, lineEndX - bracketLen);
 
   const strokeColor = isSelected ? "var(--aia-proj-main)" : color;
   const strokeW = isSelected ? 3 : 2;
@@ -35,11 +42,14 @@ export default function SummaryBar({
       data-testid="summary-bar"
       data-task-id={task.id}
     >
+      <title>{task.name}</title>
+
       {/* Thin horizontal line */}
       <line
-        x1={x}
+        data-testid="summary-line"
+        x1={lineStartX}
         y1={midY}
-        x2={x + width}
+        x2={lineEndX}
         y2={midY}
         stroke={strokeColor}
         strokeWidth={strokeW}
@@ -48,7 +58,7 @@ export default function SummaryBar({
 
       {/* Left bracket — downward */}
       <polyline
-        points={`${x},${bracketTopY} ${x},${midY} ${x + bracketLen},${midY}`}
+        points={`${lineStartX},${bracketTopY} ${lineStartX},${midY} ${lineStartX + bracketLen},${midY}`}
         fill="none"
         stroke={strokeColor}
         strokeWidth={strokeW}
@@ -57,7 +67,7 @@ export default function SummaryBar({
 
       {/* Right bracket — upward */}
       <polyline
-        points={`${x + width - bracketLen},${midY} ${x + width},${midY} ${x + width},${bracketTopY}`}
+        points={`${rightBracketStartX},${midY} ${lineEndX},${midY} ${lineEndX},${bracketTopY}`}
         fill="none"
         stroke={strokeColor}
         strokeWidth={strokeW}

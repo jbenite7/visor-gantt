@@ -304,7 +304,34 @@ function displayActivityName(normalized: string): string {
     .join(" ");
 }
 
-export function generateAutomaticLOBFromTasks(tasks: GanttTask[]): AutomaticLOBResult {
+function parseWbsParts(wbs: string | undefined): number[] {
+  if (!wbs) return [];
+  const parts = wbs
+    .split(".")
+    .map((part) => Number(part.trim()))
+    .filter((part) => Number.isFinite(part));
+  return parts.length === wbs.split(".").length ? parts : [];
+}
+
+function compareWbs(a: string | undefined, b: string | undefined): number {
+  const left = parseWbsParts(a);
+  const right = parseWbsParts(b);
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftPart = left[index] ?? 0;
+    const rightPart = right[index] ?? 0;
+    if (leftPart !== rightPart) return leftPart - rightPart;
+  }
+  return 0;
+}
+
+function getWbsKey(wbs: string | undefined, depth: number): string | null {
+  const parts = parseWbsParts(wbs);
+  if (parts.length < depth) return null;
+  return parts.slice(0, depth).join(".");
+}
+
+function generateTextLOBFromTasks(tasks: GanttTask[]): AutomaticLOBResult {
   const candidates = tasks
     .filter((task) => !task.isSummary && !task.isMilestone)
     .map((task) => ({ task, unit: detectUnit(`${task.wbs ?? ""} ${task.name}`) }))
@@ -365,4 +392,125 @@ export function generateAutomaticLOBFromTasks(tasks: GanttTask[]): AutomaticLOBR
   }
 
   return { activities, units, detectedUnitLabel };
+}
+
+function generateWBSLOBFromTasks(tasks: GanttTask[]): AutomaticLOBResult {
+  const levelTwoSummaries = tasks
+    .filter((task) => task.isSummary && parseWbsParts(task.wbs).length === 2)
+    .slice()
+    .sort((a, b) => compareWbs(a.wbs, b.wbs));
+
+  if (levelTwoSummaries.length < 2) {
+    return { activities: [], units: [], detectedUnitLabel: "Unidad" };
+  }
+
+  const unitByWbs = new Map<string, GanttTask>();
+  levelTwoSummaries.forEach((task) => {
+    const key = getWbsKey(task.wbs, 2);
+    if (!key) return;
+    unitByWbs.set(key, task);
+  });
+
+  const levelThreeSummaries = tasks
+    .filter((task) => task.isSummary && parseWbsParts(task.wbs).length === 3)
+    .map((task) => {
+      const unitKey = getWbsKey(task.wbs, 2);
+      return unitKey && unitByWbs.has(unitKey) ? { task, unitKey } : null;
+    })
+    .filter((entry): entry is { task: GanttTask; unitKey: string } => entry !== null);
+
+  const activityGroups = new Map<
+    string,
+    { displayName: string; entries: Array<{ task: GanttTask; unitKey: string }> }
+  >();
+
+  for (const entry of levelThreeSummaries) {
+    const activityKey = normalizeActivityName(entry.task.name);
+    const group = activityGroups.get(activityKey) ?? {
+      displayName: entry.task.name,
+      entries: [],
+    };
+    group.entries.push(entry);
+    activityGroups.set(activityKey, group);
+  }
+
+  const activities: LOBActivity[] = [];
+  const units: LOBUnit[] = [];
+  const detectedUnitLabel = "Capítulo WBS";
+  const eligibleGroups: Array<{
+    displayName: string;
+    uniqueUnits: Map<string, { task: GanttTask; unitKey: string }>;
+  }> = [];
+  const includedUnitKeys = new Set<string>();
+
+  for (const [, group] of activityGroups) {
+    const uniqueUnits = new Map<string, { task: GanttTask; unitKey: string }>();
+    for (const entry of group.entries) {
+      const current = uniqueUnits.get(entry.unitKey);
+      if (!current || entry.task.start < current.task.start) {
+        uniqueUnits.set(entry.unitKey, entry);
+      }
+    }
+    if (uniqueUnits.size < 2) continue;
+
+    eligibleGroups.push({ displayName: group.displayName, uniqueUnits });
+    for (const unitKey of uniqueUnits.keys()) {
+      includedUnitKeys.add(unitKey);
+    }
+  }
+
+  const unitIndexByWbs = new Map<string, number>();
+  levelTwoSummaries
+    .map((task) => getWbsKey(task.wbs, 2))
+    .filter((key): key is string => key !== null && includedUnitKeys.has(key))
+    .forEach((key, index) => {
+      unitIndexByWbs.set(key, index);
+  });
+
+  for (const group of eligibleGroups) {
+    const sorted = [...group.uniqueUnits.values()].sort((a, b) => {
+      const leftIndex = unitIndexByWbs.get(a.unitKey) ?? 0;
+      const rightIndex = unitIndexByWbs.get(b.unitKey) ?? 0;
+      if (leftIndex !== rightIndex) return leftIndex - rightIndex;
+      return a.task.start.getTime() - b.task.start.getTime();
+    });
+
+    const starts = sorted.map((item) => item.task.start.getTime());
+    const finishes = sorted.map((item) => item.task.finish.getTime());
+    const plannedStart = new Date(Math.min(...starts));
+    const plannedFinish = new Date(Math.max(...finishes));
+    const durationDays = Math.max(
+      1,
+      (plannedFinish.getTime() - plannedStart.getTime()) / 86400000,
+    );
+    const activityId = `wbs-lob-${activities.length}`;
+
+    activities.push({
+      id: activityId,
+      name: group.displayName,
+      taskIds: sorted.map((item) => item.task.id),
+      plannedRate: sorted.length / durationDays,
+      unitLabel: detectedUnitLabel,
+      plannedStart,
+      plannedFinish,
+    });
+
+    sorted.forEach((item) => {
+      const unitTask = unitByWbs.get(item.unitKey);
+      units.push({
+        activityId,
+        unitIndex: unitIndexByWbs.get(item.unitKey) ?? 0,
+        unitName: unitTask?.name,
+        plannedDate: item.task.start,
+      });
+    });
+  }
+
+  return { activities, units, detectedUnitLabel };
+}
+
+export function generateAutomaticLOBFromTasks(tasks: GanttTask[]): AutomaticLOBResult {
+  const textResult = generateTextLOBFromTasks(tasks);
+  if (textResult.activities.length > 0) return textResult;
+  return generateWBSLOBFromTasks(tasks);
 }

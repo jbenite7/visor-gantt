@@ -6,7 +6,7 @@
  *
  * Pure functions — no React, no DOM, no side effects.
  */
-import type { GanttTask, GanttDependency } from "@/components/gantt/types";
+import type { GanttTask } from "@/components/gantt/types";
 
 // ── Layout Types ─────────────────────────────────────────────────────────────
 

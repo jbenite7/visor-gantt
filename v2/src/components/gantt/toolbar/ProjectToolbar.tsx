@@ -10,7 +10,7 @@ import {
   FolderKanban,
   ChevronDown,
 } from "lucide-react";
-import ViewSwitcher, { type ViewType } from "./ViewSwitcher";
+import type { ViewType } from "./ViewSwitcher";
 
 /* ── Types ── */
 
@@ -106,8 +106,6 @@ function formatDateShort(date: Date): string {
 /* ───────────────────── Component ───────────────────── */
 
 export default function ProjectToolbar({
-  activeView,
-  onViewChange,
   scale,
   onScaleChange,
   canUndo,

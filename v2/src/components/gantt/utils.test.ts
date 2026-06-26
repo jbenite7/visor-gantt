@@ -11,8 +11,6 @@ import { GanttTask, GanttViewport } from "./types";
 // getDatePosition
 // ---------------------------------------------------------------------------
 describe("getDatePosition", () => {
-  const msPerDay = 24 * 60 * 60 * 1000;
-
   function makeViewport(
     overrides?: Partial<GanttViewport>,
   ): GanttViewport {
@@ -67,28 +65,28 @@ describe("getTaskWidth", () => {
     };
   }
 
-  test("happy path: 5-day task in day scale → width = 5 * columnWidth", () => {
+  test("happy path: inclusive 5-day task in day scale → width = 5 * columnWidth", () => {
     const start = new Date("2023-01-02T00:00:00");
-    const finish = new Date("2023-01-07T00:00:00");
+    const finish = new Date("2023-01-06T00:00:00");
     expect(getTaskWidth(start, finish, makeViewport())).toBe(5 * 40); // 200
   });
 
-  test("edge case: 0-day task (milestone) → minimum 4px width", () => {
+  test("same-day non-milestone task paints one full day", () => {
     const start = new Date("2023-01-02T12:00:00");
     const finish = new Date("2023-01-02T12:00:00");
-    expect(getTaskWidth(start, finish, makeViewport())).toBe(4);
+    expect(getTaskWidth(start, finish, makeViewport())).toBe(40);
   });
 
   test("edge case: week scale → width = (days/7) * columnWidth", () => {
     const start = new Date("2023-01-02T00:00:00");
-    const finish = new Date("2023-01-09T00:00:00"); // 7 days
+    const finish = new Date("2023-01-08T00:00:00"); // 7 inclusive days
     const viewport = makeViewport({ scale: "week", columnWidth: 60 });
     expect(getTaskWidth(start, finish, viewport)).toBe((7 / 7) * 60); // 60
   });
 
   test("month scale → width = (days/30) * columnWidth", () => {
     const start = new Date("2023-01-02T00:00:00");
-    const finish = new Date("2023-02-01T00:00:00"); // 30 days
+    const finish = new Date("2023-01-31T00:00:00"); // 30 inclusive days
     const viewport = makeViewport({ scale: "month", columnWidth: 80 });
     expect(getTaskWidth(start, finish, viewport)).toBe((30 / 30) * 80); // 80
   });

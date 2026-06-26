@@ -29,6 +29,8 @@ export interface LOBUnit {
   activityId: string;
   /** Sequential unit index (0-based). */
   unitIndex: number;
+  /** Display name for this production unit when it comes from WBS or scope data. */
+  unitName?: string;
   /** Planned date for this unit. */
   plannedDate: Date;
   /** Actual completion date for this unit. */

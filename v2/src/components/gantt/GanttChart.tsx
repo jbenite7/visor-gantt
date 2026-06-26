@@ -2,13 +2,14 @@
 
 import { useMemo } from "react";
 import { GanttTask, GanttConfig } from "./types";
+import { DEFAULT_PROJECT_CALENDAR, type ProjectCalendar } from "@/types/calendar";
+import { isProjectWorkingDay } from "@/lib/scheduling/projectCalendar";
 import {
   calculateViewport,
   generateTimelineColumns,
   getDatePosition,
   getTaskWidth,
   getDependencyEndpoints,
-  isWeekend,
   isToday,
 } from "./utils";
 import { TaskBar, MilestoneBar, SummaryBar } from "./bars";
@@ -18,11 +19,17 @@ import { calculateArrowPath, getArrowDirection } from "./arrows/ArrowPath";
 import { useCreateDependency } from "./interaction";
 import type { DragState } from "./interaction/useDragBar";
 import type { ResizeState } from "./interaction/useResizeBar";
-import { GANTT_HEADER_HEIGHT, GANTT_ROW_HEIGHT } from "./layout";
+import {
+  GANTT_HEADER_HEIGHT,
+  GANTT_MILESTONE_SIZE,
+  GANTT_ROW_HEIGHT,
+} from "./layout";
+import { resolveTaskLabelPlacement } from "./labelPolicy";
 
 interface GanttChartProps {
   tasks: GanttTask[];
   config?: Partial<GanttConfig>;
+  calendar?: ProjectCalendar;
   scale?: "day" | "week" | "month";
   onTaskClick?: (task: GanttTask) => void;
   selectedTaskIds?: (string | number)[];
@@ -58,9 +65,19 @@ const DEFAULT_CONFIG: GanttConfig = {
   milestoneColor: "var(--aia-warn-main)",
 };
 
+const LABEL_HEIGHT = 20;
+const LABEL_GAP = 6;
+const LABEL_PADDING_X = 6;
+const SUMMARY_LABEL_OFFSET_X = 4;
+
+function labelWidth(estimatedWidth: number): number {
+  return Math.max(estimatedWidth, 28);
+}
+
 export default function GanttChart({
   tasks,
   config,
+  calendar = DEFAULT_PROJECT_CALENDAR,
   scale = "day",
   selectedTaskIds,
   onTaskSelect,
@@ -132,12 +149,13 @@ export default function GanttChart({
             )}
           </g>
 
-          {/* ── Layer 2: Weekend column shading (Sundays) ── */}
+          {/* ── Layer 2: Non-working column shading ── */}
           <g className="weekend-shading" pointerEvents="none">
             {columns.map((date, i) =>
-              isWeekend(date) ? (
+              !isProjectWorkingDay(date, calendar) ? (
                 <rect
                   key={`weekend-${i}`}
+                  data-non-working-date={date.toISOString().split("T")[0]}
                   x={i * viewport.columnWidth}
                   y={finalConfig.headerHeight}
                   width={viewport.columnWidth}
@@ -237,6 +255,14 @@ export default function GanttChart({
                       height={finalConfig.rowHeight}
                       color={color}
                       isSelected={selectedTaskIds?.includes(task.id) ?? false}
+                      labelReserveWidth={
+                        labelWidth(
+                          resolveTaskLabelPlacement(task, width, scale)
+                            .estimatedWidth,
+                        ) +
+                        SUMMARY_LABEL_OFFSET_X +
+                        LABEL_GAP
+                      }
                     />
                   ) : (
                     <TaskBar
@@ -254,21 +280,8 @@ export default function GanttChart({
                       dragState={dragState}
                       onResizeStart={onResizeStart}
                       resizeState={resizeState}
+                      showLabel={false}
                     />
-                  )}
-
-                  {/* Task Label — milestones & summaries only (TaskBar renders its own) */}
-                  {(task.isMilestone || task.isSummary) && (
-                    <text
-                      x={x + 5}
-                      y={y + finalConfig.rowHeight / 2}
-                      dominantBaseline="middle"
-                      fill="var(--aia-corp-dark)"
-                      fontSize={12}
-                      className="pointer-events-none"
-                    >
-                      {task.name}
-                    </text>
                   )}
                 </g>
               );
@@ -341,7 +354,6 @@ export default function GanttChart({
                 toX,
                 toY,
                 type,
-                finalConfig.rowHeight,
               );
               const direction = getArrowDirection(fromX, fromY, toX, toY, type);
               const arrowSize = 8;
@@ -375,7 +387,154 @@ export default function GanttChart({
               );
             })()}
 
-          {/* ── Layer 7: Today date label (top) ── */}
+          {/* ── Layer 7: Labels (above bars and dependency arrows) ── */}
+          <g
+            className="labels"
+            transform={`translate(0, ${finalConfig.headerHeight})`}
+            pointerEvents="none"
+          >
+            {tasks.map((task, i) => {
+              const y = i * finalConfig.rowHeight;
+              const centerY = y + finalConfig.rowHeight / 2;
+              const labelY = centerY - LABEL_HEIGHT / 2;
+              const x = getDatePosition(task.start, viewport);
+              const width = getTaskWidth(task.start, task.finish, viewport);
+              const resolution = resolveTaskLabelPlacement(task, width, scale);
+              const resolvedWidth = labelWidth(resolution.estimatedWidth);
+
+              if (resolution.placement === "summary-chip") {
+                const chipX = x + SUMMARY_LABEL_OFFSET_X;
+                return (
+                  <g
+                    key={`label-${task.id}`}
+                    data-testid="summary-label-chip"
+                    className="gantt-summary-label"
+                  >
+                    <title>{task.name}</title>
+                    <rect
+                      x={chipX}
+                      y={labelY}
+                      width={resolvedWidth}
+                      height={LABEL_HEIGHT}
+                      fill="var(--aia-alabaster)"
+                      stroke="var(--aia-arch-main)"
+                      strokeWidth={0.75}
+                      rx={3}
+                      opacity={0.96}
+                    />
+                    <text
+                      x={chipX + LABEL_PADDING_X}
+                      y={centerY}
+                      dominantBaseline="middle"
+                      fill="var(--aia-corp-dark)"
+                      fontSize={resolution.fontSize}
+                      fontWeight={600}
+                      paintOrder="stroke"
+                      stroke="var(--aia-alabaster)"
+                      strokeWidth={2}
+                    >
+                      {task.name}
+                    </text>
+                  </g>
+                );
+              }
+
+              if (resolution.placement === "milestone-outside") {
+                const labelX = x + GANTT_MILESTONE_SIZE * 2 + LABEL_GAP + 2;
+                return (
+                  <g
+                    key={`label-${task.id}`}
+                    data-testid="milestone-label-outside"
+                    className="gantt-milestone-label"
+                  >
+                    <title>{task.name}</title>
+                    <rect
+                      x={labelX - LABEL_PADDING_X}
+                      y={labelY}
+                      width={resolvedWidth}
+                      height={LABEL_HEIGHT}
+                      fill="var(--aia-alabaster)"
+                      rx={3}
+                      opacity={0.9}
+                    />
+                    <text
+                      x={labelX}
+                      y={centerY}
+                      dominantBaseline="middle"
+                      fill="var(--aia-corp-dark)"
+                      fontSize={resolution.fontSize}
+                      paintOrder="stroke"
+                      stroke="var(--aia-alabaster)"
+                      strokeWidth={3}
+                    >
+                      {task.name}
+                    </text>
+                  </g>
+                );
+              }
+
+              if (resolution.placement === "inside") {
+                return (
+                  <text
+                    key={`label-${task.id}`}
+                    data-testid="task-label-inside"
+                    x={x + LABEL_PADDING_X}
+                    y={centerY}
+                    fill="white"
+                    fontSize={resolution.fontSize}
+                    fontWeight={600}
+                    dominantBaseline="middle"
+                    paintOrder="stroke"
+                    stroke="rgba(0,0,0,0.24)"
+                    strokeWidth={2}
+                  >
+                    {task.name}
+                  </text>
+                );
+              }
+
+              if (resolution.placement === "outside-right") {
+                const labelX = x + width + LABEL_GAP;
+                return (
+                  <g
+                    key={`label-${task.id}`}
+                    data-testid="task-label-outside"
+                    className="gantt-task-label-outside"
+                  >
+                    <title>{task.name}</title>
+                    <rect
+                      x={labelX - LABEL_PADDING_X}
+                      y={labelY}
+                      width={resolvedWidth}
+                      height={LABEL_HEIGHT}
+                      fill="var(--aia-alabaster)"
+                      rx={3}
+                      opacity={0.9}
+                    />
+                    <text
+                      x={labelX}
+                      y={centerY}
+                      dominantBaseline="middle"
+                      fill="var(--aia-corp-dark)"
+                      fontSize={resolution.fontSize}
+                      fontWeight={600}
+                      paintOrder="stroke"
+                      stroke="var(--aia-alabaster)"
+                      strokeWidth={3}
+                    >
+                      {task.name}
+                    </text>
+                  </g>
+                );
+              }
+
+              return (
+                <title key={`label-${task.id}`}>{task.name}</title>
+              );
+            })}
+          </g>
+
+          {/* ── Layer 8: Today date label (top) ── */}
           {todayX !== null && (
             <g className="today-label" pointerEvents="none">
               <rect
