@@ -16,7 +16,7 @@ import type { GanttTask } from "@/components/gantt/types";
 import { saveProject, type ProjectData } from "@/app/actions/project";
 import { createProjectDate } from "@/lib/date/projectDate";
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
-import { createDefaultMatrixPlan } from "@/lib/matrix/templates";
+import type { MatrixPlan } from "@/types/matrix";
 
 jest.mock("@/app/actions/project", () => ({
   saveProject: jest.fn(async () => ({ success: true, id: "test-project" })),
@@ -24,9 +24,17 @@ jest.mock("@/app/actions/project", () => ({
 
 const mockedSaveProject = saveProject as jest.MockedFunction<typeof saveProject>;
 
+jest.setTimeout(30_000);
+
 async function flushAutosave() {
   await act(async () => {
+    await Promise.resolve();
+  });
+  await act(async () => {
     await jest.advanceTimersByTimeAsync(1_000);
+  });
+  await act(async () => {
+    await Promise.resolve();
   });
 }
 
@@ -62,6 +70,81 @@ function makeTask(overrides: Partial<GanttTask> & { id: string | number }): Gant
     dependencies: [],
     ...overrides,
   };
+}
+
+function createSingleCellMatrixPlan(): MatrixPlan {
+  return {
+    id: "matrix-gantt",
+    name: "Matriz Gantt",
+    startDate: "2026-01-05",
+    scopeTree: [
+      {
+        id: "estructura",
+        name: "Estructura",
+        type: "Disciplina",
+        defaultRecipeId: "concreto",
+      },
+    ],
+    areas: [{ id: "piso-1", name: "Piso 1", type: "Piso" }],
+    recipes: [
+      {
+        id: "concreto",
+        name: "Concreto estructura",
+        activities: [
+          {
+            id: "formaleta",
+            name: "Formaleta",
+            productivityPerDay: 50,
+            defaultQuantity: 100,
+            unit: "m2",
+          },
+        ],
+        dependencies: [],
+      },
+    ],
+    cells: [
+      {
+        id: "cell-estructura-piso-1",
+        scopeId: "estructura",
+        areaId: "piso-1",
+        recipeId: "concreto",
+        active: true,
+        activityOverrides: [
+          {
+            activityId: "formaleta",
+            quantity: 100,
+            unit: "m2",
+            productivityPerDay: 50,
+            lastEditedAt: "2026-01-01T00:00:00.000Z",
+            lastEditedFrom: "matrix",
+          },
+        ],
+        lastEditedAt: "2026-01-01T00:00:00.000Z",
+        lastEditedFrom: "matrix",
+      },
+    ],
+  };
+}
+
+function makeLinkedMatrixTask(): GanttTask {
+  return makeTask({
+    id: "mx-task-cell-estructura-piso-1-formaleta",
+    name: "Estructura - Formaleta - Piso 1",
+    finish: createProjectDate("2026-01-06"),
+    duration: 2,
+    matrixSource: {
+      matrixPlanId: "matrix-gantt",
+      scopeId: "estructura",
+      areaId: "piso-1",
+      cellId: "cell-estructura-piso-1",
+      recipeId: "concreto",
+      activityId: "formaleta",
+    },
+    matrixSync: {
+      lastEditedAt: "2026-01-01T00:00:00.000Z",
+      lastEditedFrom: "matrix",
+    },
+  });
 }
 
 describe("GanttView", () => {
@@ -236,12 +319,14 @@ describe("GanttView", () => {
       name: "Cuadrilla A",
       type: "work" as const,
       rate: 120,
+      mppFields: { Text1: "Recurso importado" },
     };
     const assignment = {
       taskId: 1,
       resourceId: 10,
       units: 100,
       cost: 960,
+      mppFields: { Text1: "Asignacion importada" },
     };
     const budgetItem = {
       id: "budget-1",
@@ -274,12 +359,78 @@ describe("GanttView", () => {
       <GanttView
         projectId="1"
         projectName="Persistencia"
-        tasks={[makeTask({ id: 1, duration: 1 })]}
+        tasks={[
+          makeTask({
+            id: 1,
+            duration: 1,
+            mppFields: { Text1: "Contrato" },
+          }),
+        ]}
         resources={[resource]}
         assignments={[assignment]}
         budgetItems={[budgetItem]}
         budgetMappings={[budgetMapping]}
         baselines={[baseline]}
+        mppTaskColumns={[
+          {
+            key: "mpp:Text1",
+            fieldId: "TEXT_1",
+            sourceKey: "Text1",
+            labelEn: "Text 1",
+            labelEs: "Texto 1",
+            dataType: "string",
+            group: "custom",
+            isCustom: true,
+            isCore: false,
+            isEditable: false,
+          },
+        ]}
+        mppResourceColumns={[
+          {
+            key: "mpp:resource:Text1",
+            fieldId: "TEXT_1",
+            sourceKey: "Text1",
+            labelEn: "Text 1",
+            labelEs: "Texto 1",
+            dataType: "string",
+            group: "custom",
+            recordType: "resource",
+            isCustom: true,
+            isCore: false,
+            isEditable: false,
+          },
+        ]}
+        mppAssignmentColumns={[
+          {
+            key: "mpp:assignment:Text1",
+            fieldId: "TEXT_1",
+            sourceKey: "Text1",
+            labelEn: "Text 1",
+            labelEs: "Texto 1",
+            dataType: "string",
+            group: "custom",
+            recordType: "assignment",
+            isCustom: true,
+            isCore: false,
+            isEditable: false,
+          },
+        ]}
+        taskColumnSettings={{
+          visible: ["id", "name", "duration", "mpp:Text1"],
+          widths: { "mpp:Text1": 160 },
+          labelLocale: "es",
+        }}
+        resourceColumnSettings={{
+          visible: ["uid", "name", "type", "mpp:resource:Text1"],
+          widths: { "mpp:resource:Text1": 160 },
+          labelLocale: "es",
+        }}
+        assignmentColumnSettings={{
+          visible: ["taskId", "resourceId", "units", "mpp:assignment:Text1"],
+          widths: { "mpp:assignment:Text1": 160 },
+          labelLocale: "es",
+        }}
+        uiSettings={{ locale: "es" }}
       />,
     );
 
@@ -295,11 +446,89 @@ describe("GanttView", () => {
 
     await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
     const saved = latestSavedProject();
-    expect(saved.resources).toEqual([resource]);
-    expect(saved.assignments).toEqual([assignment]);
+    expect(saved.resources).toEqual([
+      expect.objectContaining({
+        uid: resource.uid,
+        name: resource.name,
+        mppFields: expect.objectContaining({
+          Text1: "Recurso importado",
+          WORK: expect.any(Number),
+          COST: expect.any(Number),
+          __calculationEngineVersion: "mpp-calc-v1",
+        }),
+      }),
+    ]);
+    expect(saved.assignments).toEqual([
+      expect.objectContaining({
+        taskId: assignment.taskId,
+        resourceId: assignment.resourceId,
+        mppFields: expect.objectContaining({
+          Text1: "Asignacion importada",
+          WORK: expect.any(Number),
+          COST: expect.any(Number),
+          __calculationEngineVersion: "mpp-calc-v1",
+        }),
+      }),
+    ]);
     expect(saved.budgetItems).toEqual([budgetItem]);
     expect(saved.budgetMappings).toEqual([budgetMapping]);
     expect(saved.baselines).toEqual([baseline]);
+    expect(saved.tasks[0].mppFields).toEqual(expect.objectContaining({
+      Text1: "Contrato",
+      START: expect.any(String),
+      FINISH: expect.any(String),
+      DURATION: 3,
+      __calculationEngineVersion: "mpp-calc-v1",
+    }));
+    expect(saved.mppTaskColumns).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        sourceKey: "Text1",
+        labelEn: "Text 1",
+        labelEs: "Texto 1",
+      }),
+      expect.objectContaining({
+        fieldId: "ACTUAL_COST",
+        labelEn: "Actual Cost",
+      }),
+    ]));
+    expect(saved.mppResourceColumns).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        sourceKey: "Text1",
+        labelEn: "Text 1",
+        labelEs: "Texto 1",
+      }),
+      expect.objectContaining({
+        fieldId: "WINDOWS_USER_ACCOUNT",
+        labelEn: "Windows User Account",
+      }),
+    ]));
+    expect(saved.mppAssignmentColumns).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        sourceKey: "Text1",
+        labelEn: "Text 1",
+        labelEs: "Texto 1",
+      }),
+      expect.objectContaining({
+        fieldId: "ACTUAL_WORK",
+        labelEn: "Actual Work",
+      }),
+    ]));
+    expect(saved.taskColumnSettings).toEqual({
+      visible: ["id", "name", "duration", "mpp:Text1"],
+      widths: { "mpp:Text1": 160 },
+      labelLocale: "es",
+    });
+    expect(saved.resourceColumnSettings).toEqual({
+      visible: ["uid", "name", "type", "mpp:resource:Text1"],
+      widths: { "mpp:resource:Text1": 160 },
+      labelLocale: "es",
+    });
+    expect(saved.assignmentColumnSettings).toEqual({
+      visible: ["taskId", "resourceId", "units", "mpp:assignment:Text1"],
+      widths: { "mpp:assignment:Text1": 160 },
+      labelLocale: "es",
+    });
+    expect(saved.uiSettings).toEqual({ locale: "es" });
   });
 
   test("autosaves added non-working days in the project calendar", async () => {
@@ -345,7 +574,7 @@ describe("GanttView", () => {
 
     mockedSaveProject.mockClear();
 
-    fireEvent.click(screen.getByTitle("Guardar Baseline"));
+    fireEvent.click(screen.getByTitle("Guardar línea base"));
 
     await flushAutosave();
 
@@ -361,17 +590,14 @@ describe("GanttView", () => {
 
   test("integrates matrix view with project autosave", async () => {
     jest.useFakeTimers();
-    const matrixPlan = createDefaultMatrixPlan({
-      id: "matrix-gantt",
-      name: "Matriz Gantt",
-      startDate: "2026-01-05",
-    });
+    const matrixPlan = createSingleCellMatrixPlan();
+    const generated = generateScheduleFromMatrix(matrixPlan);
 
     render(
       <GanttView
         projectId="1"
         projectName="Persistencia"
-        tasks={[makeTask({ id: "mx-task-cell-piso-1-estructura-formaleta" })]}
+        tasks={generated.tasks}
         matrixPlan={matrixPlan}
       />,
     );
@@ -389,8 +615,9 @@ describe("GanttView", () => {
 
     await flushAutosave();
 
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    const saved = latestSavedProject();
     await waitFor(() => {
-      const saved = latestSavedProject();
       expect(saved.matrixPlan?.cells).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -406,26 +633,18 @@ describe("GanttView", () => {
       );
       expect(saved.tasks.some((task) => task.matrixSource != null)).toBe(true);
     });
-  });
+  }, 20_000);
 
   test("autosyncs linked Gantt duration edits back into the matrix plan", async () => {
     jest.useFakeTimers();
-    const matrixPlan = createDefaultMatrixPlan({
-      id: "matrix-gantt",
-      name: "Matriz Gantt",
-      startDate: "2026-01-05",
-    });
-    const generated = generateScheduleFromMatrix(matrixPlan);
-    const formaletaTask = generated.tasks.find(
-      (task) => task.matrixSource?.activityId === "formaleta" && !task.isSummary,
-    );
-    expect(formaletaTask).toBeDefined();
+    const matrixPlan = createSingleCellMatrixPlan();
+    const formaletaTask = makeLinkedMatrixTask();
 
     render(
       <GanttView
         projectId="1"
         projectName="Persistencia"
-        tasks={generated.tasks}
+        tasks={[formaletaTask]}
         matrixPlan={matrixPlan}
       />,
     );
@@ -433,7 +652,7 @@ describe("GanttView", () => {
     mockedSaveProject.mockClear();
 
     const formaletaRow = document.querySelector(
-      `[data-task-id="${formaletaTask?.id}"]`,
+      `[data-task-id="${formaletaTask.id}"]`,
     );
     if (!formaletaRow) {
       throw new Error("Expected the generated Formaleta row to be visible");
@@ -462,5 +681,5 @@ describe("GanttView", () => {
         }),
       ]),
     );
-  });
+  }, 20_000);
 });

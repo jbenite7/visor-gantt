@@ -11,6 +11,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import type { ViewType } from "./ViewSwitcher";
+import type { UILocale } from "@/types/ui";
+import { t } from "@/lib/i18n";
 
 /* ── Types ── */
 
@@ -58,6 +60,7 @@ interface ProjectToolbarProps {
   activeBaselineId?: string;
   onSaveBaseline?: () => void;
   onSelectBaseline?: (id: string) => void;
+  locale?: UILocale;
 }
 
 /* ── Shared toolbar button style ── */
@@ -123,6 +126,7 @@ export default function ProjectToolbar({
   activeBaselineId,
   onSaveBaseline,
   onSelectBaseline,
+  locale = "es",
 }: ProjectToolbarProps) {
   const [baselineDropdownOpen, setBaselineDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -175,7 +179,7 @@ export default function ProjectToolbar({
               lineHeight: 1.2,
             }}
           >
-            {projectName || "Proyecto sin nombre"}
+            {projectName || t(locale, "unnamedProject")}
           </span>
           <span
             className="truncate"
@@ -188,8 +192,8 @@ export default function ProjectToolbar({
           >
             {projectStart && projectFinish
               ? `${formatDateShort(projectStart)} — ${formatDateShort(projectFinish)}`
-              : "Sin fechas"}{" "}
-            · {taskCount} {taskCount === 1 ? "tarea" : "tareas"}
+              : t(locale, "noDates")}{" "}
+            · {taskCount} {taskCount === 1 ? t(locale, "task") : t(locale, "tasks")}
           </span>
         </div>
       </div>
@@ -205,7 +209,7 @@ export default function ProjectToolbar({
             fontFamily: "var(--font-inter)",
           }}
         >
-          Zoom:
+          {t(locale, "zoom")}:
         </span>
         {ZOOM_BUTTONS.map((btn) => (
           <button
@@ -246,7 +250,7 @@ export default function ProjectToolbar({
         <button
           onClick={onAddTask}
           disabled={!onAddTask}
-          title="Agregar tarea"
+          title={t(locale, "addTask")}
           style={toolbarBtnStyle(false, !onAddTask)}
           onMouseEnter={(e) => toolbarBtnEnter(e, !onAddTask)}
           onMouseLeave={(e) => toolbarBtnLeave(e, false)}
@@ -258,7 +262,7 @@ export default function ProjectToolbar({
         <button
           onClick={onDeleteTask}
           disabled={!hasSelection}
-          title="Eliminar tarea(s) seleccionada(s)"
+          title={t(locale, "deleteSelectedTasks")}
           style={toolbarBtnStyle(false, !hasSelection)}
           onMouseEnter={(e) => toolbarBtnEnter(e, !hasSelection)}
           onMouseLeave={(e) => toolbarBtnLeave(e, false)}
@@ -280,7 +284,7 @@ export default function ProjectToolbar({
         <button
           onClick={onUndo}
           disabled={!canUndo}
-          title="Deshacer (Ctrl+Z)"
+          title={`${t(locale, "undo")} (Ctrl+Z)`}
           style={toolbarBtnStyle(false, !canUndo)}
           onMouseEnter={(e) => toolbarBtnEnter(e, !canUndo)}
           onMouseLeave={(e) => toolbarBtnLeave(e, false)}
@@ -292,7 +296,7 @@ export default function ProjectToolbar({
         <button
           onClick={onRedo}
           disabled={!canRedo}
-          title="Rehacer (Ctrl+Shift+Z)"
+          title={`${t(locale, "redo")} (Ctrl+Shift+Z)`}
           style={toolbarBtnStyle(false, !canRedo)}
           onMouseEnter={(e) => toolbarBtnEnter(e, !canRedo)}
           onMouseLeave={(e) => toolbarBtnLeave(e, false)}
@@ -309,7 +313,7 @@ export default function ProjectToolbar({
         <button
           onClick={onSaveBaseline}
           disabled={!onSaveBaseline}
-          title="Guardar Baseline"
+          title={t(locale, "saveBaseline")}
           style={{
             ...toolbarBtnStyle(false, !onSaveBaseline),
             gap: 4,
@@ -328,7 +332,7 @@ export default function ProjectToolbar({
               whiteSpace: "nowrap",
             }}
           >
-            Baseline
+            {locale === "en" ? "Baseline" : "Línea base"}
           </span>
         </button>
 
@@ -337,7 +341,7 @@ export default function ProjectToolbar({
           <div ref={dropdownRef} className="relative">
             <button
               onClick={() => setBaselineDropdownOpen((prev) => !prev)}
-              title="Seleccionar baseline activa"
+              title={t(locale, "selectBaseline")}
               style={{
                 background: activeBaselineId ? "var(--aia-corp-main)" : "transparent",
                 color: "#ffffff",
@@ -373,7 +377,7 @@ export default function ProjectToolbar({
                   right: 0,
                   marginTop: 4,
                   minWidth: 160,
-                  background: "#ffffff",
+                  background: "var(--color-bg-elevated)",
                   border: "1px solid var(--gray-200)",
                   borderRadius: "var(--radius-md)",
                   boxShadow: "var(--shadow-lg)",

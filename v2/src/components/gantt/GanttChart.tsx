@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GanttTask, GanttConfig } from "./types";
 import { DEFAULT_PROJECT_CALENDAR, type ProjectCalendar } from "@/types/calendar";
 import { isProjectWorkingDay } from "@/lib/scheduling/projectCalendar";
@@ -10,7 +10,6 @@ import {
   getDatePosition,
   getTaskWidth,
   getDependencyEndpoints,
-  isToday,
 } from "./utils";
 import { TaskBar, MilestoneBar, SummaryBar } from "./bars";
 import TimescaleHeader from "./timescale/TimescaleHeader";
@@ -74,6 +73,14 @@ function labelWidth(estimatedWidth: number): number {
   return Math.max(estimatedWidth, 28);
 }
 
+function isSameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 export default function GanttChart({
   tasks,
   config,
@@ -91,6 +98,16 @@ export default function GanttChart({
 
   const { depState, onDepStart, onDepMove, onDepEnd } =
     useCreateDependency(onCreateDependency);
+  const [clientToday, setClientToday] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      setClientToday(today);
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, []);
 
   const viewport = useMemo(
     () => calculateViewport(tasks, scale),
@@ -107,13 +124,16 @@ export default function GanttChart({
   const chartWidth = columns.length * viewport.columnWidth;
 
   const todayX = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (today >= viewport.startDate && today <= viewport.endDate) {
-      return getDatePosition(today, viewport);
+    if (!clientToday) return null;
+    if (clientToday >= viewport.startDate && clientToday <= viewport.endDate) {
+      return getDatePosition(clientToday, viewport);
     }
     return null;
-  }, [viewport]);
+  }, [clientToday, viewport]);
+  const todayLabel = clientToday?.toLocaleDateString("es-CO", {
+    day: "2-digit",
+    month: "2-digit",
+  });
 
   return (
     <div className="gantt-chart">
@@ -135,7 +155,7 @@ export default function GanttChart({
           {/* ── Layer 1: Today column highlight (bottom) ── */}
           <g className="today-column-highlight" pointerEvents="none">
             {columns.map((date, i) =>
-              isToday(date) ? (
+              clientToday && isSameDay(date, clientToday) ? (
                 <rect
                   key={`today-col-${i}`}
                   x={i * viewport.columnWidth}
@@ -197,7 +217,7 @@ export default function GanttChart({
           </g>
 
           {/* ── Layer 5: Today line (dashed) ── */}
-          {todayX !== null && (
+          {todayX !== null && todayLabel && (
             <line
               x1={todayX}
               y1={0}
@@ -553,10 +573,7 @@ export default function GanttChart({
                 fontSize={10}
                 fontWeight={600}
               >
-                {new Date().toLocaleDateString("es-CO", {
-                  day: "2-digit",
-                  month: "2-digit",
-                })}
+                {todayLabel}
               </text>
             </g>
           )}

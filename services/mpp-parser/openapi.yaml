@@ -133,6 +133,7 @@ components:
         - finishDate
         - tasks
         - resources
+        - assignments
         - calendar
         - availableColumns
       properties:
@@ -150,6 +151,11 @@ components:
           format: date-time
           description: "Latest task finish date (ISO 8601)"
           example: "2026-12-31T00:00:00"
+        statusDate:
+          type: string
+          format: date-time
+          description: "MS Project status date used for progress/status calculations when present"
+          example: "2026-01-08T00:00:00"
         tasks:
           type: array
           description: List of project tasks
@@ -160,17 +166,74 @@ components:
           description: List of project resources
           items:
             $ref: "#/components/schemas/Resource"
+        assignments:
+          type: array
+          description: List of project resource assignments
+          items:
+            $ref: "#/components/schemas/Assignment"
         calendar:
           type: object
-          description: Calendar definition (week days and exceptions)
+          description: Calendar definition used for schedule calculations, with legacy MSPDI compatibility fields
           properties:
+            timeZone:
+              type: string
+              example: "America/Bogota"
+            workDays:
+              type: array
+              description: Working days using app convention 1=Monday ... 7=Sunday
+              items:
+                type: integer
+              example: [1, 2, 3, 4, 5]
+            startHour:
+              type: string
+              example: "08:00"
+            endHour:
+              type: string
+              example: "17:00"
+            hoursPerDay:
+              type: number
+              example: 8
+            nonWorkingDays:
+              type: array
+              description: Non-working date exceptions expanded to individual dates
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  date:
+                    type: string
+                    format: date
+                  name:
+                    type: string
+            dateOverrides:
+              type: array
+              description: Expanded working and non-working date overrides; working overrides can carry per-date hours
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  date:
+                    type: string
+                    format: date
+                  name:
+                    type: string
+                  isWorking:
+                    type: boolean
+                  startHour:
+                    type: string
+                  endHour:
+                    type: string
+                  hoursPerDay:
+                    type: number
             weekDays:
               type: object
-              description: Working day definitions
-              example: {}
+              description: Legacy MSPDI weekday map using 1=Sunday ... 7=Saturday
+              example: {1: false, 2: true, 3: true, 4: true, 5: true, 6: true, 7: false}
             exceptions:
               type: array
-              description: Calendar exception dates
+              description: Legacy calendar exception dates
               items:
                 type: object
         availableColumns:
@@ -185,6 +248,36 @@ components:
             - Name
             - PercentComplete
             - Start
+        availableResourceColumns:
+          type: array
+          description: All unique field names present in resources
+          items:
+            type: string
+        availableAssignmentColumns:
+          type: array
+          description: All unique field names present in resource assignments
+          items:
+            type: string
+        mppTaskColumns:
+          type: array
+          description: Bilingual metadata for populated task fields
+          items:
+            $ref: "#/components/schemas/MppColumn"
+        mppResourceColumns:
+          type: array
+          description: Bilingual metadata for populated resource fields
+          items:
+            $ref: "#/components/schemas/MppColumn"
+        mppAssignmentColumns:
+          type: array
+          description: Bilingual metadata for populated assignment fields
+          items:
+            $ref: "#/components/schemas/MppColumn"
+        customFieldDefinitions:
+          type: array
+          description: Custom task/resource/assignment field definitions imported from MS Project
+          items:
+            $ref: "#/components/schemas/CustomFieldDefinition"
 
     MSPTask:
       type: object
@@ -378,3 +471,162 @@ components:
           type: integer
           description: "Resource type: 0=material, 1=work (default)"
           example: 1
+        mppFields:
+          type: object
+          additionalProperties: true
+          description: Raw populated MPXJ/MS Project fields preserved for this resource
+          properties:
+            AVAILABILITY_PERIODS:
+              type: array
+              description: Resource availability periods extracted from MPXJ Resource.getAvailability()
+              items:
+                $ref: "#/components/schemas/ResourceAvailabilityPeriod"
+
+    ResourceAvailabilityPeriod:
+      type: object
+      description: Date-bounded resource availability percentage
+      properties:
+        start:
+          type: string
+          format: date-time
+          description: Period start date/time
+          example: "2026-01-01T00:00:00"
+        finish:
+          type: string
+          format: date-time
+          description: Period finish date/time
+          example: "2026-01-15T23:59:59"
+        units:
+          type: number
+          description: Available resource units as a percentage
+          example: 150
+
+    Assignment:
+      type: object
+      description: Resource assignment record
+      properties:
+        UID:
+          type: integer
+          description: Unique assignment identifier when available
+          example: 101
+        TaskUID:
+          type: integer
+          description: Unique task identifier linked to this assignment
+          example: 1
+        ResourceUID:
+          type: integer
+          description: Unique resource identifier linked to this assignment
+          example: 10
+        Units:
+          description: Assignment units as returned by MPXJ
+          oneOf:
+            - type: number
+            - type: string
+          example: 100
+        Cost:
+          description: Assignment cost as returned by MPXJ
+          oneOf:
+            - type: number
+            - type: string
+          example: 1200
+        mppFields:
+          type: object
+          additionalProperties: true
+          description: Raw populated MPXJ/MS Project fields preserved for this assignment
+
+    MppColumn:
+      type: object
+      description: Metadata for a populated Microsoft Project field that can be shown as a column
+      properties:
+        key:
+          type: string
+          example: "mpp:resource:TEXT1"
+        fieldId:
+          type: string
+          example: "TEXT1"
+        sourceKey:
+          type: string
+          example: "TEXT1"
+        labelEn:
+          type: string
+          example: "Text 1"
+        labelEs:
+          type: string
+          example: "Texto 1"
+        dataType:
+          type: string
+          example: "STRING"
+        recordType:
+          type: string
+          enum: [task, resource, assignment]
+        isCustom:
+          type: boolean
+        isCore:
+          type: boolean
+        isEditable:
+          type: boolean
+        calculationSpec:
+          $ref: "#/components/schemas/CalculationSpec"
+
+    CalculationSpec:
+      type: object
+      properties:
+        calculationKind:
+          type: string
+        formula:
+          type: string
+          nullable: true
+        dependencies:
+          type: array
+          items:
+            type: string
+        rollupType:
+          type: string
+          nullable: true
+        isCalculated:
+          type: boolean
+        isEditableWhenCalculated:
+          type: boolean
+        sourceOfTruth:
+          type: string
+        unsupportedReason:
+          type: string
+          nullable: true
+
+    CustomFieldDefinition:
+      type: object
+      properties:
+        fieldId:
+          type: string
+        recordType:
+          type: string
+          enum: [task, resource, assignment]
+        alias:
+          type: string
+          nullable: true
+        dataType:
+          type: string
+        formula:
+          type: string
+          nullable: true
+        dependencies:
+          type: array
+          items:
+            type: string
+        rollupType:
+          type: string
+          nullable: true
+        lookupValues:
+          type: array
+          items: {}
+        graphicalIndicators:
+          nullable: true
+        mask:
+          type: string
+          nullable: true
+        unsupportedFormula:
+          type: boolean
+        unsupportedReason:
+          type: string
+          nullable: true
+          description: Reason why an imported custom field formula is outside the supported calculation subset

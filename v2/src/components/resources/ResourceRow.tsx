@@ -2,6 +2,9 @@
 
 import type { Resource } from "@/types/resource";
 import { Pencil } from "lucide-react";
+import type { ColumnConfig } from "@/components/gantt/table/ColumnSelector";
+import type { UILocale } from "@/types/ui";
+import { formatMppValue, getMppRecordValue } from "@/lib/mpp/recordValues";
 
 interface ResourceRowProps {
   resource: Resource;
@@ -9,12 +12,14 @@ interface ResourceRowProps {
   isSelected: boolean;
   onClick?: () => void;
   onEdit?: (resource: Resource) => void;
+  extraColumns?: ColumnConfig[];
+  locale?: UILocale;
 }
 
-const TYPE_BADGE: Record<Resource["type"], { bg: string; label: string }> = {
-  work: { bg: "var(--aia-proj-main)", label: "Trabajo" },
-  material: { bg: "var(--aia-const-main)", label: "Material" },
-  cost: { bg: "var(--aia-arch-main)", label: "Costo" },
+const TYPE_BADGE: Record<Resource["type"], { bg: string; labelEs: string; labelEn: string }> = {
+  work: { bg: "var(--aia-proj-main)", labelEs: "Trabajo", labelEn: "Work" },
+  material: { bg: "var(--aia-const-main)", labelEs: "Material", labelEn: "Material" },
+  cost: { bg: "var(--aia-arch-main)", labelEs: "Costo", labelEn: "Cost" },
 };
 
 export default function ResourceRow({
@@ -23,9 +28,12 @@ export default function ResourceRow({
   isSelected,
   onClick,
   onEdit,
+  extraColumns = [],
+  locale = "es",
 }: ResourceRowProps) {
   const stripeBg = index % 2 === 0 ? "var(--aia-alabaster)" : "var(--aia-linen)";
   const badge = TYPE_BADGE[resource.type];
+  const typeLabel = locale === "en" ? badge.labelEn : badge.labelEs;
 
   return (
     <tr
@@ -83,7 +91,7 @@ export default function ResourceRow({
             letterSpacing: "0.03em",
           }}
         >
-          {badge.label}
+          {typeLabel}
         </span>
       </td>
       <td
@@ -121,6 +129,33 @@ export default function ResourceRow({
       >
         {resource.group ?? "\u2014"}
       </td>
+      {extraColumns.map((column) => (
+        <td
+          key={column.key}
+          style={{
+            padding: "6px 10px",
+            fontSize: "0.8125rem",
+            fontFamily: "var(--font-inter), system-ui, sans-serif",
+            color: "var(--gray-700)",
+            width: column.width,
+            textAlign: column.align,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+          title={formatMppValue(
+            getMppRecordValue(resource, column.sourceKey ?? column.key),
+            column.dataType,
+            locale,
+          )}
+        >
+          {formatMppValue(
+            getMppRecordValue(resource, column.sourceKey ?? column.key),
+            column.dataType,
+            locale,
+          )}
+        </td>
+      ))}
       <td
         style={{
           padding: "6px 4px",

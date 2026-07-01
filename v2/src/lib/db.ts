@@ -21,6 +21,16 @@ export async function ensureProjectsTable(): Promise<void> {
           updated_at TIMESTAMPTZ DEFAULT NOW()
         );
       `);
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS matrix_templates (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          project_type TEXT,
+          template_data JSONB NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+      `);
     } finally {
       client.release();
     }

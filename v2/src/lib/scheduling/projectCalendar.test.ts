@@ -1,5 +1,6 @@
 import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
 import {
+  getCalendarMinutesForDate,
   isProjectWorkingDay,
   normalizeProjectCalendar,
   validateProjectCalendar,
@@ -24,6 +25,27 @@ describe("project calendar helpers", () => {
     expect(isProjectWorkingDay(new Date("2026-01-06T08:00:00"), calendar)).toBe(
       false,
     );
+  });
+
+  test("uses working date overrides for normally non-working days", () => {
+    const calendar = normalizeProjectCalendar({
+      ...DEFAULT_PROJECT_CALENDAR,
+      workDays: [1, 2, 3, 4, 5],
+      dateOverrides: [
+        {
+          id: "sunday-work",
+          date: "2026-01-11",
+          name: "Jornada especial",
+          isWorking: true,
+          startHour: "09:00",
+          endHour: "13:00",
+          hoursPerDay: 4,
+        },
+      ],
+    });
+
+    expect(isProjectWorkingDay(new Date("2026-01-11T10:00:00"), calendar)).toBe(true);
+    expect(getCalendarMinutesForDate(new Date("2026-01-11T10:00:00"), calendar)).toBe(240);
   });
 
   test("normalizes partial calendars with defaults", () => {

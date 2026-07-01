@@ -177,6 +177,8 @@ export class CPMCalculatorService {
         }
       });
 
+      earlyStart = this.applyForwardConstraint(task, earlyStart);
+
       task.earlyStart = earlyStart;
       task.earlyFinish = this.calendar.addDuration(
         earlyStart,
@@ -259,11 +261,55 @@ export class CPMCalculatorService {
         if (minLF) lateFinish = minLF;
       }
 
+      lateFinish = this.applyBackwardConstraint(task, lateFinish);
+
       task.lateFinish = lateFinish;
       task.lateStart = this.calendar.subtractDuration(
         lateFinish,
         task.durationMinutes,
       );
+    }
+  }
+
+  private applyForwardConstraint(task: Task, earlyStart: Date): Date {
+    if (!task.constraintType || !task.constraintDate) return earlyStart;
+    const constraintDate = new Date(task.constraintDate);
+
+    switch (task.constraintType) {
+      case "mustStartOn":
+        return constraintDate;
+      case "mustFinishOn":
+        return this.calendar.subtractDuration(constraintDate, task.durationMinutes);
+      case "startNoEarlierThan":
+        return constraintDate.getTime() > earlyStart.getTime()
+          ? constraintDate
+          : earlyStart;
+      case "finishNoEarlierThan": {
+        const earlyFinish = this.calendar.addDuration(earlyStart, task.durationMinutes);
+        return constraintDate.getTime() > earlyFinish.getTime()
+          ? this.calendar.subtractDuration(constraintDate, task.durationMinutes)
+          : earlyStart;
+      }
+      default:
+        return earlyStart;
+    }
+  }
+
+  private applyBackwardConstraint(task: Task, lateFinish: Date): Date {
+    if (!task.constraintType || !task.constraintDate) return lateFinish;
+    const constraintDate = new Date(task.constraintDate);
+
+    switch (task.constraintType) {
+      case "mustStartOn":
+      case "startNoLaterThan":
+        return this.calendar.addDuration(constraintDate, task.durationMinutes);
+      case "mustFinishOn":
+      case "finishNoLaterThan":
+        return constraintDate.getTime() < lateFinish.getTime()
+          ? constraintDate
+          : lateFinish;
+      default:
+        return lateFinish;
     }
   }
 

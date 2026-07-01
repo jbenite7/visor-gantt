@@ -3,6 +3,9 @@
 import { useState, useCallback, useMemo } from "react";
 import type { GanttTask } from "@/components/gantt/types";
 import GanttTable from "@/components/gantt/table/GanttTable";
+import type { MppCustomFieldDefinition, MppTaskColumn, TaskColumnSettings } from "@/types/mppColumns";
+import type { UILocale } from "@/types/ui";
+import { t } from "@/lib/i18n";
 
 interface TaskSheetViewProps {
   tasks: GanttTask[];
@@ -13,6 +16,12 @@ interface TaskSheetViewProps {
   ) => void;
   selectedTaskIds?: (string | number)[];
   onTaskSelect?: (taskId: string | number, ctrlKey: boolean) => void;
+  mppTaskColumns?: MppTaskColumn[];
+  customFieldDefinitions?: MppCustomFieldDefinition[];
+  columnSettings?: TaskColumnSettings;
+  locale?: UILocale;
+  onColumnSettingsChange?: (settings: TaskColumnSettings) => void;
+  onLocaleChange?: (locale: UILocale) => void;
 }
 
 type SortDirection = "asc" | "desc";
@@ -26,25 +35,26 @@ type FilterType = "all" | "critical" | "non-critical" | "milestones" | "summarie
 
 interface SortButtonConfig {
   field: string;
-  label: string;
+  labelEn: string;
+  labelEs: string;
 }
 
 const SORT_BUTTONS: SortButtonConfig[] = [
-  { field: "id", label: "ID" },
-  { field: "wbs", label: "WBS" },
-  { field: "name", label: "Name" },
-  { field: "duration", label: "Duration" },
-  { field: "start", label: "Start" },
-  { field: "finish", label: "Finish" },
-  { field: "progress", label: "% Complete" },
+  { field: "id", labelEn: "ID", labelEs: "ID" },
+  { field: "wbs", labelEn: "WBS", labelEs: "EDT" },
+  { field: "name", labelEn: "Name", labelEs: "Nombre" },
+  { field: "duration", labelEn: "Duration", labelEs: "Duración" },
+  { field: "start", labelEn: "Start", labelEs: "Comienzo" },
+  { field: "finish", labelEn: "Finish", labelEs: "Fin" },
+  { field: "progress", labelEn: "% Complete", labelEs: "% completado" },
 ];
 
-const FILTER_OPTIONS: { value: FilterType; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "critical", label: "Critical" },
-  { value: "non-critical", label: "Non-critical" },
-  { value: "milestones", label: "Milestones" },
-  { value: "summaries", label: "Summaries" },
+const FILTER_OPTIONS: { value: FilterType; labelKey: "allTasks" | "critical" | "nonCritical" | "milestones" | "summaries" }[] = [
+  { value: "all", labelKey: "allTasks" },
+  { value: "critical", labelKey: "critical" },
+  { value: "non-critical", labelKey: "nonCritical" },
+  { value: "milestones", labelKey: "milestones" },
+  { value: "summaries", labelKey: "summaries" },
 ];
 
 function compareValues(
@@ -129,6 +139,12 @@ export default function TaskSheetView({
   onUpdateTask,
   selectedTaskIds,
   onTaskSelect,
+  mppTaskColumns,
+  customFieldDefinitions,
+  columnSettings,
+  locale = "es",
+  onColumnSettingsChange,
+  onLocaleChange,
 }: TaskSheetViewProps) {
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     field: "id",
@@ -173,7 +189,7 @@ export default function TaskSheetView({
         {/* Text filter */}
         <input
           type="text"
-          placeholder="Filter by name..."
+          placeholder={t(locale, "filterByName")}
           value={filterText}
           onChange={(e) => setFilterText(e.target.value)}
           style={{
@@ -207,7 +223,7 @@ export default function TaskSheetView({
         >
           {FILTER_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
-              {opt.label}
+              {t(locale, opt.labelKey)}
             </option>
           ))}
         </select>
@@ -231,7 +247,7 @@ export default function TaskSheetView({
             fontWeight: 500,
           }}
         >
-          Sort:
+          {t(locale, "sort")}:
         </span>
         {SORT_BUTTONS.map((btn) => {
           const isActive = sortConfig.field === btn.field;
@@ -258,7 +274,7 @@ export default function TaskSheetView({
                 lineHeight: "1.4",
               }}
             >
-              {btn.label}
+              {locale === "en" ? btn.labelEn : btn.labelEs}
               {arrow}
             </button>
           );
@@ -273,7 +289,7 @@ export default function TaskSheetView({
             fontFamily: "var(--font-inter), system-ui, sans-serif",
           }}
         >
-          {processedTasks.length} / {tasks.length} tasks
+          {processedTasks.length} / {tasks.length} {t(locale, "tasks")}
         </span>
       </div>
 
@@ -284,6 +300,12 @@ export default function TaskSheetView({
           selectedTaskIds={selectedTaskIds}
           onTaskSelect={onTaskSelect}
           onUpdateTask={onUpdateTask}
+          mppTaskColumns={mppTaskColumns}
+          customFieldDefinitions={customFieldDefinitions}
+          columnSettings={columnSettings}
+          locale={locale}
+          onColumnSettingsChange={onColumnSettingsChange}
+          onLocaleChange={onLocaleChange}
         />
       </div>
     </div>

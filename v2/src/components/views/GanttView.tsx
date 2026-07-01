@@ -10,6 +10,7 @@ import TrackingGanttView from "@/components/views/TrackingGanttView";
 import NetworkDiagramView from "@/components/views/NetworkDiagramView";
 import ResourceSheetView from "@/components/views/ResourceSheetView";
 import ResourceUsageView from "@/components/views/ResourceUsageView";
+import AssignmentSheetView from "@/components/views/AssignmentSheetView";
 import BudgetTable from "@/components/budget/BudgetTable";
 import BudgetMapping from "@/components/budget/BudgetMapping";
 import LineOfBalance from "@/components/charts/LineOfBalance";
@@ -23,6 +24,29 @@ import type { ProjectCalendar } from "@/types/calendar";
 import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
 import type { Baseline } from "@/types/baseline";
 import type { MatrixPlan } from "@/types/matrix";
+import type {
+  AssignmentColumnSettings,
+  MppAssignmentColumn,
+  MppCustomFieldDefinition,
+  MppResourceColumn,
+  MppTaskColumn,
+  ResourceColumnSettings,
+  TaskColumnSettings,
+} from "@/types/mppColumns";
+import {
+  DEFAULT_UI_SETTINGS,
+  type UISettings,
+  type UILocale,
+} from "@/types/ui";
+import {
+  buildMppAssignmentColumnsFromAssignments,
+  buildMppResourceColumnsFromResources,
+  buildMppTaskColumnsFromTasks,
+  normalizeTaskColumnSettings,
+  normalizeAssignmentColumnSettings,
+  normalizeResourceColumnSettings,
+} from "@/lib/mpp/taskColumns";
+import { calculateMppFields } from "@/lib/mpp/mppCalculationEngine";
 import { ProjectProvider, useProject } from "@/lib/state/ProjectContext";
 import { useDragBar } from "@/components/gantt/interaction/useDragBar";
 import { useResizeBar } from "@/components/gantt/interaction/useResizeBar";
@@ -45,6 +69,7 @@ const AUTOSAVE_DELAY_MS = 750;
 interface GanttViewProps {
   projectId?: string;
   projectName?: string;
+  statusDate?: string;
   tasks: GanttTask[];
   calendar?: ProjectCalendar;
   resources?: Resource[];
@@ -53,28 +78,56 @@ interface GanttViewProps {
   budgetMappings?: BudgetMappingType[];
   baselines?: Baseline[];
   matrixPlan?: MatrixPlan;
+  mppTaskColumns?: MppTaskColumn[];
+  mppResourceColumns?: MppResourceColumn[];
+  mppAssignmentColumns?: MppAssignmentColumn[];
+  customFieldDefinitions?: MppCustomFieldDefinition[];
+  calculationEngineVersion?: string;
+  calculatedAt?: string;
+  taskColumnSettings?: TaskColumnSettings;
+  resourceColumnSettings?: ResourceColumnSettings;
+  assignmentColumnSettings?: AssignmentColumnSettings;
+  uiSettings?: UISettings;
   onTaskClick?: (task: GanttTask) => void;
 }
 
 function GanttViewInner({
   initialProjectId,
   initialProjectName,
+  initialStatusDate,
   initialResources,
   initialAssignments,
   initialBudgetItems,
   initialBudgetMappings,
   initialBaselines,
   initialMatrixPlan,
+  initialMppTaskColumns,
+  initialMppResourceColumns,
+  initialMppAssignmentColumns,
+  initialCustomFieldDefinitions,
+  initialTaskColumnSettings,
+  initialResourceColumnSettings,
+  initialAssignmentColumnSettings,
+  initialUISettings,
   onTaskClick,
 }: {
   initialProjectId?: string;
   initialProjectName?: string;
+  initialStatusDate?: string;
   initialResources: Resource[];
   initialAssignments: Assignment[];
   initialBudgetItems: BudgetItem[];
   initialBudgetMappings: BudgetMappingType[];
   initialBaselines: Baseline[];
   initialMatrixPlan?: MatrixPlan;
+  initialMppTaskColumns: MppTaskColumn[];
+  initialMppResourceColumns: MppResourceColumn[];
+  initialMppAssignmentColumns: MppAssignmentColumn[];
+  initialCustomFieldDefinitions: MppCustomFieldDefinition[];
+  initialTaskColumnSettings?: TaskColumnSettings;
+  initialResourceColumnSettings?: ResourceColumnSettings;
+  initialAssignmentColumnSettings?: AssignmentColumnSettings;
+  initialUISettings: UISettings;
   onTaskClick?: (task: GanttTask) => void;
 }) {
   const {
@@ -100,13 +153,49 @@ function GanttViewInner({
   const [activeView, setActiveView] = useState<ViewType>("gantt");
   const [resources, setResources] = useState<Resource[]>(initialResources);
   const [assignments] = useState<Assignment[]>(initialAssignments);
-  const [resourceSubView, setResourceSubView] = useState<"sheet" | "usage" | "budget" | "mapping">("sheet");
+  const [resourceSubView, setResourceSubView] = useState<"sheet" | "assignments" | "usage" | "budget" | "mapping">("sheet");
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>(initialBudgetItems);
   const [budgetMappings, setBudgetMappings] =
     useState<BudgetMappingType[]>(initialBudgetMappings);
   const [matrixPlan, setMatrixPlan] = useState<MatrixPlan | undefined>(
     initialMatrixPlan,
   );
+  const [uiSettings, setUISettings] = useState<UISettings>(initialUISettings);
+  const [taskColumnSettings, setTaskColumnSettings] = useState<TaskColumnSettings>(
+    normalizeTaskColumnSettings(
+      initialTaskColumnSettings,
+      initialUISettings.locale,
+    ),
+  );
+  const [resourceColumnSettings, setResourceColumnSettings] = useState<ResourceColumnSettings>(
+    normalizeResourceColumnSettings(
+      initialResourceColumnSettings,
+      initialUISettings.locale,
+    ),
+  );
+  const [assignmentColumnSettings, setAssignmentColumnSettings] = useState<AssignmentColumnSettings>(
+    normalizeAssignmentColumnSettings(
+      initialAssignmentColumnSettings,
+      initialUISettings.locale,
+    ),
+  );
+  const locale = uiSettings.locale;
+  const resourceViewLabels =
+    locale === "en"
+      ? {
+          sheet: "Resource Sheet",
+          usage: "Resource Usage",
+          assignments: "Assignments",
+          budget: "Budget",
+          mapping: "Mapping",
+        }
+      : {
+          sheet: "Hoja de Recursos",
+          usage: "Uso de Recursos",
+          assignments: "Asignaciones",
+          budget: "Presupuesto",
+          mapping: "Mapeo",
+        };
   const syncedMatrixPlan = useMemo(
     () => (matrixPlan ? syncMatrixPlanFromTasks(matrixPlan, tasks) : undefined),
     [matrixPlan, tasks],
@@ -123,28 +212,76 @@ function GanttViewInner({
   const [baselines, setBaselines] = useState<Baseline[]>(initialBaselines);
   const [activeBaselineId, setActiveBaselineId] = useState<string | undefined>();
 
+  const baseMppTaskColumns = useMemo(
+    () => buildMppTaskColumnsFromTasks(tasks, undefined, initialMppTaskColumns),
+    [tasks, initialMppTaskColumns],
+  );
+  const baseMppResourceColumns = useMemo(
+    () => buildMppResourceColumnsFromResources(resources, undefined, initialMppResourceColumns),
+    [resources, initialMppResourceColumns],
+  );
+  const baseMppAssignmentColumns = useMemo(
+    () => buildMppAssignmentColumnsFromAssignments(assignments, undefined, initialMppAssignmentColumns),
+    [assignments, initialMppAssignmentColumns],
+  );
+  const calculatedMpp = useMemo(
+    () =>
+      calculateMppFields({
+        tasks,
+        resources,
+        assignments,
+        baselines,
+        calendar,
+        statusDate: initialStatusDate,
+        mppTaskColumns: baseMppTaskColumns,
+        mppResourceColumns: baseMppResourceColumns,
+        mppAssignmentColumns: baseMppAssignmentColumns,
+        customFieldDefinitions: initialCustomFieldDefinitions,
+        timephasedScale: scale,
+      }),
+    [
+      assignments,
+      baseMppAssignmentColumns,
+      baseMppResourceColumns,
+      baseMppTaskColumns,
+      baselines,
+      calendar,
+      initialStatusDate,
+      initialCustomFieldDefinitions,
+      resources,
+      scale,
+      tasks,
+    ],
+  );
+  const calculatedTasks = calculatedMpp.tasks;
+  const calculatedResources = calculatedMpp.resources;
+  const calculatedAssignments = calculatedMpp.assignments;
+  const mppTaskColumns = calculatedMpp.mppTaskColumns;
+  const mppResourceColumns = calculatedMpp.mppResourceColumns;
+  const mppAssignmentColumns = calculatedMpp.mppAssignmentColumns;
+
   /* ── Project info derived from tasks ── */
   const projectInfo = useMemo(() => {
-    if (tasks.length === 0) {
+    if (calculatedTasks.length === 0) {
       return { name: undefined, start: undefined, finish: undefined, count: 0 };
     }
-    const starts = tasks.map((t) => t.start.getTime());
-    const finishes = tasks.map((t) => t.finish.getTime());
+    const starts = calculatedTasks.map((t) => t.start.getTime());
+    const finishes = calculatedTasks.map((t) => t.finish.getTime());
     return {
       name: undefined,
       start: new Date(Math.min(...starts)),
       finish: new Date(Math.max(...finishes)),
-      count: tasks.length,
+      count: calculatedTasks.length,
     };
-  }, [tasks]);
+  }, [calculatedTasks]);
 
   const automaticLOB = useMemo(
-    () => generateAutomaticLOBFromTasks(tasks),
-    [tasks],
+    () => generateAutomaticLOBFromTasks(calculatedTasks),
+    [calculatedTasks],
   );
   const bottlenecks = useMemo(
-    () => detectBottlenecks({ tasks, resources, assignments }),
-    [tasks, resources, assignments],
+    () => detectBottlenecks({ tasks: calculatedTasks, resources: calculatedResources, assignments: calculatedAssignments }),
+    [calculatedAssignments, calculatedResources, calculatedTasks],
   );
   const matrixEditorKey = useMemo(
     () =>
@@ -211,7 +348,7 @@ function GanttViewInner({
       id: `bl-${Date.now()}`,
       name: `Baseline ${baselineNumber}`,
       createdAt: new Date(),
-      tasks: tasks.map((t) => ({
+      tasks: calculatedTasks.map((t) => ({
         taskId: t.id,
         baselineStart: new Date(t.start),
         baselineFinish: new Date(t.finish),
@@ -221,7 +358,7 @@ function GanttViewInner({
     };
     setBaselines((prev) => [...prev, newBaseline]);
     setActiveBaselineId(newBaseline.id);
-  }, [baselines.length, tasks]);
+  }, [baselines.length, calculatedTasks]);
 
   /* ── Select Baseline handler ── */
   const handleSelectBaseline = useCallback((id: string) => {
@@ -242,7 +379,7 @@ function GanttViewInner({
   );
 
   const viewport = useMemo(() => {
-    if (tasks.length === 0) {
+    if (calculatedTasks.length === 0) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       return {
@@ -252,8 +389,8 @@ function GanttViewInner({
         columnWidth: 40,
       };
     }
-    const starts = tasks.map((t) => t.start.getTime());
-    const finishes = tasks.map((t) => t.finish.getTime());
+    const starts = calculatedTasks.map((t) => t.start.getTime());
+    const finishes = calculatedTasks.map((t) => t.finish.getTime());
     const minDate = new Date(Math.min(...starts));
     const maxDate = new Date(Math.max(...finishes));
     minDate.setDate(minDate.getDate() - 2);
@@ -264,7 +401,7 @@ function GanttViewInner({
       scale: scale as "day" | "week" | "month",
       columnWidth: scale === "day" ? 40 : scale === "week" ? 280 : 800,
     };
-  }, [tasks, scale]);
+  }, [calculatedTasks, scale]);
 
   const { dragState, onDragStart } = useDragBar({
     viewport,
@@ -375,14 +512,25 @@ function GanttViewInner({
       const data: ProjectData = {
         id: projectId,
         name: projectName,
-        tasks,
-        resources,
-        assignments,
+        statusDate: initialStatusDate,
+        tasks: calculatedTasks,
+        resources: calculatedResources,
+        assignments: calculatedAssignments,
         budgetItems,
         budgetMappings,
         baselines,
         calendar,
         matrixPlan: syncedMatrixPlan,
+        mppTaskColumns,
+        mppResourceColumns,
+        mppAssignmentColumns,
+        customFieldDefinitions: calculatedMpp.customFieldDefinitions,
+        calculationEngineVersion: calculatedMpp.engineVersion,
+        calculatedAt: calculatedMpp.calculatedAt,
+        taskColumnSettings,
+        resourceColumnSettings,
+        assignmentColumnSettings,
+        uiSettings,
       };
       const result = await saveProject(data);
       if (result.success) {
@@ -397,7 +545,7 @@ function GanttViewInner({
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 3000);
     }
-  }, [projectId, projectName, tasks, resources, assignments, budgetItems, budgetMappings, baselines, calendar, syncedMatrixPlan]);
+  }, [projectId, projectName, initialStatusDate, calculatedTasks, calculatedResources, calculatedAssignments, budgetItems, budgetMappings, baselines, calendar, syncedMatrixPlan, mppTaskColumns, mppResourceColumns, mppAssignmentColumns, calculatedMpp.customFieldDefinitions, calculatedMpp.engineVersion, calculatedMpp.calculatedAt, taskColumnSettings, resourceColumnSettings, assignmentColumnSettings, uiSettings]);
 
   // Use a ref to avoid the interval effect depending on doSave's reference
   const doSaveRef = useRef(doSave);
@@ -435,6 +583,10 @@ function GanttViewInner({
     baselines,
     calendar,
     syncedMatrixPlan,
+    taskColumnSettings,
+    resourceColumnSettings,
+    assignmentColumnSettings,
+    uiSettings,
     projectName,
   ]);
 
@@ -471,6 +623,7 @@ function GanttViewInner({
           activeBaselineId={activeBaselineId}
           onSaveBaseline={handleSaveBaseline}
           onSelectBaseline={handleSelectBaseline}
+          locale={locale}
         />
         {saveStatus !== "idle" && (
           <span className="mr-4 text-xs font-medium px-2 py-1 rounded shrink-0"
@@ -488,7 +641,7 @@ function GanttViewInner({
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Sidebar de navegación de vistas */}
-        <ViewSidebar activeView={activeView} onViewChange={setActiveView} />
+        <ViewSidebar activeView={activeView} onViewChange={setActiveView} locale={locale} />
 
         {/* Contenido de la vista activa */}
         <div className="flex-1 min-h-0 min-w-0">
@@ -497,15 +650,23 @@ function GanttViewInner({
               defaultSplit={35}
               left={
                 <GanttTable
-                  tasks={tasks}
+                  tasks={calculatedTasks}
                   selectedTaskIds={selectedTaskIds}
                   onTaskSelect={handleTaskSelect}
                   onUpdateTask={updateTask}
+                  mppTaskColumns={mppTaskColumns}
+                  customFieldDefinitions={calculatedMpp.customFieldDefinitions}
+                  columnSettings={taskColumnSettings}
+                  locale={locale}
+                  onColumnSettingsChange={setTaskColumnSettings}
+                  onLocaleChange={(nextLocale: UILocale) =>
+                    setUISettings({ locale: nextLocale })
+                  }
                 />
               }
               right={
                 <GanttChart
-                  tasks={tasks}
+                  tasks={calculatedTasks}
                   calendar={calendar}
                   scale={scale}
                   selectedTaskIds={selectedTaskIds}
@@ -523,16 +684,24 @@ function GanttViewInner({
 
           {activeView === "taskSheet" && (
             <TaskSheetView
-              tasks={tasks}
+              tasks={calculatedTasks}
               onUpdateTask={updateTask}
               selectedTaskIds={selectedTaskIds}
               onTaskSelect={handleTaskSelect}
+              mppTaskColumns={mppTaskColumns}
+              customFieldDefinitions={calculatedMpp.customFieldDefinitions}
+              columnSettings={taskColumnSettings}
+              locale={locale}
+              onColumnSettingsChange={setTaskColumnSettings}
+              onLocaleChange={(nextLocale: UILocale) =>
+                setUISettings({ locale: nextLocale })
+              }
             />
           )}
 
           {activeView === "tracking" && (
             <TrackingGanttView
-              tasks={tasks}
+              tasks={calculatedTasks}
               scale={scale}
               selectedTaskIds={selectedTaskIds}
               onTaskSelect={handleTaskSelect}
@@ -541,7 +710,7 @@ function GanttViewInner({
           )}
 
           {activeView === "network" && (
-            <NetworkDiagramView tasks={tasks} onTaskClick={onTaskClick} />
+            <NetworkDiagramView tasks={calculatedTasks} onTaskClick={onTaskClick} />
           )}
 
           {activeView === "resources" && (
@@ -564,7 +733,7 @@ function GanttViewInner({
                     color: resourceSubView === "sheet" ? "#ffffff" : "var(--aia-corp-light)",
                   }}
                 >
-                  Hoja de Recursos
+                  {resourceViewLabels.sheet}
                 </button>
                 <button
                   onClick={() => setResourceSubView("usage")}
@@ -580,7 +749,23 @@ function GanttViewInner({
                     color: resourceSubView === "usage" ? "#ffffff" : "var(--aia-corp-light)",
                   }}
                 >
-                  Uso de Recursos
+                  {resourceViewLabels.usage}
+                </button>
+                <button
+                  onClick={() => setResourceSubView("assignments")}
+                  style={{
+                    padding: "4px 12px",
+                    borderRadius: "var(--radius-sm)",
+                    fontSize: "0.75rem",
+                    fontFamily: "var(--font-montserrat)",
+                    fontWeight: 600,
+                    border: "none",
+                    cursor: "pointer",
+                    background: resourceSubView === "assignments" ? "var(--aia-corp-main)" : "transparent",
+                    color: resourceSubView === "assignments" ? "#ffffff" : "var(--aia-corp-light)",
+                  }}
+                >
+                  {resourceViewLabels.assignments}
                 </button>
                 <button
                   onClick={() => setResourceSubView("budget")}
@@ -596,7 +781,7 @@ function GanttViewInner({
                     color: resourceSubView === "budget" ? "#ffffff" : "var(--aia-corp-light)",
                   }}
                 >
-                  Presupuesto
+                  {resourceViewLabels.budget}
                 </button>
                 <button
                   onClick={() => setResourceSubView("mapping")}
@@ -612,23 +797,46 @@ function GanttViewInner({
                     color: resourceSubView === "mapping" ? "#ffffff" : "var(--aia-corp-light)",
                   }}
                 >
-                  Mapeo
+                  {resourceViewLabels.mapping}
                 </button>
               </div>
               <div className="flex-1 min-h-0">
                 {resourceSubView === "sheet" && (
                   <ResourceSheetView
-                    resources={resources}
+                    resources={calculatedResources}
                     onAddResource={handleAddResource}
                     onEditResource={handleEditResource}
                     onDeleteResource={handleDeleteResource}
+                    mppResourceColumns={mppResourceColumns}
+                    customFieldDefinitions={calculatedMpp.customFieldDefinitions}
+                    columnSettings={resourceColumnSettings}
+                    locale={locale}
+                    onColumnSettingsChange={setResourceColumnSettings}
+                    onLocaleChange={(nextLocale: UILocale) =>
+                      setUISettings({ locale: nextLocale })
+                    }
+                  />
+                )}
+                {resourceSubView === "assignments" && (
+                  <AssignmentSheetView
+                    assignments={calculatedAssignments}
+                    tasks={calculatedTasks}
+                    resources={calculatedResources}
+                    mppAssignmentColumns={mppAssignmentColumns}
+                    customFieldDefinitions={calculatedMpp.customFieldDefinitions}
+                    columnSettings={assignmentColumnSettings}
+                    locale={locale}
+                    onColumnSettingsChange={setAssignmentColumnSettings}
+                    onLocaleChange={(nextLocale: UILocale) =>
+                      setUISettings({ locale: nextLocale })
+                    }
                   />
                 )}
                 {resourceSubView === "usage" && (
                   <ResourceUsageView
-                    resources={resources}
-                    tasks={tasks}
-                    assignments={assignments}
+                    resources={calculatedResources}
+                    tasks={calculatedTasks}
+                    assignments={calculatedAssignments}
                   />
                 )}
                 {resourceSubView === "budget" && (
@@ -643,7 +851,7 @@ function GanttViewInner({
                 {resourceSubView === "mapping" && (
                   <BudgetMapping
                     budgetItems={budgetItems}
-                    tasks={tasks}
+                    tasks={calculatedTasks}
                     mappings={budgetMappings}
                     onAddMapping={handleAddBudgetMapping}
                     onRemoveMapping={handleRemoveBudgetMapping}
@@ -672,7 +880,7 @@ function GanttViewInner({
             <MatrixEditorView
               key={matrixEditorKey}
               matrixPlan={syncedMatrixPlan}
-              tasks={tasks}
+              tasks={calculatedTasks}
               onApplyMatrixPlan={handleApplyMatrixPlan}
               onSyncFromGantt={handleSyncMatrixFromGantt}
             />
@@ -680,7 +888,7 @@ function GanttViewInner({
 
           {activeView === "scurve" && (
             <SCurveView
-              tasks={tasks}
+              tasks={calculatedTasks}
               budgetMappings={budgetMappings}
               budgetItems={budgetItems}
             />
@@ -708,6 +916,7 @@ function GanttViewInner({
 export default function GanttView({
   projectId,
   projectName,
+  statusDate,
   tasks,
   calendar = DEFAULT_PROJECT_CALENDAR,
   resources = [],
@@ -716,6 +925,14 @@ export default function GanttView({
   budgetMappings = [],
   baselines = [],
   matrixPlan,
+  mppTaskColumns = [],
+  mppResourceColumns = [],
+  mppAssignmentColumns = [],
+  customFieldDefinitions = [],
+  taskColumnSettings,
+  resourceColumnSettings,
+  assignmentColumnSettings,
+  uiSettings = DEFAULT_UI_SETTINGS,
   onTaskClick,
 }: GanttViewProps) {
   const initialTasksKey = tasks
@@ -732,12 +949,21 @@ export default function GanttView({
       <GanttViewInner
         initialProjectId={projectId}
         initialProjectName={projectName}
+        initialStatusDate={statusDate}
         initialResources={resources}
         initialAssignments={assignments}
         initialBudgetItems={budgetItems}
         initialBudgetMappings={budgetMappings}
         initialBaselines={baselines}
         initialMatrixPlan={matrixPlan}
+        initialMppTaskColumns={mppTaskColumns}
+        initialMppResourceColumns={mppResourceColumns}
+        initialMppAssignmentColumns={mppAssignmentColumns}
+        initialCustomFieldDefinitions={customFieldDefinitions}
+        initialTaskColumnSettings={taskColumnSettings}
+        initialResourceColumnSettings={resourceColumnSettings}
+        initialAssignmentColumnSettings={assignmentColumnSettings}
+        initialUISettings={uiSettings}
         onTaskClick={onTaskClick}
       />
     </ProjectProvider>

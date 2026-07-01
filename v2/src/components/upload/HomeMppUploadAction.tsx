@@ -4,8 +4,20 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveProject } from "@/app/actions/project";
 import { parseMPP } from "@/lib/api";
-import { mppTasksToGanttTasks } from "@/components/upload/mpp-to-gantt";
+import {
+  mppAssignmentsToAssignments,
+  mppResourcesToResources,
+  mppTasksToGanttTasks,
+} from "@/components/upload/mpp-to-gantt";
 import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
+import { DEFAULT_UI_SETTINGS } from "@/types/ui";
+import {
+  buildMppAssignmentColumnsFromAssignments,
+  buildMppResourceColumnsFromResources,
+  buildMppTaskColumnsFromTasks,
+} from "@/lib/mpp/taskColumns";
+import { calculateMppFields } from "@/lib/mpp/mppCalculationEngine";
+import { normalizeProjectCalendar } from "@/lib/scheduling/projectCalendar";
 
 const MAX_FILE_SIZE_MB = 50;
 const GENERIC_IMPORTED_PROJECT_NAME = "Proyecto Importado";
@@ -44,15 +56,56 @@ export default function HomeMppUploadAction() {
         parsedProject.name && parsedProject.name !== GENERIC_IMPORTED_PROJECT_NAME
           ? parsedProject.name
           : fallbackName;
+      const projectCalendar = normalizeProjectCalendar(
+        parsedProject.calendar ?? DEFAULT_PROJECT_CALENDAR,
+      );
+      const tasks = mppTasksToGanttTasks(parsedProject.tasks);
+      const mppTaskColumns = buildMppTaskColumnsFromTasks(
+        parsedProject.tasks,
+        parsedProject.availableColumns,
+        parsedProject.mppTaskColumns,
+      );
+      const resources = mppResourcesToResources(parsedProject.resources ?? []);
+      const assignments = mppAssignmentsToAssignments(parsedProject.assignments ?? []);
+      const mppResourceColumns = buildMppResourceColumnsFromResources(
+        resources,
+        parsedProject.availableResourceColumns,
+        parsedProject.mppResourceColumns,
+      );
+      const mppAssignmentColumns = buildMppAssignmentColumnsFromAssignments(
+        assignments,
+        parsedProject.availableAssignmentColumns,
+        parsedProject.mppAssignmentColumns,
+      );
+      const calculated = calculateMppFields({
+        tasks,
+        resources,
+        assignments,
+        baselines: [],
+        calendar: projectCalendar,
+        statusDate: parsedProject.statusDate,
+        mppTaskColumns,
+        mppResourceColumns,
+        mppAssignmentColumns,
+        customFieldDefinitions: parsedProject.customFieldDefinitions ?? [],
+      });
       const result = await saveProject({
         name: projectName,
-        tasks: mppTasksToGanttTasks(parsedProject.tasks),
-        resources: [],
-        assignments: [],
+        statusDate: parsedProject.statusDate,
+        tasks: calculated.tasks,
+        resources: calculated.resources,
+        assignments: calculated.assignments,
         budgetItems: [],
         budgetMappings: [],
         baselines: [],
-        calendar: DEFAULT_PROJECT_CALENDAR,
+        calendar: projectCalendar,
+        mppTaskColumns: calculated.mppTaskColumns,
+        mppResourceColumns: calculated.mppResourceColumns,
+        mppAssignmentColumns: calculated.mppAssignmentColumns,
+        customFieldDefinitions: calculated.customFieldDefinitions,
+        calculationEngineVersion: calculated.engineVersion,
+        calculatedAt: calculated.calculatedAt,
+        uiSettings: DEFAULT_UI_SETTINGS,
       });
 
       if (!result.success || !result.id) {

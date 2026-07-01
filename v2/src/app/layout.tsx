@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,8 +14,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
-      <body>{children}</body>
+    <html lang="es" suppressHydrationWarning>
+      <body>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+try {
+  var theme = window.localStorage.getItem("visor-gantt-theme") === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
+} catch (_) {
+  document.documentElement.dataset.theme = "light";
+}
+`,
+          }}
+        />
+        {children}
+        <ThemeToggle />
+      </body>
     </html>
   );
 }

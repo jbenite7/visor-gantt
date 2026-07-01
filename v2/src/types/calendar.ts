@@ -4,6 +4,13 @@ export interface CalendarException {
   name: string;
 }
 
+export interface CalendarDateOverride extends CalendarException {
+  isWorking: boolean;
+  startHour?: string;
+  endHour?: string;
+  hoursPerDay?: number;
+}
+
 export interface ProjectCalendar {
   timeZone: string;
   workDays: number[];
@@ -11,6 +18,7 @@ export interface ProjectCalendar {
   endHour: string;
   hoursPerDay: number;
   nonWorkingDays: CalendarException[];
+  dateOverrides: CalendarDateOverride[];
 }
 
 export const DEFAULT_PROJECT_CALENDAR: ProjectCalendar = {
@@ -20,4 +28,5 @@ export const DEFAULT_PROJECT_CALENDAR: ProjectCalendar = {
   endHour: "17:00",
   hoursPerDay: 8,
   nonWorkingDays: [],
+  dateOverrides: [],
 };

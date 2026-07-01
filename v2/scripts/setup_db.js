@@ -77,6 +77,15 @@ CREATE TABLE IF NOT EXISTS holidays (
     country_code TEXT DEFAULT 'CO' -- Default to Colombia
 );
 
+CREATE TABLE IF NOT EXISTS matrix_templates (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    project_type TEXT,
+    template_data JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Create simple index for performance
 CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_dependencies_project_id ON dependencies(project_id);

@@ -293,6 +293,25 @@ describe("MPP Import Integration - mppTasksToGanttTasks Transformation", () => {
     expect(milestone.isMilestone).toBe(true);
   });
 
+  test("preserves extra MPP task fields for dynamic columns", () => {
+    const ganttTasks = mppTasksToGanttTasks([
+      {
+        ...validProjectData.tasks[1],
+        Text1: "Contrato",
+        Number1: 42,
+      },
+    ]);
+
+    expect(ganttTasks[0].mppFields).toEqual(
+      expect.objectContaining({
+        UID: 2,
+        Name: "Tarea 1 - Diseño",
+        Text1: "Contrato",
+        Number1: 42,
+      }),
+    );
+  });
+
   test("maps dependency types correctly", () => {
     const ganttTasks = mppTasksToGanttTasks(validProjectData.tasks);
 

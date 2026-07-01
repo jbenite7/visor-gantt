@@ -1,5 +1,12 @@
 import { XMLParser } from "fast-xml-parser";
 import fs from "fs";
+import type {
+  MppAssignmentColumn,
+  MppCustomFieldDefinition,
+  MppResourceColumn,
+  MppTaskColumn,
+} from "@/types/mppColumns";
+import type { ProjectCalendar } from "@/types/calendar";
 
 export interface MSPTask {
   UID: number;
@@ -29,14 +36,38 @@ export interface MSPResource {
   UID: number;
   Name: string;
   Type: number;
+  mppFields?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface MSPAssignment {
+  UID?: number;
+  TaskUID?: number;
+  TaskID?: number;
+  ResourceUID?: number;
+  ResourceID?: number;
+  Units?: number;
+  Cost?: number;
+  mppFields?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 export interface ProjectData {
   name: string;
   startDate: string;
   finishDate: string;
+  statusDate?: string;
   tasks: MSPTask[];
   resources: MSPResource[];
+  assignments?: MSPAssignment[];
+  availableColumns?: string[];
+  availableResourceColumns?: string[];
+  availableAssignmentColumns?: string[];
+  mppTaskColumns?: MppTaskColumn[];
+  mppResourceColumns?: MppResourceColumn[];
+  mppAssignmentColumns?: MppAssignmentColumn[];
+  customFieldDefinitions?: MppCustomFieldDefinition[];
+  calendar?: Partial<ProjectCalendar>;
 }
 
 export class MPPParser {

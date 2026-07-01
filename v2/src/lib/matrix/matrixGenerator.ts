@@ -16,6 +16,12 @@ interface FlatScope {
   leafIndex: number;
 }
 
+interface FlatArea {
+  node: AreaNode;
+  path: AreaNode[];
+  leafIndex: number;
+}
+
 interface SummaryDraft {
   task: GanttTask;
   childIds: Set<string | number>;
@@ -104,12 +110,29 @@ function indexAreas(nodes: AreaNode[]): Map<string, AreaNode> {
   return result;
 }
 
+function flattenAreas(nodes: AreaNode[]): FlatArea[] {
+  const result: FlatArea[] = [];
+
+  function visit(node: AreaNode, path: AreaNode[]) {
+    const nextPath = [...path, node];
+    if (!node.children || node.children.length === 0) {
+      result.push({ node, path: nextPath, leafIndex: result.length });
+      return;
+    }
+
+    node.children.forEach((child) => visit(child, nextPath));
+  }
+
+  nodes.forEach((node) => visit(node, []));
+  return result;
+}
+
 function sanitizeId(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, "-");
 }
 
-function buildTaskName(area: AreaNode, activityName: string, scope: ScopeNode) {
-  return `${area.name} - ${activityName} - ${scope.name}`;
+function buildTaskName(scope: ScopeNode, activityName: string, area: AreaNode) {
+  return `${scope.name} - ${activityName} - ${area.name}`;
 }
 
 function addSummary(
@@ -199,16 +222,21 @@ function getCellStart(
   baseStart: Date,
   recipe: ActivityRecipe,
   flatScope: FlatScope,
+  flatArea: FlatArea,
 ): Date {
   if (!recipe.lineOfBalance) return baseStart;
   const matchingScope = flatScope.path.find(
     (scope) => scope.type === recipe.lineOfBalance?.scopeType,
   );
-  if (!matchingScope) return baseStart;
+  const matchingArea = flatArea.path.find(
+    (area) => area.type === recipe.lineOfBalance?.scopeType,
+  );
+  if (!matchingScope && !matchingArea) return baseStart;
 
   return addCalendarDays(
     baseStart,
-    flatScope.leafIndex * recipe.lineOfBalance.offsetDays,
+    (matchingArea ? flatArea.leafIndex : flatScope.leafIndex) *
+      recipe.lineOfBalance.offsetDays,
   );
 }
 
@@ -252,6 +280,9 @@ export function generateScheduleFromMatrix(
   const flatScopeById = new Map(
     flattenScopes(plan.scopeTree).map((scope) => [scope.node.id, scope]),
   );
+  const flatAreaById = new Map(
+    flattenAreas(plan.areas).map((area) => [area.node.id, area]),
+  );
 
   const tasks: GanttTask[] = [];
   const dependencies: GanttDependency[] = [];
@@ -260,21 +291,33 @@ export function generateScheduleFromMatrix(
   const summaries = new Map<string, SummaryDraft>();
 
   const rootOrder = new Map(plan.scopeTree.map((scope, index) => [scope.id, index]));
+  const areaRootOrder = new Map(plan.areas.map((area, index) => [area.id, index]));
   const cells = [...plan.cells].sort((a, b) => {
     const scopeA = flatScopeById.get(a.scopeId);
     const scopeB = flatScopeById.get(b.scopeId);
+    const areaA = flatAreaById.get(a.areaId);
+    const areaB = flatAreaById.get(b.areaId);
     const rootA = scopeA ? rootOrder.get(scopeA.path[0].id) ?? 0 : 0;
     const rootB = scopeB ? rootOrder.get(scopeB.path[0].id) ?? 0 : 0;
-    return rootA - rootB || (scopeA?.leafIndex ?? 0) - (scopeB?.leafIndex ?? 0);
+    const areaRootA = areaA ? areaRootOrder.get(areaA.path[0].id) ?? 0 : 0;
+    const areaRootB = areaB ? areaRootOrder.get(areaB.path[0].id) ?? 0 : 0;
+    return (
+      rootA - rootB ||
+      (scopeA?.leafIndex ?? 0) - (scopeB?.leafIndex ?? 0) ||
+      areaRootA - areaRootB ||
+      (areaA?.leafIndex ?? 0) - (areaB?.leafIndex ?? 0)
+    );
   });
 
   for (const cell of cells) {
     const flatScope = flatScopeById.get(cell.scopeId);
+    const flatArea = flatAreaById.get(cell.areaId);
     const scope = scopeById.get(cell.scopeId);
     const area = areaById.get(cell.areaId);
-    const recipe = cell.recipeId ? recipeById.get(cell.recipeId) : undefined;
+    const recipeId = cell.recipeId ?? scope?.defaultRecipeId;
+    const recipe = recipeId ? recipeById.get(recipeId) : undefined;
 
-    if (!scope || !flatScope) {
+    if (!scope) {
       issues.push(
         buildIssue(
           "missingScope",
@@ -286,15 +329,23 @@ export function generateScheduleFromMatrix(
       continue;
     }
 
+    if (!flatScope) {
+      continue;
+    }
+
     if (!area) {
       issues.push(
         buildIssue(
           "missingArea",
           "high",
           cell,
-          `La celda ${scope.name} no tiene un area valida.`,
+          `La celda ${scope.name} no tiene una ubicacion valida.`,
         ),
       );
+      continue;
+    }
+
+    if (!flatArea) {
       continue;
     }
 
@@ -304,7 +355,7 @@ export function generateScheduleFromMatrix(
           "inactiveCell",
           "medium",
           cell,
-          `La celda ${scope.name} x ${area.name} esta inactiva.`,
+          `La celda ${scope.name} × ${area.name} esta inactiva.`,
         ),
       );
       continue;
@@ -316,7 +367,7 @@ export function generateScheduleFromMatrix(
           "missingRecipe",
           "high",
           cell,
-          `La celda ${scope.name} x ${area.name} no tiene una receta valida.`,
+          `La celda ${scope.name} × ${area.name} no tiene una receta valida.`,
         ),
       );
       continue;
@@ -349,24 +400,36 @@ export function generateScheduleFromMatrix(
       parentSummaryId = summaryId;
     });
 
-    const areaWbs = [...scopeWbsParts, 1].join(".");
-    const areaSummaryId = `mx-area-${sanitizeId(cell.scopeId)}-${sanitizeId(area.id)}`;
-    addSummary(
-      summaries,
-      tasks,
-      areaSummaryId,
-      area.name,
-      flatScope.path.length + 1,
-      areaWbs,
-      baseStart,
-    );
-    if (parentSummaryId) {
-      addSummaryChild(summaries, parentSummaryId, areaSummaryId);
-    }
+    const areaWbsParts: number[] = [];
+    let areaSummaryId = parentSummaryId;
+    flatArea.path.forEach((areaNode, depth) => {
+      const siblingList =
+        depth === 0
+          ? plan.areas
+          : flatArea.path[depth - 1].children ?? [];
+      const siblingIndex = siblingList.findIndex((item) => item.id === areaNode.id);
+      areaWbsParts.push(siblingIndex + 1);
+
+      const summaryId = `mx-area-${sanitizeId(cell.scopeId)}-${sanitizeId(areaNode.id)}`;
+      addSummary(
+        summaries,
+        tasks,
+        summaryId,
+        areaNode.name,
+        flatScope.path.length + depth + 1,
+        [...scopeWbsParts, ...areaWbsParts].join("."),
+        baseStart,
+      );
+
+      if (areaSummaryId) {
+        addSummaryChild(summaries, areaSummaryId, summaryId);
+      }
+      areaSummaryId = summaryId;
+    });
 
     const cellTaskIds: (string | number)[] = [];
     const activityTaskIds = new Map<string, string | number>();
-    let cursor = getCellStart(baseStart, recipe, flatScope);
+    let cursor = getCellStart(baseStart, recipe, flatScope, flatArea);
 
     recipe.activities.forEach((activity, index) => {
       const activityOverride = getActivityOverride(cell, activity.id);
@@ -383,7 +446,7 @@ export function generateScheduleFromMatrix(
             "missingQuantity",
             "high",
             cell,
-            `La actividad ${activity.name} no tiene cantidad para ${scope.name} x ${area.name}.`,
+            `La actividad ${activity.name} no tiene cantidad para ${scope.name} × ${area.name}.`,
           ),
         );
         return;
@@ -406,7 +469,7 @@ export function generateScheduleFromMatrix(
       const taskId = `mx-task-${sanitizeId(cell.id)}-${sanitizeId(activity.id)}`;
       const task: GanttTask = {
         id: taskId,
-        name: buildTaskName(area, activity.name, scope),
+        name: buildTaskName(scope, activity.name, area),
         start: cursor,
         finish,
         duration,
@@ -414,9 +477,9 @@ export function generateScheduleFromMatrix(
         isCritical: false,
         isMilestone: false,
         isSummary: false,
-        outlineLevel: flatScope.path.length + 2,
+        outlineLevel: flatScope.path.length + flatArea.path.length + 1,
         dependencies: [],
-        wbs: [...scopeWbsParts, 1, index + 1].join("."),
+        wbs: [...scopeWbsParts, ...areaWbsParts, index + 1].join("."),
         matrixSource: {
           matrixPlanId: plan.id,
           scopeId: scope.id,
@@ -431,7 +494,9 @@ export function generateScheduleFromMatrix(
       tasks.push(task);
       cellTaskIds.push(task.id);
       activityTaskIds.set(activity.id, task.id);
-      addSummaryChild(summaries, areaSummaryId, task.id);
+      if (areaSummaryId) {
+        addSummaryChild(summaries, areaSummaryId, task.id);
+      }
       cursor = nextWorkDay(finish);
     });
 

@@ -20,6 +20,33 @@ interface UploadResult {
   message: string;
 }
 
+function mapConstraintType(value: unknown): Task["constraintType"] {
+  switch (Number(value)) {
+    case 1:
+      return "asLateAsPossible";
+    case 2:
+      return "mustStartOn";
+    case 3:
+      return "mustFinishOn";
+    case 4:
+      return "startNoEarlierThan";
+    case 5:
+      return "startNoLaterThan";
+    case 6:
+      return "finishNoEarlierThan";
+    case 7:
+      return "finishNoLaterThan";
+    default:
+      return "asSoonAsPossible";
+  }
+}
+
+function optionalDate(value: unknown): Date | undefined {
+  if (!value) return undefined;
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
 export async function uploadProject(formData: FormData): Promise<UploadResult> {
   try {
     const file = formData.get("file") as File;
@@ -66,6 +93,9 @@ export async function uploadProject(formData: FormData): Promise<UploadResult> {
       outlineLevel: t.OutlineLevel,
       isSummary: t.Summary,
       manualStart: t.Start ? new Date(t.Start) : undefined,
+      constraintType: mapConstraintType(t.ConstraintType),
+      constraintDate: optionalDate(t.ConstraintDate),
+      deadline: optionalDate(t.Deadline),
     }));
 
     // 4. Map Dependencies

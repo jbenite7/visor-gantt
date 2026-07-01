@@ -32,6 +32,20 @@ export interface GanttTask {
   totalFloat?: number;
   /** Manual start constraint created by direct date edits. */
   manualStart?: Date;
+  /** MS Project task constraint type. */
+  constraintType?:
+    | "asSoonAsPossible"
+    | "asLateAsPossible"
+    | "mustStartOn"
+    | "mustFinishOn"
+    | "startNoEarlierThan"
+    | "startNoLaterThan"
+    | "finishNoEarlierThan"
+    | "finishNoLaterThan";
+  /** MS Project task constraint date. */
+  constraintDate?: Date;
+  /** MS Project deadline date, used for indicators/alerts without forcing dates. */
+  deadline?: Date;
 
   // ── Progress (MS Project naming alias) ──
   /** Percentage complete, 0–100. Alias for progress. */
@@ -50,6 +64,10 @@ export interface GanttTask {
   cost?: number;
   /** Actual cost incurred so far. */
   actualCost?: number;
+
+  // ── MPP import fidelity ──
+  /** Raw/imported task fields preserved from Microsoft Project. */
+  mppFields?: Record<string, unknown>;
 
   // ── Programacion Matricial ──
   /** Source matrix metadata for generated tasks. */

@@ -1,6 +1,7 @@
 import { loadProject } from "@/app/actions/project";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import ProjectView from "./ProjectView";
+import { getCurrentUser } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,11 @@ export default async function ProjectPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/login");
+  }
+
   const { id } = await params;
   const project = await loadProject(id);
 
@@ -38,11 +44,15 @@ export default async function ProjectPage({
     lateFinish: t.lateFinish?.toISOString(),
     totalFloat: t.totalFloat,
     manualStart: t.manualStart?.toISOString(),
+    constraintType: t.constraintType,
+    constraintDate: t.constraintDate?.toISOString(),
+    deadline: t.deadline?.toISOString(),
     percentComplete: t.percentComplete,
     wbs: t.wbs,
     resourceNames: t.resourceNames,
     cost: t.cost,
     actualCost: t.actualCost,
+    mppFields: t.mppFields,
     matrixSource: t.matrixSource,
   }));
 
@@ -68,6 +78,16 @@ export default async function ProjectPage({
       budgetMappings={project.budgetMappings}
       baselines={serializedBaselines}
       matrixPlan={project.matrixPlan}
+      mppTaskColumns={project.mppTaskColumns}
+      mppResourceColumns={project.mppResourceColumns}
+      mppAssignmentColumns={project.mppAssignmentColumns}
+      customFieldDefinitions={project.customFieldDefinitions}
+      calculationEngineVersion={project.calculationEngineVersion}
+      calculatedAt={project.calculatedAt}
+      taskColumnSettings={project.taskColumnSettings}
+      resourceColumnSettings={project.resourceColumnSettings}
+      assignmentColumnSettings={project.assignmentColumnSettings}
+      uiSettings={project.uiSettings}
     />
   );
 }

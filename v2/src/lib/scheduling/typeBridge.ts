@@ -46,6 +46,9 @@ export function taskToGanttTask(task: Task, deps: Dependency[]): GanttTask {
     lateFinish: task.lateFinish,
     totalFloat: task.totalFloat,
     manualStart: task.manualStart,
+    constraintType: task.constraintType,
+    constraintDate: task.constraintDate,
+    deadline: task.deadline,
   };
 }
 
@@ -74,6 +77,9 @@ export function ganttTaskToTask(gantt: GanttTask): Task {
     isSummary: gantt.isSummary,
     outlineLevel: gantt.outlineLevel,
     manualStart: gantt.manualStart,
+    constraintType: gantt.constraintType,
+    constraintDate: gantt.constraintDate,
+    deadline: gantt.deadline,
   };
 }
 

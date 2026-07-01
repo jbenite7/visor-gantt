@@ -35,7 +35,9 @@ export type ScheduleIssueKind =
   | "cycle"
   | "emptyWorkWeek"
   | "duplicateException"
+  | "duplicateDateOverride"
   | "invalidExceptionDate"
+  | "invalidDateOverride"
   | "invalidWorkHours"
   | "invalidHoursPerDay";
 
@@ -85,4 +87,15 @@ export interface Task {
 
   // Constraints
   manualStart?: Date; // Start No Earlier Than
+  constraintType?:
+    | "asSoonAsPossible"
+    | "asLateAsPossible"
+    | "mustStartOn"
+    | "mustFinishOn"
+    | "startNoEarlierThan"
+    | "startNoLaterThan"
+    | "finishNoEarlierThan"
+    | "finishNoLaterThan";
+  constraintDate?: Date;
+  deadline?: Date;
 }

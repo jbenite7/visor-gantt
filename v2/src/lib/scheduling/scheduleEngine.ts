@@ -28,6 +28,33 @@ function dependencyKey(dep: GanttDependency): string {
   return `${dep.from}->${dep.to}:${dep.type}:${dep.lag ?? 0}`;
 }
 
+function fieldValue(record: Record<string, unknown> | undefined, fieldId: string): unknown {
+  if (!record) return undefined;
+  const normalized = fieldId.replace(/[^a-z0-9]/gi, "").toLowerCase();
+  for (const [key, value] of Object.entries(record)) {
+    if (key.replace(/[^a-z0-9]/gi, "").toLowerCase() === normalized) return value;
+  }
+  return undefined;
+}
+
+function booleanField(value: unknown, fallback: boolean): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["true", "yes", "1", "si", "sí"].includes(normalized)) return true;
+    if (["false", "no", "0"].includes(normalized)) return false;
+  }
+  return fallback;
+}
+
+function isActiveTask(task: GanttTask): boolean {
+  const inactive = fieldValue(task.mppFields, "INACTIVE");
+  if (inactive !== undefined && booleanField(inactive, false)) return false;
+  const active = fieldValue(task.mppFields, "ACTIVE");
+  return active === undefined ? true : booleanField(active, true);
+}
+
 function collectDependencies(tasks: GanttTask[]): GanttDependency[] {
   const seen = new Set<string>();
   const result: GanttDependency[] = [];
@@ -49,14 +76,14 @@ function collectDependencies(tasks: GanttTask[]): GanttDependency[] {
 }
 
 export function normalizeDependencies(tasks: GanttTask[]): GanttTask[] {
-  const taskIds = new Set(tasks.map((task) => task.id));
+  const activeTaskIds = new Set(tasks.filter(isActiveTask).map((task) => task.id));
   const deps = collectDependencies(tasks).filter(
-    (dep) => taskIds.has(dep.from) && taskIds.has(dep.to),
+    (dep) => activeTaskIds.has(dep.from) && activeTaskIds.has(dep.to),
   );
 
   return tasks.map((task) => ({
     ...task,
-    dependencies: deps.filter((dep) => dep.to === task.id),
+    dependencies: isActiveTask(task) ? deps.filter((dep) => dep.to === task.id) : [],
   }));
 }
 
@@ -64,11 +91,11 @@ export function validateDependencies(
   tasks: GanttTask[],
   dependencies: GanttDependency[] = collectDependencies(tasks),
 ): ScheduleIssue[] {
-  const taskIds = new Set(tasks.map((task) => task.id));
+  const activeTaskIds = new Set(tasks.filter(isActiveTask).map((task) => task.id));
   const issues: ScheduleIssue[] = [];
 
   for (const dep of dependencies) {
-    if (!taskIds.has(dep.from) || !taskIds.has(dep.to)) {
+    if (!activeTaskIds.has(dep.from) || !activeTaskIds.has(dep.to)) {
       issues.push({
         kind: "missingTask",
         severity: "high",
@@ -88,7 +115,7 @@ export function validateDependencies(
   }
 
   const validDeps = dependencies.filter(
-    (dep) => taskIds.has(dep.from) && taskIds.has(dep.to) && dep.from !== dep.to,
+    (dep) => activeTaskIds.has(dep.from) && activeTaskIds.has(dep.to) && dep.from !== dep.to,
   );
   if (hasCycle(tasks, validDeps)) {
     issues.push({
@@ -163,11 +190,19 @@ export function recalculateSchedule(
     tasks: canonicalTasks.map((task) => {
       const cpm = cpmById.get(task.id);
       if (!cpm) return task;
+      const scheduledStart =
+        task.constraintType === "asLateAsPossible"
+          ? cpm.lateStart ?? cpm.earlyStart
+          : cpm.earlyStart;
+      const scheduledFinish =
+        task.constraintType === "asLateAsPossible"
+          ? cpm.lateFinish ?? cpm.earlyFinish
+          : cpm.earlyFinish;
 
       return {
         ...task,
-        start: cpm.earlyStart ?? task.start,
-        finish: cpm.earlyFinish ?? task.finish,
+        start: scheduledStart ?? task.start,
+        finish: scheduledFinish ?? task.finish,
         earlyStart: cpm.earlyStart,
         earlyFinish: cpm.earlyFinish,
         lateStart: cpm.lateStart,
@@ -194,6 +229,9 @@ function toSchedulingTask(task: GanttTask, minutesPerDay: number): Task {
     isSummary: task.isSummary,
     outlineLevel: task.outlineLevel,
     manualStart: task.manualStart,
+    constraintType: task.constraintType,
+    constraintDate: task.constraintDate,
+    deadline: task.deadline,
   };
 }
 

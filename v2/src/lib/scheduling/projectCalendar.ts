@@ -1,6 +1,7 @@
 import type { SchedulingCalendar } from "./cpm";
 import {
   DEFAULT_PROJECT_CALENDAR,
+  type CalendarDateOverride,
   type CalendarException,
   type ProjectCalendar,
 } from "@/types/calendar";
@@ -8,7 +9,9 @@ import {
 export type CalendarIssueKind =
   | "emptyWorkWeek"
   | "duplicateException"
+  | "duplicateDateOverride"
   | "invalidExceptionDate"
+  | "invalidDateOverride"
   | "invalidWorkHours"
   | "invalidHoursPerDay";
 
@@ -52,6 +55,25 @@ function normalizeException(
   };
 }
 
+function normalizeDateOverride(
+  item: Partial<CalendarDateOverride>,
+  index: number,
+): CalendarDateOverride | null {
+  if (!item.date || !DATE_RE.test(item.date)) return null;
+  const normalized: CalendarDateOverride = {
+    id: item.id || `${item.date}-${index}`,
+    date: item.date,
+    name: item.name?.trim() || (item.isWorking ? "Jornada especial" : "Día no laboral"),
+    isWorking: item.isWorking === true,
+  };
+  if (item.startHour) normalized.startHour = item.startHour;
+  if (item.endHour) normalized.endHour = item.endHour;
+  if (typeof item.hoursPerDay === "number" && Number.isFinite(item.hoursPerDay)) {
+    normalized.hoursPerDay = item.hoursPerDay;
+  }
+  return normalized;
+}
+
 export function normalizeProjectCalendar(
   raw?: Partial<ProjectCalendar> | null,
 ): ProjectCalendar {
@@ -64,6 +86,11 @@ export function normalizeProjectCalendar(
     .filter((item): item is CalendarException => item !== null)
     .sort((a, b) => a.date.localeCompare(b.date));
 
+  const dateOverrides = (raw?.dateOverrides ?? [])
+    .map(normalizeDateOverride)
+    .filter((item): item is CalendarDateOverride => item !== null)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   return {
     timeZone: raw?.timeZone?.trim() || DEFAULT_PROJECT_CALENDAR.timeZone,
     workDays:
@@ -72,6 +99,7 @@ export function normalizeProjectCalendar(
     endHour: raw?.endHour || DEFAULT_PROJECT_CALENDAR.endHour,
     hoursPerDay: raw?.hoursPerDay ?? DEFAULT_PROJECT_CALENDAR.hoursPerDay,
     nonWorkingDays,
+    dateOverrides,
   };
 }
 
@@ -149,7 +177,47 @@ export function validateProjectCalendar(
     seenDates.add(exception.date);
   }
 
+  const seenOverrideDates = new Set<string>();
+  for (const override of calendar.dateOverrides) {
+    if (!DATE_RE.test(override.date)) {
+      issues.push({
+        kind: "invalidDateOverride",
+        severity: "high",
+        field: "nonWorkingDays.date",
+        message: "Cada excepción de calendario debe tener una fecha válida.",
+      });
+      continue;
+    }
+    if (seenOverrideDates.has(override.date)) {
+      issues.push({
+        kind: "duplicateDateOverride",
+        severity: "high",
+        field: "nonWorkingDays.date",
+        message: "La fecha ya tiene una excepción de calendario.",
+      });
+    }
+    seenOverrideDates.add(override.date);
+    if (
+      override.hoursPerDay !== undefined &&
+      (!Number.isFinite(override.hoursPerDay) ||
+        override.hoursPerDay < 0 ||
+        override.hoursPerDay > 24)
+    ) {
+      issues.push({
+        kind: "invalidHoursPerDay",
+        severity: "high",
+        field: "hoursPerDay",
+        message: "Las horas de una excepción laboral deben estar entre 0 y 24.",
+      });
+    }
+  }
+
   return issues;
+}
+
+function dateOverrideFor(date: Date, calendar: ProjectCalendar): CalendarDateOverride | undefined {
+  const key = dateKey(date);
+  return calendar.dateOverrides.find((override) => override.date === key);
 }
 
 export function isProjectWorkingDay(
@@ -157,9 +225,29 @@ export function isProjectWorkingDay(
   calendar: ProjectCalendar,
 ): boolean {
   const normalized = normalizeProjectCalendar(calendar);
+  const override = dateOverrideFor(date, normalized);
+  if (override) return override.isWorking;
   const projectDay = projectDayFromDate(date);
   if (!normalized.workDays.includes(projectDay)) return false;
   return !normalized.nonWorkingDays.some((day) => day.date === dateKey(date));
+}
+
+export function getCalendarMinutesForDate(
+  date: Date,
+  calendar?: ProjectCalendar,
+): number {
+  const normalized = normalizeProjectCalendar(calendar);
+  const override = dateOverrideFor(date, normalized);
+  if (override) {
+    if (!override.isWorking) return 0;
+    if (
+      override.hoursPerDay !== undefined &&
+      Number.isFinite(override.hoursPerDay)
+    ) {
+      return Math.max(0, override.hoursPerDay) * 60;
+    }
+  }
+  return getCalendarMinutesPerDay(normalized);
 }
 
 export function createSchedulingCalendar(
@@ -214,9 +302,12 @@ class ProjectSchedulingCalendar implements SchedulingCalendar {
 
   addDuration(start: Date, minutes: number): Date {
     const current = new Date(start);
-    const daysNeeded = Math.ceil(minutes / getCalendarMinutesPerDay(this.calendar));
-    if (daysNeeded <= 0) return current;
-    for (let i = 0; i < daysNeeded - 1; i++) {
+    let remaining = Math.max(0, minutes);
+    if (remaining <= 0) return current;
+    if (!this.isWorkingDay(current)) this.skipNonWorkingDays(current);
+
+    while (remaining > getCalendarMinutesForDate(current, this.calendar)) {
+      remaining -= getCalendarMinutesForDate(current, this.calendar);
       current.setDate(current.getDate() + 1);
       this.skipNonWorkingDays(current);
     }
@@ -225,9 +316,14 @@ class ProjectSchedulingCalendar implements SchedulingCalendar {
 
   subtractDuration(end: Date, minutes: number): Date {
     const current = new Date(end);
-    const daysNeeded = Math.ceil(minutes / getCalendarMinutesPerDay(this.calendar));
-    if (daysNeeded <= 0) return current;
-    for (let i = 0; i < daysNeeded - 1; i++) {
+    let remaining = Math.max(0, minutes);
+    if (remaining <= 0) return current;
+    while (!this.isWorkingDay(current)) {
+      current.setDate(current.getDate() - 1);
+    }
+
+    while (remaining > getCalendarMinutesForDate(current, this.calendar)) {
+      remaining -= getCalendarMinutesForDate(current, this.calendar);
       current.setDate(current.getDate() - 1);
       while (!this.isWorkingDay(current)) {
         current.setDate(current.getDate() - 1);

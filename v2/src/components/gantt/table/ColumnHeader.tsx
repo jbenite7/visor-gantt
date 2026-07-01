@@ -1,13 +1,17 @@
 "use client";
 
 import { useCallback, useRef } from "react";
+import type { MppCalculationSpec } from "@/types/mppColumns";
+import type { UILocale } from "@/types/ui";
 
 interface ColumnHeaderProps {
   label: string;
+  locale?: UILocale;
   width?: number;
   align?: "left" | "right" | "center";
   onResize?: (newWidth: number) => void;
   isResizable?: boolean;
+  calculationSpec?: MppCalculationSpec;
 }
 
 const MIN_COLUMN_WIDTH = 50;
@@ -19,10 +23,12 @@ const MIN_COLUMN_WIDTH = 50;
  */
 export default function ColumnHeader({
   label,
+  locale = "es",
   width,
   align = "left",
   onResize,
   isResizable = true,
+  calculationSpec,
 }: ColumnHeaderProps) {
   const thRef = useRef<HTMLTableCellElement>(null);
   const startXRef = useRef(0);
@@ -60,11 +66,37 @@ export default function ColumnHeader({
   );
 
   const widthPx = width ? `${width}px` : "auto";
+  const resizeLabel =
+    locale === "en" ? `Resize column ${label}` : `Redimensionar columna ${label}`;
+  const title = calculationSpec
+    ? [
+        calculationSpec.isCalculated
+          ? locale === "en"
+            ? "Calculated"
+            : "Calculada"
+          : locale === "en"
+            ? "Input"
+            : "Entrada",
+        locale === "en"
+          ? `Origin: ${calculationSpec.sourceOfTruth ?? "import"}`
+          : `Origen: ${calculationSpec.sourceOfTruth ?? "importacion"}`,
+        calculationSpec.formula
+          ? `${locale === "en" ? "Formula" : "Formula"}: ${calculationSpec.formula}`
+          : undefined,
+        calculationSpec.lastCalculatedAt
+          ? `${locale === "en" ? "Last calculation" : "Ultimo calculo"}: ${calculationSpec.lastCalculatedAt}`
+          : undefined,
+        calculationSpec.unsupportedReason,
+      ]
+        .filter(Boolean)
+        .join(" | ")
+    : undefined;
 
   return (
     <th
       ref={thRef}
       data-testid="column-header"
+      title={title}
       style={{
         position: "sticky",
         top: 0,
@@ -91,7 +123,7 @@ export default function ColumnHeader({
       {isResizable && onResize && (
         <div
           role="separator"
-          aria-label={`Resize ${label} column`}
+          aria-label={resizeLabel}
           onMouseDown={handleMouseDown}
           style={{
             position: "absolute",

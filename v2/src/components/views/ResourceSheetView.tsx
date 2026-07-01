@@ -4,12 +4,26 @@ import { useState, useCallback, useMemo } from "react";
 import type { Resource, ResourceType } from "@/types/resource";
 import ResourceRow from "@/components/resources/ResourceRow";
 import { Plus, Trash2 } from "lucide-react";
+import ColumnSelector, { type ColumnConfig } from "@/components/gantt/table/ColumnSelector";
+import type { MppCustomFieldDefinition, MppResourceColumn, ResourceColumnSettings } from "@/types/mppColumns";
+import type { UILocale } from "@/types/ui";
+import { inspectMppField } from "@/lib/mpp/fieldInspector";
+import {
+  DEFAULT_RESOURCE_COLUMN_SETTINGS,
+  normalizeResourceColumnSettings,
+} from "@/lib/mpp/taskColumns";
 
 interface ResourceSheetViewProps {
   resources: Resource[];
   onAddResource?: (resource: Resource) => void;
   onEditResource?: (resource: Resource) => void;
   onDeleteResource?: (uid: number) => void;
+  mppResourceColumns?: MppResourceColumn[];
+  customFieldDefinitions?: MppCustomFieldDefinition[];
+  columnSettings?: ResourceColumnSettings;
+  locale?: UILocale;
+  onColumnSettingsChange?: (settings: ResourceColumnSettings) => void;
+  onLocaleChange?: (locale: UILocale) => void;
 }
 
 type FilterType = "all" | ResourceType;
@@ -73,13 +87,114 @@ export default function ResourceSheetView({
   onAddResource,
   onEditResource,
   onDeleteResource,
+  mppResourceColumns = [],
+  customFieldDefinitions = [],
+  columnSettings,
+  locale = "es",
+  onColumnSettingsChange,
+  onLocaleChange,
 }: ResourceSheetViewProps) {
+  const labels =
+    locale === "en"
+      ? {
+          all: "All",
+          work: "Work",
+          material: "Material",
+          cost: "Cost",
+          delete: "Delete",
+          resources: "resources",
+          addResource: "Add Resource",
+          id: "ID",
+          name: "Name",
+          type: "Type",
+          rate: "Rate",
+          availability: "Avail.",
+          group: "Group",
+          new: "New",
+          empty: "No resources. Click \"Add Resource\" to create one.",
+        }
+      : {
+          all: "Todos",
+          work: "Trabajo",
+          material: "Material",
+          cost: "Costo",
+          delete: "Eliminar",
+          resources: "recursos",
+          addResource: "Agregar Recurso",
+          id: "ID",
+          name: "Nombre",
+          type: "Tipo",
+          rate: "Tarifa",
+          availability: "Dispon.",
+          group: "Grupo",
+          new: "Nuevo",
+          empty: "No hay recursos. Click \"Agregar Recurso\" para crear uno.",
+        };
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [selectedUid, setSelectedUid] = useState<number | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUid, setEditingUid] = useState<number | null>(null);
   const [addForm, setAddForm] = useState<InlineFormData>(EMPTY_FORM);
   const [editForm, setEditForm] = useState<InlineFormData>(EMPTY_FORM);
+  const [localColumnSettings, setLocalColumnSettings] = useState<ResourceColumnSettings>(
+    normalizeResourceColumnSettings(columnSettings, locale),
+  );
+  const effectiveColumnSettings = columnSettings
+    ? normalizeResourceColumnSettings(columnSettings, locale)
+    : localColumnSettings;
+  const updateColumnSettings = onColumnSettingsChange ?? setLocalColumnSettings;
+  const extraColumns = useMemo<ColumnConfig[]>(
+    () =>
+      mppResourceColumns.map((column) => ({
+        key: column.key,
+        label: locale === "en" ? column.labelEn : column.labelEs,
+        labelEn: column.labelEn,
+        labelEs: column.labelEs,
+        width: column.width ?? 140,
+        align: column.dataType === "number" || column.dataType === "currency" ? "right" : "left",
+        defaultVisible: false,
+        sourceKey: column.sourceKey,
+        dataType: column.dataType,
+        readOnly: true,
+        group: column.group,
+        calculationSpec: column.calculationSpec,
+      })),
+    [mppResourceColumns, locale],
+  );
+  const fieldInspections = useMemo(() => {
+    const inspections: Record<string, ReturnType<typeof inspectMppField>> = {};
+    for (const column of mppResourceColumns) {
+      let inspectionForColumn: ReturnType<typeof inspectMppField> | undefined;
+      for (const resource of resources) {
+        const inspection = inspectMppField({
+          record: resource,
+          column,
+          customFieldDefinitions,
+          locale,
+        });
+        if (inspection.value !== undefined && inspection.value !== null && inspection.value !== "") {
+          inspectionForColumn = inspection;
+          break;
+        }
+      }
+      if (!inspectionForColumn && resources[0]) {
+        inspectionForColumn = inspectMppField({
+          record: resources[0],
+          column,
+          customFieldDefinitions,
+          locale,
+        });
+      }
+      if (inspectionForColumn) {
+        inspections[column.key] = inspectionForColumn;
+      }
+    }
+    return inspections;
+  }, [customFieldDefinitions, locale, mppResourceColumns, resources]);
+  const visibleExtraColumns = useMemo(
+    () => extraColumns.filter((column) => effectiveColumnSettings.visible.includes(column.key)),
+    [extraColumns, effectiveColumnSettings.visible],
+  );
 
   const filteredResources = useMemo(() => {
     if (filterType === "all") return resources;
@@ -149,6 +264,31 @@ export default function ResourceSheetView({
     }
   }, [selectedUid, onDeleteResource]);
 
+  const handleToggleColumn = useCallback(
+    (key: string) => {
+      const visible = effectiveColumnSettings.visible.includes(key)
+        ? effectiveColumnSettings.visible.filter((columnKey) => columnKey !== key)
+        : [...effectiveColumnSettings.visible, key];
+      updateColumnSettings({
+        ...effectiveColumnSettings,
+        visible,
+        labelLocale: locale,
+      });
+    },
+    [effectiveColumnSettings, locale, updateColumnSettings],
+  );
+
+  const handleResetColumns = useCallback(() => {
+    updateColumnSettings({
+      ...DEFAULT_RESOURCE_COLUMN_SETTINGS,
+      visible: [
+        ...DEFAULT_RESOURCE_COLUMN_SETTINGS.visible,
+        ...extraColumns.filter((column) => column.defaultVisible).map((column) => column.key),
+      ],
+      labelLocale: locale,
+    });
+  }, [extraColumns, locale, updateColumnSettings]);
+
   return (
     <div data-testid="resource-sheet-view" className="flex flex-col h-full">
       {/* ── Toolbar ── */}
@@ -180,7 +320,7 @@ export default function ResourceSheetView({
         >
           {FILTER_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
-              {opt.label}
+              {labels[opt.value]}
             </option>
           ))}
         </select>
@@ -215,12 +355,24 @@ export default function ResourceSheetView({
             }}
           >
             <Trash2 size={12} />
-            Eliminar
+            {labels.delete}
           </button>
         )}
 
         {/* Spacer */}
         <div style={{ flex: 1 }} />
+
+        {extraColumns.length > 0 && (
+          <ColumnSelector
+            columns={extraColumns}
+            visibleColumns={visibleExtraColumns.map((column) => column.key)}
+            locale={locale}
+            onToggle={handleToggleColumn}
+            onReset={handleResetColumns}
+            onLocaleChange={onLocaleChange ?? (() => undefined)}
+            fieldInspections={fieldInspections}
+          />
+        )}
 
         {/* Count */}
         <span
@@ -230,7 +382,7 @@ export default function ResourceSheetView({
             fontFamily: "var(--font-inter), system-ui, sans-serif",
           }}
         >
-          {filteredResources.length} / {resources.length} recursos
+          {filteredResources.length} / {resources.length} {labels.resources}
         </span>
 
         {/* Add button */}
@@ -259,7 +411,7 @@ export default function ResourceSheetView({
             }}
           >
             <Plus size={14} />
-            Agregar Recurso
+            {labels.addResource}
           </button>
         )}
       </div>
@@ -282,12 +434,24 @@ export default function ResourceSheetView({
                 zIndex: 10,
               }}
             >
-              <th style={{ ...thStyle, width: 50 }}>ID</th>
-              <th style={{ ...thStyle }}>Nombre</th>
-              <th style={{ ...thStyle, width: 100 }}>Tipo</th>
-              <th style={{ ...thStyle, width: 80, textAlign: "right" }}>Tarifa</th>
-              <th style={{ ...thStyle, width: 80, textAlign: "right" }}>Dispon.</th>
-              <th style={{ ...thStyle, width: 100 }}>Grupo</th>
+              <th style={{ ...thStyle, width: 50 }}>{labels.id}</th>
+              <th style={{ ...thStyle }}>{labels.name}</th>
+              <th style={{ ...thStyle, width: 100 }}>{labels.type}</th>
+              <th style={{ ...thStyle, width: 80, textAlign: "right" }}>{labels.rate}</th>
+              <th style={{ ...thStyle, width: 80, textAlign: "right" }}>{labels.availability}</th>
+              <th style={{ ...thStyle, width: 100 }}>{labels.group}</th>
+              {visibleExtraColumns.map((column) => (
+                <th
+                  key={column.key}
+                  style={{
+                    ...thStyle,
+                    width: column.width,
+                    textAlign: column.align,
+                  }}
+                >
+                  {locale === "en" ? column.labelEn ?? column.label : column.labelEs ?? column.label}
+                </th>
+              ))}
               <th style={{ ...thStyle, width: 40 }} />
             </tr>
           </thead>
@@ -309,7 +473,7 @@ export default function ResourceSheetView({
                     textAlign: "center",
                   }}
                 >
-                  Nuevo
+                  {labels.new}
                 </td>
                 <td style={{ padding: "6px 10px" }}>
                   <input
@@ -329,7 +493,7 @@ export default function ResourceSheetView({
                   >
                     {TYPE_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
-                        {opt.label}
+                        {labels[opt.value]}
                       </option>
                     ))}
                   </select>
@@ -365,6 +529,11 @@ export default function ResourceSheetView({
                     style={inputStyle}
                   />
                 </td>
+                {visibleExtraColumns.map((column) => (
+                  <td key={column.key} style={{ padding: "6px 10px", color: "var(--gray-400)" }}>
+                    -
+                  </td>
+                ))}
                 <td style={{ padding: "6px 4px" }}>
                   <div style={{ display: "flex", gap: 4 }}>
                     <button
@@ -443,7 +612,7 @@ export default function ResourceSheetView({
                     >
                       {TYPE_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
-                          {opt.label}
+                          {labels[opt.value]}
                         </option>
                       ))}
                     </select>
@@ -476,6 +645,11 @@ export default function ResourceSheetView({
                       style={inputStyle}
                     />
                   </td>
+                  {visibleExtraColumns.map((column) => (
+                    <td key={column.key} style={{ padding: "6px 10px", color: "var(--gray-400)" }}>
+                      -
+                    </td>
+                  ))}
                   <td style={{ padding: "6px 4px" }}>
                     <div style={{ display: "flex", gap: 4 }}>
                       <button
@@ -522,6 +696,8 @@ export default function ResourceSheetView({
                   isSelected={selectedUid === resource.uid}
                   onClick={() => handleRowClick(resource.uid)}
                   onEdit={onEditResource ? handleStartEdit : undefined}
+                  extraColumns={visibleExtraColumns}
+                  locale={locale}
                 />
               ),
             )}
@@ -530,7 +706,7 @@ export default function ResourceSheetView({
             {filteredResources.length === 0 && !showAddForm && (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={7 + visibleExtraColumns.length}
                   style={{
                     padding: "48px 16px",
                     textAlign: "center",
@@ -539,7 +715,7 @@ export default function ResourceSheetView({
                     fontSize: "0.9375rem",
                   }}
                 >
-                  No hay recursos. Click &quot;Agregar Recurso&quot; para crear uno.
+                  {labels.empty}
                 </td>
               </tr>
             )}

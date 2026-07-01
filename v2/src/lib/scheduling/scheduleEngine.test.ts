@@ -74,6 +74,29 @@ describe("recalculateSchedule", () => {
     expect(isoDate(result.tasks[1].start)).toBe("2026-01-13");
   });
 
+  test("inactive imported tasks do not drive successor scheduling", () => {
+    const tasks = [
+      task({
+        id: 1,
+        duration: 3,
+        mppFields: { ACTIVE: false },
+      }),
+      task({
+        id: 2,
+        duration: 1,
+        dependencies: [{ from: 1, to: 2, type: "FS" }],
+      }),
+    ];
+
+    const result = recalculateSchedule(tasks, {
+      projectStart: new Date("2026-01-05T08:00:00"),
+    });
+
+    expect(result.issues).toHaveLength(0);
+    expect(isoDate(result.tasks[1].start)).toBe("2026-01-05");
+    expect(result.tasks[1].dependencies).toEqual([]);
+  });
+
   test("uses project work days when calculating durations", () => {
     const result = recalculateSchedule([task({ id: 1, duration: 2 })], {
       projectStart: new Date("2026-01-09T08:00:00"),
@@ -112,6 +135,120 @@ describe("recalculateSchedule", () => {
     expect(result.issues).toHaveLength(0);
     expect(isoDate(result.tasks[0].finish)).toBe("2026-01-05");
     expect(isoDate(result.tasks[1].start)).toBe("2026-01-07");
+  });
+
+  test("uses project working date overrides when placing durations", () => {
+    const result = recalculateSchedule([task({ id: 1, duration: 2 })], {
+      projectStart: new Date("2026-01-09T08:00:00"),
+      calendar: {
+        ...DEFAULT_PROJECT_CALENDAR,
+        workDays: [1, 2, 3, 4, 5],
+        dateOverrides: [
+          {
+            id: "sunday-work",
+            date: "2026-01-11",
+            name: "Jornada especial",
+            isWorking: true,
+          },
+        ],
+      },
+    });
+
+    expect(result.issues).toHaveLength(0);
+    expect(isoDate(result.tasks[0].start)).toBe("2026-01-09");
+    expect(isoDate(result.tasks[0].finish)).toBe("2026-01-11");
+  });
+
+  test("uses working date override hours when placing durations", () => {
+    const result = recalculateSchedule([task({ id: 1, duration: 2 })], {
+      projectStart: new Date("2026-01-09T08:00:00"),
+      calendar: {
+        ...DEFAULT_PROJECT_CALENDAR,
+        workDays: [1, 2, 3, 4, 5],
+        dateOverrides: [
+          {
+            id: "sunday-work",
+            date: "2026-01-11",
+            name: "Media jornada especial",
+            isWorking: true,
+            hoursPerDay: 4,
+          },
+        ],
+      },
+    });
+
+    expect(result.issues).toHaveLength(0);
+    expect(isoDate(result.tasks[0].start)).toBe("2026-01-09");
+    expect(isoDate(result.tasks[0].finish)).toBe("2026-01-12");
+  });
+
+  test("applies MS Project start-no-earlier-than and finish-no-earlier-than constraints", () => {
+    const result = recalculateSchedule(
+      [
+        task({
+          id: 1,
+          duration: 2,
+          constraintType: "startNoEarlierThan",
+          constraintDate: new Date("2026-01-08T08:00:00"),
+        }),
+        task({
+          id: 2,
+          duration: 2,
+          constraintType: "finishNoEarlierThan",
+          constraintDate: new Date("2026-01-14T08:00:00"),
+          dependencies: [{ from: 1, to: 2, type: "FS" }],
+        }),
+      ],
+      { projectStart: new Date("2026-01-05T08:00:00") },
+    );
+
+    expect(result.issues).toHaveLength(0);
+    expect(isoDate(result.tasks[0].start)).toBe("2026-01-08");
+    expect(isoDate(result.tasks[0].finish)).toBe("2026-01-09");
+    expect(isoDate(result.tasks[1].start)).toBe("2026-01-13");
+    expect(isoDate(result.tasks[1].finish)).toBe("2026-01-14");
+  });
+
+  test("start-no-later-than can create negative slack when dependencies violate the constraint", () => {
+    const result = recalculateSchedule(
+      [
+        task({ id: 1, duration: 5 }),
+        task({
+          id: 2,
+          duration: 1,
+          constraintType: "startNoLaterThan",
+          constraintDate: new Date("2026-01-06T08:00:00"),
+          dependencies: [{ from: 1, to: 2, type: "FS" }],
+        }),
+      ],
+      { projectStart: new Date("2026-01-05T08:00:00") },
+    );
+
+    expect(result.issues).toHaveLength(0);
+    expect(isoDate(result.tasks[1].start)).toBe("2026-01-10");
+    expect(result.tasks[1].totalFloat).toBeLessThan(0);
+  });
+
+  test("as-late-as-possible uses late dates for scheduled start and finish", () => {
+    const result = recalculateSchedule(
+      [
+        task({
+          id: 1,
+          duration: 1,
+          constraintType: "asLateAsPossible",
+        }),
+        task({ id: 2, duration: 5 }),
+      ],
+      { projectStart: new Date("2026-01-05T08:00:00") },
+    );
+
+    const alap = result.tasks.find((item) => item.id === 1)!;
+    expect(result.issues).toHaveLength(0);
+    expect(isoDate(alap.earlyStart)).toBe("2026-01-05");
+    expect(isoDate(alap.lateStart)).toBe("2026-01-09");
+    expect(isoDate(alap.start)).toBe("2026-01-09");
+    expect(isoDate(alap.finish)).toBe("2026-01-09");
+    expect(alap.totalFloat).toBeGreaterThan(0);
   });
 });
 

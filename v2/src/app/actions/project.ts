@@ -1,11 +1,27 @@
 "use server";
 
 import pool from "@/lib/db";
+import type { PoolClient } from "pg";
+import { getCurrentUser } from "@/lib/auth/session";
+import { userHasPermission } from "@/lib/auth/rbac";
 import type { GanttTask } from "@/components/gantt/types";
 import type { Resource, Assignment } from "@/types/resource";
 import type { BudgetItem, BudgetMapping } from "@/types/budget";
 import type { Baseline } from "@/types/baseline";
-import type { MatrixIssue, MatrixPlan } from "@/types/matrix";
+import type { MatrixIssue, MatrixPlan, MatrixTemplate } from "@/types/matrix";
+import type {
+  AssignmentColumnSettings,
+  MppAssignmentColumn,
+  MppCustomFieldDefinition,
+  MppResourceColumn,
+  MppTaskColumn,
+  ResourceColumnSettings,
+  TaskColumnSettings,
+} from "@/types/mppColumns";
+import {
+  DEFAULT_UI_SETTINGS,
+  type UISettings,
+} from "@/types/ui";
 import {
   DEFAULT_PROJECT_CALENDAR,
   type ProjectCalendar,
@@ -13,12 +29,17 @@ import {
 import { createProjectDate } from "@/lib/date/projectDate";
 import { normalizeProjectCalendar } from "@/lib/scheduling/projectCalendar";
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
+import {
+  createMatrixPlanFromTemplate as buildMatrixPlanFromTemplate,
+} from "@/lib/matrix/templates";
+import type { PermissionKey } from "@/types/auth";
 
 /* ── ProjectData interface ── */
 
 export interface ProjectData {
   id?: string;
   name: string;
+  statusDate?: string;
   tasks: GanttTask[];
   resources: Resource[];
   assignments: Assignment[];
@@ -27,6 +48,16 @@ export interface ProjectData {
   baselines: Baseline[];
   calendar: ProjectCalendar;
   matrixPlan?: MatrixPlan;
+  mppTaskColumns?: MppTaskColumn[];
+  mppResourceColumns?: MppResourceColumn[];
+  mppAssignmentColumns?: MppAssignmentColumn[];
+  customFieldDefinitions?: MppCustomFieldDefinition[];
+  calculationEngineVersion?: string;
+  calculatedAt?: string;
+  taskColumnSettings?: TaskColumnSettings;
+  resourceColumnSettings?: ResourceColumnSettings;
+  assignmentColumnSettings?: AssignmentColumnSettings;
+  uiSettings?: UISettings;
 }
 
 /* ── Serialization helpers ── */
@@ -52,11 +83,15 @@ interface SerializedGanttTask {
   lateFinish?: string;
   totalFloat?: number;
   manualStart?: string;
+  constraintType?: GanttTask["constraintType"];
+  constraintDate?: string;
+  deadline?: string;
   percentComplete?: number;
   wbs?: string;
   resourceNames?: string[];
   cost?: number;
   actualCost?: number;
+  mppFields?: Record<string, unknown>;
   matrixSource?: GanttTask["matrixSource"];
   matrixSync?: GanttTask["matrixSync"];
 }
@@ -66,7 +101,10 @@ interface SerializedBaselineTask {
   baselineStart: string;
   baselineFinish: string;
   baselineDuration: number;
+  baselineWork?: number;
   baselineCost?: number;
+  baselineBudgetWork?: number;
+  baselineBudgetCost?: number;
 }
 
 interface SerializedBaseline {
@@ -89,6 +127,8 @@ function serializeTasks(tasks: GanttTask[]): SerializedGanttTask[] {
     earlyFinish: t.earlyFinish?.toISOString(),
     lateFinish: t.lateFinish?.toISOString(),
     manualStart: t.manualStart?.toISOString(),
+    constraintDate: t.constraintDate?.toISOString(),
+    deadline: t.deadline?.toISOString(),
   }));
 }
 
@@ -105,6 +145,8 @@ function deserializeTasks(raw: SerializedGanttTask[]): GanttTask[] {
     earlyFinish: t.earlyFinish ? new Date(t.earlyFinish) : undefined,
     lateFinish: t.lateFinish ? new Date(t.lateFinish) : undefined,
     manualStart: t.manualStart ? new Date(t.manualStart) : undefined,
+    constraintDate: t.constraintDate ? new Date(t.constraintDate) : undefined,
+    deadline: t.deadline ? new Date(t.deadline) : undefined,
   }));
 }
 
@@ -134,6 +176,7 @@ function deserializeBaselines(raw: SerializedBaseline[]): Baseline[] {
 
 interface SerializedProjectData {
   name: string;
+  statusDate?: string;
   tasks: SerializedGanttTask[];
   resources: Resource[];
   assignments: Assignment[];
@@ -142,11 +185,22 @@ interface SerializedProjectData {
   baselines: SerializedBaseline[];
   calendar?: ProjectCalendar;
   matrixPlan?: MatrixPlan;
+  mppTaskColumns?: MppTaskColumn[];
+  mppResourceColumns?: MppResourceColumn[];
+  mppAssignmentColumns?: MppAssignmentColumn[];
+  customFieldDefinitions?: MppCustomFieldDefinition[];
+  calculationEngineVersion?: string;
+  calculatedAt?: string;
+  taskColumnSettings?: TaskColumnSettings;
+  resourceColumnSettings?: ResourceColumnSettings;
+  assignmentColumnSettings?: AssignmentColumnSettings;
+  uiSettings?: UISettings;
 }
 
 function serializeProjectData(data: ProjectData): SerializedProjectData {
   return {
     name: data.name,
+    statusDate: data.statusDate,
     tasks: serializeTasks(data.tasks),
     resources: data.resources,
     assignments: data.assignments,
@@ -155,6 +209,16 @@ function serializeProjectData(data: ProjectData): SerializedProjectData {
     baselines: serializeBaselines(data.baselines),
     calendar: normalizeProjectCalendar(data.calendar),
     matrixPlan: data.matrixPlan,
+    mppTaskColumns: data.mppTaskColumns ?? [],
+    mppResourceColumns: data.mppResourceColumns ?? [],
+    mppAssignmentColumns: data.mppAssignmentColumns ?? [],
+    customFieldDefinitions: data.customFieldDefinitions ?? [],
+    calculationEngineVersion: data.calculationEngineVersion,
+    calculatedAt: data.calculatedAt,
+    taskColumnSettings: data.taskColumnSettings,
+    resourceColumnSettings: data.resourceColumnSettings,
+    assignmentColumnSettings: data.assignmentColumnSettings,
+    uiSettings: data.uiSettings ?? DEFAULT_UI_SETTINGS,
   };
 }
 
@@ -166,6 +230,7 @@ function deserializeProjectData(
   return {
     id,
     name: row.name,
+    statusDate: pd.statusDate,
     tasks: deserializeTasks(pd.tasks ?? []),
     resources: pd.resources ?? [],
     assignments: pd.assignments ?? [],
@@ -174,10 +239,152 @@ function deserializeProjectData(
     baselines: deserializeBaselines(pd.baselines ?? []),
     calendar: normalizeProjectCalendar(pd.calendar ?? DEFAULT_PROJECT_CALENDAR),
     matrixPlan: pd.matrixPlan,
+    mppTaskColumns: pd.mppTaskColumns ?? [],
+    mppResourceColumns: pd.mppResourceColumns ?? [],
+    mppAssignmentColumns: pd.mppAssignmentColumns ?? [],
+    customFieldDefinitions: pd.customFieldDefinitions ?? [],
+    calculationEngineVersion: pd.calculationEngineVersion,
+    calculatedAt: pd.calculatedAt,
+    taskColumnSettings: pd.taskColumnSettings,
+    resourceColumnSettings: pd.resourceColumnSettings,
+    assignmentColumnSettings: pd.assignmentColumnSettings,
+    uiSettings: pd.uiSettings ?? DEFAULT_UI_SETTINGS,
   };
 }
 
 /* ── Server Actions ── */
+
+async function authorizeProjectAction(permission: PermissionKey): Promise<
+  { ok: true; userId: string } | { ok: false; error: string }
+> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { ok: false, error: "No autenticado" };
+  }
+  const allowed = await userHasPermission(user.id, permission);
+  if (!allowed) {
+    return { ok: false, error: "No tienes permisos para esta acción" };
+  }
+  return { ok: true, userId: user.id };
+}
+
+async function ensureMatrixTemplatesTable(
+  client: PoolClient,
+): Promise<void> {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS matrix_templates (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      project_type TEXT,
+      template_data JSONB NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+}
+
+export interface MatrixTemplateListItem {
+  id: string;
+  name: string;
+  projectType?: string;
+  template: MatrixTemplate;
+  updatedAt: Date;
+}
+
+export async function saveMatrixTemplate(
+  template: MatrixTemplate,
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const auth = await authorizeProjectAction("project:update");
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
+    }
+
+    const client = await pool.connect();
+    try {
+      await ensureMatrixTemplatesTable(client);
+      const res = await client.query(
+        `INSERT INTO matrix_templates (id, name, project_type, template_data, updated_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT (id) DO UPDATE
+         SET name = EXCLUDED.name,
+             project_type = EXCLUDED.project_type,
+             template_data = EXCLUDED.template_data,
+             updated_at = NOW()
+         RETURNING id`,
+        [
+          template.id,
+          template.name,
+          template.projectType ?? null,
+          JSON.stringify(template),
+        ],
+      );
+      return { success: true, id: res.rows[0].id as string };
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error("saveMatrixTemplate error:", err);
+    return {
+      success: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Error desconocido al guardar plantilla de matriz",
+    };
+  }
+}
+
+export async function listMatrixTemplates(): Promise<MatrixTemplateListItem[]> {
+  try {
+    const auth = await authorizeProjectAction("project:read");
+    if (!auth.ok) return [];
+
+    const client = await pool.connect();
+    try {
+      await ensureMatrixTemplatesTable(client);
+      const res = await client.query(
+        `SELECT id, name, project_type, template_data, updated_at
+         FROM matrix_templates
+         ORDER BY updated_at DESC`,
+      );
+      return res.rows.map(
+        (row: {
+          id: string;
+          name: string;
+          project_type?: string | null;
+          template_data: MatrixTemplate;
+          updated_at: string;
+        }) => ({
+          id: row.id,
+          name: row.name,
+          projectType: row.project_type ?? undefined,
+          template: row.template_data,
+          updatedAt: new Date(row.updated_at),
+        }),
+      );
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error("listMatrixTemplates error:", err);
+    return [];
+  }
+}
+
+export async function createMatrixPlanFromTemplate({
+  template,
+  id,
+  name,
+  startDate,
+}: {
+  template: MatrixTemplate;
+  id?: string;
+  name: string;
+  startDate: string;
+}): Promise<MatrixPlan> {
+  return buildMatrixPlanFromTemplate({ template, id, name, startDate });
+}
 
 /**
  * Save (insert or update) a project.
@@ -187,6 +394,13 @@ export async function saveProject(
   projectData: ProjectData,
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
+    const auth = await authorizeProjectAction(
+      projectData.id ? "project:update" : "project:create",
+    );
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
+    }
+
     const serialized = serializeProjectData(projectData);
     const client = await pool.connect();
 
@@ -255,6 +469,10 @@ export async function createBlankProject({
     budgetMappings: [],
     baselines: [],
     calendar: DEFAULT_PROJECT_CALENDAR,
+    mppTaskColumns: [],
+    mppResourceColumns: [],
+    mppAssignmentColumns: [],
+    uiSettings: DEFAULT_UI_SETTINGS,
   });
 }
 
@@ -341,6 +559,9 @@ export async function listProjects(): Promise<
   { id: string; name: string; updatedAt: Date }[]
 > {
   try {
+    const auth = await authorizeProjectAction("project:read");
+    if (!auth.ok) return [];
+
     const client = await pool.connect();
     try {
       const res = await client.query(
@@ -369,6 +590,11 @@ export async function deleteProject(
   projectId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const auth = await authorizeProjectAction("project:delete");
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
+    }
+
     const client = await pool.connect();
     try {
       await client.query(`DELETE FROM projects WHERE id = $1`, [projectId]);

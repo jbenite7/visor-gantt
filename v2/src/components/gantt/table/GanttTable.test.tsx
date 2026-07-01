@@ -3,9 +3,10 @@
  */
 
 import "@testing-library/jest-dom";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import GanttTable from "./GanttTable";
 import type { GanttTask } from "@/components/gantt/types";
+import type { MppCustomFieldDefinition, MppTaskColumn, TaskColumnSettings } from "@/types/mppColumns";
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -99,10 +100,163 @@ describe("GanttTable", () => {
     render(<GanttTable tasks={[regularTask]} />);
 
     expect(screen.getByText("ID")).toBeInTheDocument();
-    expect(screen.getByText("Name")).toBeInTheDocument();
-    expect(screen.getByText("Duration")).toBeInTheDocument();
-    expect(screen.getByText("Start")).toBeInTheDocument();
-    expect(screen.getByText("Finish")).toBeInTheDocument();
+    expect(screen.getByText("Nombre")).toBeInTheDocument();
+    expect(screen.getByText("Duración")).toBeInTheDocument();
+    expect(screen.getByText("Comienzo")).toBeInTheDocument();
+    expect(screen.getByText("Fin")).toBeInTheDocument();
+  });
+
+  test("renders imported MPP columns in Spanish by default and switches labels to English", () => {
+    const columns: MppTaskColumn[] = [
+      {
+        key: "mpp:Text1",
+        fieldId: "TEXT_1",
+        sourceKey: "Text1",
+        labelEn: "Text 1",
+        labelEs: "Texto 1",
+        dataType: "string",
+        group: "custom",
+        isCustom: true,
+        isCore: false,
+        isEditable: false,
+      },
+    ];
+    const settings: TaskColumnSettings = {
+      visible: ["id", "name", "mpp:Text1"],
+      widths: {},
+      labelLocale: "es",
+    };
+    const task = makeTask({
+      id: "mpp-1",
+      name: "Imported task",
+      mppFields: { Text1: "Contrato" },
+    });
+
+    render(
+      <GanttTable
+        tasks={[task]}
+        mppTaskColumns={columns}
+        columnSettings={settings}
+      />,
+    );
+
+    expect(screen.getByText("Texto 1")).toBeInTheDocument();
+    expect(screen.getByText("Contrato")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("column-selector"));
+    fireEvent.click(screen.getByRole("button", { name: "EN" }));
+
+    expect(screen.getAllByText("Text 1").length).toBeGreaterThan(0);
+  });
+
+  test("keeps imported MPP columns read-only in the task table", () => {
+    const task = makeTask({
+      id: "mpp-2",
+      name: "Imported task",
+      mppFields: { Text1: "Campo importado" },
+    });
+
+    render(
+      <GanttTable
+        tasks={[task]}
+        mppTaskColumns={[
+          {
+            key: "mpp:Text1",
+            fieldId: "TEXT_1",
+            sourceKey: "Text1",
+            labelEn: "Text 1",
+            labelEs: "Texto 1",
+            dataType: "string",
+            group: "custom",
+            isCustom: true,
+            isCore: false,
+            isEditable: false,
+          },
+        ]}
+        columnSettings={{
+          visible: ["id", "name", "mpp:Text1"],
+          widths: {},
+          labelLocale: "es",
+        }}
+        onUpdateTask={jest.fn()}
+      />,
+    );
+
+    fireEvent.doubleClick(screen.getByText("Campo importado"));
+
+    expect(screen.queryByDisplayValue("Campo importado")).not.toBeInTheDocument();
+  });
+
+  test("shows field inspector metadata for calculated MPP columns", () => {
+    const task = makeTask({
+      id: "mpp-3",
+      name: "Imported task",
+      mppFields: {
+        NUMBER_1: 12,
+        NUMBER_2: 24,
+        NUMBER_2_LOOKUP_ERROR: "Valor 24 no existe en la lista de valores permitidos.",
+      },
+    });
+    const customFieldDefinitions: MppCustomFieldDefinition[] = [
+      {
+        fieldId: "NUMBER_2",
+        recordType: "task",
+        dataType: "number",
+        lookupValues: [12, 18],
+      },
+    ];
+
+    render(
+      <GanttTable
+        tasks={[task]}
+        customFieldDefinitions={customFieldDefinitions}
+        mppTaskColumns={[
+          {
+            key: "mpp:NUMBER_2",
+            fieldId: "NUMBER_2",
+            sourceKey: "NUMBER_2",
+            labelEn: "Number 2",
+            labelEs: "Número 2",
+            dataType: "number",
+            group: "custom",
+            isCustom: true,
+            isCore: false,
+            isEditable: false,
+            calculationSpec: {
+              calculationKind: "customFormula",
+              formula: "[Number1] * 2",
+              dependencies: ["NUMBER_1"],
+              isCalculated: true,
+              isEditableWhenCalculated: false,
+              lastCalculatedAt: "2026-01-05T12:00:00.000Z",
+              sourceOfTruth: "customFormula",
+            },
+          },
+        ]}
+        columnSettings={{
+          visible: ["id", "name", "mpp:NUMBER_2"],
+          widths: {},
+          labelLocale: "es",
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("column-selector"));
+    fireEvent.click(screen.getByRole("button", { name: "Inspeccionar columna Número 2" }));
+
+    const inspector = within(screen.getByTestId("field-inspector"));
+    expect(inspector.getByText("Inspector de campo")).toBeInTheDocument();
+    expect(inspector.getByText("Número 2")).toBeInTheDocument();
+    expect(inspector.getByText("Valor")).toBeInTheDocument();
+    expect(inspector.getByText("24")).toBeInTheDocument();
+    expect(inspector.getByText("Formula")).toBeInTheDocument();
+    expect(inspector.getByText("[Number1] * 2")).toBeInTheDocument();
+    expect(inspector.getByText("Solo lectura")).toBeInTheDocument();
+    expect(inspector.getAllByText("customFormula").length).toBeGreaterThan(0);
+    expect(inspector.getByText("Valores lookup")).toBeInTheDocument();
+    expect(inspector.getByText("12, 18")).toBeInTheDocument();
+    expect(inspector.getByText("Errores")).toBeInTheDocument();
+    expect(inspector.getByText("Valor 24 no existe en la lista de valores permitidos.")).toBeInTheDocument();
   });
 
   test("calls onTaskSelect when a row is clicked", () => {

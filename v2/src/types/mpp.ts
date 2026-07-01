@@ -10,6 +10,8 @@
  * are assignable without runtime conversion.
  */
 
+import type { ProjectCalendar } from "./calendar";
+
 /** A single calendar exception (holiday / non-working override). */
 export interface MPPCalendarException {
   /** ISO-8601 date string, e.g. "2026-01-01" */
@@ -19,7 +21,7 @@ export interface MPPCalendarException {
 }
 
 /** Work-week definition. */
-export interface MPPCalendar {
+export interface MPPCalendar extends Partial<ProjectCalendar> {
   /**
    * Map of weekday index → isWorking.
    * Standard MSP uses 1=Sunday … 7=Saturday.

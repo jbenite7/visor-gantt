@@ -1,6 +1,115 @@
-import { MSPTask, MSPPredecessorLink } from "@/lib/parser/mpp-parser";
+import {
+  MSPAssignment,
+  MSPPredecessorLink,
+  MSPResource,
+  MSPTask,
+} from "@/lib/parser/mpp-parser";
 import { GanttTask, GanttDependency } from "@/components/gantt/types";
 import { Task } from "@/lib/scheduling/types";
+import type { Assignment, Resource, ResourceType } from "@/types/resource";
+import type { ProjectCalendar } from "@/types/calendar";
+
+function preserveMppFields(task: MSPTask): Record<string, unknown> {
+  const fields: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(task)) {
+    if (value !== undefined) {
+      fields[key] = value;
+    }
+  }
+  return fields;
+}
+
+function preserveRecordMppFields(record: Record<string, unknown>): Record<string, unknown> {
+  const explicit = record.mppFields;
+  if (explicit && typeof explicit === "object" && !Array.isArray(explicit)) {
+    return explicit as Record<string, unknown>;
+  }
+
+  const fields: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (value !== undefined) fields[key] = value;
+  }
+  return fields;
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  const parsed = typeof value === "number" ? value : parseFloat(String(value ?? ""));
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function mapResourceType(resource: MSPResource): ResourceType {
+  const raw = resource.mppFields?.TYPE ?? resource.mppFields?.Type ?? resource.Type;
+  const normalized = String(raw ?? "").toLowerCase();
+  if (normalized.includes("material") || normalized === "0") return "material";
+  if (normalized.includes("cost") || normalized === "2") return "cost";
+  return "work";
+}
+
+function readField(record: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const key of keys) {
+    const direct = record[key];
+    if (direct !== undefined && direct !== null && direct !== "") return direct;
+    const mppValue = (record.mppFields as Record<string, unknown> | undefined)?.[key];
+    if (mppValue !== undefined && mppValue !== null && mppValue !== "") return mppValue;
+  }
+  return undefined;
+}
+
+function readResourceCalendar(record: Record<string, unknown>): ProjectCalendar | undefined {
+  const value = readField(record, "calendar", "Calendar", "RESOURCE_CALENDAR", "ResourceCalendar");
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as ProjectCalendar
+    : undefined;
+}
+
+function parseOptionalDate(value: unknown): Date | undefined {
+  if (value == null || value === "") return undefined;
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+function parseConstraintType(value: unknown): GanttTask["constraintType"] {
+  const normalized = String(value ?? "")
+    .trim()
+    .replace(/[_\s-]+/g, "")
+    .toLowerCase();
+  switch (normalized) {
+    case "0":
+    case "assoonaspossible":
+    case "asap":
+      return "asSoonAsPossible";
+    case "1":
+    case "aslateaspossible":
+    case "alap":
+      return "asLateAsPossible";
+    case "2":
+    case "muststarton":
+    case "mso":
+      return "mustStartOn";
+    case "3":
+    case "mustfinishon":
+    case "mfo":
+      return "mustFinishOn";
+    case "4":
+    case "startnoearlierthan":
+    case "snet":
+      return "startNoEarlierThan";
+    case "5":
+    case "startnolaterthan":
+    case "snlt":
+      return "startNoLaterThan";
+    case "6":
+    case "finishnoearlierthan":
+    case "fnet":
+      return "finishNoEarlierThan";
+    case "7":
+    case "finishnolaterthan":
+    case "fnlt":
+      return "finishNoLaterThan";
+    default:
+      return undefined;
+  }
+}
 
 /**
  * Converts an ISO 8601 duration string (e.g. "PT8H0M0S", "P5D") to days.
@@ -106,6 +215,15 @@ export function mppTasksToGanttTasks(tasks: MSPTask[]): GanttTask[] {
       const start = new Date(task.Start || Date.now());
       const finish = new Date(task.Finish || Date.now());
       const duration = parseDurationToDays(task.Duration);
+      const constraintType = parseConstraintType(
+        readField(task as unknown as Record<string, unknown>, "CONSTRAINT_TYPE", "ConstraintType", "constraintType"),
+      );
+      const constraintDate = parseOptionalDate(
+        readField(task as unknown as Record<string, unknown>, "CONSTRAINT_DATE", "ConstraintDate", "constraintDate"),
+      );
+      const deadline = parseOptionalDate(
+        readField(task as unknown as Record<string, unknown>, "DEADLINE", "Deadline", "deadline"),
+      );
 
       // Map dependencies
       const dependencies: GanttDependency[] = (task.PredecessorLink || []).map(
@@ -131,8 +249,55 @@ export function mppTasksToGanttTasks(tasks: MSPTask[]): GanttTask[] {
         outlineLevel: task.OutlineLevel || 1,
         wbs: task.WBS || undefined,
         dependencies,
+        constraintType,
+        constraintDate,
+        deadline,
+        mppFields: preserveMppFields(task),
       };
     });
+}
+
+export function mppResourcesToResources(resources: MSPResource[]): Resource[] {
+  return resources
+    .filter((resource) => String(resource.Name ?? resource.name ?? "").trim().length > 0)
+    .map((resource) => {
+      const record = resource as unknown as Record<string, unknown>;
+      const standardRate = readField(record, "STANDARD_RATE", "StandardRate", "standardRate");
+      const maxUnits = readField(record, "MAX_UNITS", "MaxUnits", "maxUnits");
+      const group = readField(record, "GROUP", "Group", "group");
+
+      return {
+        uid: asNumber(resource.UID ?? resource.uid, 0),
+        name: String(resource.Name ?? resource.name ?? ""),
+        type: mapResourceType(resource),
+        rate: standardRate == null ? undefined : asNumber(standardRate, 0),
+        availability: maxUnits == null ? undefined : asNumber(maxUnits, 100),
+        group: group == null ? undefined : String(group),
+        calendar: readResourceCalendar(record),
+        mppFields: preserveRecordMppFields(record),
+      };
+    });
+}
+
+export function mppAssignmentsToAssignments(assignments: MSPAssignment[]): Assignment[] {
+  return assignments.map((assignment, index) => {
+    const record = assignment as unknown as Record<string, unknown>;
+    const taskId = readField(record, "TaskUID", "TASK_UNIQUE_ID", "TASK_ID", "TaskID") ?? "";
+    const resourceId = readField(record, "ResourceUID", "RESOURCE_UNIQUE_ID", "RESOURCE_ID", "ResourceID");
+    const units = readField(record, "Units", "ASSIGNMENT_UNITS", "AssignmentUnits");
+    const cost = readField(record, "Cost", "COST");
+
+    return {
+      taskId: typeof taskId === "number" || typeof taskId === "string" ? taskId : String(taskId),
+      resourceId: asNumber(resourceId, 0),
+      units: asNumber(units, 100),
+      cost: asNumber(cost, 0),
+      mppFields: {
+        __rowId: assignment.UID ?? index + 1,
+        ...preserveRecordMppFields(record),
+      },
+    };
+  });
 }
 
 /**

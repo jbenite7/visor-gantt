@@ -66,3 +66,92 @@ CREATE TABLE IF NOT EXISTS holidays (
 -- Create simple index for performance
 CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_dependencies_project_id ON dependencies(project_id);
+
+CREATE TABLE IF NOT EXISTS matrix_templates (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    project_type TEXT,
+    template_data JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Auth + RBAC
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    password_hash TEXT,
+    provider TEXT NOT NULL DEFAULT 'password',
+    microsoft_oid TEXT UNIQUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS roles (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS permissions (
+    id TEXT PRIMARY KEY,
+    description TEXT DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS user_roles (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role_id TEXT NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (user_id, role_id)
+);
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+    role_id TEXT NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    permission_id TEXT NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+    PRIMARY KEY (role_id, permission_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS project_members (
+    project_id TEXT NOT NULL,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role_id TEXT NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (project_id, user_id)
+);
+
+INSERT INTO permissions (id, description) VALUES
+    ('project:read', 'Ver proyectos'),
+    ('project:create', 'Crear proyectos'),
+    ('project:update', 'Editar proyectos'),
+    ('project:delete', 'Eliminar proyectos'),
+    ('auth:manage', 'Administrar usuarios'),
+    ('rbac:manage', 'Administrar roles y permisos')
+ON CONFLICT (id) DO UPDATE SET description = EXCLUDED.description;
+
+INSERT INTO roles (id, name) VALUES
+    ('admin', 'Administrador'),
+    ('member', 'Miembro'),
+    ('viewer', 'Lector')
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
+
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT 'admin', id FROM permissions
+ON CONFLICT DO NOTHING;
+
+INSERT INTO role_permissions (role_id, permission_id) VALUES
+    ('member', 'project:read'),
+    ('member', 'project:create'),
+    ('member', 'project:update'),
+    ('viewer', 'project:read')
+ON CONFLICT DO NOTHING;

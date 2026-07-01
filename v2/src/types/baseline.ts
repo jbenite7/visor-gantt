@@ -14,8 +14,14 @@ export interface BaselineTask {
   baselineFinish: Date;
   /** Original planned duration (in days). */
   baselineDuration: number;
+  /** Original planned work, in hours. */
+  baselineWork?: number;
   /** Original planned cost. */
   baselineCost?: number;
+  /** Original planned budget work, in hours. */
+  baselineBudgetWork?: number;
+  /** Original planned budget cost. */
+  baselineBudgetCost?: number;
 }
 
 export interface Baseline {

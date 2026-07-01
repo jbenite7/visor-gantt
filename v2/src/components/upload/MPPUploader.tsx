@@ -18,7 +18,7 @@ const MAX_FILE_SIZE_MB = 50;
 function validateFile(file: File): string | null {
   const ext = "." + file.name.split(".").pop()?.toLowerCase();
   if (!ACCEPTED_EXTENSIONS.includes(ext)) {
-    return `Tipo de archivo no soportado. Use archivos ${ACCEPTED_EXTENSIONS.join(", ")}`;
+    return `Tipo de archivo no soportado. Usa archivos ${ACCEPTED_EXTENSIONS.join(", ")}`;
   }
   if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
     return `El archivo excede el tamaño máximo de ${MAX_FILE_SIZE_MB}MB`;

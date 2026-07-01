@@ -18,12 +18,14 @@ export interface ScopeNode {
   id: string;
   name: string;
   type: string;
+  defaultRecipeId?: string;
   children?: ScopeNode[];
 }
 
 export interface AreaNode {
   id: string;
   name: string;
+  type?: string;
   discipline?: string;
   children?: AreaNode[];
 }

@@ -20,7 +20,7 @@ const sampleTasks: GanttTask[] = [
   },
   {
     id: 2,
-    name: "Kickoff Meeting",
+    name: "Reunión de inicio",
     start: createProjectDate("2024-01-01"),
     finish: createProjectDate("2024-01-01"),
     duration: 0,
@@ -59,7 +59,7 @@ const sampleTasks: GanttTask[] = [
   },
   {
     id: 5,
-    name: "Backend API",
+    name: "API backend",
     start: createProjectDate("2024-01-06"),
     finish: createProjectDate("2024-01-15"),
     duration: 9,
@@ -72,7 +72,7 @@ const sampleTasks: GanttTask[] = [
   },
   {
     id: 6,
-    name: "Frontend UI",
+    name: "Interfaz frontend",
     start: createProjectDate("2024-01-10"),
     finish: createProjectDate("2024-01-20"),
     duration: 10,
@@ -85,7 +85,7 @@ const sampleTasks: GanttTask[] = [
   },
   {
     id: 7,
-    name: "Testing & Launch",
+    name: "Pruebas y lanzamiento",
     start: createProjectDate("2024-01-21"),
     finish: createProjectDate("2024-01-25"),
     duration: 5,
@@ -98,7 +98,7 @@ const sampleTasks: GanttTask[] = [
   },
   {
     id: 8,
-    name: "Go Live",
+    name: "Puesta en marcha",
     start: createProjectDate("2024-01-25"),
     finish: createProjectDate("2024-01-25"),
     duration: 0,
@@ -116,16 +116,16 @@ export default function GanttDemoPage() {
     <div className="h-screen flex flex-col bg-[var(--aia-alabaster)]">
       <header className="shrink-0 px-6 py-4 bg-white border-b border-[var(--gray-200)]">
         <h1 className="text-2xl font-bold text-[var(--aia-corp-dark)] font-[var(--font-heading)]">
-          Gantt Demo
+          Demo de Gantt
         </h1>
         <p className="text-sm text-[var(--gray-500)]">
-          8 tareas de ejemplo con dependencias FS, SS+lag, milestones y resúmenes
+          8 tareas de ejemplo con dependencias FS, SS+lag, hitos y resúmenes
         </p>
       </header>
       <div className="flex-1 min-h-0">
         <GanttView
           tasks={sampleTasks}
-          onTaskClick={(task) => console.log("Clicked:", task.name)}
+          onTaskClick={(task) => console.log("Clic:", task.name)}
         />
       </div>
     </div>

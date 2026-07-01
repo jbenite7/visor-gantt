@@ -1,10 +1,38 @@
 import type { MatrixPlan, MatrixTemplate } from "@/types/matrix";
+import { getAreaLeaves, getScopeLeaves, reconcileMatrixCells } from "./tree";
 
 export const DEFAULT_MATRIX_TEMPLATE: MatrixTemplate = {
   id: "template-vivienda-vertical",
   name: "Vivienda vertical",
   projectType: "Edificacion",
   scopeTree: [
+    {
+      id: "construccion",
+      name: "Construccion",
+      type: "Capitulo",
+      children: [
+        {
+          id: "estructura",
+          name: "Estructura",
+          type: "Disciplina",
+          defaultRecipeId: "estructura-concreto",
+        },
+        {
+          id: "arquitectura",
+          name: "Arquitectura",
+          type: "Disciplina",
+          defaultRecipeId: "arquitectura-muros",
+        },
+        {
+          id: "mep",
+          name: "Redes MEP",
+          type: "Disciplina",
+          defaultRecipeId: "mep-rough-in",
+        },
+      ],
+    },
+  ],
+  areas: [
     {
       id: "torre-a",
       name: "Torre A",
@@ -14,11 +42,6 @@ export const DEFAULT_MATRIX_TEMPLATE: MatrixTemplate = {
         { id: "piso-2", name: "Piso 2", type: "Piso" },
       ],
     },
-  ],
-  areas: [
-    { id: "estructura", name: "Estructura", discipline: "Construccion" },
-    { id: "arquitectura", name: "Arquitectura", discipline: "Construccion" },
-    { id: "mep", name: "Redes MEP", discipline: "Instalaciones" },
   ],
   recipes: [
     {
@@ -133,9 +156,9 @@ export const DEFAULT_MATRIX_TEMPLATE: MatrixTemplate = {
   ],
 };
 
-function defaultRecipeForArea(areaId: string): string {
-  if (areaId === "estructura") return "estructura-concreto";
-  if (areaId === "arquitectura") return "arquitectura-muros";
+function defaultRecipeForScope(scopeId: string): string {
+  if (scopeId === "estructura") return "estructura-concreto";
+  if (scopeId === "arquitectura") return "arquitectura-muros";
   return "mep-rough-in";
 }
 
@@ -166,9 +189,8 @@ export function createDefaultMatrixPlan({
   name: string;
   startDate: string;
 }): MatrixPlan {
-  const leafScopes =
-    DEFAULT_MATRIX_TEMPLATE.scopeTree[0].children ??
-    DEFAULT_MATRIX_TEMPLATE.scopeTree;
+  const disciplineLeaves = getScopeLeaves(DEFAULT_MATRIX_TEMPLATE.scopeTree);
+  const locationLeaves = getAreaLeaves(DEFAULT_MATRIX_TEMPLATE.areas);
 
   return {
     id,
@@ -178,15 +200,15 @@ export function createDefaultMatrixPlan({
     scopeTree: DEFAULT_MATRIX_TEMPLATE.scopeTree,
     areas: DEFAULT_MATRIX_TEMPLATE.areas,
     recipes: DEFAULT_MATRIX_TEMPLATE.recipes,
-    cells: leafScopes.flatMap((scope) =>
-      DEFAULT_MATRIX_TEMPLATE.areas.map((area) => {
-        const recipeId = defaultRecipeForArea(area.id);
+    cells: disciplineLeaves.flatMap(({ node: scope }) =>
+      locationLeaves.map(({ node: area }) => {
+        const recipeId = scope.defaultRecipeId ?? defaultRecipeForScope(scope.id);
         return {
           id: `cell-${scope.id}-${area.id}`,
           scopeId: scope.id,
           areaId: area.id,
           recipeId,
-          active: area.id !== "mep",
+          active: scope.id !== "mep",
           activityOverrides: activityOverridesForRecipe(recipeId),
           lastEditedAt: "2026-01-01T00:00:00.000Z",
           lastEditedFrom: "matrix" as const,
@@ -214,4 +236,30 @@ export function createEmptyMatrixPlan({
     recipes: DEFAULT_MATRIX_TEMPLATE.recipes,
     cells: [],
   };
+}
+
+export function createMatrixPlanFromTemplate({
+  template,
+  id = `matrix-${Date.now()}`,
+  name,
+  startDate,
+}: {
+  template: MatrixTemplate;
+  id?: string;
+  name: string;
+  startDate: string;
+}): MatrixPlan {
+  return reconcileMatrixCells(
+    {
+      id,
+      name,
+      templateId: template.id,
+      startDate,
+      scopeTree: JSON.parse(JSON.stringify(template.scopeTree)),
+      areas: JSON.parse(JSON.stringify(template.areas)),
+      recipes: JSON.parse(JSON.stringify(template.recipes)),
+      cells: [],
+    },
+    new Date().toISOString(),
+  );
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Check, Grid3X3, Plus, RefreshCw, RotateCcw } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { Check, Grid3X3, Plus, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
 import type { GanttTask } from "@/components/gantt/types";
 import type {
   ActivityRecipe,
@@ -14,6 +14,24 @@ import type {
 } from "@/types/matrix";
 import { createDefaultMatrixPlan } from "@/lib/matrix/templates";
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
+import {
+  canAddChild,
+  getAreaLeaves,
+  getAreaNodeIds,
+  getScopeLeaves,
+  getScopeNodeIds,
+  insertAreaChild,
+  insertAreaSibling,
+  insertScopeChild,
+  insertScopeSibling,
+  migrateAreaCellsToChild,
+  migrateScopeCellsToChild,
+  reconcileMatrixCells,
+  removeAreaNode,
+  removeScopeNode,
+  updateAreaNode,
+  updateScopeNode,
+} from "@/lib/matrix/tree";
 
 interface MatrixEditorViewProps {
   matrixPlan?: MatrixPlan;
@@ -28,38 +46,57 @@ interface SelectedCellRef {
   areaId: string;
 }
 
-function leafScopes(nodes: ScopeNode[]): ScopeNode[] {
-  return nodes.flatMap((node) =>
-    node.children && node.children.length > 0
-      ? leafScopes(node.children)
-      : [node],
-  );
-}
+type MatrixEditorMode = "scopes" | "locations" | "matrix";
 
 function clonePlan(plan: MatrixPlan): MatrixPlan {
   return JSON.parse(JSON.stringify(plan)) as MatrixPlan;
-}
-
-function replaceScope(nodes: ScopeNode[], nextScope: ScopeNode): ScopeNode[] {
-  return nodes.map((node) => {
-    if (node.id === nextScope.id) return nextScope;
-    if (!node.children) return node;
-    return { ...node, children: replaceScope(node.children, nextScope) };
-  });
 }
 
 function cellKey(scopeId: string, areaId: string) {
   return `${scopeId}::${areaId}`;
 }
 
-function findRecipeForArea(areaId: string, plan: MatrixPlan): string | undefined {
-  if (areaId === "estructura") {
-    return plan.recipes.find((recipe) => recipe.id.includes("estructura"))?.id;
+function inferRecipeIdForScopeLabel(
+  label: string,
+  recipes: ActivityRecipe[],
+): string | undefined {
+  const normalized = sanitizeId(label);
+  if (normalized.includes("estructura")) {
+    return recipes.find((recipe) => recipe.id.includes("estructura"))?.id;
   }
-  if (areaId === "arquitectura") {
-    return plan.recipes.find((recipe) => recipe.id.includes("arquitectura"))?.id;
+  if (normalized.includes("arquitectura")) {
+    return recipes.find((recipe) => recipe.id.includes("arquitectura"))?.id;
   }
-  return plan.recipes[0]?.id;
+  if (normalized.includes("mep") || normalized.includes("redes")) {
+    return recipes.find((recipe) => recipe.id.includes("mep"))?.id;
+  }
+  return undefined;
+}
+
+function inferAreaTypeForLabel(label: string): string {
+  const normalized = sanitizeId(label);
+  if (normalized.includes("piso")) return "Piso";
+  if (normalized.includes("nivel")) return "Nivel";
+  if (normalized.includes("torre")) return "Torre";
+  if (normalized.includes("etapa")) return "Etapa";
+  if (normalized.includes("bloque")) return "Bloque";
+  if (normalized.includes("apartamento") || normalized.includes("apto")) {
+    return "Apartamento";
+  }
+  if (normalized.includes("habitacion")) return "Habitacion";
+  if (normalized.includes("zona")) return "Zona";
+  if (normalized.includes("local")) return "Local";
+  if (normalized.includes("km")) return "Km";
+  return "Ubicacion";
+}
+
+function findRecipeForScope(scopeId: string, plan: MatrixPlan): string | undefined {
+  const scope = getScopeLeaves(plan.scopeTree)
+    .map((leaf) => leaf.node)
+    .find((node) => node.id === scopeId);
+  return scope?.defaultRecipeId
+    ?? inferRecipeIdForScopeLabel(`${scopeId} ${scope?.name ?? ""}`, plan.recipes)
+    ?? plan.recipes[0]?.id;
 }
 
 function getRecipe(plan: MatrixPlan, cell?: MatrixCell): ActivityRecipe | undefined {
@@ -142,6 +179,37 @@ function createOverridesForRecipe(
   );
 }
 
+function findScope(nodes: ScopeNode[], id: string): ScopeNode | undefined {
+  for (const node of nodes) {
+    if (node.id === id) return node;
+    const child = node.children ? findScope(node.children, id) : undefined;
+    if (child) return child;
+  }
+  return undefined;
+}
+
+function findArea(nodes: AreaNode[], id: string): AreaNode | undefined {
+  for (const node of nodes) {
+    if (node.id === id) return node;
+    const child = node.children ? findArea(node.children, id) : undefined;
+    if (child) return child;
+  }
+  return undefined;
+}
+
+function sanitizeId(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function createNodeId(prefix: string, label: string): string {
+  return `${prefix}-${Date.now()}-${sanitizeId(label) || "nuevo"}`;
+}
+
 export default function MatrixEditorView({
   matrixPlan,
   tasks,
@@ -152,18 +220,29 @@ export default function MatrixEditorView({
   const [draft, setDraft] = useState<MatrixPlan | undefined>(
     matrixPlan ? clonePlan(matrixPlan) : undefined,
   );
+  const [activeMode, setActiveMode] = useState<MatrixEditorMode>("matrix");
+  const [notice, setNotice] = useState<string | null>(null);
   const [newScopeName, setNewScopeName] = useState("");
   const [newAreaName, setNewAreaName] = useState("");
   const [selectedCell, setSelectedCell] = useState<SelectedCellRef | null>(() => {
     if (!matrixPlan) return null;
-    const firstScope = leafScopes(matrixPlan.scopeTree)[0];
-    const firstArea = matrixPlan.areas[0];
+    const firstScope = getScopeLeaves(matrixPlan.scopeTree)[0]?.node;
+    const firstArea = getAreaLeaves(matrixPlan.areas)[0]?.node;
     return firstScope && firstArea
       ? { scopeId: firstScope.id, areaId: firstArea.id }
       : null;
   });
 
-  const scopes = useMemo(() => (draft ? leafScopes(draft.scopeTree) : []), [draft]);
+  const scopeLeaves = useMemo(
+    () => (draft ? getScopeLeaves(draft.scopeTree) : []),
+    [draft],
+  );
+  const areaLeaves = useMemo(
+    () => (draft ? getAreaLeaves(draft.areas) : []),
+    [draft],
+  );
+  const scopes = useMemo(() => scopeLeaves.map((leaf) => leaf.node), [scopeLeaves]);
+  const areas = useMemo(() => areaLeaves.map((leaf) => leaf.node), [areaLeaves]);
   const cellsByPair = useMemo(() => {
     const map = new Map<string, MatrixCell>();
     draft?.cells.forEach((cell) => map.set(cellKey(cell.scopeId, cell.areaId), cell));
@@ -175,7 +254,7 @@ export default function MatrixEditorView({
   );
   const matrixTaskCount = tasks.filter((task) => task.matrixSource).length;
   const selectedScope = scopes.find((scope) => scope.id === selectedCell?.scopeId);
-  const selectedArea = draft?.areas.find((area) => area.id === selectedCell?.areaId);
+  const selectedArea = areas.find((area) => area.id === selectedCell?.areaId);
   const selectedMatrixCell = selectedCell
     ? cellsByPair.get(cellKey(selectedCell.scopeId, selectedCell.areaId))
     : undefined;
@@ -196,8 +275,8 @@ export default function MatrixEditorView({
       startDate: firstTaskStart ?? new Date().toISOString().slice(0, 10),
     });
     setDraft(plan);
-    const firstScope = leafScopes(plan.scopeTree)[0];
-    const firstArea = plan.areas[0];
+    const firstScope = getScopeLeaves(plan.scopeTree)[0]?.node;
+    const firstArea = getAreaLeaves(plan.areas)[0]?.node;
     if (firstScope && firstArea) {
       setSelectedCell({ scopeId: firstScope.id, areaId: firstArea.id });
     }
@@ -211,7 +290,7 @@ export default function MatrixEditorView({
       id: existing?.id ?? `cell-${scopeId}-${areaId}`,
       scopeId,
       areaId,
-      recipeId: existing?.recipeId ?? findRecipeForArea(areaId, draft),
+      recipeId: existing?.recipeId ?? findRecipeForScope(scopeId, draft),
       active: existing?.active ?? true,
       activityOverrides: existing?.activityOverrides ?? [],
       ...existing,
@@ -256,71 +335,416 @@ export default function MatrixEditorView({
     });
   };
 
+  const applyNextDraft = (nextPlan: MatrixPlan) => {
+    const next = reconcileMatrixCells(nextPlan);
+    setDraft(next);
+    const firstScope = getScopeLeaves(next.scopeTree)[0]?.node;
+    const firstArea = getAreaLeaves(next.areas)[0]?.node;
+    if (
+      selectedCell &&
+      next.cells.some(
+        (cell) =>
+          cell.scopeId === selectedCell.scopeId && cell.areaId === selectedCell.areaId,
+      )
+    ) {
+      return;
+    }
+    setSelectedCell(
+      firstScope && firstArea ? { scopeId: firstScope.id, areaId: firstArea.id } : null,
+    );
+  };
+
+  const activateAllCells = () => {
+    if (!draft) return;
+    const timestamp = new Date().toISOString();
+    const next = reconcileMatrixCells(draft, timestamp);
+    setDraft({
+      ...next,
+      cells: next.cells.map((cell) => ({
+        ...cell,
+        active: true,
+        recipeId: cell.recipeId ?? findRecipeForScope(cell.scopeId, next),
+        lastEditedAt: timestamp,
+        lastEditedFrom: "matrix",
+      })),
+    });
+
+    if (!selectedCell) {
+      const firstScope = getScopeLeaves(next.scopeTree)[0]?.node;
+      const firstArea = getAreaLeaves(next.areas)[0]?.node;
+      setSelectedCell(
+        firstScope && firstArea
+          ? { scopeId: firstScope.id, areaId: firstArea.id }
+          : null,
+      );
+    }
+  };
+
   const addScope = () => {
     if (!draft || !newScopeName.trim()) return;
+    const recipeId =
+      inferRecipeIdForScopeLabel(newScopeName.trim(), draft.recipes) ??
+      draft.recipes[0]?.id;
     const newScope: ScopeNode = {
-      id: `scope-${Date.now()}`,
+      id: createNodeId("scope", newScopeName.trim()),
       name: newScopeName.trim(),
-      type: "Zona",
+      type: "Disciplina",
+      defaultRecipeId: recipeId,
     };
-    const timestamp = new Date().toISOString();
-    const newCells: MatrixCell[] = draft.areas.map((area) => ({
-      id: `cell-${newScope.id}-${area.id}`,
-      scopeId: newScope.id,
-      areaId: area.id,
-      recipeId: findRecipeForArea(area.id, draft) ?? draft.recipes[0]?.id,
-      active: false,
-      activityOverrides: [],
-      lastEditedAt: timestamp,
-      lastEditedFrom: "matrix",
-    }));
-    const nextScopeTree =
-      draft.scopeTree.length > 0 && draft.scopeTree[0].children
-        ? replaceScope(draft.scopeTree, {
-            ...draft.scopeTree[0],
-            children: [...(draft.scopeTree[0].children ?? []), newScope],
-          })
-        : [...draft.scopeTree, newScope];
-    const nextPlan = {
+    const nextPlan: MatrixPlan = {
       ...draft,
-      scopeTree: nextScopeTree,
-      cells: [...draft.cells, ...newCells],
+      scopeTree: [...draft.scopeTree, newScope],
     };
-    setDraft(nextPlan);
-    setSelectedCell(
-      draft.areas[0] ? { scopeId: newScope.id, areaId: draft.areas[0].id } : null,
-    );
+    applyNextDraft(nextPlan);
+    if (areas[0]) setSelectedCell({ scopeId: newScope.id, areaId: areas[0].id });
     setNewScopeName("");
   };
 
   const addArea = () => {
     if (!draft || !newAreaName.trim()) return;
-    const id = `area-${Date.now()}`;
+    const id = createNodeId("area", newAreaName.trim());
     const nextArea: AreaNode = {
       id,
       name: newAreaName.trim(),
-      discipline: "Proyecto",
+      type: inferAreaTypeForLabel(newAreaName.trim()),
     };
-    setDraft({
+    const nextPlan: MatrixPlan = {
       ...draft,
       areas: [...draft.areas, nextArea],
-      cells: [
-        ...draft.cells,
-        ...scopes.map((scope) => ({
-          id: `cell-${scope.id}-${id}`,
-          scopeId: scope.id,
-          areaId: id,
-          recipeId: draft.recipes[0]?.id,
-          active: false,
-          activityOverrides: [],
-          lastEditedAt: new Date().toISOString(),
-          lastEditedFrom: "matrix" as const,
-        })),
-      ],
-    });
+    };
+    applyNextDraft(nextPlan);
     setSelectedCell(scopes[0] ? { scopeId: scopes[0].id, areaId: id } : null);
     setNewAreaName("");
   };
+
+  const addScopeChild = (parentId: string) => {
+    if (!draft) return;
+    setNotice(null);
+    if (!canAddChild(draft.scopeTree, parentId)) {
+      setNotice("Maximo 10 niveles de jerarquia.");
+      return;
+    }
+    const parent = findScope(draft.scopeTree, parentId);
+    const parentCells = draft.cells.filter((cell) => cell.scopeId === parentId);
+    if (
+      parentCells.length > 0 &&
+      !window.confirm(
+        `El alcance ${parent?.name ?? parentId} tiene ${parentCells.length} celdas. Se moveran al nuevo hijo.`,
+      )
+    ) {
+      return;
+    }
+    const recipeId =
+      parent?.defaultRecipeId ?? parentCells[0]?.recipeId ?? draft.recipes[0]?.id;
+    const child: ScopeNode = {
+      id: createNodeId("scope", parentId),
+      name: "Nuevo sub-alcance",
+      type: "Sub-Alcance",
+      defaultRecipeId: recipeId,
+    };
+    let nextPlan: MatrixPlan = {
+      ...draft,
+      scopeTree: insertScopeChild(draft.scopeTree, parentId, child),
+    };
+    if (parentCells.length > 0) {
+      nextPlan = migrateScopeCellsToChild(nextPlan, parentId, child);
+    }
+    applyNextDraft(nextPlan);
+    if (areas[0]) setSelectedCell({ scopeId: child.id, areaId: areas[0].id });
+  };
+
+  const addScopeSibling = (targetId: string) => {
+    if (!draft) return;
+    const sibling: ScopeNode = {
+      id: createNodeId("scope", targetId),
+      name: "Nuevo sub-alcance",
+      type: "Sub-Alcance",
+      defaultRecipeId: draft.recipes[0]?.id,
+    };
+    applyNextDraft({
+      ...draft,
+      scopeTree: insertScopeSibling(draft.scopeTree, targetId, sibling),
+    });
+  };
+
+  const addAreaChild = (parentId: string) => {
+    if (!draft) return;
+    setNotice(null);
+    if (!canAddChild(draft.areas, parentId)) {
+      setNotice("Maximo 10 niveles de jerarquia.");
+      return;
+    }
+    const parent = findArea(draft.areas, parentId);
+    const parentCells = draft.cells.filter((cell) => cell.areaId === parentId);
+    if (
+      parentCells.length > 0 &&
+      !window.confirm(
+        `La ubicacion ${parent?.name ?? parentId} tiene ${parentCells.length} celdas. Se moveran al nuevo hijo.`,
+      )
+    ) {
+      return;
+    }
+    const child: AreaNode = {
+      id: createNodeId("area", parentId),
+      name: "Nueva sub-ubicacion",
+      type: "Sub-Ubicacion",
+    };
+    let nextPlan: MatrixPlan = {
+      ...draft,
+      areas: insertAreaChild(draft.areas, parentId, child),
+    };
+    if (parentCells.length > 0) {
+      nextPlan = migrateAreaCellsToChild(nextPlan, parentId, child);
+    }
+    applyNextDraft(nextPlan);
+    if (scopes[0]) setSelectedCell({ scopeId: scopes[0].id, areaId: child.id });
+  };
+
+  const addAreaSibling = (targetId: string) => {
+    if (!draft) return;
+    const sibling: AreaNode = {
+      id: createNodeId("area", targetId),
+      name: "Nueva sub-ubicacion",
+      type: "Sub-Ubicacion",
+    };
+    applyNextDraft({
+      ...draft,
+      areas: insertAreaSibling(draft.areas, targetId, sibling),
+    });
+  };
+
+  const deleteScope = (scopeId: string) => {
+    if (!draft) return;
+    const ids = getScopeNodeIds(draft.scopeTree, scopeId);
+    const cellCount = draft.cells.filter((cell) => ids.includes(cell.scopeId)).length;
+    if (
+      !window.confirm(
+        `Se eliminaran ${ids.length} alcances y ${cellCount} celdas. Esta accion no se puede deshacer.`,
+      )
+    ) {
+      return;
+    }
+    applyNextDraft(removeScopeNode(draft, scopeId));
+  };
+
+  const deleteArea = (areaId: string) => {
+    if (!draft) return;
+    const ids = getAreaNodeIds(draft.areas, areaId);
+    const cellCount = draft.cells.filter((cell) => ids.includes(cell.areaId)).length;
+    if (
+      !window.confirm(
+        `Se eliminaran ${ids.length} ubicaciones y ${cellCount} celdas. Esta accion no se puede deshacer.`,
+      )
+    ) {
+      return;
+    }
+    applyNextDraft(removeAreaNode(draft, areaId));
+  };
+
+  const updateScopeDetails = (scopeId: string, updates: Partial<ScopeNode>) => {
+    if (!draft) return;
+    applyNextDraft({
+      ...draft,
+      scopeTree: updateScopeNode(draft.scopeTree, scopeId, updates),
+    });
+  };
+
+  const updateAreaDetails = (areaId: string, updates: Partial<AreaNode>) => {
+    if (!draft) return;
+    applyNextDraft({
+      ...draft,
+      areas: updateAreaNode(draft.areas, areaId, updates),
+    });
+  };
+
+  const updateScopeRecipe = (scopeId: string, recipeId: string) => {
+    if (!draft) return;
+    const timestamp = new Date().toISOString();
+    const recipe = draft.recipes.find((item) => item.id === recipeId);
+    applyNextDraft({
+      ...draft,
+      scopeTree: updateScopeNode(draft.scopeTree, scopeId, {
+        defaultRecipeId: recipeId,
+      }),
+      cells: draft.cells.map((cell) =>
+        cell.scopeId === scopeId
+          ? {
+              ...cell,
+              recipeId,
+              activityOverrides: createOverridesForRecipe(recipe, timestamp),
+              lastEditedAt: timestamp,
+              lastEditedFrom: "matrix" as const,
+            }
+          : cell,
+      ),
+    });
+  };
+
+  const renderScopeTree = (nodes: ScopeNode[], depth = 1): ReactNode =>
+    nodes.map((node) => {
+      const isLeaf = !node.children || node.children.length === 0;
+      return (
+        <div key={node.id} className="space-y-2" style={{ marginLeft: (depth - 1) * 16 }}>
+          <div className="rounded-md border border-[var(--gray-200)] bg-white p-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-[var(--gray-500)]">
+                Nivel {depth}
+              </span>
+              <span className="text-sm font-bold text-[var(--aia-corp-dark)]">
+                {node.name}
+              </span>
+              <span className="rounded-full bg-[var(--gray-100)] px-2 py-0.5 text-xs text-[var(--gray-600)]">
+                {isLeaf ? "Hoja" : "Grupo"}
+              </span>
+              <div className="flex-1" />
+              <button
+                type="button"
+                aria-label={`Agregar hijo a ${node.name}`}
+                onClick={() => addScopeChild(node.id)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--gray-300)]"
+              >
+                <Plus size={14} />
+              </button>
+              <button
+                type="button"
+                aria-label={`Agregar hermano de ${node.name}`}
+                onClick={() => addScopeSibling(node.id)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--gray-300)]"
+              >
+                <Plus size={14} />
+              </button>
+              <button
+                type="button"
+                aria-label={`Eliminar ${node.name}`}
+                onClick={() => deleteScope(node.id)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--aia-alert-main)] text-[var(--aia-alert-main)]"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--gray-600)]">
+                Nombre
+                <input
+                  aria-label={`Nombre alcance ${node.name}`}
+                  value={node.name}
+                  onChange={(event) =>
+                    updateScopeDetails(node.id, { name: event.target.value })
+                  }
+                  className="rounded-md border border-[var(--gray-300)] px-2 py-1 text-sm"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--gray-600)]">
+                Tipo
+                <input
+                  aria-label={`Tipo alcance ${node.name}`}
+                  list="matrix-scope-type-suggestions"
+                  value={node.type}
+                  onChange={(event) =>
+                    updateScopeDetails(node.id, { type: event.target.value })
+                  }
+                  className="rounded-md border border-[var(--gray-300)] px-2 py-1 text-sm"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--gray-600)]">
+                Receta
+                <select
+                  aria-label={`Receta alcance ${node.name}`}
+                  disabled={!isLeaf}
+                  value={node.defaultRecipeId ?? draft?.recipes[0]?.id ?? ""}
+                  onChange={(event) => updateScopeRecipe(node.id, event.target.value)}
+                  className="rounded-md border border-[var(--gray-300)] px-2 py-1 text-sm disabled:bg-[var(--gray-100)]"
+                >
+                  {draft?.recipes.map((recipe) => (
+                    <option key={recipe.id} value={recipe.id}>
+                      {recipe.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+          {node.children && node.children.length > 0
+            ? renderScopeTree(node.children, depth + 1)
+            : null}
+        </div>
+      );
+    });
+
+  const renderAreaTree = (nodes: AreaNode[], depth = 1): ReactNode =>
+    nodes.map((node) => {
+      const isLeaf = !node.children || node.children.length === 0;
+      return (
+        <div key={node.id} className="space-y-2" style={{ marginLeft: (depth - 1) * 16 }}>
+          <div className="rounded-md border border-[var(--gray-200)] bg-white p-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-[var(--gray-500)]">
+                Nivel {depth}
+              </span>
+              <span className="text-sm font-bold text-[var(--aia-corp-dark)]">
+                {node.name}
+              </span>
+              <span className="rounded-full bg-[var(--gray-100)] px-2 py-0.5 text-xs text-[var(--gray-600)]">
+                {isLeaf ? "Hoja" : "Grupo"}
+              </span>
+              <div className="flex-1" />
+              <button
+                type="button"
+                aria-label={`Agregar hijo a ${node.name}`}
+                onClick={() => addAreaChild(node.id)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--gray-300)]"
+              >
+                <Plus size={14} />
+              </button>
+              <button
+                type="button"
+                aria-label={`Agregar hermano de ${node.name}`}
+                onClick={() => addAreaSibling(node.id)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--gray-300)]"
+              >
+                <Plus size={14} />
+              </button>
+              <button
+                type="button"
+                aria-label={`Eliminar ${node.name}`}
+                onClick={() => deleteArea(node.id)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--aia-alert-main)] text-[var(--aia-alert-main)]"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--gray-600)]">
+                Nombre
+                <input
+                  aria-label={`Nombre ubicacion ${node.name}`}
+                  value={node.name}
+                  onChange={(event) =>
+                    updateAreaDetails(node.id, { name: event.target.value })
+                  }
+                  className="rounded-md border border-[var(--gray-300)] px-2 py-1 text-sm"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--gray-600)]">
+                Tipo
+                <input
+                  aria-label={`Tipo ubicacion ${node.name}`}
+                  list="matrix-area-type-suggestions"
+                  value={node.type ?? ""}
+                  onChange={(event) =>
+                    updateAreaDetails(node.id, { type: event.target.value })
+                  }
+                  className="rounded-md border border-[var(--gray-300)] px-2 py-1 text-sm"
+                />
+              </label>
+            </div>
+          </div>
+          {node.children && node.children.length > 0
+            ? renderAreaTree(node.children, depth + 1)
+            : null}
+        </div>
+      );
+    });
 
   if (!draft) {
     return (
@@ -352,7 +776,7 @@ export default function MatrixEditorView({
             {draft.name}
           </h2>
           <p className="text-xs text-[var(--aia-corp-light)]">
-            {scopes.length} alcances · {draft.areas.length} áreas · {matrixTaskCount} tareas vinculadas
+            {scopes.length} disciplinas · {areas.length} ubicaciones · {matrixTaskCount} tareas vinculadas
           </p>
         </div>
         <div className="flex-1" />
@@ -366,6 +790,15 @@ export default function MatrixEditorView({
         </button>
         <button
           type="button"
+          onClick={activateAllCells}
+          disabled={scopes.length === 0 || areas.length === 0}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white/10 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Check size={14} />
+          Activar todas las celdas
+        </button>
+        <button
+          type="button"
           onClick={() => setDraft(matrixPlan ? clonePlan(matrixPlan) : draft)}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white/10 hover:bg-white/15"
         >
@@ -374,12 +807,55 @@ export default function MatrixEditorView({
         </button>
         <button
           type="button"
-          onClick={() => onApplyMatrixPlan(draft)}
+          onClick={() => onApplyMatrixPlan(reconcileMatrixCells(draft))}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-[var(--aia-corp-main)]"
         >
           <Check size={14} />
           {applyLabel}
         </button>
+      </div>
+
+      <datalist id="matrix-scope-type-suggestions">
+        <option value="Capitulo" />
+        <option value="Subcapitulo" />
+        <option value="Disciplina" />
+        <option value="Partida" />
+        <option value="Actividad tipo" />
+      </datalist>
+      <datalist id="matrix-area-type-suggestions">
+        <option value="Etapa" />
+        <option value="Torre" />
+        <option value="Nivel" />
+        <option value="Piso" />
+        <option value="Unidad" />
+        <option value="Ambiente" />
+      </datalist>
+
+      <div className="shrink-0 flex items-center gap-2 px-3 py-2 bg-white border-b border-[var(--gray-200)]">
+        {[
+          ["scopes", "Alcances"],
+          ["locations", "Ubicaciones"],
+          ["matrix", "Matriz"],
+        ].map(([mode, label]) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => setActiveMode(mode as MatrixEditorMode)}
+            className="rounded-md px-3 py-1.5 text-xs font-semibold"
+            style={{
+              background:
+                activeMode === mode ? "var(--aia-corp-main)" : "var(--gray-100)",
+              color: activeMode === mode ? "white" : "var(--aia-corp-dark)",
+            }}
+          >
+            {label}
+          </button>
+        ))}
+        {notice && (
+          <span className="ml-auto text-xs font-semibold text-[var(--aia-alert-main)]">
+            {notice}
+          </span>
+        )}
       </div>
 
       <div className="shrink-0 grid grid-cols-1 md:grid-cols-3 gap-3 p-3 border-b border-[var(--gray-200)] bg-white">
@@ -412,7 +888,7 @@ export default function MatrixEditorView({
           <input
             value={newScopeName}
             onChange={(event) => setNewScopeName(event.target.value)}
-            placeholder="Nuevo alcance"
+            placeholder="Nueva disciplina"
             className="min-w-0 flex-1 rounded-md border border-[var(--gray-300)] px-2 py-1.5 text-sm"
           />
           <button
@@ -421,14 +897,14 @@ export default function MatrixEditorView({
             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-[var(--aia-corp-main)] text-white text-xs font-semibold"
           >
             <Plus size={14} />
-            Alcance
+            Disciplina
           </button>
         </div>
         <div className="flex gap-2">
           <input
             value={newAreaName}
             onChange={(event) => setNewAreaName(event.target.value)}
-            placeholder="Nueva área"
+            placeholder="Nueva ubicación"
             className="min-w-0 flex-1 rounded-md border border-[var(--gray-300)] px-2 py-1.5 text-sm"
           />
           <button
@@ -437,20 +913,41 @@ export default function MatrixEditorView({
             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-[var(--aia-corp-main)] text-white text-xs font-semibold"
           >
             <Plus size={14} />
-            Área
+            Ubicación
           </button>
         </div>
       </div>
 
+      {activeMode === "scopes" ? (
+        <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3">
+          {draft.scopeTree.length > 0 ? (
+            renderScopeTree(draft.scopeTree)
+          ) : (
+            <div className="bg-white px-3 py-6 text-sm text-[var(--gray-500)]">
+              Sin alcances. Agrega el primer alcance para construir la matriz.
+            </div>
+          )}
+        </div>
+      ) : activeMode === "locations" ? (
+        <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3">
+          {draft.areas.length > 0 ? (
+            renderAreaTree(draft.areas)
+          ) : (
+            <div className="bg-white px-3 py-6 text-sm text-[var(--gray-500)]">
+              Sin ubicaciones. Agrega la primera ubicacion para construir la matriz.
+            </div>
+          )}
+        </div>
+      ) : (
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] overflow-hidden">
         <div className="min-h-0 overflow-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10">
               <tr>
                 <th className="bg-[var(--aia-corp-dark)] text-white text-left px-3 py-2 font-semibold">
-                  Alcance
+                  Disciplina
                 </th>
-                {draft.areas.map((area) => (
+                {areas.map((area) => (
                   <th
                     key={area.id}
                     className="bg-[var(--aia-corp-dark)] text-white text-left px-3 py-2 font-semibold"
@@ -464,10 +961,10 @@ export default function MatrixEditorView({
               {scopes.length === 0 && (
                 <tr>
                   <td
-                    colSpan={Math.max(1, draft.areas.length + 1)}
+                    colSpan={Math.max(1, areas.length + 1)}
                     className="bg-white px-3 py-6 text-sm text-[var(--gray-500)]"
                   >
-                    Sin alcances. Agrega el primer alcance para construir la matriz.
+                    Sin disciplinas. Agrega la primera disciplina para construir la matriz.
                   </td>
                 </tr>
               )}
@@ -479,7 +976,7 @@ export default function MatrixEditorView({
                       onClick={() =>
                         setSelectedCell({
                           scopeId: scope.id,
-                          areaId: draft.areas[0]?.id ?? "",
+                          areaId: areas[0]?.id ?? "",
                         })
                       }
                       className="font-semibold text-left"
@@ -487,7 +984,7 @@ export default function MatrixEditorView({
                       {scope.name}
                     </button>
                   </th>
-                  {draft.areas.map((area) => {
+                  {areas.map((area) => {
                     const cell = cellsByPair.get(cellKey(scope.id, area.id));
                     const recipe = getRecipe(draft, cell);
                     const overrides =
@@ -689,6 +1186,7 @@ export default function MatrixEditorView({
           )}
         </aside>
       </div>
+      )}
     </div>
   );
 }

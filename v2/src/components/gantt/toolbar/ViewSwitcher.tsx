@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Grid3X3,
 } from "lucide-react";
+import type { UILocale } from "@/types/ui";
 
 export type ViewType =
   | "gantt"
@@ -27,31 +28,34 @@ export type ViewType =
 
 interface ViewTab {
   id: ViewType;
-  label: string;
+  labelEs: string;
+  labelEn: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
 }
 
 const VIEW_TABS: ViewTab[] = [
-  { id: "gantt", label: "Gantt", icon: BarChart3 },
-  { id: "tracking", label: "Seguimiento", icon: GitCompare },
-  { id: "taskSheet", label: "Hoja Tareas", icon: Table },
-  { id: "network", label: "Diagrama Red", icon: Network },
-  { id: "resources", label: "Recursos", icon: Users },
-  { id: "lob", label: "Línea Balance", icon: TrendingUp },
-  { id: "matrix", label: "Matriz", icon: Grid3X3 },
-  { id: "scurve", label: "Curva S", icon: LineChart },
-  { id: "bottlenecks", label: "Cuellos", icon: AlertTriangle },
-  { id: "settings", label: "Configuración", icon: Settings },
+  { id: "gantt", labelEs: "Gantt", labelEn: "Gantt", icon: BarChart3 },
+  { id: "tracking", labelEs: "Seguimiento", labelEn: "Tracking", icon: GitCompare },
+  { id: "taskSheet", labelEs: "Hoja Tareas", labelEn: "Task Sheet", icon: Table },
+  { id: "network", labelEs: "Diagrama Red", labelEn: "Network", icon: Network },
+  { id: "resources", labelEs: "Recursos", labelEn: "Resources", icon: Users },
+  { id: "lob", labelEs: "Línea Balance", labelEn: "Line Balance", icon: TrendingUp },
+  { id: "matrix", labelEs: "Matriz", labelEn: "Matrix", icon: Grid3X3 },
+  { id: "scurve", labelEs: "Curva S", labelEn: "S Curve", icon: LineChart },
+  { id: "bottlenecks", labelEs: "Cuellos", labelEn: "Bottlenecks", icon: AlertTriangle },
+  { id: "settings", labelEs: "Configuración", labelEn: "Settings", icon: Settings },
 ];
 
 interface ViewSwitcherProps {
   activeView: ViewType;
   onViewChange: (view: ViewType) => void;
+  locale?: UILocale;
 }
 
 export default function ViewSwitcher({
   activeView,
   onViewChange,
+  locale = "es",
 }: ViewSwitcherProps) {
   return (
     <div
@@ -63,6 +67,7 @@ export default function ViewSwitcher({
       {VIEW_TABS.map((tab) => {
         const isActive = activeView === tab.id;
         const Icon = tab.icon;
+        const label = locale === "en" ? tab.labelEn : tab.labelEs;
 
         return (
           <button
@@ -99,7 +104,7 @@ export default function ViewSwitcher({
             }}
           >
             <Icon size={14} />
-            <span>{tab.label}</span>
+            <span>{label}</span>
           </button>
         );
       })}

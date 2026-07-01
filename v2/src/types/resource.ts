@@ -5,6 +5,8 @@
  * with rate-based costing and task assignment tracking.
  */
 
+import type { ProjectCalendar } from "./calendar";
+
 export type ResourceType = "work" | "material" | "cost";
 
 export interface Resource {
@@ -20,8 +22,12 @@ export interface Resource {
   availability?: number;
   /** Resource group / department label. */
   group?: string;
+  /** Optional resource-specific working calendar. */
+  calendar?: ProjectCalendar;
   /** Task assignments for this resource. */
   assignments?: Assignment[];
+  /** Raw imported Microsoft Project fields preserved for traceability. */
+  mppFields?: Record<string, unknown>;
 }
 
 export interface Assignment {
@@ -33,4 +39,6 @@ export interface Assignment {
   units: number;
   /** Total cost for this assignment. */
   cost: number;
+  /** Raw imported Microsoft Project fields preserved for traceability. */
+  mppFields?: Record<string, unknown>;
 }

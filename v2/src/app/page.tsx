@@ -1,12 +1,20 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import pool from "@/lib/db";
 import { listProjects } from "@/app/actions/project";
+import AuthMenu from "@/components/auth/AuthMenu";
 import ProjectList from "@/components/ProjectList";
 import HomeMppUploadAction from "@/components/upload/HomeMppUploadAction";
+import { getCurrentUser } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/login");
+  }
+
   let dbStatus = "Desconectado";
   let projects: { id: string; name: string; updatedAt: Date }[] = [];
 
@@ -50,6 +58,7 @@ export default async function Home() {
               />
               <span className="ml-1">{dbStatus}</span>
             </span>
+            <AuthMenu />
           </div>
         </div>
       </header>

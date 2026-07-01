@@ -46,6 +46,16 @@ function applyFieldChange(
   field: string,
   value: unknown,
 ): GanttTask {
+  if (field.startsWith("mppFields:")) {
+    const sourceKey = field.slice("mppFields:".length);
+    return {
+      ...task,
+      mppFields: {
+        ...(task.mppFields ?? {}),
+        [sourceKey]: value,
+      },
+    };
+  }
   return { ...task, [field]: value } as GanttTask;
 }
 

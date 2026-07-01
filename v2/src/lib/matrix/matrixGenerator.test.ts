@@ -1,13 +1,23 @@
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
 import { recalculateSchedule } from "@/lib/scheduling/scheduleEngine";
 import type { MatrixPlan } from "@/types/matrix";
-import { createDefaultMatrixPlan } from "@/lib/matrix/templates";
+import { DEFAULT_MATRIX_TEMPLATE, createDefaultMatrixPlan } from "@/lib/matrix/templates";
 
 const matrixPlan: MatrixPlan = {
   id: "matrix-1",
   name: "Torre vivienda",
   startDate: "2026-01-05",
   scopeTree: [
+    {
+      id: "construccion",
+      name: "Construccion",
+      type: "Capitulo",
+      children: [
+        { id: "estructura", name: "Estructura", type: "Disciplina" },
+      ],
+    },
+  ],
+  areas: [
     {
       id: "torre-a",
       name: "Torre A",
@@ -16,13 +26,6 @@ const matrixPlan: MatrixPlan = {
         { id: "piso-1", name: "Piso 1", type: "Piso" },
         { id: "piso-2", name: "Piso 2", type: "Piso" },
       ],
-    },
-  ],
-  areas: [
-    {
-      id: "estructura",
-      name: "Estructura",
-      discipline: "Construccion",
     },
   ],
   recipes: [
@@ -59,18 +62,18 @@ const matrixPlan: MatrixPlan = {
   ],
   cells: [
     {
-      id: "cell-p1-estructura",
-      scopeId: "piso-1",
-      areaId: "estructura",
+      id: "cell-estructura-p1",
+      scopeId: "estructura",
+      areaId: "piso-1",
       recipeId: "concreto",
       active: true,
       quantity: 100,
       unit: "m2",
     },
     {
-      id: "cell-p2-estructura",
-      scopeId: "piso-2",
-      areaId: "estructura",
+      id: "cell-estructura-p2",
+      scopeId: "estructura",
+      areaId: "piso-2",
       recipeId: "concreto",
       active: true,
       quantity: 100,
@@ -85,13 +88,13 @@ describe("generateScheduleFromMatrix", () => {
 
     expect(result.issues).toEqual([]);
     expect(result.tasks.map((task) => task.name)).toEqual([
+      "Construccion",
+      "Estructura",
       "Torre A",
       "Piso 1",
-      "Estructura",
       "Estructura - Formaleta - Piso 1",
       "Estructura - Vaciado de concreto - Piso 1",
       "Piso 2",
-      "Estructura",
       "Estructura - Formaleta - Piso 2",
       "Estructura - Vaciado de concreto - Piso 2",
     ]);
@@ -108,13 +111,13 @@ describe("generateScheduleFromMatrix", () => {
 
     expect(piso1Formaleta).toMatchObject({
       duration: 2,
-      outlineLevel: 4,
-      wbs: "1.1.1.1",
+      outlineLevel: 5,
+      wbs: "1.1.1.1.1",
       matrixSource: {
         matrixPlanId: "matrix-1",
-        scopeId: "piso-1",
-        areaId: "estructura",
-        cellId: "cell-p1-estructura",
+        scopeId: "estructura",
+        areaId: "piso-1",
+        cellId: "cell-estructura-p1",
         recipeId: "concreto",
         activityId: "formaleta",
       },
@@ -133,7 +136,7 @@ describe("generateScheduleFromMatrix", () => {
       },
     ]);
 
-    expect(result.provenance["cell-p1-estructura"]).toEqual([
+    expect(result.provenance["cell-estructura-p1"]).toEqual([
       piso1Formaleta?.id,
       piso1Vaciado?.id,
     ]);
@@ -153,14 +156,14 @@ describe("generateScheduleFromMatrix", () => {
       {
         severity: "medium",
         kind: "inactiveCell",
-        cellId: "cell-p1-estructura",
-        message: "La celda Piso 1 x Estructura esta inactiva.",
+        cellId: "cell-estructura-p1",
+        message: "La celda Estructura × Piso 1 esta inactiva.",
       },
       {
         severity: "high",
         kind: "missingRecipe",
-        cellId: "cell-p2-estructura",
-        message: "La celda Piso 2 x Estructura no tiene una receta valida.",
+        cellId: "cell-estructura-p2",
+        message: "La celda Estructura × Piso 2 no tiene una receta valida.",
       },
     ]);
   });
@@ -254,10 +257,127 @@ describe("generateScheduleFromMatrix", () => {
         expect.objectContaining({
           severity: "high",
           kind: "missingQuantity",
-          cellId: "cell-p1-estructura",
-          message: "La actividad Formaleta no tiene cantidad para Piso 1 x Estructura.",
+          cellId: "cell-estructura-p1",
+          message: "La actividad Formaleta no tiene cantidad para Estructura × Piso 1.",
         }),
       ]),
     );
+  });
+
+  test("uses the leaf scope default recipe and ignores parent cells", () => {
+    const result = generateScheduleFromMatrix({
+      ...matrixPlan,
+      scopeTree: [
+        {
+          id: "construccion",
+          name: "Construccion",
+          type: "Capitulo",
+          children: [
+            {
+              id: "estructura",
+              name: "Estructura",
+              type: "Disciplina",
+              children: [
+                {
+                  id: "zapatas",
+                  name: "Zapatas",
+                  type: "Partida",
+                  defaultRecipeId: "concreto",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      cells: [
+        {
+          id: "cell-parent",
+          scopeId: "estructura",
+          areaId: "piso-1",
+          recipeId: "concreto",
+          active: true,
+          quantity: 100,
+        },
+        {
+          id: "cell-leaf",
+          scopeId: "zapatas",
+          areaId: "piso-1",
+          active: true,
+          quantity: 100,
+        },
+      ],
+    });
+
+    expect(result.issues).toEqual([]);
+    expect(result.tasks.map((task) => task.name)).toContain(
+      "Zapatas - Formaleta - Piso 1",
+    );
+    expect(result.tasks.map((task) => task.name)).not.toContain(
+      "Estructura - Formaleta - Piso 1",
+    );
+    expect(result.provenance["cell-leaf"]).toHaveLength(2);
+    expect(result.provenance["cell-parent"]).toBeUndefined();
+  });
+
+  test("generates a 10-floor building from three active base scopes", () => {
+    const scopeTree = [
+      {
+        id: "estructura",
+        name: "Estructura",
+        type: "Disciplina",
+        defaultRecipeId: "estructura-concreto",
+      },
+      {
+        id: "arquitectura",
+        name: "Arquitectura",
+        type: "Disciplina",
+        defaultRecipeId: "arquitectura-muros",
+      },
+      {
+        id: "redes-mep",
+        name: "Redes MEP",
+        type: "Disciplina",
+        defaultRecipeId: "mep-rough-in",
+      },
+    ];
+    const areas = Array.from({ length: 10 }, (_, index) => ({
+      id: `piso-${index + 1}`,
+      name: `Piso ${index + 1}`,
+      type: "Piso",
+    }));
+    const plan: MatrixPlan = {
+      id: "matrix-edificio-10-pisos",
+      name: "Edificio 10 pisos",
+      startDate: "2026-01-05",
+      scopeTree,
+      areas,
+      recipes: DEFAULT_MATRIX_TEMPLATE.recipes,
+      cells: scopeTree.flatMap((scope) =>
+        areas.map((area) => ({
+          id: `cell-${scope.id}-${area.id}`,
+          scopeId: scope.id,
+          areaId: area.id,
+          recipeId: scope.defaultRecipeId,
+          active: true,
+          lastEditedAt: "2026-01-01T00:00:00.000Z",
+          lastEditedFrom: "matrix" as const,
+        })),
+      ),
+    };
+
+    const result = generateScheduleFromMatrix(plan);
+
+    expect(plan.cells).toHaveLength(30);
+    expect(result.issues).toEqual([]);
+    expect(result.tasks.filter((task) => task.matrixSource && !task.isSummary)).toHaveLength(70);
+    expect(result.dependencies).toHaveLength(40);
+    expect(result.tasks.map((task) => task.name)).toEqual(
+      expect.arrayContaining([
+        "Estructura - Vaciado de concreto - Piso 10",
+        "Arquitectura - Panete - Piso 10",
+        "Redes MEP - Instalacion de redes - Piso 10",
+      ]),
+    );
+    expect(result.provenance["cell-redes-mep-piso-10"]).toHaveLength(2);
   });
 });

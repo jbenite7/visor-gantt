@@ -76,6 +76,9 @@ function mergeGeneratedTask(
       baselineFinish: previous.baselineFinish,
       baselineDuration: previous.baselineDuration,
       manualStart: previous.manualStart,
+      constraintType: previous.constraintType,
+      constraintDate: previous.constraintDate,
+      deadline: previous.deadline,
       matrixSync: previous.matrixSync,
     };
   }
@@ -88,6 +91,9 @@ function mergeGeneratedTask(
     baselineStart: previous.baselineStart,
     baselineFinish: previous.baselineFinish,
     baselineDuration: previous.baselineDuration,
+    constraintType: previous.constraintType,
+    constraintDate: previous.constraintDate,
+    deadline: previous.deadline,
   };
 }
 

@@ -5,6 +5,10 @@ import { GANTT_ROW_HEIGHT } from "../layout";
 import WBSExpand from "./WBSExpand";
 import EditableCell from "./EditableCell";
 import { createProjectDate, formatProjectDate, toDateInputValue } from "@/lib/date/projectDate";
+import type { ColumnConfig } from "./ColumnSelector";
+import type { UILocale } from "@/types/ui";
+import { t } from "@/lib/i18n";
+import { getMppRecordValue } from "@/lib/mpp/recordValues";
 
 interface GanttRowProps {
   task: GanttTask;
@@ -18,6 +22,8 @@ interface GanttRowProps {
     field: string,
     value: unknown
   ) => void;
+  columns: ColumnConfig[];
+  locale: UILocale;
   budgetedCost?: number;
   actualCost?: number;
   variance?: number;
@@ -100,6 +106,60 @@ const FORMAT_CURRENCY = new Intl.NumberFormat("es-CO", {
   minimumFractionDigits: 0,
 });
 
+function formatGenericValue(value: unknown, dataType: string | undefined, locale: UILocale): string {
+  if (value == null || value === "") return "";
+  if (value instanceof Date) return formatDate(value);
+  if (Array.isArray(value)) {
+    return value
+      .map((item) =>
+        typeof item === "object" && item !== null
+          ? JSON.stringify(item)
+          : String(item),
+      )
+      .join(", ");
+  }
+  if (typeof value === "object") return JSON.stringify(value);
+  if (typeof value === "boolean") return value ? t(locale, "yes") : "";
+  if (dataType === "currency" && typeof value === "number") {
+    return FORMAT_CURRENCY.format(value);
+  }
+  return String(value);
+}
+
+function getMppCellValue(task: GanttTask, column: ColumnConfig): unknown {
+  const key = column.sourceKey ?? column.key.replace(/^mpp:/, "");
+  return getMppRecordValue(task, key);
+}
+
+function getMppEditValue(value: unknown, dataType: string | undefined): string | number {
+  if (dataType === "date") {
+    if (value instanceof Date) return toISODate(value);
+    if (typeof value === "string" && value) return value.slice(0, 10);
+    return "";
+  }
+  if (["number", "currency", "duration"].includes(dataType ?? "")) {
+    const parsed = typeof value === "number" ? value : Number(value ?? 0);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return value == null ? "" : String(value);
+}
+
+function parseMppEditValue(raw: string, dataType: string | undefined): unknown {
+  if (dataType === "date") return raw ? createProjectDate(raw).toISOString() : "";
+  if (["number", "currency", "duration"].includes(dataType ?? "")) {
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (dataType === "boolean") return ["true", "1", "yes", "si", "sí"].includes(raw.toLowerCase());
+  return raw;
+}
+
+function mppEditableCellType(dataType: string | undefined): "text" | "number" | "date" {
+  if (dataType === "date") return "date";
+  if (["number", "currency", "duration"].includes(dataType ?? "")) return "number";
+  return "text";
+}
+
 /**
  * Single row in the Gantt entry table.
  * Handles WBS indentation, summary/milestone styling, row striping, selection.
@@ -113,6 +173,8 @@ export default function GanttRow({
   isExpanded = true,
   onToggleExpand,
   onUpdateTask,
+  columns,
+  locale,
   budgetedCost,
   actualCost,
   variance,
@@ -167,32 +229,14 @@ export default function GanttRow({
   // ── Editable: should we wrap cells in EditableCell? ──
   const canEdit = !!onUpdateTask;
 
-  return (
-    <tr
-      data-testid="gantt-row"
-      data-task-id={task.id}
-      style={rowStyle}
-      onClick={(e) => onSelect?.(task.id, e.ctrlKey || e.metaKey)}
-      onMouseEnter={(e) => {
-        if (!isSelected) {
-          (e.currentTarget as HTMLElement).style.background =
-            "var(--aia-corp-xlight)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) {
-          (e.currentTarget as HTMLElement).style.background = rowBg;
-        }
-      }}
-    >
-      {/* ID — non-editable */}
-      <td style={{ ...cellStyle, textAlign: "right" }}>{task.id}</td>
-
-      {/* WBS — non-editable */}
-      <td style={cellStyle}>{task.wbs ?? ""}</td>
-
-      {/* Name (with WBS expand toggle + milestone icon) — editable */}
-      <td style={nameCellStyle}>
+  const renderCell = (column: ColumnConfig) => {
+    switch (column.key) {
+      case "id":
+        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>{task.id}</td>;
+      case "wbs":
+        return <td key={column.key} style={cellStyle}>{task.wbs ?? ""}</td>;
+      case "name":
+        return <td key={column.key} style={nameCellStyle}>
         {canEdit ? (
           <EditableCell
             value={`${namePrefix}${task.name}`}
@@ -223,10 +267,9 @@ export default function GanttRow({
             </span>
           </>
         )}
-      </td>
-
-      {/* Duration — editable (number) */}
-      <td style={{ ...cellStyle, textAlign: "right" }}>
+      </td>;
+      case "duration":
+        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>
         {canEdit ? (
           <EditableCell
             value={task.duration}
@@ -242,10 +285,9 @@ export default function GanttRow({
         ) : (
           <>{task.duration}d</>
         )}
-      </td>
-
-      {/* Start — editable (date) */}
-      <td style={cellStyle}>
+      </td>;
+      case "start":
+        return <td key={column.key} style={cellStyle}>
         {canEdit ? (
           <EditableCell
             value={toISODate(task.start)}
@@ -261,10 +303,9 @@ export default function GanttRow({
         ) : (
           <>{formatDate(task.start)}</>
         )}
-      </td>
-
-      {/* Finish — editable (date) */}
-      <td style={cellStyle}>
+      </td>;
+      case "finish":
+        return <td key={column.key} style={cellStyle}>
         {canEdit ? (
           <EditableCell
             value={toISODate(task.finish)}
@@ -280,10 +321,9 @@ export default function GanttRow({
         ) : (
           <>{formatDate(task.finish)}</>
         )}
-      </td>
-
-      {/* Predecessors — editable (text, parsed on commit) */}
-      <td style={cellStyle}>
+      </td>;
+      case "predecessors":
+        return <td key={column.key} style={cellStyle}>
         {canEdit ? (
           <EditableCell
             value={formatDependencies(task.dependencies)}
@@ -297,10 +337,9 @@ export default function GanttRow({
         ) : (
           <>{formatDependencies(task.dependencies)}</>
         )}
-      </td>
-
-      {/* % Complete — editable (slider) */}
-      <td style={{ ...cellStyle, textAlign: "right" }}>
+      </td>;
+      case "progress":
+        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>
         {canEdit ? (
           <EditableCell
             value={progress}
@@ -316,27 +355,24 @@ export default function GanttRow({
         ) : (
           <>{progress}%</>
         )}
-      </td>
-
-      {/* Critical — non-editable */}
-      <td style={criticalCellStyle}>{task.isCritical ? "Yes" : ""}</td>
-
-      {/* Budgeted Cost */}
-      <td style={{ ...cellStyle, textAlign: "right" }}>
+      </td>;
+      case "critical":
+        return <td key={column.key} style={criticalCellStyle}>{task.isCritical ? t(locale, "yes") : ""}</td>;
+      case "budgetedCost":
+        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>
         {budgetedCost !== undefined && budgetedCost > 0
           ? FORMAT_CURRENCY.format(budgetedCost)
           : "\u2014"}
-      </td>
-
-      {/* Actual Cost */}
-      <td style={{ ...cellStyle, textAlign: "right" }}>
+      </td>;
+      case "actualCost":
+        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>
         {actualCost !== undefined && actualCost > 0
           ? FORMAT_CURRENCY.format(actualCost)
           : "\u2014"}
-      </td>
-
-      {/* Variance */}
-      <td
+      </td>;
+      case "variance":
+        return <td
+        key={column.key}
         style={{
           ...cellStyle,
           textAlign: "right",
@@ -350,7 +386,51 @@ export default function GanttRow({
         }}
       >
         {variance !== undefined ? FORMAT_CURRENCY.format(variance) : "\u2014"}
-      </td>
+      </td>;
+      default:
+        if (canEdit && !column.readOnly && column.dataType !== "object") {
+          const sourceKey = column.sourceKey ?? column.key.replace(/^mpp(?::task)?:/, "");
+          const value = getMppCellValue(task, column);
+          return (
+            <td key={column.key} style={{ ...cellStyle, textAlign: column.align }}>
+              <EditableCell
+                value={getMppEditValue(value, column.dataType)}
+                type={mppEditableCellType(column.dataType)}
+                align={column.align}
+                onCommit={(val) => {
+                  onUpdateTask!(task.id, `mppFields:${sourceKey}`, parseMppEditValue(val, column.dataType));
+                }}
+              />
+            </td>
+          );
+        }
+        return (
+          <td key={column.key} style={{ ...cellStyle, textAlign: column.align }}>
+            {formatGenericValue(getMppCellValue(task, column), column.dataType, locale)}
+          </td>
+        );
+    }
+  };
+
+  return (
+    <tr
+      data-testid="gantt-row"
+      data-task-id={task.id}
+      style={rowStyle}
+      onClick={(e) => onSelect?.(task.id, e.ctrlKey || e.metaKey)}
+      onMouseEnter={(e) => {
+        if (!isSelected) {
+          (e.currentTarget as HTMLElement).style.background =
+            "var(--aia-corp-xlight)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isSelected) {
+          (e.currentTarget as HTMLElement).style.background = rowBg;
+        }
+      }}
+    >
+      {columns.map(renderCell)}
     </tr>
   );
 }

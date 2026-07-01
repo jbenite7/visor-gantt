@@ -10,6 +10,16 @@ import type { Resource, Assignment } from "@/types/resource";
 import type { BudgetItem, BudgetMapping } from "@/types/budget";
 import type { Baseline } from "@/types/baseline";
 import type { MatrixPlan } from "@/types/matrix";
+import type {
+  AssignmentColumnSettings,
+  MppAssignmentColumn,
+  MppCustomFieldDefinition,
+  MppResourceColumn,
+  MppTaskColumn,
+  ResourceColumnSettings,
+  TaskColumnSettings,
+} from "@/types/mppColumns";
+import type { UISettings } from "@/types/ui";
 
 interface SerializedTask {
   id: string | number;
@@ -37,11 +47,15 @@ interface SerializedTask {
   lateFinish?: string;
   totalFloat?: number;
   manualStart?: string;
+  constraintType?: GanttTask["constraintType"];
+  constraintDate?: string;
+  deadline?: string;
   percentComplete?: number;
   wbs?: string;
   resourceNames?: string[];
   cost?: number;
   actualCost?: number;
+  mppFields?: Record<string, unknown>;
   matrixSource?: GanttTask["matrixSource"];
 }
 
@@ -54,7 +68,10 @@ interface SerializedBaseline {
     baselineStart: string;
     baselineFinish: string;
     baselineDuration: number;
+    baselineWork?: number;
     baselineCost?: number;
+    baselineBudgetWork?: number;
+    baselineBudgetCost?: number;
   }>;
 }
 
@@ -69,6 +86,16 @@ export default function ProjectView({
   budgetMappings,
   baselines,
   matrixPlan,
+  mppTaskColumns,
+  mppResourceColumns,
+  mppAssignmentColumns,
+  customFieldDefinitions,
+  calculationEngineVersion,
+  calculatedAt,
+  taskColumnSettings,
+  resourceColumnSettings,
+  assignmentColumnSettings,
+  uiSettings,
 }: {
   projectId?: string;
   tasks: SerializedTask[];
@@ -80,6 +107,16 @@ export default function ProjectView({
   budgetMappings: BudgetMapping[];
   baselines: SerializedBaseline[];
   matrixPlan?: MatrixPlan;
+  mppTaskColumns?: MppTaskColumn[];
+  mppResourceColumns?: MppResourceColumn[];
+  mppAssignmentColumns?: MppAssignmentColumn[];
+  customFieldDefinitions?: MppCustomFieldDefinition[];
+  calculationEngineVersion?: string;
+  calculatedAt?: string;
+  taskColumnSettings?: TaskColumnSettings;
+  resourceColumnSettings?: ResourceColumnSettings;
+  assignmentColumnSettings?: AssignmentColumnSettings;
+  uiSettings?: UISettings;
 }) {
   // Deserialize ISO strings back to Date objects — memoized to avoid recreating on every render
   const deserializedTasks: GanttTask[] = useMemo(
@@ -95,6 +132,8 @@ export default function ProjectView({
         earlyFinish: t.earlyFinish ? createProjectDate(t.earlyFinish) : undefined,
         lateFinish: t.lateFinish ? createProjectDate(t.lateFinish) : undefined,
         manualStart: t.manualStart ? createProjectDate(t.manualStart) : undefined,
+        constraintDate: t.constraintDate ? createProjectDate(t.constraintDate) : undefined,
+        deadline: t.deadline ? createProjectDate(t.deadline) : undefined,
         dependencies: t.dependencies as GanttTask["dependencies"],
       })),
     [tasks],
@@ -148,6 +187,16 @@ export default function ProjectView({
           budgetMappings={budgetMappings}
           baselines={deserializedBaselines}
           matrixPlan={matrixPlan}
+          mppTaskColumns={mppTaskColumns}
+          mppResourceColumns={mppResourceColumns}
+          mppAssignmentColumns={mppAssignmentColumns}
+          customFieldDefinitions={customFieldDefinitions}
+          calculationEngineVersion={calculationEngineVersion}
+          calculatedAt={calculatedAt}
+          taskColumnSettings={taskColumnSettings}
+          resourceColumnSettings={resourceColumnSettings}
+          assignmentColumnSettings={assignmentColumnSettings}
+          uiSettings={uiSettings}
           onTaskClick={(task) => console.log("Clicked:", task.name)}
         />
       </div>

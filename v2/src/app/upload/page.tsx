@@ -115,7 +115,7 @@ export default function UploadPage() {
               onClick={handleBackToUpload}
               className="px-4 py-2 text-sm text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
             >
-              ← Volver al upload
+              ← Volver a importar
             </button>
           </div>
 
@@ -138,7 +138,7 @@ export default function UploadPage() {
         <div className="max-w-2xl mx-auto space-y-6">
           <div className="text-center space-y-2">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 text-transparent bg-clip-text">
-              Importar Proyecto
+              Importar proyecto
             </h1>
           </div>
 
@@ -162,7 +162,7 @@ export default function UploadPage() {
         <div className="max-w-2xl mx-auto space-y-6">
           <div className="text-center space-y-2">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 text-transparent bg-clip-text">
-              Importar Proyecto
+              Importar proyecto
             </h1>
           </div>
 
@@ -206,7 +206,7 @@ export default function UploadPage() {
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 text-transparent bg-clip-text">
-            Importar Proyecto
+            Importar proyecto
           </h1>
           <p className="text-slate-400">
             Arrastra un archivo MS Project (.mpp) o haz clic para seleccionar
@@ -223,7 +223,7 @@ export default function UploadPage() {
         <div className="border-t border-slate-800 pt-6">
           <p className="text-sm text-slate-500 text-center mb-4">
             ¿Tienes un archivo XML?{" "}
-            <span className="text-slate-400">Usa la opción legacy</span>
+            <span className="text-slate-400">Usa la opción heredada</span>
           </p>
 
           <div
@@ -293,7 +293,7 @@ export default function UploadPage() {
 
         <div className="pt-4 border-t border-slate-800">
           <p className="text-sm text-slate-500 text-center">
-            Visor Gantt v2 - Powered by Next.js + Supabase
+            Visor Gantt v2 - Desarrollado con Next.js + PostgreSQL
           </p>
         </div>
       </div>

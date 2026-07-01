@@ -1,9 +1,17 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import type { GanttTask } from "@/components/gantt/types";
 import type { BudgetItem, BudgetMapping } from "@/types/budget";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
+import type { MppCustomFieldDefinition, MppTaskColumn, TaskColumnSettings } from "@/types/mppColumns";
+import type { UILocale } from "@/types/ui";
+import { t } from "@/lib/i18n";
+import { getMppColumnLabel } from "@/lib/mpp/fieldLabels";
+import { inspectMppField } from "@/lib/mpp/fieldInspector";
+import {
+  DEFAULT_TASK_COLUMN_SETTINGS,
+  normalizeTaskColumnSettings,
+} from "@/lib/mpp/taskColumns";
 import ColumnHeader from "./ColumnHeader";
 import ColumnSelector from "./ColumnSelector";
 import type { ColumnConfig } from "./ColumnSelector";
@@ -28,25 +36,30 @@ interface GanttTableProps {
   ) => void;
   budgetMappings?: BudgetMapping[];
   budgetItems?: BudgetItem[];
+  mppTaskColumns?: MppTaskColumn[];
+  customFieldDefinitions?: MppCustomFieldDefinition[];
+  columnSettings?: TaskColumnSettings;
+  locale?: UILocale;
+  onColumnSettingsChange?: (settings: TaskColumnSettings) => void;
+  onLocaleChange?: (locale: UILocale) => void;
 }
 
 /** Default column definitions for the MS Project-style Entry table. */
 export const DEFAULT_COLUMNS: ColumnConfig[] = [
-  { key: "id", label: "ID", width: 50, align: "right", defaultVisible: true },
-  { key: "wbs", label: "WBS", width: 80, align: "left", defaultVisible: true },
-  { key: "name", label: "Name", width: 200, align: "left", defaultVisible: true },
-  { key: "duration", label: "Duration", width: 80, align: "right", defaultVisible: true },
-  { key: "start", label: "Start", width: 100, align: "left", defaultVisible: true },
-  { key: "finish", label: "Finish", width: 100, align: "left", defaultVisible: true },
-  { key: "predecessors", label: "Predecessors", width: 100, align: "left", defaultVisible: true },
-  { key: "progress", label: "% Complete", width: 80, align: "right", defaultVisible: true },
-  { key: "critical", label: "Critical", width: 60, align: "center", defaultVisible: true },
-  { key: "budgetedCost", label: "Costo Presupuestado", width: 120, align: "right", defaultVisible: false },
-  { key: "actualCost", label: "Costo Real", width: 100, align: "right", defaultVisible: false },
-  { key: "variance", label: "Varianza", width: 100, align: "right", defaultVisible: false },
+  { key: "id", label: "ID", labelEn: "ID", labelEs: "ID", width: 50, align: "right", defaultVisible: true },
+  { key: "wbs", label: "EDT", labelEn: "WBS", labelEs: "EDT", width: 80, align: "left", defaultVisible: true },
+  { key: "name", label: "Nombre", labelEn: "Name", labelEs: "Nombre", width: 220, align: "left", defaultVisible: true },
+  { key: "duration", label: "Duración", labelEn: "Duration", labelEs: "Duración", width: 90, align: "right", defaultVisible: true },
+  { key: "start", label: "Comienzo", labelEn: "Start", labelEs: "Comienzo", width: 110, align: "left", defaultVisible: true },
+  { key: "finish", label: "Fin", labelEn: "Finish", labelEs: "Fin", width: 110, align: "left", defaultVisible: true },
+  { key: "predecessors", label: "Predecesoras", labelEn: "Predecessors", labelEs: "Predecesoras", width: 120, align: "left", defaultVisible: true },
+  { key: "progress", label: "% completado", labelEn: "% Complete", labelEs: "% completado", width: 100, align: "right", defaultVisible: true },
+  { key: "critical", label: "Crítica", labelEn: "Critical", labelEs: "Crítica", width: 80, align: "center", defaultVisible: true },
+  { key: "budgetedCost", label: "Costo presupuestado", labelEn: "Budgeted Cost", labelEs: "Costo presupuestado", width: 140, align: "right", defaultVisible: false },
+  { key: "actualCost", label: "Costo real", labelEn: "Actual Cost", labelEs: "Costo real", width: 110, align: "right", defaultVisible: false },
+  { key: "variance", label: "Varianza", labelEn: "Variance", labelEs: "Varianza", width: 110, align: "right", defaultVisible: false },
 ];
 
-const DEFAULT_VISIBLE_KEYS = DEFAULT_COLUMNS.map((c) => c.key);
 const DEFAULT_WIDTHS: Record<string, number> = Object.fromEntries(
   DEFAULT_COLUMNS.map((c) => [c.key, c.width])
 );
@@ -95,12 +108,12 @@ function expandToLevel(
   return collapsed;
 }
 
-const LEVEL_BUTTONS = [
-  { label: "L1", level: 2 },
-  { label: "L2", level: 3 },
-  { label: "L3", level: 4 },
-  { label: "All", level: 1 },
-] as const;
+const LEVEL_BUTTONS: Array<{ label: string; labelEs: string; level: number }> = [
+  { label: "L1", labelEs: "L1", level: 2 },
+  { label: "L2", labelEs: "L2", level: 3 },
+  { label: "L3", labelEs: "L3", level: 4 },
+  { label: "All", labelEs: "Todo", level: 1 },
+];
 
 const toolbarBtnStyle: React.CSSProperties = {
   padding: "2px 8px",
@@ -130,21 +143,103 @@ export default function GanttTable({
   onUpdateTask,
   budgetMappings,
   budgetItems,
+  mppTaskColumns = [],
+  customFieldDefinitions = [],
+  columnSettings,
+  locale = "es",
+  onColumnSettingsChange,
+  onLocaleChange,
 }: GanttTableProps) {
-  // Persist column preferences to localStorage
-  const [visibleColumns, setVisibleColumns] = useLocalStorage<string[]>(
-    "gantt-visible-columns",
-    DEFAULT_VISIBLE_KEYS
+  const [localLocale, setLocalLocale] = useState<UILocale>(locale);
+  const [localColumnSettings, setLocalColumnSettings] = useState<TaskColumnSettings>(
+    () => normalizeTaskColumnSettings(columnSettings, locale),
   );
-  const [columnWidths, setColumnWidths] = useLocalStorage<Record<string, number>>(
-    "gantt-column-widths",
-    DEFAULT_WIDTHS
+
+  useEffect(() => {
+    setLocalLocale(locale);
+  }, [locale]);
+
+  useEffect(() => {
+    setLocalColumnSettings(normalizeTaskColumnSettings(columnSettings, locale));
+  }, [columnSettings, locale]);
+
+  const isColumnSettingsControlled = !!onColumnSettingsChange;
+  const effectiveLocale = onLocaleChange ? locale : localLocale;
+  const effectiveColumnSettings = isColumnSettingsControlled
+    ? columnSettings
+    : localColumnSettings;
+
+  const normalizedSettings = useMemo(
+    () => normalizeTaskColumnSettings(effectiveColumnSettings, effectiveLocale),
+    [effectiveColumnSettings, effectiveLocale],
   );
+  const visibleColumns = normalizedSettings.visible;
+  const columnWidths = useMemo(
+    () => ({ ...DEFAULT_WIDTHS, ...normalizedSettings.widths }),
+    [normalizedSettings.widths],
+  );
+
+  const allColumns = useMemo<ColumnConfig[]>(
+    () => [
+      ...DEFAULT_COLUMNS,
+      ...mppTaskColumns.map((column) => ({
+        key: column.key,
+        label: getMppColumnLabel(column, effectiveLocale),
+        labelEn: column.labelEn,
+        labelEs: column.labelEs,
+        width: column.width ?? 140,
+        align:
+          column.dataType === "number" || column.dataType === "currency" || column.dataType === "duration"
+            ? "right"
+            : column.dataType === "boolean"
+              ? "center"
+              : "left",
+        defaultVisible: false,
+        sourceKey: column.sourceKey,
+        dataType: column.dataType,
+        readOnly: !column.isEditable,
+        group: column.group,
+        calculationSpec: column.calculationSpec,
+      } satisfies ColumnConfig)),
+    ],
+    [mppTaskColumns, effectiveLocale],
+  );
+
+  const fieldInspections = useMemo(() => {
+    const inspections: Record<string, ReturnType<typeof inspectMppField>> = {};
+    for (const column of mppTaskColumns) {
+      let inspectionForColumn: ReturnType<typeof inspectMppField> | undefined;
+      for (const task of tasks) {
+        const inspection = inspectMppField({
+          record: task,
+          column,
+          customFieldDefinitions,
+          locale: effectiveLocale,
+        });
+        if (inspection.value !== undefined && inspection.value !== null && inspection.value !== "") {
+          inspectionForColumn = inspection;
+          break;
+        }
+      }
+      if (!inspectionForColumn && tasks[0]) {
+        inspectionForColumn = inspectMppField({
+          record: tasks[0],
+          column,
+          customFieldDefinitions,
+          locale: effectiveLocale,
+        });
+      }
+      if (inspectionForColumn) {
+        inspections[column.key] = inspectionForColumn;
+      }
+    }
+    return inspections;
+  }, [customFieldDefinitions, effectiveLocale, mppTaskColumns, tasks]);
 
   // Filter columns to only those that are visible
   const displayColumns = useMemo(
-    () => DEFAULT_COLUMNS.filter((col) => visibleColumns.includes(col.key)),
-    [visibleColumns]
+    () => allColumns.filter((col) => visibleColumns.includes(col.key)),
+    [allColumns, visibleColumns]
   );
 
   // Total width of visible columns — table uses this as minWidth so it
@@ -154,34 +249,58 @@ export default function GanttTable({
     [displayColumns, columnWidths],
   );
 
+  const applySettings = useCallback(
+    (next: TaskColumnSettings) => {
+      if (onColumnSettingsChange) {
+        onColumnSettingsChange(next);
+      } else {
+        setLocalColumnSettings(next);
+      }
+    },
+    [onColumnSettingsChange],
+  );
+
   // Toggle a single column's visibility
   const handleToggle = useCallback(
     (key: string) => {
-      setVisibleColumns((prev) => {
-        if (prev.includes(key)) {
-          return prev.filter((k) => k !== key);
-        }
-        // Re-insert in original order
-        const allKeys = DEFAULT_COLUMNS.map((c) => c.key);
-        const next = [...prev, key];
-        return next.sort((a, b) => allKeys.indexOf(a) - allKeys.indexOf(b));
-      });
+      const nextVisible = visibleColumns.includes(key)
+        ? visibleColumns.filter((k) => k !== key)
+        : [...visibleColumns, key].sort(
+            (a, b) =>
+              allColumns.findIndex((col) => col.key === a) -
+              allColumns.findIndex((col) => col.key === b),
+          );
+      applySettings({ ...normalizedSettings, visible: nextVisible });
     },
-    [setVisibleColumns]
+    [allColumns, applySettings, normalizedSettings, visibleColumns]
   );
 
   // Reset to defaults
   const handleReset = useCallback(() => {
-    setVisibleColumns(DEFAULT_VISIBLE_KEYS);
-    setColumnWidths(DEFAULT_WIDTHS);
-  }, [setVisibleColumns, setColumnWidths]);
+    applySettings({
+      ...DEFAULT_TASK_COLUMN_SETTINGS,
+      labelLocale: normalizedSettings.labelLocale,
+    });
+  }, [applySettings, normalizedSettings.labelLocale]);
 
   // Resize a column
   const handleResize = useCallback(
     (key: string, newWidth: number) => {
-      setColumnWidths((prev) => ({ ...prev, [key]: newWidth }));
+      applySettings({
+        ...normalizedSettings,
+        widths: { ...normalizedSettings.widths, [key]: newWidth },
+      });
     },
-    [setColumnWidths]
+    [applySettings, normalizedSettings]
+  );
+
+  const handleLocaleChange = useCallback(
+    (nextLocale: UILocale) => {
+      setLocalLocale(nextLocale);
+      onLocaleChange?.(nextLocale);
+      applySettings({ ...normalizedSettings, labelLocale: nextLocale });
+    },
+    [applySettings, normalizedSettings, onLocaleChange],
   );
 
   const [collapsedTaskIds, setCollapsedTaskIds] = useState<
@@ -271,10 +390,13 @@ export default function GanttTable({
         }}
       >
         <ColumnSelector
-          columns={DEFAULT_COLUMNS}
+          columns={allColumns}
           visibleColumns={visibleColumns}
+          locale={effectiveLocale}
           onToggle={handleToggle}
           onReset={handleReset}
+          onLocaleChange={handleLocaleChange}
+          fieldInspections={fieldInspections}
         />
       </div>
 
@@ -301,7 +423,7 @@ export default function GanttTable({
             marginRight: "2px",
           }}
         >
-          Expand:
+          {t(effectiveLocale, "expand")}:
         </span>
         {LEVEL_BUTTONS.map((btn) => (
           <button
@@ -310,7 +432,7 @@ export default function GanttTable({
             style={toolbarBtnStyle}
             onClick={() => handleExpandToLevel(btn.level)}
           >
-            {btn.label}
+            {effectiveLocale === "en" ? btn.label : btn.labelEs ?? btn.label}
           </button>
         ))}
       </div>
@@ -328,9 +450,11 @@ export default function GanttTable({
             {displayColumns.map((col) => (
               <ColumnHeader
                 key={col.key}
-                label={col.label}
+                label={effectiveLocale === "en" ? col.labelEn ?? col.label : col.labelEs ?? col.label}
+                locale={effectiveLocale}
                 width={columnWidths[col.key] ?? col.width}
                 align={col.align}
+                calculationSpec={col.calculationSpec}
                 onResize={(newWidth) => handleResize(col.key, newWidth)}
               />
             ))}
@@ -351,6 +475,8 @@ export default function GanttTable({
                 isExpanded={!collapsedTaskIds.has(task.id)}
                 onToggleExpand={() => handleToggleExpand(task.id)}
                 onUpdateTask={onUpdateTask}
+                columns={displayColumns}
+                locale={effectiveLocale}
                 budgetedCost={taskBudget?.budgetedCost}
                 actualCost={taskBudget?.actualCost}
                 variance={taskBudget?.variance}
