@@ -375,32 +375,41 @@ export default function GanttTable({
       style={{
         background: "var(--color-bg-surface)",
         borderRight: "1px solid var(--gray-200)",
+        position: "relative",
       }}
     >
-      {/* Toolbar: Column Selector (kept viewport-bound within the left pane). */}
+      {/* Toolbar: Column Selector fixed to the panel top-right while table can keep its own scroll width. */}
       <div
         style={{
-          width: "100%",
-          boxSizing: "border-box",
           position: "sticky",
           top: 0,
           zIndex: 10,
-          display: "flex",
-          justifyContent: "flex-end",
+          height: "40px",
           padding: "6px 10px",
           borderBottom: "1px solid var(--gray-200)",
           background: "var(--aia-alabaster)",
+          boxSizing: "border-box",
+          pointerEvents: "none",
         }}
       >
-        <ColumnSelector
-          columns={allColumns}
-          visibleColumns={visibleColumns}
-          locale={effectiveLocale}
-          onToggle={handleToggle}
-          onReset={handleReset}
-          onLocaleChange={handleLocaleChange}
-          fieldInspections={fieldInspections}
-        />
+        <div
+          style={{
+            position: "absolute",
+            top: "6px",
+            right: "10px",
+            pointerEvents: "auto",
+          }}
+        >
+          <ColumnSelector
+            columns={allColumns}
+            visibleColumns={visibleColumns}
+            locale={effectiveLocale}
+            onToggle={handleToggle}
+            onReset={handleReset}
+            onLocaleChange={handleLocaleChange}
+            fieldInspections={fieldInspections}
+          />
+        </div>
       </div>
 
       <div
