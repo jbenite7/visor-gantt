@@ -13,6 +13,7 @@ import { getMppRecordValue } from "@/lib/mpp/recordValues";
 interface GanttRowProps {
   task: GanttTask;
   index: number;
+  rowNumber: number;
   onSelect?: (taskId: string | number, ctrlKey: boolean) => void;
   isSelected: boolean;
   isExpanded?: boolean;
@@ -55,8 +56,8 @@ function formatDependencies(dependencies: GanttDependency[]): string {
     .join(", ");
 }
 
-function formatMppIdentifier(task: GanttTask, fieldId: "ID" | "UNIQUE_ID"): string | number {
-  const value = getMppRecordValue(task, fieldId);
+function formatUniqueId(task: GanttTask): string | number {
+  const value = getMppRecordValue(task, "UNIQUE_ID");
   return typeof value === "string" || typeof value === "number" ? value : task.id;
 }
 
@@ -173,6 +174,7 @@ function mppEditableCellType(dataType: string | undefined): "text" | "number" | 
 export default function GanttRow({
   task,
   index,
+  rowNumber,
   onSelect,
   isSelected,
   isExpanded = true,
@@ -237,9 +239,9 @@ export default function GanttRow({
   const renderCell = (column: ColumnConfig) => {
     switch (column.key) {
       case "id":
-        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>{formatMppIdentifier(task, "ID")}</td>;
+        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>{rowNumber}</td>;
       case "uniqueId":
-        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>{formatMppIdentifier(task, "UNIQUE_ID")}</td>;
+        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>{formatUniqueId(task)}</td>;
       case "wbs":
         return <td key={column.key} style={cellStyle}>{task.wbs ?? ""}</td>;
       case "name":

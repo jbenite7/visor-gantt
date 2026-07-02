@@ -127,7 +127,7 @@ describe("GanttTable", () => {
 
     const row = screen.getAllByTestId("gantt-row")[0];
     const cells = row.querySelectorAll("td");
-    expect(cells[0]).toHaveTextContent("7");
+    expect(cells[0]).toHaveTextContent("1");
     expect(cells[1]).toHaveTextContent("107");
     expect(cells[3]).toHaveTextContent("Design");
   });

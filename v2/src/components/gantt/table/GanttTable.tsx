@@ -472,6 +472,7 @@ export default function GanttTable({
                 key={task.id}
                 task={task}
                 index={index}
+                rowNumber={index + 1}
                 isSelected={selectedTaskIds?.includes(task.id) ?? false}
                 onSelect={onTaskSelect}
                 isExpanded={!collapsedTaskIds.has(task.id)}
