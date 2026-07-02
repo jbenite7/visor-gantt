@@ -55,6 +55,11 @@ function formatDependencies(dependencies: GanttDependency[]): string {
     .join(", ");
 }
 
+function formatMppIdentifier(task: GanttTask, fieldId: "ID" | "UNIQUE_ID"): string | number {
+  const value = getMppRecordValue(task, fieldId);
+  return value ?? task.id;
+}
+
 /**
  * Parse a predecessor string like "1FS,2SS+5d,3FF-2d" into GanttDependency[].
  *
@@ -232,7 +237,9 @@ export default function GanttRow({
   const renderCell = (column: ColumnConfig) => {
     switch (column.key) {
       case "id":
-        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>{task.id}</td>;
+        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>{formatMppIdentifier(task, "ID")}</td>;
+      case "uniqueId":
+        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>{formatMppIdentifier(task, "UNIQUE_ID")}</td>;
       case "wbs":
         return <td key={column.key} style={cellStyle}>{task.wbs ?? ""}</td>;
       case "name":
@@ -268,6 +275,8 @@ export default function GanttRow({
           </>
         )}
       </td>;
+      case "summary":
+        return <td key={column.key} style={criticalCellStyle}>{task.isSummary ? t(locale, "yes") : ""}</td>;
       case "duration":
         return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>
         {canEdit ? (

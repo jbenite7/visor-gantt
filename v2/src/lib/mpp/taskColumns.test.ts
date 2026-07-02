@@ -200,7 +200,7 @@ describe("MPP task columns", () => {
   test("normalizes visible column settings with Spanish as default locale", () => {
     expect(normalizeTaskColumnSettings(undefined)).toEqual(
       expect.objectContaining({
-        visible: expect.arrayContaining(["id", "name", "duration"]),
+        visible: expect.arrayContaining(["id", "uniqueId", "name", "summary", "duration"]),
         widths: {},
         labelLocale: "es",
       }),

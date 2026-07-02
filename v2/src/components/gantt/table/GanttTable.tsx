@@ -47,12 +47,14 @@ interface GanttTableProps {
 /** Default column definitions for the MS Project-style Entry table. */
 export const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: "id", label: "ID", labelEn: "ID", labelEs: "ID", width: 50, align: "right", defaultVisible: true },
+  { key: "uniqueId", label: "Id. único", labelEn: "Unique ID", labelEs: "Id. único", width: 90, align: "right", defaultVisible: true },
   { key: "wbs", label: "EDT", labelEn: "WBS", labelEs: "EDT", width: 80, align: "left", defaultVisible: true },
-  { key: "name", label: "Nombre", labelEn: "Name", labelEs: "Nombre", width: 220, align: "left", defaultVisible: true },
+  { key: "name", label: "Actividad", labelEn: "Activity", labelEs: "Actividad", width: 220, align: "left", defaultVisible: true },
+  { key: "summary", label: "Resumen", labelEn: "Summary", labelEs: "Resumen", width: 80, align: "center", defaultVisible: true },
   { key: "duration", label: "Duración", labelEn: "Duration", labelEs: "Duración", width: 90, align: "right", defaultVisible: true },
   { key: "start", label: "Comienzo", labelEn: "Start", labelEs: "Comienzo", width: 110, align: "left", defaultVisible: true },
   { key: "finish", label: "Fin", labelEn: "Finish", labelEs: "Fin", width: 110, align: "left", defaultVisible: true },
-  { key: "predecessors", label: "Predecesoras", labelEn: "Predecessors", labelEs: "Predecesoras", width: 120, align: "left", defaultVisible: true },
+  { key: "predecessors", label: "Predecesora", labelEn: "Predecessor", labelEs: "Predecesora", width: 120, align: "left", defaultVisible: true },
   { key: "progress", label: "% completado", labelEn: "% Complete", labelEs: "% completado", width: 100, align: "right", defaultVisible: true },
   { key: "critical", label: "Crítica", labelEn: "Critical", labelEs: "Crítica", width: 80, align: "center", defaultVisible: true },
   { key: "budgetedCost", label: "Costo presupuestado", labelEn: "Budgeted Cost", labelEs: "Costo presupuestado", width: 140, align: "right", defaultVisible: false },

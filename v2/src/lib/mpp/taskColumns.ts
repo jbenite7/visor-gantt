@@ -41,8 +41,10 @@ type RecordWithMppFields = object & {
 
 export const CORE_TASK_COLUMN_KEYS = [
   "id",
+  "uniqueId",
   "wbs",
   "name",
+  "summary",
   "duration",
   "start",
   "finish",

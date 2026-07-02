@@ -91,19 +91,45 @@ describe("GanttTable", () => {
     // The name cell with bold font weight is the td containing the task name
     // Check that the summary row's name has the bold style
     const nameCells = rows[0].querySelectorAll("td");
-    // Name is at index 2 (after ID and WBS)
-    const nameCell = nameCells[2];
+    // Name is at index 3 (after ID, Unique ID and EDT)
+    const nameCell = nameCells[3];
     expect(nameCell).toHaveStyle("font-weight: 600");
   });
 
-  test("renders column headers", () => {
-    render(<GanttTable tasks={[regularTask]} />);
+  test("renders the default columns in the requested order", () => {
+    const task = makeTask({
+      id: 107,
+      name: "Design",
+      mppFields: {
+        ID: 7,
+        UID: 107,
+        UNIQUE_ID: 107,
+        SUMMARY: false,
+      },
+    });
 
-    expect(screen.getByText("ID")).toBeInTheDocument();
-    expect(screen.getByText("Nombre")).toBeInTheDocument();
-    expect(screen.getByText("Duración")).toBeInTheDocument();
-    expect(screen.getByText("Comienzo")).toBeInTheDocument();
-    expect(screen.getByText("Fin")).toBeInTheDocument();
+    render(<GanttTable tasks={[task]} />);
+
+    const headers = screen.getAllByRole("columnheader").map((header) => header.textContent);
+    expect(headers).toEqual([
+      "ID",
+      "Id. único",
+      "EDT",
+      "Actividad",
+      "Resumen",
+      "Duración",
+      "Comienzo",
+      "Fin",
+      "Predecesora",
+      "% completado",
+      "Crítica",
+    ]);
+
+    const row = screen.getAllByTestId("gantt-row")[0];
+    const cells = row.querySelectorAll("td");
+    expect(cells[0]).toHaveTextContent("7");
+    expect(cells[1]).toHaveTextContent("107");
+    expect(cells[3]).toHaveTextContent("Design");
   });
 
   test("renders imported MPP columns in Spanish by default and switches labels to English", () => {
