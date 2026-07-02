@@ -56,6 +56,13 @@ function applyFieldChange(
       },
     };
   }
+  if (field === "progress" || field === "percentComplete") {
+    return {
+      ...task,
+      progress: value as number,
+      percentComplete: value as number,
+    };
+  }
   return { ...task, [field]: value } as GanttTask;
 }
 

@@ -60,6 +60,34 @@ describe("ProjectContext schedule recalculation", () => {
     expect(ctx!.scheduleIssues).toHaveLength(0);
   });
 
+  test("keeps progress and percentComplete in sync during edits", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1, progress: 10, percentComplete: 10 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.updateTask(1, "progress", 42.25));
+
+    expect(ctx!.tasks.find((t) => t.id === 1)).toEqual(
+      expect.objectContaining({
+        progress: 42.25,
+        percentComplete: 42.25,
+      }),
+    );
+
+    act(() => ctx!.updateTask(1, "percentComplete", 73.5));
+
+    expect(ctx!.tasks.find((t) => t.id === 1)).toEqual(
+      expect.objectContaining({
+        progress: 73.5,
+        percentComplete: 73.5,
+      }),
+    );
+  });
+
   test("created dependencies are stored on the successor task", () => {
     let ctx: ProjectContextValue | undefined;
 
