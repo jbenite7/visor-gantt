@@ -105,6 +105,7 @@ function GanttViewInner({
   initialMppResourceColumns,
   initialMppAssignmentColumns,
   initialCustomFieldDefinitions,
+  initialCalculationEngineVersion,
   initialTaskColumnSettings,
   initialResourceColumnSettings,
   initialAssignmentColumnSettings,
@@ -124,6 +125,7 @@ function GanttViewInner({
   initialMppResourceColumns: MppResourceColumn[];
   initialMppAssignmentColumns: MppAssignmentColumn[];
   initialCustomFieldDefinitions: MppCustomFieldDefinition[];
+  initialCalculationEngineVersion?: string;
   initialTaskColumnSettings?: TaskColumnSettings;
   initialResourceColumnSettings?: ResourceColumnSettings;
   initialAssignmentColumnSettings?: AssignmentColumnSettings;
@@ -213,20 +215,50 @@ function GanttViewInner({
   const [activeBaselineId, setActiveBaselineId] = useState<string | undefined>();
 
   const baseMppTaskColumns = useMemo(
-    () => buildMppTaskColumnsFromTasks(tasks, undefined, initialMppTaskColumns),
+    () =>
+      initialMppTaskColumns.length > 0
+        ? initialMppTaskColumns
+        : buildMppTaskColumnsFromTasks(tasks, undefined, initialMppTaskColumns),
     [tasks, initialMppTaskColumns],
   );
   const baseMppResourceColumns = useMemo(
-    () => buildMppResourceColumnsFromResources(resources, undefined, initialMppResourceColumns),
+    () =>
+      initialMppResourceColumns.length > 0
+        ? initialMppResourceColumns
+        : buildMppResourceColumnsFromResources(resources, undefined, initialMppResourceColumns),
     [resources, initialMppResourceColumns],
   );
   const baseMppAssignmentColumns = useMemo(
-    () => buildMppAssignmentColumnsFromAssignments(assignments, undefined, initialMppAssignmentColumns),
+    () =>
+      initialMppAssignmentColumns.length > 0
+        ? initialMppAssignmentColumns
+        : buildMppAssignmentColumnsFromAssignments(assignments, undefined, initialMppAssignmentColumns),
     [assignments, initialMppAssignmentColumns],
   );
+  const hasVisibleMppTaskColumns = useMemo(
+    () => taskColumnSettings.visible.some((key) => key.startsWith("mpp:")),
+    [taskColumnSettings.visible],
+  );
+  const shouldCalculateMppFields =
+    Boolean(initialCalculationEngineVersion) &&
+    (activeView !== "gantt" || hasVisibleMppTaskColumns);
   const calculatedMpp = useMemo(
-    () =>
-      calculateMppFields({
+    () => {
+      if (!shouldCalculateMppFields) {
+        return {
+          tasks,
+          resources,
+          assignments,
+          mppTaskColumns: baseMppTaskColumns,
+          mppResourceColumns: baseMppResourceColumns,
+          mppAssignmentColumns: baseMppAssignmentColumns,
+          customFieldDefinitions: initialCustomFieldDefinitions,
+          engineVersion: initialCalculationEngineVersion,
+          calculatedAt: undefined,
+        };
+      }
+
+      return calculateMppFields({
         tasks,
         resources,
         assignments,
@@ -238,7 +270,8 @@ function GanttViewInner({
         mppAssignmentColumns: baseMppAssignmentColumns,
         customFieldDefinitions: initialCustomFieldDefinitions,
         timephasedScale: scale,
-      }),
+      });
+    },
     [
       assignments,
       baseMppAssignmentColumns,
@@ -246,10 +279,12 @@ function GanttViewInner({
       baseMppTaskColumns,
       baselines,
       calendar,
+      initialCalculationEngineVersion,
       initialStatusDate,
       initialCustomFieldDefinitions,
       resources,
       scale,
+      shouldCalculateMppFields,
       tasks,
     ],
   );
@@ -929,6 +964,7 @@ export default function GanttView({
   mppResourceColumns = [],
   mppAssignmentColumns = [],
   customFieldDefinitions = [],
+  calculationEngineVersion,
   taskColumnSettings,
   resourceColumnSettings,
   assignmentColumnSettings,
@@ -960,6 +996,7 @@ export default function GanttView({
         initialMppResourceColumns={mppResourceColumns}
         initialMppAssignmentColumns={mppAssignmentColumns}
         initialCustomFieldDefinitions={customFieldDefinitions}
+        initialCalculationEngineVersion={calculationEngineVersion}
         initialTaskColumnSettings={taskColumnSettings}
         initialResourceColumnSettings={resourceColumnSettings}
         initialAssignmentColumnSettings={assignmentColumnSettings}

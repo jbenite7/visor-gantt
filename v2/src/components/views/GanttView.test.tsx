@@ -16,6 +16,7 @@ import type { GanttTask } from "@/components/gantt/types";
 import { saveProject, type ProjectData } from "@/app/actions/project";
 import { createProjectDate } from "@/lib/date/projectDate";
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
+import * as mppCalculationEngine from "@/lib/mpp/mppCalculationEngine";
 import type { MatrixPlan } from "@/types/matrix";
 
 jest.mock("@/app/actions/project", () => ({
@@ -183,6 +184,31 @@ describe("GanttView", () => {
     const toolbar = screen.getByTestId("project-toolbar");
     expect(within(toolbar).getByText("Cronograma importado")).toBeInTheDocument();
     expect(within(toolbar).queryByText("Proyecto sin nombre")).not.toBeInTheDocument();
+  });
+
+  test("skips full MPP calculation on Gantt view when MPP columns are hidden", () => {
+    const calculateSpy = jest.spyOn(mppCalculationEngine, "calculateMppFields");
+
+    render(
+      <GanttView
+        projectName="Cronograma importado"
+        tasks={[makeTask({ id: 1, mppFields: { DURATION: 5 } })]}
+        calculationEngineVersion="mpp-calc-v1"
+        mppTaskColumns={[
+          {
+            key: "mpp:DURATION",
+            fieldId: "DURATION",
+            label: "Duration",
+            dataType: "DURATION",
+            isEditable: false,
+            recordType: "task",
+          },
+        ]}
+      />,
+    );
+
+    expect(calculateSpy).not.toHaveBeenCalled();
+    calculateSpy.mockRestore();
   });
 
   test("recalculates successor dates after inline duration edits", async () => {
@@ -452,9 +478,6 @@ describe("GanttView", () => {
         name: resource.name,
         mppFields: expect.objectContaining({
           Text1: "Recurso importado",
-          WORK: expect.any(Number),
-          COST: expect.any(Number),
-          __calculationEngineVersion: "mpp-calc-v1",
         }),
       }),
     ]);
@@ -464,31 +487,20 @@ describe("GanttView", () => {
         resourceId: assignment.resourceId,
         mppFields: expect.objectContaining({
           Text1: "Asignacion importada",
-          WORK: expect.any(Number),
-          COST: expect.any(Number),
-          __calculationEngineVersion: "mpp-calc-v1",
         }),
       }),
     ]);
     expect(saved.budgetItems).toEqual([budgetItem]);
     expect(saved.budgetMappings).toEqual([budgetMapping]);
     expect(saved.baselines).toEqual([baseline]);
-    expect(saved.tasks[0].mppFields).toEqual(expect.objectContaining({
-      Text1: "Contrato",
-      START: expect.any(String),
-      FINISH: expect.any(String),
-      DURATION: 3,
-      __calculationEngineVersion: "mpp-calc-v1",
-    }));
+    expect(saved.tasks[0].mppFields).toEqual(
+      expect.objectContaining({ Text1: "Contrato" }),
+    );
     expect(saved.mppTaskColumns).toEqual(expect.arrayContaining([
       expect.objectContaining({
         sourceKey: "Text1",
         labelEn: "Text 1",
         labelEs: "Texto 1",
-      }),
-      expect.objectContaining({
-        fieldId: "ACTUAL_COST",
-        labelEn: "Actual Cost",
       }),
     ]));
     expect(saved.mppResourceColumns).toEqual(expect.arrayContaining([
@@ -497,20 +509,12 @@ describe("GanttView", () => {
         labelEn: "Text 1",
         labelEs: "Texto 1",
       }),
-      expect.objectContaining({
-        fieldId: "WINDOWS_USER_ACCOUNT",
-        labelEn: "Windows User Account",
-      }),
     ]));
     expect(saved.mppAssignmentColumns).toEqual(expect.arrayContaining([
       expect.objectContaining({
         sourceKey: "Text1",
         labelEn: "Text 1",
         labelEs: "Texto 1",
-      }),
-      expect.objectContaining({
-        fieldId: "ACTUAL_WORK",
-        labelEn: "Actual Work",
       }),
     ]));
     expect(saved.taskColumnSettings).toEqual({
