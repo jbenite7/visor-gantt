@@ -376,13 +376,17 @@ export default function GanttTable({
         background: "var(--color-bg-surface)",
         borderRight: "1px solid var(--gray-200)",
         position: "relative",
+        minWidth: 0,
       }}
     >
-      {/* Toolbar: Column Selector fixed to the panel top-right while table can keep its own scroll width. */}
+      {/* Toolbar: Column Selector remains visible in the table panel even with horizontal scroll. */}
       <div
         style={{
           position: "sticky",
           top: 0,
+          left: 0,
+          right: 0,
+          width: "100%",
           zIndex: 10,
           height: "40px",
           padding: "6px 10px",
@@ -390,16 +394,12 @@ export default function GanttTable({
           background: "var(--aia-alabaster)",
           boxSizing: "border-box",
           pointerEvents: "none",
+          display: "flex",
+          justifyContent: "flex-end",
+          alignItems: "center",
         }}
       >
-        <div
-          style={{
-            position: "absolute",
-            top: "6px",
-            right: "10px",
-            pointerEvents: "auto",
-          }}
-        >
+        <div style={{ pointerEvents: "auto" }}>
           <ColumnSelector
             columns={allColumns}
             visibleColumns={visibleColumns}
