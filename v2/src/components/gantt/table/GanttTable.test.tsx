@@ -132,6 +132,22 @@ describe("GanttTable", () => {
     expect(cells[3]).toHaveTextContent("Design");
   });
 
+  test("renders percent complete with two decimals", () => {
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({
+            id: 1,
+            name: "Con decimales",
+            progress: 33.3333,
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("33.33%")).toBeInTheDocument();
+  });
+
   test("renders imported MPP columns in Spanish by default and switches labels to English", () => {
     const columns: MppTaskColumn[] = [
       {

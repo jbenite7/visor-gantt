@@ -377,9 +377,11 @@ export default function GanttTable({
         borderRight: "1px solid var(--gray-200)",
       }}
     >
-      {/* Toolbar: Column Selector — minWidth matches table so it doesn't create extra scroll space */}
+      {/* Toolbar: Column Selector (kept viewport-bound within the left pane). */}
       <div
         style={{
+          width: "100%",
+          boxSizing: "border-box",
           position: "sticky",
           top: 0,
           zIndex: 10,
@@ -388,7 +390,6 @@ export default function GanttTable({
           padding: "6px 10px",
           borderBottom: "1px solid var(--gray-200)",
           background: "var(--aia-alabaster)",
-          minWidth: tableMinWidth,
         }}
       >
         <ColumnSelector

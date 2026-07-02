@@ -112,6 +112,17 @@ const FORMAT_CURRENCY = new Intl.NumberFormat("es-CO", {
   minimumFractionDigits: 0,
 });
 
+function formatProgressValue(value: unknown): string {
+  const numericValue = typeof value === "number" && Number.isFinite(value)
+    ? value
+    : Number(value);
+
+  if (!Number.isFinite(numericValue)) return "0.00%";
+
+  const clamped = Math.max(0, Math.min(100, numericValue));
+  return `${clamped.toFixed(2)}%`;
+}
+
 function formatGenericValue(value: unknown, dataType: string | undefined, locale: UILocale): string {
   if (value == null || value === "") return "";
   if (value instanceof Date) return formatDate(value);
@@ -364,7 +375,7 @@ export default function GanttRow({
             }}
           />
         ) : (
-          <>{progress}%</>
+          <>{formatProgressValue(progress)}</>
         )}
       </td>;
       case "critical":
