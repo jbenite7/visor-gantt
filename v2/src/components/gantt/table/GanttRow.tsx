@@ -57,7 +57,7 @@ function formatDependencies(dependencies: GanttDependency[]): string {
 
 function formatMppIdentifier(task: GanttTask, fieldId: "ID" | "UNIQUE_ID"): string | number {
   const value = getMppRecordValue(task, fieldId);
-  return value ?? task.id;
+  return typeof value === "string" || typeof value === "number" ? value : task.id;
 }
 
 /**
