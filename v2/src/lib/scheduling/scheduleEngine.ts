@@ -75,15 +75,28 @@ function collectDependencies(tasks: GanttTask[]): GanttDependency[] {
   return result;
 }
 
+function dependenciesBySuccessor(
+  dependencies: GanttDependency[],
+): Map<string | number, GanttDependency[]> {
+  const grouped = new Map<string | number, GanttDependency[]>();
+  for (const dep of dependencies) {
+    const existing = grouped.get(dep.to) ?? [];
+    existing.push(dep);
+    grouped.set(dep.to, existing);
+  }
+  return grouped;
+}
+
 export function normalizeDependencies(tasks: GanttTask[]): GanttTask[] {
   const activeTaskIds = new Set(tasks.filter(isActiveTask).map((task) => task.id));
   const deps = collectDependencies(tasks).filter(
     (dep) => activeTaskIds.has(dep.from) && activeTaskIds.has(dep.to),
   );
+  const depsBySuccessor = dependenciesBySuccessor(deps);
 
   return tasks.map((task) => ({
     ...task,
-    dependencies: isActiveTask(task) ? deps.filter((dep) => dep.to === task.id) : [],
+    dependencies: isActiveTask(task) ? depsBySuccessor.get(task.id) ?? [] : [],
   }));
 }
 
@@ -276,8 +289,8 @@ function hasCycle(tasks: GanttTask[], dependencies: GanttDependency[]): boolean 
   }
 
   let visited = 0;
-  while (queue.length > 0) {
-    const current = queue.shift()!;
+  for (let head = 0; head < queue.length; head += 1) {
+    const current = queue[head];
     visited += 1;
     for (const next of successors.get(current) ?? []) {
       const degree = (inDegree.get(next) ?? 0) - 1;

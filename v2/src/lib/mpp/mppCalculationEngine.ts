@@ -1,5 +1,5 @@
 import type { GanttDependency, GanttTask } from "@/components/gantt/types";
-import type { Baseline } from "@/types/baseline";
+import type { Baseline, BaselineTask } from "@/types/baseline";
 import { DEFAULT_PROJECT_CALENDAR, type ProjectCalendar } from "@/types/calendar";
 import type { Assignment, Resource } from "@/types/resource";
 import type {
@@ -145,7 +145,18 @@ interface EarnedValueTotals {
   acwp: number;
 }
 
+interface MppCalculationContext {
+  taskById: Map<string, GanttTask>;
+  resourceByUid: Map<number, Resource>;
+  assignmentsByTaskId: Map<string, Assignment[]>;
+  dependenciesByPredecessor: Map<string, GanttDependency[]>;
+  activeTaskIds: Set<string>;
+  summaryNameByTaskId: Map<string, string | undefined>;
+  baselineByIndexAndTaskId: Map<number, Map<string, BaselineTask>>;
+}
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const normalizedKeyCache = new WeakMap<Record<string, unknown>, Map<string, string>>();
 
 function dateIso(date: Date | undefined): string | undefined {
   return date && !Number.isNaN(date.getTime()) ? date.toISOString() : undefined;
@@ -386,6 +397,32 @@ function safeDivide(numerator: number, denominator: number): number {
 function roundCalculation(value: number, precision = 6): number {
   const factor = 10 ** precision;
   return Math.round(value * factor) / factor;
+}
+
+function normalizedKeyMap(record: Record<string, unknown>): Map<string, string> {
+  let cached = normalizedKeyCache.get(record);
+  if (cached) return cached;
+  cached = new Map<string, string>();
+  for (const key of Object.keys(record)) {
+    cached.set(normalizeMppFieldId(key), key);
+  }
+  normalizedKeyCache.set(record, cached);
+  return cached;
+}
+
+function rememberNormalizedKey(record: Record<string, unknown>, key: string): void {
+  const cached = normalizedKeyCache.get(record);
+  cached?.set(normalizeMppFieldId(key), key);
+}
+
+function normalizedRecordValue(record: Record<string, unknown>, fieldId: string): unknown {
+  const direct = record[fieldId];
+  if (direct !== undefined) return direct;
+  const normalized = normalizeMppFieldId(fieldId);
+  const normalizedDirect = record[normalized];
+  if (normalizedDirect !== undefined) return normalizedDirect;
+  const matchedKey = normalizedKeyMap(record).get(normalized);
+  return matchedKey ? record[matchedKey] : undefined;
 }
 
 function resourceCostPerUse(resource: Resource | undefined): number {
@@ -820,6 +857,7 @@ function taskUniqueId(task: GanttTask | undefined, fallback: string | number): s
 function write(fields: Record<string, unknown>, fieldId: string, value: unknown): void {
   if (value !== undefined && value !== null && value !== "") {
     fields[fieldId] = value;
+    rememberNormalizedKey(fields, fieldId);
   }
 }
 
@@ -853,24 +891,14 @@ function constraintLabel(type: GanttTask["constraintType"] | undefined): string 
 }
 
 function readField(record: { mppFields?: Record<string, unknown> } & Record<string, unknown>, fieldId: string): unknown {
-  const normalized = normalizeMppFieldId(fieldId);
   const direct = record.mppFields?.[fieldId] ?? record[fieldId];
   if (direct !== undefined) return direct;
-  for (const [key, value] of Object.entries(record.mppFields ?? {})) {
-    if (normalizeMppFieldId(key) === normalized) return value;
-  }
-  for (const [key, value] of Object.entries(record)) {
-    if (normalizeMppFieldId(key) === normalized) return value;
-  }
-  return undefined;
+  const mppValue = normalizedRecordValue(record.mppFields ?? {}, fieldId);
+  return mppValue !== undefined ? mppValue : normalizedRecordValue(record, fieldId);
 }
 
 function readCalculatedField(fields: Record<string, unknown>, fieldId: string): unknown {
-  const normalized = normalizeMppFieldId(fieldId);
-  if (fields[fieldId] !== undefined) return fields[fieldId];
-  if (fields[normalized] !== undefined) return fields[normalized];
-  const matched = Object.entries(fields).find(([key]) => normalizeMppFieldId(key) === normalized);
-  return matched?.[1];
+  return normalizedRecordValue(fields, fieldId);
 }
 
 function isMppTaskActive(task: GanttTask, calculatedFields?: Record<string, unknown>): boolean {
@@ -900,6 +928,74 @@ function buildChildren(tasks: GanttTask[]): Map<string | number, GanttTask[]> {
     }
   }
   return children;
+}
+
+function groupAssignmentsByTask(assignments: Assignment[]): Map<string, Assignment[]> {
+  const grouped = new Map<string, Assignment[]>();
+  for (const assignment of assignments) {
+    const key = String(assignment.taskId);
+    const existing = grouped.get(key) ?? [];
+    existing.push(assignment);
+    grouped.set(key, existing);
+  }
+  return grouped;
+}
+
+function groupDependenciesByPredecessor(tasks: GanttTask[]): Map<string, GanttDependency[]> {
+  const grouped = new Map<string, GanttDependency[]>();
+  for (const task of tasks) {
+    for (const dependency of task.dependencies) {
+      const key = String(dependency.from);
+      const existing = grouped.get(key) ?? [];
+      existing.push(dependency);
+      grouped.set(key, existing);
+    }
+  }
+  return grouped;
+}
+
+function buildSummaryNameByTaskId(tasks: GanttTask[]): Map<string, string | undefined> {
+  const summaries = new Map<string, string | undefined>();
+  const stack = new Map<number, GanttTask>();
+  for (const task of tasks) {
+    const parent = stack.get(task.outlineLevel - 1);
+    summaries.set(String(task.id), parent?.name);
+    stack.set(task.outlineLevel, task);
+    for (const level of [...stack.keys()]) {
+      if (level > task.outlineLevel) stack.delete(level);
+    }
+  }
+  return summaries;
+}
+
+function buildBaselineIndex(baselines: Baseline[]): Map<number, Map<string, BaselineTask>> {
+  const indexed = new Map<number, Map<string, BaselineTask>>();
+  baselines.forEach((baseline, index) => {
+    indexed.set(
+      index,
+      new Map(baseline.tasks.map((baselineTask) => [String(baselineTask.taskId), baselineTask])),
+    );
+  });
+  return indexed;
+}
+
+function buildCalculationContext(
+  tasks: GanttTask[],
+  resources: Resource[],
+  assignments: Assignment[],
+  baselines: Baseline[],
+): MppCalculationContext {
+  return {
+    taskById: new Map(tasks.map((task) => [String(task.id), task])),
+    resourceByUid: new Map(resources.map((resource) => [resource.uid, resource])),
+    assignmentsByTaskId: groupAssignmentsByTask(assignments),
+    dependenciesByPredecessor: groupDependenciesByPredecessor(tasks),
+    activeTaskIds: new Set(
+      tasks.filter((task) => isMppTaskActive(task)).map((task) => String(task.id)),
+    ),
+    summaryNameByTaskId: buildSummaryNameByTaskId(tasks),
+    baselineByIndexAndTaskId: buildBaselineIndex(baselines),
+  };
 }
 
 function taskSummaryName(task: GanttTask | undefined, tasks: GanttTask[]): string | undefined {
@@ -1123,9 +1219,12 @@ function calculateTaskMetrics(
   minutesPerDay: number,
   resourceLoadIndex?: ResourceLoadIndex,
   calendar?: ProjectCalendar,
+  context?: MppCalculationContext,
 ): TaskMetrics {
-  const assigned = taskAssignments(task, assignments);
-  const resourceByUid = new Map(resources.map((resource) => [resource.uid, resource]));
+  const assigned = context?.assignmentsByTaskId.get(String(task.id))
+    ?? taskAssignments(task, assignments);
+  const resourceByUid = context?.resourceByUid
+    ?? new Map(resources.map((resource) => [resource.uid, resource]));
   const progress = Math.max(0, Math.min(100, task.percentComplete ?? task.progress ?? 0));
   let work = 0;
   let cost = 0;
@@ -1215,8 +1314,14 @@ function calculateTaskMetrics(
   };
 }
 
-function baselineTaskFor(task: GanttTask, baselines: Baseline[], index = 0) {
-  return baselines[index]?.tasks.find((baselineTask) => String(baselineTask.taskId) === String(task.id));
+function baselineTaskFor(
+  task: GanttTask,
+  baselines: Baseline[],
+  index = 0,
+  context?: MppCalculationContext,
+) {
+  return context?.baselineByIndexAndTaskId.get(index)?.get(String(task.id))
+    ?? baselines[index]?.tasks.find((baselineTask) => String(baselineTask.taskId) === String(task.id));
 }
 
 function writeBaselineFields(
@@ -1781,6 +1886,7 @@ function calculateTaskFields(
   calendar?: ProjectCalendar,
   resourceLoadIndex?: ResourceLoadIndex,
   statusDate?: Date,
+  context?: MppCalculationContext,
 ): GanttTask {
   const fields: Record<string, unknown> = { ...(task.mppFields ?? {}) };
   const importedActualDuration = parseDurationDays(readCalculatedField(fields, "ACTUAL_DURATION"), minutesPerDay);
@@ -1809,30 +1915,35 @@ function calculateTaskFields(
     progress,
     percentComplete: progress,
   };
-  const tasksForCalculations = tasks.map((candidate) => (
-    String(candidate.id) === String(task.id) ? taskForCalculations : candidate
-  ));
+  const currentTaskId = String(task.id);
+  const taskById = context?.taskById ?? new Map(tasks.map((candidate) => [String(candidate.id), candidate]));
+  const taskLookup = (id: string | number): GanttTask | undefined =>
+    String(id) === currentTaskId
+      ? taskForCalculations
+      : taskById.get(String(id));
   const physicalProgress = Math.max(0, Math.min(100, toNumber(fields.PHYSICAL_PERCENT_COMPLETE, progress)));
   const earnedValueMethod = String(fields.EARNED_VALUE_METHOD ?? "Percent Complete");
   const earnedValueProgress = earnedValueMethod.toLowerCase().includes("physical")
     ? physicalProgress
     : progress;
-  const metrics = calculateTaskMetrics(taskForCalculations, resources, assignments, minutesPerDay, resourceLoadIndex, calendar);
+  const metrics = calculateTaskMetrics(taskForCalculations, resources, assignments, minutesPerDay, resourceLoadIndex, calendar, context);
   const taskIsActive = isMppTaskActive(taskForCalculations, fields);
-  const activeTaskIds = new Set(
-    tasksForCalculations
-      .filter((candidate) => String(candidate.id) === String(taskForCalculations.id) ? taskIsActive : isMppTaskActive(candidate))
-      .map((candidate) => candidate.id),
-  );
+  const activeTaskIds = context
+    ? new Set(context.activeTaskIds)
+    : new Set(tasks.filter((candidate) => isMppTaskActive(candidate)).map((candidate) => String(candidate.id)));
+  if (taskIsActive) {
+    activeTaskIds.add(currentTaskId);
+  } else {
+    activeTaskIds.delete(currentTaskId);
+  }
   const successors = taskIsActive
-    ? tasksForCalculations.flatMap((candidate) => candidate.dependencies.filter((dep) => (
-        String(dep.from) === String(task.id) && activeTaskIds.has(dep.from) && activeTaskIds.has(dep.to)
-      )))
+    ? (context?.dependenciesByPredecessor.get(currentTaskId) ?? tasks.flatMap((candidate) => candidate.dependencies.filter((dep) => String(dep.from) === currentTaskId)))
+        .filter((dep) => activeTaskIds.has(String(dep.from)) && activeTaskIds.has(String(dep.to)))
     : [];
   const predecessors = taskIsActive
-    ? taskForCalculations.dependencies.filter((dep) => activeTaskIds.has(dep.from) && activeTaskIds.has(dep.to))
+    ? taskForCalculations.dependencies.filter((dep) => activeTaskIds.has(String(dep.from)) && activeTaskIds.has(String(dep.to)))
     : [];
-  const baseline = baselineTaskFor(taskForCalculations, baselines, 0);
+  const baseline = baselineTaskFor(taskForCalculations, baselines, 0, context);
   const baselineCost = baseline?.baselineCost ?? toNumber(fields.BASELINE_COST, metrics.cost);
   const baselineDuration = baseline?.baselineDuration ?? toNumber(fields.BASELINE_DURATION, taskForCalculations.baselineDuration ?? taskForCalculations.duration);
   const baselineWork = baseline?.baselineWork ?? toNumber(fields.BASELINE_WORK, metrics.work);
@@ -1860,7 +1971,7 @@ function calculateTaskFields(
   const freeSlackDays = successors.length === 0
     ? effectiveTotalSlackDays
     : Math.min(...successors.map((dep) => {
-        const successor = tasksForCalculations.find((candidate) => String(candidate.id) === String(dep.to));
+        const successor = taskLookup(dep.to);
         return successor ? durationDays(taskForCalculations.finish, successor.start) - 1 - (dep.lag ?? 0) : effectiveTotalSlackDays;
       }));
   const bcws = baselineCostThroughStatusDate(baseline, baselineCost, statusDate, calendar);
@@ -1909,14 +2020,14 @@ function calculateTaskFields(
   write(fields, "ACTIVE", taskIsActive);
   fields.PREDECESSORS = predecessors.map(dependencyLabel).join(", ");
   fields.SUCCESSORS = successors.map((dep) => `${dep.to}${dep.type}${dep.lag ? `${dep.lag > 0 ? "+" : ""}${dep.lag}d` : ""}`).join(", ");
-  fields.WBS_PREDECESSORS = predecessors.map((dep) => tasksForCalculations.find((candidate) => String(candidate.id) === String(dep.from))?.wbs ?? dep.from).join(", ");
-  fields.WBS_SUCCESSORS = successors.map((dep) => tasksForCalculations.find((candidate) => String(candidate.id) === String(dep.to))?.wbs ?? dep.to).join(", ");
+  fields.WBS_PREDECESSORS = predecessors.map((dep) => taskLookup(dep.from)?.wbs ?? dep.from).join(", ");
+  fields.WBS_SUCCESSORS = successors.map((dep) => taskLookup(dep.to)?.wbs ?? dep.to).join(", ");
   fields.UNIQUE_ID_PREDECESSORS = predecessors.map((dep) => {
-    const predecessor = tasksForCalculations.find((candidate) => String(candidate.id) === String(dep.from));
+    const predecessor = taskLookup(dep.from);
     return taskUniqueId(predecessor, dep.from);
   }).join(", ");
   fields.UNIQUE_ID_SUCCESSORS = successors.map((dep) => {
-    const successor = tasksForCalculations.find((candidate) => String(candidate.id) === String(dep.to));
+    const successor = taskLookup(dep.to);
     return taskUniqueId(successor, dep.to);
   }).join(", ");
   write(fields, "SUMMARY", taskForCalculations.isSummary);
@@ -1924,7 +2035,7 @@ function calculateTaskFields(
   write(fields, "OUTLINE_LEVEL", taskForCalculations.outlineLevel);
   write(fields, "OUTLINE_NUMBER", taskForCalculations.wbs ?? String(taskForCalculations.id));
   write(fields, "WBS", taskForCalculations.wbs);
-  write(fields, "TASK_SUMMARY_NAME", taskSummaryName(taskForCalculations, tasksForCalculations));
+  write(fields, "TASK_SUMMARY_NAME", context?.summaryNameByTaskId.get(currentTaskId) ?? taskSummaryName(taskForCalculations, tasks));
   write(fields, "ROLLUP", fields.ROLLUP ?? taskForCalculations.isSummary);
   write(fields, "GROUP_BY_SUMMARY", fields.GROUP_BY_SUMMARY ?? false);
   write(fields, "TASK_MODE", fields.TASK_MODE ?? "Auto Scheduled");
@@ -1963,18 +2074,20 @@ function calculateTaskFields(
   write(fields, "ACTUAL_FIXED_COST", metrics.actualFixedCost);
   write(fields, "ACTUAL_COST", metrics.actualCost);
   write(fields, "REMAINING_COST", metrics.remainingCost);
-  write(fields, "OVERTIME_COST", taskAssignments(taskForCalculations, assignments).reduce((sum, assignment) => {
-    const resource = resources.find((candidate) => candidate.uid === assignment.resourceId);
-    return sum + calculateAssignmentFinancials(taskForCalculations, assignment, resource, minutesPerDay / 60, calendar).overtimeCost;
-  }, 0));
-  write(fields, "ACTUAL_OVERTIME_COST", taskAssignments(taskForCalculations, assignments).reduce((sum, assignment) => {
-    const resource = resources.find((candidate) => candidate.uid === assignment.resourceId);
-    return sum + calculateAssignmentFinancials(taskForCalculations, assignment, resource, minutesPerDay / 60, calendar).actualOvertimeCost;
-  }, 0));
-  write(fields, "REMAINING_OVERTIME_COST", taskAssignments(taskForCalculations, assignments).reduce((sum, assignment) => {
-    const resource = resources.find((candidate) => candidate.uid === assignment.resourceId);
-    return sum + calculateAssignmentFinancials(taskForCalculations, assignment, resource, minutesPerDay / 60, calendar).remainingOvertimeCost;
-  }, 0));
+  const assigned = context?.assignmentsByTaskId.get(currentTaskId)
+    ?? taskAssignments(taskForCalculations, assignments);
+  const overtimeTotals = assigned.reduce((totals, assignment) => {
+    const resource = context?.resourceByUid.get(assignment.resourceId)
+      ?? resources.find((candidate) => candidate.uid === assignment.resourceId);
+    const financials = calculateAssignmentFinancials(taskForCalculations, assignment, resource, minutesPerDay / 60, calendar);
+    totals.overtimeCost += financials.overtimeCost;
+    totals.actualOvertimeCost += financials.actualOvertimeCost;
+    totals.remainingOvertimeCost += financials.remainingOvertimeCost;
+    return totals;
+  }, { overtimeCost: 0, actualOvertimeCost: 0, remainingOvertimeCost: 0 });
+  write(fields, "OVERTIME_COST", overtimeTotals.overtimeCost);
+  write(fields, "ACTUAL_OVERTIME_COST", overtimeTotals.actualOvertimeCost);
+  write(fields, "REMAINING_OVERTIME_COST", overtimeTotals.remainingOvertimeCost);
   writeBaselineFields(fields, "", baseline, {
     start: taskForCalculations.baselineStart,
     finish: taskForCalculations.baselineFinish,
@@ -2020,7 +2133,7 @@ function calculateTaskFields(
   write(fields, "EARNED_VALUE_METHOD", earnedValueMethod);
 
   for (let index = 1; index <= 10; index += 1) {
-    const numbered = baselineTaskFor(taskForCalculations, baselines, index);
+    const numbered = baselineTaskFor(taskForCalculations, baselines, index, context);
     writeBaselineFields(fields, `BASELINE_${index}`, numbered);
     writeBaselineEstimatedFields(fields, index, numbered);
   }
@@ -3166,6 +3279,7 @@ export function calculateMppFields(input: MppCalculationInput): MppCalculationRe
   const minutesPerDay = getCalendarMinutesPerDay(input.calendar);
   const hoursPerDay = minutesPerDay / 60;
   const children = buildChildren(input.tasks);
+  const context = buildCalculationContext(input.tasks, resources, assignments, baselines);
   const resourceLoadIndex = buildResourceLoadIndex(input.tasks, resources, assignments, input.calendar);
 
   let tasks = input.tasks.map((task) =>
@@ -3181,6 +3295,7 @@ export function calculateMppFields(input: MppCalculationInput): MppCalculationRe
       input.calendar,
       resourceLoadIndex,
       statusDate,
+      context,
     ),
   );
   tasks = rollupSummaryTasks(tasks, children, customFieldDefinitions, input.calendar);

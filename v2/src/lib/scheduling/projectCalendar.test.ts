@@ -48,6 +48,22 @@ describe("project calendar helpers", () => {
     expect(getCalendarMinutesForDate(new Date("2026-01-11T10:00:00"), calendar)).toBe(240);
   });
 
+  test("refreshes cached lookups when a calendar object is mutated", () => {
+    const calendar = normalizeProjectCalendar({
+      ...DEFAULT_PROJECT_CALENDAR,
+      workDays: [1, 2, 3, 4, 5],
+    });
+    const saturday = new Date("2026-01-10T08:00:00");
+
+    expect(isProjectWorkingDay(saturday, calendar)).toBe(false);
+
+    calendar.workDays.push(6);
+    calendar.hoursPerDay = 6;
+
+    expect(isProjectWorkingDay(saturday, calendar)).toBe(true);
+    expect(getCalendarMinutesForDate(saturday, calendar)).toBe(360);
+  });
+
   test("normalizes partial calendars with defaults", () => {
     const calendar = normalizeProjectCalendar({
       workDays: [1, 2, 3, 4, 5],

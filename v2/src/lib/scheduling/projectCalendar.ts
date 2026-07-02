@@ -25,6 +25,22 @@ export interface CalendarIssue {
 const VALID_WORK_DAYS = new Set([1, 2, 3, 4, 5, 6, 7]);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+interface CalendarLookup {
+  calendar: ProjectCalendar;
+  workDays: Set<number>;
+  nonWorkingDateKeys: Set<string>;
+  overridesByDate: Map<string, CalendarDateOverride>;
+  minutesPerDay: number;
+}
+
+interface CachedCalendarLookup {
+  signature: string;
+  lookup: CalendarLookup;
+}
+
+const calendarLookupCache = new WeakMap<object, CachedCalendarLookup>();
+let defaultCalendarLookup: CalendarLookup | undefined;
+
 function dateKey(date: Date): string {
   return date.toISOString().split("T")[0];
 }
@@ -101,6 +117,61 @@ export function normalizeProjectCalendar(
     nonWorkingDays,
     dateOverrides,
   };
+}
+
+function calendarSignature(raw: Partial<ProjectCalendar>): string {
+  const workDays = raw.workDays?.join(",") ?? "";
+  const nonWorkingDays = raw.nonWorkingDays
+    ?.map((day) => `${day.id ?? ""}:${day.date ?? ""}:${day.name ?? ""}`)
+    .join("|") ?? "";
+  const dateOverrides = raw.dateOverrides
+    ?.map((override) => [
+      override.id ?? "",
+      override.date ?? "",
+      override.name ?? "",
+      override.isWorking === true ? "1" : "0",
+      override.startHour ?? "",
+      override.endHour ?? "",
+      override.hoursPerDay ?? "",
+    ].join(":"))
+    .join("|") ?? "";
+
+  return [
+    raw.timeZone ?? "",
+    raw.startHour ?? "",
+    raw.endHour ?? "",
+    raw.hoursPerDay ?? "",
+    workDays,
+    nonWorkingDays,
+    dateOverrides,
+  ].join("||");
+}
+
+function buildCalendarLookup(raw?: Partial<ProjectCalendar> | null): CalendarLookup {
+  const calendar = normalizeProjectCalendar(raw);
+  return {
+    calendar,
+    workDays: new Set(calendar.workDays),
+    nonWorkingDateKeys: new Set(calendar.nonWorkingDays.map((day) => day.date)),
+    overridesByDate: new Map(
+      calendar.dateOverrides.map((override) => [override.date, override]),
+    ),
+    minutesPerDay: Math.max(1, calendar.hoursPerDay) * 60,
+  };
+}
+
+function getCalendarLookup(raw?: Partial<ProjectCalendar> | null): CalendarLookup {
+  if (!raw) {
+    defaultCalendarLookup ??= buildCalendarLookup(DEFAULT_PROJECT_CALENDAR);
+    return defaultCalendarLookup;
+  }
+
+  const signature = calendarSignature(raw);
+  const cached = calendarLookupCache.get(raw);
+  if (cached?.signature === signature) return cached.lookup;
+  const lookup = buildCalendarLookup(raw);
+  calendarLookupCache.set(raw, { signature, lookup });
+  return lookup;
 }
 
 export function validateProjectCalendar(
@@ -215,29 +286,24 @@ export function validateProjectCalendar(
   return issues;
 }
 
-function dateOverrideFor(date: Date, calendar: ProjectCalendar): CalendarDateOverride | undefined {
-  const key = dateKey(date);
-  return calendar.dateOverrides.find((override) => override.date === key);
-}
-
 export function isProjectWorkingDay(
   date: Date,
   calendar: ProjectCalendar,
 ): boolean {
-  const normalized = normalizeProjectCalendar(calendar);
-  const override = dateOverrideFor(date, normalized);
+  const lookup = getCalendarLookup(calendar);
+  const key = dateKey(date);
+  const override = lookup.overridesByDate.get(key);
   if (override) return override.isWorking;
-  const projectDay = projectDayFromDate(date);
-  if (!normalized.workDays.includes(projectDay)) return false;
-  return !normalized.nonWorkingDays.some((day) => day.date === dateKey(date));
+  if (!lookup.workDays.has(projectDayFromDate(date))) return false;
+  return !lookup.nonWorkingDateKeys.has(key);
 }
 
 export function getCalendarMinutesForDate(
   date: Date,
   calendar?: ProjectCalendar,
 ): number {
-  const normalized = normalizeProjectCalendar(calendar);
-  const override = dateOverrideFor(date, normalized);
+  const lookup = getCalendarLookup(calendar);
+  const override = lookup.overridesByDate.get(dateKey(date));
   if (override) {
     if (!override.isWorking) return 0;
     if (
@@ -247,7 +313,7 @@ export function getCalendarMinutesForDate(
       return Math.max(0, override.hoursPerDay) * 60;
     }
   }
-  return getCalendarMinutesPerDay(normalized);
+  return lookup.minutesPerDay;
 }
 
 export function createSchedulingCalendar(
@@ -257,11 +323,15 @@ export function createSchedulingCalendar(
 }
 
 export function getCalendarMinutesPerDay(calendar?: ProjectCalendar): number {
-  return Math.max(1, normalizeProjectCalendar(calendar).hoursPerDay) * 60;
+  return getCalendarLookup(calendar).minutesPerDay;
 }
 
 class ProjectSchedulingCalendar implements SchedulingCalendar {
-  constructor(private calendar: ProjectCalendar) {}
+  private lookup: CalendarLookup;
+
+  constructor(calendar: ProjectCalendar) {
+    this.lookup = getCalendarLookup(calendar);
+  }
 
   getNextWorkingDay(date: Date): Date {
     const d = new Date(date);
@@ -280,7 +350,7 @@ class ProjectSchedulingCalendar implements SchedulingCalendar {
 
   addLag(start: Date, minutesLag: number): Date {
     const current = new Date(start);
-    const days = Math.ceil(minutesLag / getCalendarMinutesPerDay(this.calendar));
+    const days = Math.ceil(minutesLag / this.lookup.minutesPerDay);
     for (let i = 0; i < days; i++) {
       current.setDate(current.getDate() + 1);
       this.skipNonWorkingDays(current);
@@ -290,7 +360,7 @@ class ProjectSchedulingCalendar implements SchedulingCalendar {
 
   subtractLag(end: Date, minutesLag: number): Date {
     const current = new Date(end);
-    const days = Math.ceil(minutesLag / getCalendarMinutesPerDay(this.calendar));
+    const days = Math.ceil(minutesLag / this.lookup.minutesPerDay);
     for (let i = 0; i < days; i++) {
       current.setDate(current.getDate() - 1);
       while (!this.isWorkingDay(current)) {
@@ -306,8 +376,8 @@ class ProjectSchedulingCalendar implements SchedulingCalendar {
     if (remaining <= 0) return current;
     if (!this.isWorkingDay(current)) this.skipNonWorkingDays(current);
 
-    while (remaining > getCalendarMinutesForDate(current, this.calendar)) {
-      remaining -= getCalendarMinutesForDate(current, this.calendar);
+    while (remaining > this.minutesForDate(current)) {
+      remaining -= this.minutesForDate(current);
       current.setDate(current.getDate() + 1);
       this.skipNonWorkingDays(current);
     }
@@ -322,8 +392,8 @@ class ProjectSchedulingCalendar implements SchedulingCalendar {
       current.setDate(current.getDate() - 1);
     }
 
-    while (remaining > getCalendarMinutesForDate(current, this.calendar)) {
-      remaining -= getCalendarMinutesForDate(current, this.calendar);
+    while (remaining > this.minutesForDate(current)) {
+      remaining -= this.minutesForDate(current);
       current.setDate(current.getDate() - 1);
       while (!this.isWorkingDay(current)) {
         current.setDate(current.getDate() - 1);
@@ -333,7 +403,25 @@ class ProjectSchedulingCalendar implements SchedulingCalendar {
   }
 
   private isWorkingDay(date: Date): boolean {
-    return isProjectWorkingDay(date, this.calendar);
+    const key = dateKey(date);
+    const override = this.lookup.overridesByDate.get(key);
+    if (override) return override.isWorking;
+    if (!this.lookup.workDays.has(projectDayFromDate(date))) return false;
+    return !this.lookup.nonWorkingDateKeys.has(key);
+  }
+
+  private minutesForDate(date: Date): number {
+    const override = this.lookup.overridesByDate.get(dateKey(date));
+    if (override) {
+      if (!override.isWorking) return 0;
+      if (
+        override.hoursPerDay !== undefined &&
+        Number.isFinite(override.hoursPerDay)
+      ) {
+        return Math.max(0, override.hoursPerDay) * 60;
+      }
+    }
+    return this.lookup.minutesPerDay;
   }
 
   private skipNonWorkingDays(date: Date): Date {

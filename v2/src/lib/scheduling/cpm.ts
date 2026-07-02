@@ -83,8 +83,8 @@ export class CPMCalculatorService {
       if (degree === 0) queue.push(id);
     });
 
-    while (queue.length > 0) {
-      const u = queue.shift()!;
+    for (let head = 0; head < queue.length; head += 1) {
+      const u = queue[head];
       sorted.push(u);
 
       const deps = successors.get(u) || [];
