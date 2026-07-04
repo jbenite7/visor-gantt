@@ -32,6 +32,21 @@ export interface LOBLayoutResult {
   totalUnits: number;
 }
 
+export type LOBDiagnosticKind =
+  | "insufficientUnits"
+  | "delayedActual"
+  | "unevenRhythm"
+  | "lineInterference";
+
+export interface LOBDiagnostic {
+  kind: LOBDiagnosticKind;
+  severity: "low" | "medium" | "high";
+  activityIds: string[];
+  unitIndices: number[];
+  message: string;
+  recommendation: string;
+}
+
 // ── AIA palette for activity line colors ──────────────────────────
 
 const AIA_ACTIVITY_COLORS = [
@@ -44,6 +59,12 @@ const AIA_ACTIVITY_COLORS = [
   "var(--aia-const-mid)",   // Orange mid
   "var(--aia-arch-mid)",    // Blue mid
 ];
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function daysBetween(left: Date, right: Date): number {
+  return Math.round((right.getTime() - left.getTime()) / MS_PER_DAY);
+}
 
 // ── Core computation ──────────────────────────────────────────────
 
@@ -172,6 +193,113 @@ export function computeLOBLayout(
     yScale: { min: 0, max: maxUnitIndex },
     totalUnits: maxUnitIndex,
   };
+}
+
+export function diagnoseLOB(
+  activities: LOBActivity[],
+  units: LOBUnit[],
+): LOBDiagnostic[] {
+  const diagnostics: LOBDiagnostic[] = [];
+  const unitsByActivity = new Map<string, LOBUnit[]>();
+
+  for (const unit of units) {
+    const list = unitsByActivity.get(unit.activityId) ?? [];
+    list.push(unit);
+    unitsByActivity.set(unit.activityId, list);
+  }
+
+  for (const activity of activities) {
+    const activityUnits = (unitsByActivity.get(activity.id) ?? [])
+      .slice()
+      .sort((a, b) => a.unitIndex - b.unitIndex);
+
+    if (activityUnits.length < 2) {
+      diagnostics.push({
+        kind: "insufficientUnits",
+        severity: "low",
+        activityIds: [activity.id],
+        unitIndices: activityUnits.map((unit) => unit.unitIndex),
+        message: `${activity.name} no tiene suficientes unidades para evaluar ritmo.`,
+        recommendation: "Agrega al menos dos unidades repetitivas o revisa la deteccion automatica de actividades.",
+      });
+      continue;
+    }
+
+    const delayedUnits = activityUnits.filter(
+      (unit) => unit.actualDate && daysBetween(unit.plannedDate, unit.actualDate) > 0,
+    );
+    if (delayedUnits.length > 0) {
+      const maxDelay = Math.max(
+        ...delayedUnits.map((unit) => daysBetween(unit.plannedDate, unit.actualDate!)),
+      );
+      diagnostics.push({
+        kind: "delayedActual",
+        severity: maxDelay >= 3 ? "high" : "medium",
+        activityIds: [activity.id],
+        unitIndices: delayedUnits.map((unit) => unit.unitIndex),
+        message: `${activity.name} tiene ${delayedUnits.length} unidades con atraso real de hasta ${maxDelay}d.`,
+        recommendation: "Revisa cuadrillas, restricciones de frente y compromisos de recuperacion por unidad.",
+      });
+    }
+
+    const intervals = activityUnits
+      .slice(1)
+      .map((unit, index) => Math.abs(daysBetween(activityUnits[index].plannedDate, unit.plannedDate)));
+    if (intervals.length > 1) {
+      const average = intervals.reduce((sum, value) => sum + value, 0) / intervals.length;
+      const max = Math.max(...intervals);
+      const min = Math.min(...intervals);
+      if (average > 0 && max - min >= 2 && max > average * 1.5) {
+        diagnostics.push({
+          kind: "unevenRhythm",
+          severity: "medium",
+          activityIds: [activity.id],
+          unitIndices: activityUnits.map((unit) => unit.unitIndex),
+          message: `${activity.name} tiene ritmo irregular entre unidades (${min}d a ${max}d).`,
+          recommendation: "Balancea cuadrillas o ajusta buffers para mantener una pendiente mas estable.",
+        });
+      }
+    }
+  }
+
+  const activityUnitMaps = activities.map((activity) => ({
+    activity,
+    byUnit: new Map(
+      (unitsByActivity.get(activity.id) ?? []).map((unit) => [unit.unitIndex, unit.plannedDate]),
+    ),
+  }));
+
+  for (let leftIndex = 0; leftIndex < activityUnitMaps.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < activityUnitMaps.length; rightIndex += 1) {
+      const left = activityUnitMaps[leftIndex];
+      const right = activityUnitMaps[rightIndex];
+      const commonUnits = [...left.byUnit.keys()]
+        .filter((unitIndex) => right.byUnit.has(unitIndex))
+        .sort((a, b) => a - b);
+      if (commonUnits.length < 2) continue;
+
+      const first = commonUnits[0];
+      const last = commonUnits[commonUnits.length - 1];
+      const firstDelta = daysBetween(left.byUnit.get(first)!, right.byUnit.get(first)!);
+      const lastDelta = daysBetween(left.byUnit.get(last)!, right.byUnit.get(last)!);
+
+      if (firstDelta === 0 || lastDelta === 0 || firstDelta * lastDelta < 0) {
+        diagnostics.push({
+          kind: "lineInterference",
+          severity: "high",
+          activityIds: [left.activity.id, right.activity.id],
+          unitIndices: [first, last],
+          message: `${left.activity.name} y ${right.activity.name} se cruzan o quedan sin separacion en la linea de balance.`,
+          recommendation: "Revisa la secuencia por unidad para evitar interferencias de frentes o esperas entre cuadrillas.",
+        });
+      }
+    }
+  }
+
+  return diagnostics.sort((a, b) => {
+    const weight = { high: 3, medium: 2, low: 1 };
+    return weight[b.severity] - weight[a.severity];
+  });
 }
 
 // ── Helper: generate LOB data from GanttTasks ─────────────────────

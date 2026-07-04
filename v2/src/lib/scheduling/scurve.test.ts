@@ -2,6 +2,7 @@ import {
   computeScheduleSCurve,
   computeBudgetSCurve,
   computeEarnedValueSCurve,
+  diagnoseSCurve,
   getTaskBudgetedCost,
   getTaskActualCost,
 } from "./scurve";
@@ -306,6 +307,72 @@ describe("computeEarnedValueSCurve", () => {
 
     // SPI = 1250 / 1500 ≈ 0.833
     expect(result.spi).toBeCloseTo(0.833, 2);
+  });
+});
+
+describe("diagnoseSCurve", () => {
+  it("detects schedule delay and cost overrun from earned value indices", () => {
+    const tasks: GanttTask[] = [
+      makeTask({
+        id: "T1",
+        name: "Estructura",
+        start: new Date(2026, 0, 1),
+        finish: new Date(2026, 0, 4),
+        duration: 4,
+        progress: 25,
+      }),
+    ];
+    const mappings: BudgetMapping[] = [
+      { budgetItemId: "item-1", taskId: "T1", amount: 1000 },
+    ];
+    const items: BudgetItem[] = [
+      {
+        id: "item-1",
+        category: "labor",
+        budgetedAmount: 1000,
+        spentAmount: 1500,
+        mappedTaskIds: ["T1"],
+      },
+    ];
+
+    const diagnostics = diagnoseSCurve(tasks, mappings, items);
+
+    expect(diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "scheduleBehind", severity: "high" }),
+        expect.objectContaining({ kind: "costOverrun", severity: "high" }),
+      ]),
+    );
+  });
+
+  it("detects missing budget mapping and missing reported progress", () => {
+    const tasks: GanttTask[] = [
+      makeTask({
+        id: "T1",
+        name: "Sin presupuesto",
+        start: new Date(2026, 0, 1),
+        finish: new Date(2026, 0, 2),
+        duration: 2,
+        progress: 0,
+      }),
+      makeTask({
+        id: "T2",
+        name: "Tambien sin presupuesto",
+        start: new Date(2026, 0, 1),
+        finish: new Date(2026, 0, 2),
+        duration: 2,
+        progress: 0,
+      }),
+    ];
+
+    const diagnostics = diagnoseSCurve(tasks, [], []);
+
+    expect(diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "missingBudget", severity: "high" }),
+        expect.objectContaining({ kind: "missingProgress", severity: "medium" }),
+      ]),
+    );
   });
 });
 

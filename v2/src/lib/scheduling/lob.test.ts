@@ -1,5 +1,6 @@
 import {
   computeLOBLayout,
+  diagnoseLOB,
   generateAutomaticLOBFromTasks,
   generateLOBFromTasks,
 } from "./lob";
@@ -292,6 +293,91 @@ describe("generateLOBFromTasks", () => {
     expect(result[0].plannedRate).toBe(1);
     // Stub: plannedStart and plannedFinish should be the same (today)
     expect(result[0].plannedStart).toEqual(result[0].plannedFinish);
+  });
+});
+
+describe("diagnoseLOB", () => {
+  it("detects delayed actual progress and uneven production rhythm", () => {
+    const activities: LOBActivity[] = [
+      {
+        id: "act-a",
+        name: "Estructura",
+        taskIds: [1, 2, 3],
+        plannedRate: 1,
+        unitLabel: "Piso",
+        plannedStart: new Date("2026-01-01"),
+        plannedFinish: new Date("2026-01-10"),
+      },
+    ];
+    const units: LOBUnit[] = [
+      {
+        activityId: "act-a",
+        unitIndex: 0,
+        plannedDate: new Date("2026-01-01"),
+        actualDate: new Date("2026-01-01"),
+      },
+      {
+        activityId: "act-a",
+        unitIndex: 1,
+        plannedDate: new Date("2026-01-02"),
+        actualDate: new Date("2026-01-05"),
+      },
+      {
+        activityId: "act-a",
+        unitIndex: 2,
+        plannedDate: new Date("2026-01-10"),
+      },
+    ];
+
+    const diagnostics = diagnoseLOB(activities, units);
+
+    expect(diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "delayedActual", severity: "high" }),
+        expect.objectContaining({ kind: "unevenRhythm", severity: "medium" }),
+      ]),
+    );
+  });
+
+  it("detects line interference when activity order crosses between units", () => {
+    const activities: LOBActivity[] = [
+      {
+        id: "act-a",
+        name: "Cimbra",
+        taskIds: [1, 2],
+        plannedRate: 1,
+        unitLabel: "Piso",
+        plannedStart: new Date("2026-01-01"),
+        plannedFinish: new Date("2026-01-10"),
+      },
+      {
+        id: "act-b",
+        name: "Acero",
+        taskIds: [3, 4],
+        plannedRate: 1,
+        unitLabel: "Piso",
+        plannedStart: new Date("2026-01-02"),
+        plannedFinish: new Date("2026-01-08"),
+      },
+    ];
+    const units: LOBUnit[] = [
+      { activityId: "act-a", unitIndex: 0, plannedDate: new Date("2026-01-01") },
+      { activityId: "act-a", unitIndex: 1, plannedDate: new Date("2026-01-10") },
+      { activityId: "act-b", unitIndex: 0, plannedDate: new Date("2026-01-05") },
+      { activityId: "act-b", unitIndex: 1, plannedDate: new Date("2026-01-08") },
+    ];
+
+    const diagnostics = diagnoseLOB(activities, units);
+
+    expect(diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "lineInterference",
+          severity: "high",
+          activityIds: ["act-a", "act-b"],
+        }),
+      ]),
+    );
   });
 });
 

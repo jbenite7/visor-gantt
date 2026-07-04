@@ -26,6 +26,21 @@ export interface EarnedValueData {
   spi: number;
 }
 
+export type SCurveDiagnosticKind =
+  | "scheduleBehind"
+  | "costOverrun"
+  | "missingBudget"
+  | "missingProgress";
+
+export interface SCurveDiagnostic {
+  kind: SCurveDiagnosticKind;
+  severity: "low" | "medium" | "high";
+  taskIds: Array<string | number>;
+  message: string;
+  recommendation: string;
+  metric: string;
+}
+
 // ── Internal Helpers ──
 
 /** Return the effective start date, using earlyStart when available. */
@@ -316,4 +331,68 @@ export function computeEarnedValueSCurve(
   const spi = last.pv > 0 ? last.ev / last.pv : 1;
 
   return { points, cpi, spi };
+}
+
+export function diagnoseSCurve(
+  tasks: GanttTask[],
+  budgetMappings: BudgetMapping[],
+  budgetItems: BudgetItem[]
+): SCurveDiagnostic[] {
+  const diagnostics: SCurveDiagnostic[] = [];
+  const budgetMap = buildBudgetMap(budgetMappings);
+  const evData = computeEarnedValueSCurve(tasks, budgetMappings, budgetItems);
+  const lastPoint = evData.points.at(-1);
+
+  if (lastPoint && evData.spi < 0.9) {
+    diagnostics.push({
+      kind: "scheduleBehind",
+      severity: evData.spi < 0.75 ? "high" : "medium",
+      taskIds: tasks.filter((task) => (task.progress ?? 0) < 100).map((task) => task.id),
+      message: `El avance ganado esta por debajo del valor planificado (SPI ${evData.spi.toFixed(2)}).`,
+      recommendation: "Revisa ruta critica, restricciones y compromisos de recuperacion antes del siguiente corte.",
+      metric: `EV/PV ${Math.round(lastPoint.ev).toLocaleString("es-CO")} / ${Math.round(lastPoint.pv).toLocaleString("es-CO")}`,
+    });
+  }
+
+  if (lastPoint && evData.cpi < 0.9) {
+    diagnostics.push({
+      kind: "costOverrun",
+      severity: evData.cpi < 0.75 ? "high" : "medium",
+      taskIds: tasks.filter((task) => budgetMap.has(task.id)).map((task) => task.id),
+      message: `El costo real supera el valor ganado (CPI ${evData.cpi.toFixed(2)}).`,
+      recommendation: "Analiza partidas con mayor consumo real y valida si el avance fisico respalda el gasto.",
+      metric: `EV/AC ${Math.round(lastPoint.ev).toLocaleString("es-CO")} / ${Math.round(lastPoint.ac).toLocaleString("es-CO")}`,
+    });
+  }
+
+  const operationalTasks = tasks.filter((task) => !task.isSummary && !task.isMilestone);
+  const missingBudget = operationalTasks.filter((task) => !budgetMap.has(task.id));
+  if (operationalTasks.length > 0 && missingBudget.length / operationalTasks.length >= 0.25) {
+    diagnostics.push({
+      kind: "missingBudget",
+      severity: missingBudget.length === operationalTasks.length ? "high" : "medium",
+      taskIds: missingBudget.map((task) => task.id),
+      message: `${missingBudget.length} tareas operativas no tienen presupuesto mapeado.`,
+      recommendation: "Mapea presupuesto a las actividades clave para que la curva S explique costo, avance y alcance.",
+      metric: `${missingBudget.length}/${operationalTasks.length} sin mapeo`,
+    });
+  }
+
+  const startedTasks = operationalTasks.filter((task) => dateOnly(new Date()) >= taskStart(task));
+  const missingProgress = startedTasks.filter((task) => (task.progress ?? 0) === 0);
+  if (startedTasks.length > 0 && missingProgress.length / startedTasks.length >= 0.3) {
+    diagnostics.push({
+      kind: "missingProgress",
+      severity: "medium",
+      taskIds: missingProgress.map((task) => task.id),
+      message: `${missingProgress.length} tareas iniciadas no reportan avance.`,
+      recommendation: "Actualiza avance fisico antes de interpretar SPI/CPI o tomar decisiones de recuperacion.",
+      metric: `${missingProgress.length}/${startedTasks.length} en 0%`,
+    });
+  }
+
+  return diagnostics.sort((a, b) => {
+    const weight = { high: 3, medium: 2, low: 1 };
+    return weight[b.severity] - weight[a.severity];
+  });
 }
