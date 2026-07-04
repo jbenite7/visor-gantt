@@ -1,0 +1,240 @@
+{
+  "stage": "interview",
+  "title": "Mejoras UI/UX y negocio del Gantt - Ronda 2 de alcance",
+  "goalSlug": "top5-ui-ux-business-improvements-gantt",
+  "questions": [
+    {
+      "id": "north_star_scope",
+      "prompt": "¿Cuál debe ser la ambición real del objetivo después de la primera ronda?",
+      "description": "La ronda 1 ya incluyó tabla, UX, QA, accesibilidad, backend/API, negocio, drag-and-drop y dependencias visuales. Esta pregunta define el norte del paquete.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Convertir la vista Gantt en un editor operativo de planificación: tabla usable, edición visual de jerarquía, edición segura de dependencias, persistencia confiable y pruebas automatizadas; dejar analítica avanzada y colaboración multiusuario para otro ciclo.",
+      "recommendedOptionIds": ["planning-editor"],
+      "options": [
+        {
+          "id": "planning-editor",
+          "label": "Editor operativo de planificación"
+        },
+        {
+          "id": "table-polish",
+          "label": "Pulir tabla y controles existentes"
+        },
+        {
+          "id": "business-platform",
+          "label": "Plataforma de negocio más amplia"
+        },
+        {
+          "id": "technical-hardening",
+          "label": "Endurecimiento técnico y QA"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "hierarchy_editing",
+      "prompt": "¿Qué nivel de edición de jerarquía debe entrar en alcance?",
+      "description": "Actualmente hay outlineLevel, expand/collapse y edición de filas, pero falta una experiencia explícita para convertir tareas en capítulos/subcapítulos o moverlas entre padres.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Incluir botones de subir/bajar nivel, mover arriba/abajo, crear capítulo/subcapítulo/tarea, y drag-and-drop de filas como mejora principal; validar que no rompa resumen, orden WBS, dependencias ni persistencia.",
+      "recommendedOptionIds": ["indent-outdent", "move-up-down", "create-types", "row-dnd", "wbs-recalc"],
+      "options": [
+        {
+          "id": "indent-outdent",
+          "label": "Botones subir/bajar nivel"
+        },
+        {
+          "id": "move-up-down",
+          "label": "Botones mover arriba/abajo"
+        },
+        {
+          "id": "create-types",
+          "label": "Crear capítulo/subcapítulo/tarea"
+        },
+        {
+          "id": "row-dnd",
+          "label": "Drag-and-drop de filas"
+        },
+        {
+          "id": "wbs-recalc",
+          "label": "Recalcular WBS/orden automáticamente"
+        },
+        {
+          "id": "summary-rollup",
+          "label": "Actualizar resúmenes/rollups"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "dependency_editing",
+      "prompt": "¿Cómo debe funcionar el selector visual de predecesoras/sucesoras?",
+      "description": "Hoy se puede escribir una cadena de predecesoras y también crear dependencias desde barras del Gantt. Falta una UI segura para seleccionar tareas, tipo de vínculo y lag.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Agregar un editor visual desde la celda de predecesoras/sucesoras con búsqueda de tareas, selección de tipo FS/SS/FF/SF, lag en días, prevención de ciclos, explicación de errores y sincronización con el drag del chart.",
+      "recommendedOptionIds": ["cell-popover", "task-search", "dep-type", "lag", "cycle-validation", "successor-mode"],
+      "options": [
+        {
+          "id": "cell-popover",
+          "label": "Popover desde la celda"
+        },
+        {
+          "id": "side-panel",
+          "label": "Panel lateral de dependencias"
+        },
+        {
+          "id": "task-search",
+          "label": "Búsqueda/selector de tareas"
+        },
+        {
+          "id": "dep-type",
+          "label": "Tipo FS/SS/FF/SF"
+        },
+        {
+          "id": "lag",
+          "label": "Lag positivo/negativo"
+        },
+        {
+          "id": "cycle-validation",
+          "label": "Bloquear ciclos y dependencias inválidas"
+        },
+        {
+          "id": "successor-mode",
+          "label": "Editar sucesoras además de predecesoras"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "persistence_backend",
+      "prompt": "¿Qué alcance backend/API debe cubrir este paquete?",
+      "description": "La ronda 1 incluyó backend/API. Esta decisión separa persistencia del proyecto, importación MPP y API de auditoría/cálculo.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Cubrir persistencia completa de cambios de UI en el payload del proyecto, endpoints solo si son necesarios para guardar/recargar/importar correctamente, y dejar auditoría avanzada, colaboración y multiusuario para otro paquete.",
+      "recommendedOptionIds": ["save-reload", "project-payload", "import-consistency", "no-collab"],
+      "options": [
+        {
+          "id": "save-reload",
+          "label": "Guardar/recargar todos los cambios"
+        },
+        {
+          "id": "project-payload",
+          "label": "Persistir en project_data"
+        },
+        {
+          "id": "api-endpoints",
+          "label": "Crear/ajustar endpoints API"
+        },
+        {
+          "id": "import-consistency",
+          "label": "Consistencia con importación MPP"
+        },
+        {
+          "id": "audit-log",
+          "label": "Historial/auditoría de cambios"
+        },
+        {
+          "id": "no-collab",
+          "label": "Excluir colaboración multiusuario"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "business_value",
+      "prompt": "¿Qué valor de negocio debe guiar la priorización?",
+      "description": "Esto convierte mejoras UI/UX en producto medible, no solo en una lista de componentes.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Priorizar reducir tiempo de edición de cronogramas, disminuir errores de dependencias/jerarquía, aumentar uso de funciones avanzadas y hacer que el usuario confíe en guardar/recargar sin perder trabajo.",
+      "recommendedOptionIds": ["edit-speed", "error-reduction", "advanced-adoption", "trust-save", "less-training"],
+      "options": [
+        {
+          "id": "edit-speed",
+          "label": "Reducir tiempo de edición"
+        },
+        {
+          "id": "error-reduction",
+          "label": "Disminuir errores de planificación"
+        },
+        {
+          "id": "advanced-adoption",
+          "label": "Aumentar uso de funciones avanzadas"
+        },
+        {
+          "id": "trust-save",
+          "label": "Confianza en guardar/recargar"
+        },
+        {
+          "id": "less-training",
+          "label": "Menos capacitación requerida"
+        },
+        {
+          "id": "executive-reporting",
+          "label": "Mejor reporting gerencial"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "release_slicing",
+      "prompt": "¿Cómo quieres partir la entrega para que sea implementable?",
+      "description": "El alcance ya es grande. Esta pregunta define si el objetivo produce una entrega completa o una secuencia de entregas.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Plan por fases: Fase 1 controles/persistencia/QA base; Fase 2 dependencias visuales; Fase 3 jerarquía y drag-and-drop; Fase 4 métricas de negocio y refinamiento. Cada fase debe quedar usable y testeada.",
+      "recommendedOptionIds": ["phased"],
+      "options": [
+        {
+          "id": "phased",
+          "label": "Fases incrementales"
+        },
+        {
+          "id": "single-release",
+          "label": "Una entrega grande"
+        },
+        {
+          "id": "mvp-first",
+          "label": "MVP pequeño primero"
+        },
+        {
+          "id": "research-first",
+          "label": "Discovery técnico primero"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "verification_contract",
+      "prompt": "¿Qué contrato de verificación debe exigir este objetivo?",
+      "description": "La ronda 1 pidió automation-first. Aquí se concreta qué tipos de checks vuelven obligatoria cada fase.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Exigir unit tests para transformaciones de jerarquía/dependencias, tests de componentes para tabla/selectores, e2e para flujos principales, verificación save/reload real y revisión visual desktop/mobile antes de cerrar.",
+      "recommendedOptionIds": ["unit-transform", "component-ui", "e2e-flows", "save-reload", "visual-check"],
+      "options": [
+        {
+          "id": "unit-transform",
+          "label": "Unit tests de transformaciones"
+        },
+        {
+          "id": "component-ui",
+          "label": "Tests de componentes UI"
+        },
+        {
+          "id": "e2e-flows",
+          "label": "E2E de flujos críticos"
+        },
+        {
+          "id": "save-reload",
+          "label": "Guardar/recargar verificado"
+        },
+        {
+          "id": "visual-check",
+          "label": "Revisión visual desktop/mobile"
+        },
+        {
+          "id": "performance",
+          "label": "Benchmark de rendimiento"
+        }
+      ],
+      "required": true
+    }
+  ]
+}

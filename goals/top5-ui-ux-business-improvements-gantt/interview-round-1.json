@@ -1,0 +1,86 @@
+{
+  "stage": "interview",
+  "title": "Mejoras UI/UX y de negocio priorizadas (Top 5)",
+  "goalSlug": "top5-ui-ux-business-improvements-gantt",
+  "questions": [
+    {
+      "id": "scope",
+      "prompt": "¿Qué alcance quieres incluir en este objetivo?",
+      "description": "Define hasta dónde llega el trabajo inicial antes de comenzar implementación.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Validar y ejecutar el Top 5 de mejoras de mayor impacto: test de regresión UI (e2e), verificación visual desktop/mobile, accesibilidad básica del selector, y priorización de riesgos de layout; sin tocar backend de cálculo en esta fase.",
+      "recommendedOptionIds": ["ui-gantt", "qa-regresion", "a11y"],
+      "options": [
+        { "id": "ui-gantt", "label": "Mejoras UI/UX de GanttTable y panel izquierdo" },
+        { "id": "qa-regresion", "label": "Cobertura de pruebas y validación regresiva" },
+        { "id": "a11y", "label": "Verificación de accesibilidad y teclado" },
+        { "id": "backend", "label": "Cambios backend o API" },
+        { "id": "business", "label": "Mejoras de funcionalidad con impacto de negocio" }
+      ],
+      "required": true
+    },
+    {
+      "id": "business_goals",
+      "prompt": "¿Cuál es la métrica de éxito de negocio o producto para estas mejoras?",
+      "description": "Necesitamos 1-2 objetivos medibles para priorizar cambios de impacto real.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Reducir fricción en edición y configuración de columnas, y prevenir regresiones de usabilidad en vistas con scroll horizontal; medir éxito por reducción de fricción y estabilidad del flujo en tests e2e.",
+      "recommendedOptionIds": ["reduce-friction", "reduce-time", "reduce-bugs"],
+      "options": [
+        { "id": "reduce-friction", "label": "Reducir fricción de uso de tabla/columnas para usuarios" },
+        { "id": "reduce-time", "label": "Reducir tiempo para acciones frecuentes (cambiar configuración de vista, encontrar controles)" },
+        { "id": "reduce-bugs", "label": "Disminuir regresiones de UX con pruebas automatizadas" },
+        { "id": "increase-adoption", "label": "Aumentar uso de funcionalidades avanzadas (columnas, filtros, paneles)" }
+      ],
+      "required": true
+    },
+    {
+      "id": "functional_scope",
+      "prompt": "¿Qué funcionalidades concretas se deben validar o mejorar en UI/UX?",
+      "description": "Esta pregunta define los escenarios funcionales objetivo del objetivo.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Column selector visible al scrollear, comportamiento del selector al abrir/cerrar, consistencia con paneles, y claridad de porcentajes/valores; luego evaluar mejoras de negocio derivadas.",
+      "recommendedOptionIds": ["column-selector", "horizontal-scroll", "task-editing", "toolbar", "precision-values"],
+      "options": [
+        { "id": "column-selector", "label": "Visibilidad y estabilidad del botón/menú de selección de columnas" },
+        { "id": "horizontal-scroll", "label": "Flujo de scroll horizontal con contenido ancho y split pane" },
+        { "id": "task-editing", "label": "Edición de celdas y precisión de visualización de valores" },
+        { "id": "toolbar", "label": "Jerarquía/acciones de toolbar (expandir/colapsar niveles)" },
+        { "id": "precision-values", "label": "Formato consistente de % completado y numéricos" },
+        { "id": "business-actions", "label": "Acciones de negocio de alto impacto derivadas del análisis" }
+      ],
+      "required": true
+    },
+    {
+      "id": "verification_mode",
+      "prompt": "¿Cómo quieres validar que la mejora quedó bien antes de cerrar el objetivo?",
+      "description": "Define nivel y tipo de verificación para cada grupo de cambios.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Priorizar verificación automatizada (jest + e2e Playwright), luego verificación visual puntual en navegador y un checklist manual corto; no avanzar sin al menos 1 e2e nuevo por caso crítico.",
+      "recommendedOptionIds": ["automation-first"],
+      "options": [
+        { "id": "automation-first", "label": "Primero tests automatizados (unit + e2e) y luego revisión visual" },
+        { "id": "ui-only-manual", "label": "Primero revisión visual manual, luego añadir tests puntuales" },
+        { "id": "strict-qa", "label": "Requiere cobertura completa de casos críticos antes de cerrar" }
+      ],
+      "required": true
+    },
+    {
+      "id": "business_priors",
+      "prompt": "¿Qué mejoras de negocio adicionales quieres incluir en esta ronda?",
+      "description": "Sirve para convertir hallazgos de UX en decisiones de producto.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Incluir solo ideas de alto retorno con mínima superficie: shortcuts, tooltips y defaults mejores por flujo; dejar mejoras de backend y refactors grandes para siguiente ciclo.",
+      "recommendedOptionIds": ["shortcuts", "tooltips", "defaults", "no-backend"],
+      "options": [
+        { "id": "shortcuts", "label": "Shortcuts de teclado para acciones frecuentes" },
+        { "id": "tooltips", "label": "Tooltips/contexto de acciones importantes" },
+        { "id": "defaults", "label": "Mejorar defaults de vista según perfil de uso" },
+        { "id": "a11y", "label": "Mejoras de accesibilidad con impacto de adopción" },
+        { "id": "search", "label": "Búsqueda y filtros avanzados en tabla" },
+        { "id": "no-backend", "label": "Excluir backend en esta fase" }
+      ],
+      "required": false
+    }
+  ]
+}

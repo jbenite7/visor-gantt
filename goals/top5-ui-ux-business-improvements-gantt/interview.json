@@ -1,0 +1,176 @@
+{
+  "stage": "interview",
+  "title": "Mejoras innovadoras frente a MS Project - Ronda 3",
+  "goalSlug": "top5-ui-ux-business-improvements-gantt",
+  "questions": [
+    {
+      "id": "competitive_positioning",
+      "prompt": "¿Cuál debe ser la ventaja principal frente a MS Project/Planner?",
+      "description": "MS Project/Planner ya cubren Gantt/timeline, dependencias, baselines, critical path y portfolios. Esta respuesta define dónde no queremos solo copiar.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Diferenciarnos por velocidad de edición, asistentes inteligentes, validación preventiva, explicación de impacto, integración costo-avance y UX más simple para usuarios no expertos.",
+      "recommendedOptionIds": ["faster-editing", "ai-assistant", "preventive-validation", "impact-explainability", "cost-progress", "low-training"],
+      "options": [
+        { "id": "faster-editing", "label": "Editar más rápido que MS Project" },
+        { "id": "ai-assistant", "label": "Asistente inteligente de planificación" },
+        { "id": "preventive-validation", "label": "Validación preventiva de errores" },
+        { "id": "impact-explainability", "label": "Explicar impacto de cambios" },
+        { "id": "cost-progress", "label": "Unir costo, avance y cronograma" },
+        { "id": "low-training", "label": "Menos curva de aprendizaje" },
+        { "id": "portfolio-lite", "label": "Portafolio simple para dirección" }
+      ],
+      "required": true
+    },
+    {
+      "id": "ai_planning_features",
+      "prompt": "¿Qué features de inteligencia/asistencia deberían entrar al roadmap?",
+      "description": "La idea es que el sistema ayude a planificar, detectar problemas y proponer acciones, no solo renderizar tareas.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Incluir asistente que detecte inconsistencias, sugiera dependencias faltantes, proponga reordenamientos/jerarquías, explique ruta crítica, genere resúmenes ejecutivos y permita comandos en lenguaje natural con confirmación previa.",
+      "recommendedOptionIds": ["detect-inconsistencies", "suggest-dependencies", "suggest-hierarchy", "critical-path-explain", "executive-summary", "natural-language-actions"],
+      "options": [
+        { "id": "detect-inconsistencies", "label": "Detectar inconsistencias automáticamente" },
+        { "id": "suggest-dependencies", "label": "Sugerir dependencias faltantes" },
+        { "id": "suggest-hierarchy", "label": "Sugerir jerarquía/WBS" },
+        { "id": "critical-path-explain", "label": "Explicar ruta crítica" },
+        { "id": "executive-summary", "label": "Generar resumen ejecutivo" },
+        { "id": "natural-language-actions", "label": "Acciones por lenguaje natural" },
+        { "id": "risk-forecast", "label": "Pronóstico de riesgos/retrasos" },
+        { "id": "what-if", "label": "Simulaciones what-if" }
+      ],
+      "required": true
+    },
+    {
+      "id": "efficiency_workflows",
+      "prompt": "¿Qué flujos deben hacer al usuario más eficiente que en MS Project?",
+      "description": "Enfocado en reducir clicks, edición repetitiva y errores al trabajar cronogramas grandes.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Priorizar edición masiva segura, plantillas de capítulos, reglas para dependencias repetitivas, copiar/pegar inteligente desde Excel, shortcuts, comandos rápidos y vista de cambios antes de aplicar.",
+      "recommendedOptionIds": ["bulk-edit", "chapter-templates", "dependency-rules", "smart-paste", "keyboard-shortcuts", "command-palette", "review-before-apply"],
+      "options": [
+        { "id": "bulk-edit", "label": "Edición masiva segura" },
+        { "id": "chapter-templates", "label": "Plantillas de capítulos" },
+        { "id": "dependency-rules", "label": "Reglas de dependencias repetitivas" },
+        { "id": "smart-paste", "label": "Copiar/pegar inteligente desde Excel" },
+        { "id": "keyboard-shortcuts", "label": "Shortcuts de teclado" },
+        { "id": "command-palette", "label": "Paleta de comandos" },
+        { "id": "review-before-apply", "label": "Previsualizar cambios antes de aplicar" },
+        { "id": "saved-views", "label": "Vistas guardadas por rol" }
+      ],
+      "required": true
+    },
+    {
+      "id": "effectiveness_decision_features",
+      "prompt": "¿Qué features deben mejorar la efectividad de decisiones, no solo la velocidad?",
+      "description": "Busca que el usuario tome mejores decisiones sobre retrasos, costos, ruta crítica y prioridades.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Incluir tablero de impacto de cambios, comparación de escenarios, alertas de ruta crítica, explicación de variaciones costo/avance, semáforos accionables y recomendaciones priorizadas.",
+      "recommendedOptionIds": ["change-impact", "scenario-compare", "critical-alerts", "cost-variance-explain", "actionable-health", "prioritized-recommendations"],
+      "options": [
+        { "id": "change-impact", "label": "Impacto de cambios antes/después" },
+        { "id": "scenario-compare", "label": "Comparar escenarios" },
+        { "id": "critical-alerts", "label": "Alertas de ruta crítica" },
+        { "id": "cost-variance-explain", "label": "Explicar variaciones costo/avance" },
+        { "id": "actionable-health", "label": "Semáforos accionables" },
+        { "id": "prioritized-recommendations", "label": "Recomendaciones priorizadas" },
+        { "id": "constraint-diagnostics", "label": "Diagnóstico de restricciones" },
+        { "id": "resource-conflict", "label": "Conflictos de recursos/capacidad" }
+      ],
+      "required": true
+    },
+    {
+      "id": "adoption_ux",
+      "prompt": "¿Qué innovaciones UX/UI aumentarían adopción en usuarios que no dominan MS Project?",
+      "description": "El objetivo es que usuarios de obra, dirección o planeación puedan usarlo sin entrenarse como especialistas de MS Project.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Incluir onboarding contextual, modo simple/avanzado, ayuda inline, validaciones con solución sugerida, tours por flujo, presets por rol y lenguaje natural para acciones frecuentes.",
+      "recommendedOptionIds": ["simple-advanced-mode", "contextual-onboarding", "inline-help", "fix-suggestions", "role-presets", "natural-language-help"],
+      "options": [
+        { "id": "simple-advanced-mode", "label": "Modo simple/avanzado" },
+        { "id": "contextual-onboarding", "label": "Onboarding contextual" },
+        { "id": "inline-help", "label": "Ayuda inline" },
+        { "id": "fix-suggestions", "label": "Errores con solución sugerida" },
+        { "id": "role-presets", "label": "Presets por rol" },
+        { "id": "natural-language-help", "label": "Ayuda por lenguaje natural" },
+        { "id": "progressive-disclosure", "label": "Mostrar complejidad progresivamente" },
+        { "id": "mobile-review", "label": "Revisión móvil para dirección/obra" }
+      ],
+      "required": true
+    },
+    {
+      "id": "domain_specific_features",
+      "prompt": "¿Qué features específicos de construcción/AIA deberían diferenciarnos de MS Project genérico?",
+      "description": "Aprovecha que este producto puede ser más especializado que una herramienta genérica.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Profundizar programación matricial, línea de balance, plantillas constructivas, capítulos típicos, mapeo presupuesto-cronograma, producción por ubicación y reportes ejecutivos de obra.",
+      "recommendedOptionIds": ["matrix-planning", "line-of-balance", "construction-templates", "budget-schedule-map", "location-production", "site-executive-reports"],
+      "options": [
+        { "id": "matrix-planning", "label": "Programación matricial avanzada" },
+        { "id": "line-of-balance", "label": "Línea de balance accionable" },
+        { "id": "construction-templates", "label": "Plantillas constructivas" },
+        { "id": "budget-schedule-map", "label": "Mapeo presupuesto-cronograma" },
+        { "id": "location-production", "label": "Producción por ubicación" },
+        { "id": "site-executive-reports", "label": "Reportes ejecutivos de obra" },
+        { "id": "crews-productivity", "label": "Productividad de cuadrillas" },
+        { "id": "lookahead", "label": "Lookahead semanal" }
+      ],
+      "required": true
+    },
+    {
+      "id": "data_integrations",
+      "prompt": "¿Qué integraciones/importaciones deben dar ventaja práctica?",
+      "description": "MS Project es fuerte en su ecosistema; aquí definimos qué integraciones son realmente valiosas para este producto.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Priorizar importación/exportación MPP, Excel bidireccional, presupuesto/costos, reportes PDF/Excel, y dejar integraciones externas complejas para una fase posterior.",
+      "recommendedOptionIds": ["mpp-roundtrip", "excel-roundtrip", "budget-cost", "pdf-excel-reports", "api-import"],
+      "options": [
+        { "id": "mpp-roundtrip", "label": "MPP import/export confiable" },
+        { "id": "excel-roundtrip", "label": "Excel bidireccional" },
+        { "id": "budget-cost", "label": "Integración presupuesto/costos" },
+        { "id": "pdf-excel-reports", "label": "Reportes PDF/Excel" },
+        { "id": "api-import", "label": "API para importar cronogramas" },
+        { "id": "powerbi", "label": "Power BI" },
+        { "id": "erp", "label": "ERP/contabilidad" },
+        { "id": "field-tools", "label": "Herramientas de obra/campo" }
+      ],
+      "required": true
+    },
+    {
+      "id": "innovation_priority",
+      "prompt": "Si solo pudiéramos implementar 3 features innovadores primero, ¿cuáles deberían ser?",
+      "description": "Esta respuesta fuerza priorización. El plan puede incluir más ideas, pero la primera ola necesita foco.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Primera ola: asistente de validación/recomendaciones, editor visual de dependencias/jerarquía con impacto explicado, y dashboard ejecutivo costo-avance-ruta crítica.",
+      "recommendedOptionIds": ["validation-assistant", "visual-editor-impact", "executive-dashboard"],
+      "options": [
+        { "id": "validation-assistant", "label": "Asistente de validación/recomendaciones" },
+        { "id": "visual-editor-impact", "label": "Editor visual con impacto explicado" },
+        { "id": "executive-dashboard", "label": "Dashboard ejecutivo costo-avance-ruta crítica" },
+        { "id": "smart-paste-first", "label": "Smart paste desde Excel" },
+        { "id": "scenario-first", "label": "Escenarios what-if" },
+        { "id": "construction-templates-first", "label": "Plantillas constructivas" },
+        { "id": "role-presets-first", "label": "Presets/onboarding por rol" },
+        { "id": "lob-first", "label": "Línea de balance avanzada" }
+      ],
+      "required": true
+    },
+    {
+      "id": "innovation_boundaries",
+      "prompt": "¿Qué NO debe entrar en esta ronda aunque sea innovador?",
+      "description": "Ayuda a evitar que el roadmap se vuelva inejecutable.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Excluir colaboración multiusuario en tiempo real, optimización automática sin aprobación, IA que cambie el cronograma sin confirmación, ERP profundo y módulo completo de BI avanzado.",
+      "recommendedOptionIds": ["no-realtime-collab", "no-auto-apply-ai", "no-deep-erp", "no-full-bi"],
+      "options": [
+        { "id": "no-realtime-collab", "label": "Excluir colaboración en tiempo real" },
+        { "id": "no-auto-apply-ai", "label": "Excluir IA que aplique sin confirmar" },
+        { "id": "no-deep-erp", "label": "Excluir ERP profundo" },
+        { "id": "no-full-bi", "label": "Excluir BI avanzado completo" },
+        { "id": "no-mobile-authoring", "label": "Excluir edición móvil completa" },
+        { "id": "no-resource-optimization", "label": "Excluir optimización automática de recursos" },
+        { "id": "no-marketplace", "label": "Excluir marketplace/plugins" }
+      ],
+      "required": true
+    }
+  ]
+}

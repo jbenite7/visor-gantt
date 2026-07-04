@@ -1,0 +1,51 @@
+# Facts
+
+- La vista Gantt debe evolucionar hacia un editor operativo de planificación, no quedarse solo en pulir la tabla existente.
+- El selector de columnas debe estar siempre visible en el panel de tabla aunque exista scroll horizontal.
+- Los valores de porcentaje completado deben mostrarse redondeados a 2 decimales.
+- La tabla debe soportar búsqueda y filtros avanzados para encontrar tareas y columnas con menos fricción.
+- La configuración de columnas, anchos, filtros y defaults de vista debe persistir por proyecto o usuario según el modelo existente.
+- La UI debe incluir botones para subir y bajar el nivel jerárquico de tareas.
+- La UI debe incluir botones para mover tareas arriba y abajo dentro del orden del cronograma.
+- La UI debe permitir crear explícitamente capítulos, subcapítulos y tareas.
+- La tabla debe permitir drag-and-drop de filas para reordenar tareas y moverlas entre capítulos o subcapítulos.
+- Al cambiar jerarquía u orden, el sistema debe recalcular WBS, outlineLevel y relación padre/hijo de forma consistente.
+- Los cambios de jerarquía deben actualizar tareas resumen y rollups sin romper duración, fechas, progreso ni dependencias existentes.
+- La edición de predecesoras debe incluir un popover desde la celda con búsqueda de tareas.
+- La edición de dependencias debe incluir un panel lateral para revisar y editar todas las relaciones de una tarea.
+- Cada dependencia debe permitir definir tarea relacionada, tipo FS/SS/FF/SF y lag positivo o negativo.
+- Una tarea puede tener múltiples predecesoras y múltiples sucesoras, cada una con tipo y lag independientes.
+- La UI debe permitir editar sucesoras además de predecesoras y mantener ambas vistas sincronizadas sobre el mismo modelo de dependencias.
+- El sistema debe bloquear ciclos, autodependencias y referencias inválidas al crear o editar dependencias.
+- Los errores de dependencias deben explicarse en la UI de forma accionable, no solo fallar silenciosamente.
+- Los cambios hechos desde tabla, popover, panel lateral o drag del Gantt deben sincronizarse en un único estado de proyecto.
+- Todos los cambios de UI incluidos en este objetivo deben guardarse y sobrevivir a una recarga real del proyecto.
+- La persistencia debe apoyarse en project_data cuando sea suficiente y crear o ajustar endpoints API solo cuando el modelo actual no alcance.
+- La importación MPP debe seguir siendo consistente con el modelo editable de tareas, jerarquía y dependencias.
+- Debe existir historial o auditoría de cambios relevante para ediciones de planificación, sin incluir colaboración multiusuario en este paquete.
+- La entrega debe organizarse en fases incrementales, cada una usable y testeada antes de avanzar.
+- La fase inicial debe consolidar controles persistentes, guardado/recarga y QA base antes de funcionalidades más complejas.
+- Las fases posteriores deben cubrir dependencias visuales, jerarquía/drag-and-drop, métricas de negocio y refinamiento.
+- El objetivo debe medir valor por reducción del tiempo de edición, reducción de errores de planificación, adopción de funciones avanzadas y confianza en guardado/recarga.
+- La UI debe reducir necesidad de capacitación mediante controles visibles, tooltips/contexto y mensajes accionables.
+- La solución debe mejorar reporting gerencial sin convertir este paquete en un módulo completo de analítica avanzada.
+- Debe haber unit tests para transformaciones de jerarquía y dependencias.
+- Debe haber tests de componentes para tabla, selector de columnas, popover de dependencias y controles de jerarquía.
+- Debe haber e2e para flujos críticos de edición, guardado, recarga, scroll horizontal y selección de dependencias.
+- Debe existir revisión visual desktop/mobile para controles persistentes, tabla ancha, panel lateral y drag-and-drop.
+- Debe existir benchmark de rendimiento para confirmar que tabla, jerarquía y dependencias siguen siendo usables con proyectos grandes.
+- El producto debe diferenciarse de MS Project/Planner por unir cronograma, costo, alcance, avance y conceptos PMI en una experiencia integrada de planificación.
+- La primera ola innovadora debe priorizar un asistente de validación/recomendaciones, un editor visual con impacto explicado, escenarios what-if, plantillas constructivas y línea de balance avanzada.
+- El sistema debe ofrecer validación preventiva que detecte inconsistencias automáticamente antes de que el usuario guarde o aplique cambios importantes.
+- El sistema debe explicar el impacto de cambios relevantes antes/después, incluyendo efecto sobre fechas, ruta crítica, costo, avance y restricciones.
+- El roadmap de mediano plazo debe incluir asistencia con IA para elaboración y control del cronograma, sin aplicar cambios automáticamente sin confirmación humana.
+- El asistente inteligente debe poder sugerir dependencias faltantes, jerarquía/WBS, riesgos/retrasos, acciones por lenguaje natural, resumen ejecutivo y explicación de ruta crítica.
+- Los flujos de eficiencia deben incluir edición masiva segura, plantillas de capítulos, reglas de dependencias repetitivas, smart paste desde Excel, shortcuts, paleta de comandos, previsualización antes de aplicar y vistas guardadas por rol.
+- La línea de balance y las curvas S deben generar feedback automático para mejorar decisiones de planificación y control.
+- La solución debe incluir alertas de ruta crítica, diagnóstico de restricciones, conflictos de recursos/capacidad, semáforos accionables y recomendaciones priorizadas.
+- La UX debe soportar modo simple/avanzado, onboarding contextual, ayuda inline, errores con solución sugerida, presets por rol, ayuda por lenguaje natural y revisión móvil para dirección/obra.
+- El dominio construcción/AIA debe diferenciarse con programación matricial avanzada, línea de balance accionable, plantillas constructivas, mapeo presupuesto-cronograma, producción por ubicación, reportes ejecutivos de obra, productividad de cuadrillas y lookahead semanal.
+- La integración API inicial prioritaria debe ser con Last Planner AIA.
+- Las integraciones de valor deben incluir MPP import/export confiable, Excel bidireccional, presupuesto/costos, reportes PDF/Excel, API de importación, Power BI y herramientas de obra/campo.
+- Este paquete debe excluir ERP profundo, edición móvil completa, marketplace/plugins y cualquier IA que modifique el cronograma sin confirmación explícita.
+- La solución puede considerar portafolio simple para dirección, pero sin convertir el paquete en reemplazo completo de PPM empresarial.

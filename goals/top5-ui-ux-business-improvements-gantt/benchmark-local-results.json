@@ -1,0 +1,38 @@
+{
+  "mode": "synthetic",
+  "runs": 30,
+  "matrixCells": 120,
+  "tasks": 403,
+  "operationalTasks": 280,
+  "dependencies": 160,
+  "results": {
+    "matrixGenerateSchedule": {
+      "avgMs": 0.702,
+      "p50Ms": 0.588,
+      "p95Ms": 1.179,
+      "minMs": 0.518,
+      "maxMs": 1.736
+    },
+    "matrixRoundTripFromGantt": {
+      "avgMs": 2.378,
+      "p50Ms": 2.061,
+      "p95Ms": 4.54,
+      "minMs": 1.938,
+      "maxMs": 7.979
+    },
+    "recalculateSchedule": {
+      "avgMs": 8.769,
+      "p50Ms": 8.6,
+      "p95Ms": 10.671,
+      "minMs": 8.01,
+      "maxMs": 10.76
+    },
+    "combinedMatrixGanttPath": {
+      "avgMs": 12.047,
+      "p50Ms": 11.39,
+      "p95Ms": 16.616,
+      "minMs": 10.709,
+      "maxMs": 17.051
+    }
+  }
+}
