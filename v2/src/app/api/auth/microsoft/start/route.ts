@@ -1,7 +1,16 @@
 import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { shouldUseSecureCookiesFromHeaders } from "@/lib/auth/cookie-security";
 
 const STATE_COOKIE = "ms_oauth_state";
+
+function buildPublicUrl(request: NextRequest, pathname: string): URL {
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const host = forwardedHost || request.headers.get("host") || request.nextUrl.host;
+  const protocol = forwardedProto || request.nextUrl.protocol.replace(":", "");
+  return new URL(`${protocol}://${host}${pathname}`);
+}
 
 export async function GET(request: NextRequest) {
   const clientId = process.env.MICROSOFT_CLIENT_ID;
@@ -9,12 +18,18 @@ export async function GET(request: NextRequest) {
 
   if (!clientId) {
     return NextResponse.redirect(
-      new URL("/login?error=Microsoft%20365%20no%20est%C3%A1%20configurado", request.url),
+      buildPublicUrl(
+        request,
+        "/login?error=Microsoft%20365%20no%20est%C3%A1%20configurado",
+      ),
     );
   }
 
   const state = randomBytes(16).toString("hex");
-  const redirectUri = new URL("/api/auth/microsoft/callback", request.url).toString();
+  const redirectUri = buildPublicUrl(
+    request,
+    "/api/auth/microsoft/callback",
+  ).toString();
   const authUrl = new URL(
     `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`,
   );
@@ -30,7 +45,7 @@ export async function GET(request: NextRequest) {
   response.cookies.set(STATE_COOKIE, state, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureCookiesFromHeaders(request.headers),
     maxAge: 10 * 60,
     path: "/",
   });

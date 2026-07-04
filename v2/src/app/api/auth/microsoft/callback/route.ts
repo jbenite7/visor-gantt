@@ -3,8 +3,17 @@ import {
   createSessionForUser,
   upsertMicrosoftUser,
 } from "@/lib/auth/session";
+import { shouldUseSecureCookiesFromHeaders } from "@/lib/auth/cookie-security";
 
 const STATE_COOKIE = "ms_oauth_state";
+
+function buildPublicUrl(request: NextRequest, pathname: string): URL {
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const host = forwardedHost || request.headers.get("host") || request.nextUrl.host;
+  const protocol = forwardedProto || request.nextUrl.protocol.replace(":", "");
+  return new URL(`${protocol}://${host}${pathname}`);
+}
 
 interface MicrosoftProfile {
   id: string;
@@ -15,7 +24,7 @@ interface MicrosoftProfile {
 
 function loginRedirect(request: NextRequest, message: string) {
   return NextResponse.redirect(
-    new URL(`/login?error=${encodeURIComponent(message)}`, request.url),
+    buildPublicUrl(request, `/login?error=${encodeURIComponent(message)}`),
   );
 }
 
@@ -35,7 +44,10 @@ export async function GET(request: NextRequest) {
     return loginRedirect(request, "Microsoft 365 no está configurado");
   }
 
-  const redirectUri = new URL("/api/auth/microsoft/callback", request.url).toString();
+  const redirectUri = buildPublicUrl(
+    request,
+    "/api/auth/microsoft/callback",
+  ).toString();
   const tokenBody = new URLSearchParams({
     client_id: clientId,
     client_secret: clientSecret,
@@ -84,7 +96,13 @@ export async function GET(request: NextRequest) {
   });
   await createSessionForUser(userId);
 
-  const response = NextResponse.redirect(new URL("/", request.url));
-  response.cookies.delete(STATE_COOKIE);
+  const response = NextResponse.redirect(buildPublicUrl(request, "/"));
+  response.cookies.set(STATE_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: shouldUseSecureCookiesFromHeaders(request.headers),
+    maxAge: 0,
+    path: "/",
+  });
   return response;
 }

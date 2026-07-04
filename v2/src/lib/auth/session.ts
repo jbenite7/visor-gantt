@@ -1,12 +1,15 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createHash, randomBytes } from "crypto";
 import pool from "@/lib/db";
 import { hashPassword, verifyPassword } from "./password";
 import { ensureAuthTables } from "./rbac";
 import type { AuthUser } from "@/types/auth";
+import { shouldUseSecureCookiesFromHeaders } from "./cookie-security";
 
 const SESSION_COOKIE = "vg_session";
 const SESSION_DAYS = 7;
+const INITIAL_ADMIN_EMAIL = process.env.INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
+const INITIAL_ADMIN_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD;
 
 interface LoginResult {
   success: boolean;
@@ -23,10 +26,11 @@ function hashToken(token: string): string {
 
 async function setSessionCookie(token: string, expiresAt: Date) {
   const cookieStore = await cookies();
+  const headerStore = await headers();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureCookiesFromHeaders(headerStore),
     expires: expiresAt,
     path: "/",
   });
@@ -71,6 +75,18 @@ export async function loginWithPassword(
 
   const existingUsers = await userCount();
   if (existingUsers === 0) {
+    if (INITIAL_ADMIN_EMAIL && INITIAL_ADMIN_PASSWORD) {
+      if (
+        email !== INITIAL_ADMIN_EMAIL ||
+        password !== INITIAL_ADMIN_PASSWORD
+      ) {
+        return {
+          success: false,
+          error: "Usa las credenciales iniciales configuradas en .env",
+        };
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO users (email, name, password_hash, provider)
        VALUES ($1, $2, $3, 'password')
