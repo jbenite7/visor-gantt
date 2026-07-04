@@ -1,0 +1,148 @@
+{
+  "stage": "interview",
+  "title": "Optimize Gantt Recalculation",
+  "goalSlug": "optimize-gantt-recalculation",
+  "questions": [
+    {
+      "id": "primary_scope",
+      "prompt": "What should this optimization target first?",
+      "description": "The real benchmark shows recalculateSchedule is around 19 ms, while calculateMppFields is around 1.7 s for the reported cronograma.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Optimize calculateMppFields first, especially repeated scans and per-task derived maps in the MPP calculation engine. Leave CPM incremental recalculation for later unless benchmarks still show UI latency.",
+      "recommendedOptionIds": ["mpp_engine_first"],
+      "options": [
+        {
+          "id": "mpp_engine_first",
+          "label": "MPP engine first"
+        },
+        {
+          "id": "schedule_engine_first",
+          "label": "CPM engine first"
+        },
+        {
+          "id": "both_in_scope",
+          "label": "Both engines"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "success_threshold",
+      "prompt": "What performance result should count as success?",
+      "description": "This decides how aggressive the implementation needs to be.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "For the provided preconstruction .mpp, reduce calculateMppFields from about 1.7 s to under 250 ms locally, while keeping recalculateSchedule under 50 ms.",
+      "recommendedOptionIds": ["under_250ms"],
+      "options": [
+        {
+          "id": "under_250ms",
+          "label": "Under 250 ms"
+        },
+        {
+          "id": "under_500ms",
+          "label": "Under 500 ms"
+        },
+        {
+          "id": "best_effort",
+          "label": "Best measurable gain"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "behavior_contract",
+      "prompt": "Which behavior must be preserved exactly?",
+      "description": "These are the regression boundaries for the optimization.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Preserve schedule dates, dependencies, critical path fields, MPP calculated columns, resource and assignment derived fields, autosave payload shape, undo/redo behavior, and project reload persistence.",
+      "recommendedOptionIds": [
+        "schedule_dates",
+        "mpp_fields",
+        "resources_assignments",
+        "autosave_undo"
+      ],
+      "options": [
+        {
+          "id": "schedule_dates",
+          "label": "Schedule dates"
+        },
+        {
+          "id": "mpp_fields",
+          "label": "MPP fields"
+        },
+        {
+          "id": "resources_assignments",
+          "label": "Resources/assignments"
+        },
+        {
+          "id": "autosave_undo",
+          "label": "Autosave/undo"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "allowed_approach",
+      "prompt": "Which implementation approaches are acceptable?",
+      "description": "This controls how much architecture change is allowed.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Allow local indexes, precomputed per-task context, dependency lookup maps, assignment lookup maps, and focused memoization inside the existing calculation pipeline. Avoid a new parallel scheduling model.",
+      "recommendedOptionIds": [
+        "local_indexes",
+        "focused_memoization",
+        "no_new_model"
+      ],
+      "options": [
+        {
+          "id": "local_indexes",
+          "label": "Local indexes"
+        },
+        {
+          "id": "focused_memoization",
+          "label": "Focused memoization"
+        },
+        {
+          "id": "no_new_model",
+          "label": "No new model"
+        },
+        {
+          "id": "defer_heavy_fields",
+          "label": "Defer heavy fields"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "verification",
+      "prompt": "What verification should be required before calling it done?",
+      "description": "The app runs in Docker, and the issue is visible in runtime.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Run focused unit tests for scheduling and MPP calculations, add a benchmark/performance test for the real preconstruction .mpp path or a representative fixture, run lint/build, and verify the Docker-served app reflects the change.",
+      "recommendedOptionIds": [
+        "focused_tests",
+        "benchmark",
+        "lint_build",
+        "docker_runtime"
+      ],
+      "options": [
+        {
+          "id": "focused_tests",
+          "label": "Focused tests"
+        },
+        {
+          "id": "benchmark",
+          "label": "Benchmark"
+        },
+        {
+          "id": "lint_build",
+          "label": "Lint/build"
+        },
+        {
+          "id": "docker_runtime",
+          "label": "Docker runtime"
+        }
+      ],
+      "required": true
+    }
+  ]
+}

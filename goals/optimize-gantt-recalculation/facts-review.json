@@ -1,0 +1,79 @@
+{
+  "stage": "facts",
+  "title": "Optimize Gantt Recalculation",
+  "goalSlug": "optimize-gantt-recalculation",
+  "facts": [
+    {
+      "id": "fact-1",
+      "text": "Editing a task duration or predecessor in the Gantt must feel near-immediate for the provided preconstruction cronograma.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-2",
+      "text": "For the provided preconstruction .mpp, the combined recalculation path should complete under 250 ms in the local benchmark.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-3",
+      "text": "The optimization should improve both the MPP calculation engine and the schedule engine where benchmarks show avoidable repeated work.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-4",
+      "text": "Schedule dates, dependency behavior, critical path fields, and task constraints must remain unchanged after optimization.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-5",
+      "text": "MPP task fields, resource fields, assignment fields, and calculated columns must preserve the same values after optimization.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-6",
+      "text": "Autosave payload shape, undo, redo, and project reload behavior must remain compatible with the existing app.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-7",
+      "text": "The implementation should use local indexes, precomputed lookup maps, and focused memoization inside the existing calculation pipeline.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-8",
+      "text": "The implementation must not introduce a second parallel scheduling model.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-9",
+      "text": "Completion requires focused scheduling and MPP tests, a benchmark, lint/build verification, and confirmation against the Docker-served app.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "stage": "interview",
+  "title": "Predecesoras y sucesoras usan ID de fila",
+  "goalSlug": "predecessors-use-row-id",
+  "questions": [
+    {
+      "id": "scope",
+      "prompt": "Que superficies deben quedar cubiertas por el cambio?",
+      "description": "La busqueda inicial encontro importacion/calculo MPP, tabla Gantt, panel de dependencias y persistencia/recalculo.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Cubrir importacion/calculo, columnas visibles Predecesora/Sucesora, edicion en tabla/panel y persistencia/recalculo; dejar fuera migraciones historicas de backend legacy salvo que una prueba demuestre que v2 las usa.",
+      "recommendedOptionIds": ["mpp-calculation", "visible-ui", "editing", "persistence"],
+      "options": [
+        { "id": "mpp-calculation", "label": "Importacion/calculo MPP" },
+        { "id": "visible-ui", "label": "Columnas visibles" },
+        { "id": "editing", "label": "Edicion UI" },
+        { "id": "persistence", "label": "Persistencia/recalculo" },
+        { "id": "legacy-backend", "label": "Backend legacy" }
+      ],
+      "required": true
+    },
+    {
+      "id": "unique-id-fields",
+      "prompt": "Como deben comportarse los campos especificos de Unique ID?",
+      "description": "El motor tiene campos separados PREDECESSORS/SUCCESSORS y UNIQUE_ID_PREDECESSORS/UNIQUE_ID_SUCCESSORS.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Mantener Unique ID solo en los campos que explicitamente se llaman Unique ID Predecessors / Unique ID Successors; cambiar Predecessors / Successors a ID de fila.",
+      "recommendedOptionIds": ["keep-unique-specific"],
+      "options": [
+        { "id": "keep-unique-specific", "label": "Mantener campos Unique ID" },
+        { "id": "remove-unique-specific", "label": "Todo debe usar ID" }
+      ],
+      "required": true
+    },
+    {
+      "id": "success-criteria",
+      "prompt": "Que evidencia debe demostrar que quedo corregido?",
+      "description": "Recomiendo una prueba con tareas donde ID y Unique ID sean distintos, para evitar falsos positivos.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Agregar o ajustar pruebas con ID != Unique ID que validen: Predecessors/Successors muestran ID de fila, Unique ID Predecessors/Successors conservan Unique ID, y editar una dependencia por ID recalcula y persiste la relacion correcta.",
+      "recommendedOptionIds": ["unit-calculation", "ui-edit-test", "persistence-test"],
+      "options": [
+        { "id": "unit-calculation", "label": "Prueba de calculo" },
+        { "id": "ui-edit-test", "label": "Prueba de edicion UI" },
+        { "id": "persistence-test", "label": "Prueba de persistencia" },
+        { "id": "browser-check", "label": "Chequeo en navegador" }
+      ],
+      "required": true
+    }
+  ]
+}

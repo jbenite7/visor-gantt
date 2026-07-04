@@ -1,0 +1,55 @@
+{
+  "stage": "facts",
+  "title": "Predecesoras y sucesoras usan ID de fila",
+  "goalSlug": "predecessors-use-row-id",
+  "facts": [
+    {
+      "id": "fact-1",
+      "text": "Las columnas visibles Predecesora y Sucesora usan el ID de fila de la tarea, no el Unique ID.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-2",
+      "text": "Los campos especificos Unique ID Predecessors y Unique ID Successors siguen mostrando Unique ID.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-3",
+      "text": "La importacion y el calculo MPP resuelven las relaciones internas correctamente aunque ID y Unique ID sean distintos.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-4",
+      "text": "Editar predecesoras o sucesoras en la tabla o panel acepta y guarda el ID de fila como referencia visible.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-5",
+      "text": "Despues de guardar y recargar el proyecto, las dependencias editadas sobreviven y se muestran con ID de fila.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-6",
+      "text": "La verificacion final incluye pruebas enfocadas y un chequeo en navegador sobre la app servida por Docker.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": false,
+      "automatedVerification": false
+    }
+  ]
+}

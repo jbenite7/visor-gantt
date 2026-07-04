@@ -1,0 +1,77 @@
+{
+  "collectedAt": "2026-07-02T06:15:50.104Z",
+  "baseURL": "http://62.238.11.226:3000",
+  "parserURL": "http://62.238.11.226:8000/api/parse-mpp",
+  "production": {
+    "expectedCommit": "c518ce6",
+    "actualCommit": "c518ce6",
+    "commitMatchesExpected": true,
+    "dockerPs": "NAME                       IMAGE                    COMMAND                  SERVICE      CREATED          STATUS                 PORTS\nvisor-gantt-db-1           postgres:15              \"docker-entrypoint.s…\"   db           3 hours ago      Up 3 hours (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp\nvisor-gantt-frontend-1     visor-gantt-frontend     \"docker-entrypoint.s…\"   frontend     37 seconds ago   Up 36 seconds          0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp\nvisor-gantt-mpp-parser-1   visor-gantt-mpp-parser   \"uvicorn main:app --…\"   mpp-parser   7 hours ago      Up 7 hours (healthy)   0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp\nvisor-gantt-pgadmin-1      dpage/pgadmin4:latest    \"/entrypoint.sh\"         pgadmin      7 hours ago      Up 7 hours             443/tcp, 0.0.0.0:5050->80/tcp, [::]:5050->80/tcp",
+    "parserHealth": "{\"status\":\"ok\",\"mpxj_available\":true}"
+  },
+  "project": {
+    "id": "25",
+    "name": "E2E Production Benchmark Gantt 2026-07-02T06:15:37.913Z",
+    "taskCount": 113,
+    "resourceCount": 0,
+    "assignmentCount": 130,
+    "dependencyCount": 136,
+    "durationTaskId": "2",
+    "predecessorFromTaskId": "2",
+    "predecessorTargetTaskId": "3",
+    "mppPath": "/Users/juanfelipebenitezramos/Downloads/20260303_Cronograma preconstrucción_DP 2.mpp"
+  },
+  "thresholds": {
+    "visibleInteractionP95Ms": 1000,
+    "internalRecalculationP95Ms": 250
+  },
+  "metrics": {
+    "durationEdit": {
+      "runs": 10,
+      "avgMs": 46.11,
+      "p95Ms": 56.3,
+      "maxMs": 56.3,
+      "minMs": 42.4,
+      "valuesMs": [
+        55,
+        45.3,
+        46.1,
+        43.8,
+        42.9,
+        43.7,
+        42.7,
+        56.3,
+        42.9,
+        42.4
+      ],
+      "thresholdMs": 1000,
+      "passed": true
+    },
+    "predecessorEdit": {
+      "runs": 10,
+      "avgMs": 46.69,
+      "p95Ms": 57.9,
+      "maxMs": 57.9,
+      "minMs": 41.1,
+      "valuesMs": [
+        54,
+        57.9,
+        44.1,
+        53.6,
+        43.3,
+        44.4,
+        42.6,
+        42.7,
+        43.2,
+        41.1
+      ],
+      "thresholdMs": 1000,
+      "passed": true
+    }
+  },
+  "notes": [
+    "Visible timing is measured from Enter key commit until the inline editor closes plus one animation frame.",
+    "No internal recalculation performance marks are available in the deployed app, so the 250 ms internal threshold is documented as unavailable rather than asserted.",
+    "The benchmark project is intentionally kept in production for auditability."
+  ]
+}

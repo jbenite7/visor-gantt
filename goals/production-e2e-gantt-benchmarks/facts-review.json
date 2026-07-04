@@ -1,0 +1,63 @@
+{
+  "stage": "facts",
+  "title": "Benchmarks E2E en produccion",
+  "goalSlug": "production-e2e-gantt-benchmarks",
+  "facts": [
+    {
+      "id": "fact-1",
+      "text": "Production is verified to be running the deployed optimization commit before benchmark measurements are collected.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-2",
+      "text": "A production E2E benchmark uses the real MPP schedule and records the visible interaction time for changing an activity duration.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-3",
+      "text": "A production E2E benchmark uses the real MPP schedule and records the visible interaction time for changing an activity predecessor.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-4",
+      "text": "Benchmark output reports average, p95, maximum, and run count for duration-edit and predecessor-edit interactions.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-5",
+      "text": "The production benchmark is considered successful when visible interaction p95 is below 1 second and the instrumented recalculation path p95 is below 250 ms when that internal timing is available.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "fact-6",
+      "text": "The benchmark may create and keep a clearly identifiable production project instead of deleting it after the run.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": false,
+      "automatedVerification": false
+    },
+    {
+      "id": "fact-7",
+      "text": "The final result includes concrete evidence from production: command output or browser/E2E logs, benchmark numbers, and any gaps or risks in the measurement.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    }
+  ]
+}

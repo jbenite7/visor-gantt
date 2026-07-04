@@ -1,0 +1,93 @@
+{
+  "stage": "interview",
+  "title": "Benchmarks E2E en produccion",
+  "goalSlug": "production-e2e-gantt-benchmarks",
+  "questions": [
+    {
+      "id": "scope",
+      "prompt": "Que debe cubrir el E2E de produccion?",
+      "description": "El objetivo es medir el rendimiento real del recálculo del Gantt ya desplegado, no volver a optimizar el motor salvo que la medicion revele un problema claro.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Medir en produccion con el cronograma real: carga/importacion o apertura del proyecto, cambio de duracion, cambio de predecesora, recalc/render visible, y confirmar commit desplegado.",
+      "recommendedOptionIds": [
+        "duration-edit",
+        "predecessor-edit",
+        "visible-render",
+        "deployed-commit"
+      ],
+      "options": [
+        {
+          "id": "duration-edit",
+          "label": "Cambio de duracion"
+        },
+        {
+          "id": "predecessor-edit",
+          "label": "Cambio de predecesora"
+        },
+        {
+          "id": "visible-render",
+          "label": "Render visible"
+        },
+        {
+          "id": "deployed-commit",
+          "label": "Commit desplegado"
+        },
+        {
+          "id": "import-flow",
+          "label": "Importar MPP"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "success_threshold",
+      "prompt": "Que umbral define exito?",
+      "description": "El benchmark local quedo bajo 250 ms para el camino de calculo; el E2E de navegador incluye render, red, autenticacion y latencia de produccion.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Reportar promedio, p95 y maximo; considerar aceptable si la interaccion visible queda por debajo de 1 segundo p95 y el tramo instrumentado de recálculo queda bajo 250 ms p95 cuando sea medible.",
+      "recommendedOptionIds": [
+        "visible-1s-calc-250ms"
+      ],
+      "options": [
+        {
+          "id": "visible-1s-calc-250ms",
+          "label": "1s visible / 250ms calc"
+        },
+        {
+          "id": "report-only",
+          "label": "Solo reportar"
+        },
+        {
+          "id": "strict-250ms",
+          "label": "250ms total E2E"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "production_data",
+      "prompt": "Como manejar datos de prueba en produccion?",
+      "description": "El E2E puede necesitar subir el .mpp real o crear un proyecto temporal. Debe evitar ensuciar la base de produccion.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Usar un proyecto temporal identificable para benchmark, limpiarlo al final si el flujo lo permite, y no borrar ningun proyecto existente.",
+      "recommendedOptionIds": [
+        "temporary-cleanup"
+      ],
+      "options": [
+        {
+          "id": "temporary-cleanup",
+          "label": "Temporal y limpiar"
+        },
+        {
+          "id": "reuse-existing",
+          "label": "Reusar existente"
+        },
+        {
+          "id": "create-keep",
+          "label": "Crear y conservar"
+        }
+      ],
+      "required": true
+    }
+  ]
+}

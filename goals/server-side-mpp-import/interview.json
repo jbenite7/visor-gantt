@@ -1,0 +1,95 @@
+{
+  "stage": "interview",
+  "title": "Importacion MPP en servidor",
+  "goalSlug": "server-side-mpp-import",
+  "questions": [
+    {
+      "id": "scope",
+      "prompt": "Que flujo debe corregirse en este objetivo?",
+      "description": "El error observado ocurre al subir un .mpp desde el home: el navegador parsea, calcula y reenvia un JSON gigante a saveProject, causando POST / 500 por limite de Server Actions.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Corregir el flujo del home para que el .mpp se envie a un endpoint/accion servidor-servidor que parsee, calcule, guarde y devuelva el projectId. Mantener /upload como vista de previsualizacion sin guardado por ahora.",
+      "recommendedOptionIds": ["home-only"],
+      "options": [
+        {
+          "id": "home-only",
+          "label": "Solo home guarda"
+        },
+        {
+          "id": "home-and-upload",
+          "label": "Home y /upload guardan"
+        },
+        {
+          "id": "shared-import-api",
+          "label": "API compartida para ambos"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "success_behavior",
+      "prompt": "Que debe pasar al terminar una importacion .mpp correcta desde el home?",
+      "description": "Esto define la experiencia visible que el e2e debe comprobar.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Mostrar estado de importacion, guardar el proyecto completo en la base de datos y redirigir automaticamente a /project/<id> cuando termine.",
+      "recommendedOptionIds": ["redirect-project"],
+      "options": [
+        {
+          "id": "redirect-project",
+          "label": "Redirigir al proyecto"
+        },
+        {
+          "id": "stay-home",
+          "label": "Quedarse en home"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "temporary_limit",
+      "prompt": "Que hacemos con el aumento temporal de bodySizeLimit?",
+      "description": "Subir el limite desbloquea parcialmente, pero no corrige la arquitectura. Despues del cambio servidor-servidor, ese limite ya no deberia ser necesario para importar .mpp desde el home.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Revertir el limite temporal a un valor conservador cuando el flujo servidor-servidor este verificado, para evitar ocultar payloads gigantes en otras Server Actions.",
+      "recommendedOptionIds": ["revert-limit"],
+      "options": [
+        {
+          "id": "revert-limit",
+          "label": "Revertir limite"
+        },
+        {
+          "id": "keep-high-limit",
+          "label": "Mantener 256mb"
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "verification",
+      "prompt": "Que verificacion debe cerrar el objetivo?",
+      "description": "El bug aparecio en produccion; conviene exigir pruebas contra local y VPS con un .mpp real.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Ejecutar unit/integration tests relevantes, build, y e2e local + produccion subiendo un .mpp real desde el home, confirmando que no hay POST / 500, que se crea el proyecto y que /project/<id> abre.",
+      "recommendedOptionIds": ["tests", "build", "local-e2e", "prod-e2e"],
+      "options": [
+        {
+          "id": "tests",
+          "label": "Tests relevantes"
+        },
+        {
+          "id": "build",
+          "label": "Build"
+        },
+        {
+          "id": "local-e2e",
+          "label": "E2E local"
+        },
+        {
+          "id": "prod-e2e",
+          "label": "E2E produccion"
+        }
+      ],
+      "required": true
+    }
+  ]
+}
