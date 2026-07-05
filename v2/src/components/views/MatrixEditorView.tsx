@@ -48,6 +48,12 @@ interface SelectedCellRef {
 
 type MatrixEditorMode = "scopes" | "locations" | "matrix";
 
+const matrixInputClass =
+  "rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] px-2 py-1 text-sm";
+
+const matrixIconButtonClass =
+  "inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)]";
+
 function clonePlan(plan: MatrixPlan): MatrixPlan {
   return JSON.parse(JSON.stringify(plan)) as MatrixPlan;
 }
@@ -585,15 +591,15 @@ export default function MatrixEditorView({
       const isLeaf = !node.children || node.children.length === 0;
       return (
         <div key={node.id} className="space-y-2" style={{ marginLeft: (depth - 1) * 16 }}>
-          <div className="rounded-md border border-[var(--gray-200)] bg-white p-3">
+          <div className="apple-section p-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-[var(--gray-500)]">
+              <span className="text-xs font-semibold text-[var(--color-text-muted)]">
                 Nivel {depth}
               </span>
-              <span className="text-sm font-bold text-[var(--aia-corp-dark)]">
+              <span className="text-sm font-bold text-[var(--color-text-strong)]">
                 {node.name}
               </span>
-              <span className="rounded-full bg-[var(--gray-100)] px-2 py-0.5 text-xs text-[var(--gray-600)]">
+              <span className="rounded-full border border-[var(--color-hairline)] bg-[var(--color-bg-surface-secondary)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
                 {isLeaf ? "Hoja" : "Grupo"}
               </span>
               <div className="flex-1" />
@@ -601,7 +607,7 @@ export default function MatrixEditorView({
                 type="button"
                 aria-label={`Agregar hijo a ${node.name}`}
                 onClick={() => addScopeChild(node.id)}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--gray-300)]"
+                className={matrixIconButtonClass}
               >
                 <Plus size={14} />
               </button>
@@ -609,7 +615,7 @@ export default function MatrixEditorView({
                 type="button"
                 aria-label={`Agregar hermano de ${node.name}`}
                 onClick={() => addScopeSibling(node.id)}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--gray-300)]"
+                className={matrixIconButtonClass}
               >
                 <Plus size={14} />
               </button>
@@ -623,7 +629,7 @@ export default function MatrixEditorView({
               </button>
             </div>
             <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
-              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--gray-600)]">
+              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                 Nombre
                 <input
                   aria-label={`Nombre alcance ${node.name}`}
@@ -631,10 +637,10 @@ export default function MatrixEditorView({
                   onChange={(event) =>
                     updateScopeDetails(node.id, { name: event.target.value })
                   }
-                  className="rounded-md border border-[var(--gray-300)] px-2 py-1 text-sm"
+                  className={matrixInputClass}
                 />
               </label>
-              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--gray-600)]">
+              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                 Tipo
                 <input
                   aria-label={`Tipo alcance ${node.name}`}
@@ -643,17 +649,17 @@ export default function MatrixEditorView({
                   onChange={(event) =>
                     updateScopeDetails(node.id, { type: event.target.value })
                   }
-                  className="rounded-md border border-[var(--gray-300)] px-2 py-1 text-sm"
+                  className={matrixInputClass}
                 />
               </label>
-              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--gray-600)]">
+              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                 Receta
                 <select
                   aria-label={`Receta alcance ${node.name}`}
                   disabled={!isLeaf}
                   value={node.defaultRecipeId ?? draft?.recipes[0]?.id ?? ""}
                   onChange={(event) => updateScopeRecipe(node.id, event.target.value)}
-                  className="rounded-md border border-[var(--gray-300)] px-2 py-1 text-sm disabled:bg-[var(--gray-100)]"
+                  className={`${matrixInputClass} disabled:bg-[var(--color-bg-surface-secondary)]`}
                 >
                   {draft?.recipes.map((recipe) => (
                     <option key={recipe.id} value={recipe.id}>
@@ -676,15 +682,15 @@ export default function MatrixEditorView({
       const isLeaf = !node.children || node.children.length === 0;
       return (
         <div key={node.id} className="space-y-2" style={{ marginLeft: (depth - 1) * 16 }}>
-          <div className="rounded-md border border-[var(--gray-200)] bg-white p-3">
+          <div className="apple-section p-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-[var(--gray-500)]">
+              <span className="text-xs font-semibold text-[var(--color-text-muted)]">
                 Nivel {depth}
               </span>
-              <span className="text-sm font-bold text-[var(--aia-corp-dark)]">
+              <span className="text-sm font-bold text-[var(--color-text-strong)]">
                 {node.name}
               </span>
-              <span className="rounded-full bg-[var(--gray-100)] px-2 py-0.5 text-xs text-[var(--gray-600)]">
+              <span className="rounded-full border border-[var(--color-hairline)] bg-[var(--color-bg-surface-secondary)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
                 {isLeaf ? "Hoja" : "Grupo"}
               </span>
               <div className="flex-1" />
@@ -692,7 +698,7 @@ export default function MatrixEditorView({
                 type="button"
                 aria-label={`Agregar hijo a ${node.name}`}
                 onClick={() => addAreaChild(node.id)}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--gray-300)]"
+                className={matrixIconButtonClass}
               >
                 <Plus size={14} />
               </button>
@@ -700,7 +706,7 @@ export default function MatrixEditorView({
                 type="button"
                 aria-label={`Agregar hermano de ${node.name}`}
                 onClick={() => addAreaSibling(node.id)}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--gray-300)]"
+                className={matrixIconButtonClass}
               >
                 <Plus size={14} />
               </button>
@@ -714,7 +720,7 @@ export default function MatrixEditorView({
               </button>
             </div>
             <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--gray-600)]">
+              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                 Nombre
                 <input
                   aria-label={`Nombre ubicacion ${node.name}`}
@@ -722,10 +728,10 @@ export default function MatrixEditorView({
                   onChange={(event) =>
                     updateAreaDetails(node.id, { name: event.target.value })
                   }
-                  className="rounded-md border border-[var(--gray-300)] px-2 py-1 text-sm"
+                  className={matrixInputClass}
                 />
               </label>
-              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--gray-600)]">
+              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                 Tipo
                 <input
                   aria-label={`Tipo ubicacion ${node.name}`}
@@ -734,7 +740,7 @@ export default function MatrixEditorView({
                   onChange={(event) =>
                     updateAreaDetails(node.id, { type: event.target.value })
                   }
-                  className="rounded-md border border-[var(--gray-300)] px-2 py-1 text-sm"
+                  className={matrixInputClass}
                 />
               </label>
             </div>
@@ -750,12 +756,12 @@ export default function MatrixEditorView({
     return (
       <div
         data-testid="matrix-editor-empty"
-        className="h-full flex items-center justify-center bg-[var(--aia-alabaster)]"
+        className="apple-module h-full flex items-center justify-center"
       >
         <button
           type="button"
           onClick={createDraft}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[var(--aia-corp-main)] text-white text-sm font-semibold"
+          className="apple-button-primary inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold"
         >
           <Grid3X3 size={16} />
           Crear matriz
@@ -767,52 +773,55 @@ export default function MatrixEditorView({
   return (
     <div
       data-testid="matrix-editor"
-      className="h-full flex flex-col bg-[var(--aia-alabaster)]"
+      className="apple-module h-full flex flex-col"
     >
-      <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-[var(--aia-corp-dark)] text-white">
-        <Grid3X3 size={18} />
-        <div className="min-w-0">
-          <h2 className="text-sm font-bold font-[var(--font-heading)] truncate">
-            {draft.name}
-          </h2>
-          <p className="text-xs text-[var(--aia-corp-light)]">
-            {scopes.length} disciplinas · {areas.length} ubicaciones · {matrixTaskCount} tareas vinculadas
-          </p>
+      <div className="apple-module-header shrink-0 flex flex-wrap items-start gap-3 px-4 py-3">
+        <div className="flex min-w-0 flex-1 basis-64 items-start gap-3">
+          <Grid3X3 size={18} color="var(--aia-corp-main)" className="mt-0.5 shrink-0" />
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold font-[var(--font-heading)] truncate text-[var(--color-text-strong)]">
+              {draft.name}
+            </h2>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              {scopes.length} disciplinas · {areas.length} ubicaciones · {matrixTaskCount} tareas vinculadas
+            </p>
+          </div>
         </div>
-        <div className="flex-1" />
-        <button
-          type="button"
-          onClick={onSyncFromGantt}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white/10 hover:bg-white/15"
-        >
-          <RefreshCw size={14} />
-          Sincronizar
-        </button>
-        <button
-          type="button"
-          onClick={activateAllCells}
-          disabled={scopes.length === 0 || areas.length === 0}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white/10 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Check size={14} />
-          Activar todas las celdas
-        </button>
-        <button
-          type="button"
-          onClick={() => setDraft(matrixPlan ? clonePlan(matrixPlan) : draft)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white/10 hover:bg-white/15"
-        >
-          <RotateCcw size={14} />
-          Deshacer
-        </button>
-        <button
-          type="button"
-          onClick={() => onApplyMatrixPlan(reconcileMatrixCells(draft))}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-[var(--aia-corp-main)]"
-        >
-          <Check size={14} />
-          {applyLabel}
-        </button>
+        <div className="flex min-w-0 flex-1 basis-full flex-wrap justify-start gap-2 md:basis-auto md:justify-end">
+          <button
+            type="button"
+            onClick={onSyncFromGantt}
+            className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold"
+          >
+            <RefreshCw size={14} />
+            Sincronizar
+          </button>
+          <button
+            type="button"
+            onClick={activateAllCells}
+            disabled={scopes.length === 0 || areas.length === 0}
+            className="apple-button-secondary inline-flex max-w-full items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Check size={14} />
+            <span className="min-w-0 whitespace-normal text-left leading-tight">Activar todas las celdas</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setDraft(matrixPlan ? clonePlan(matrixPlan) : draft)}
+            className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold"
+          >
+            <RotateCcw size={14} />
+            Deshacer
+          </button>
+          <button
+            type="button"
+            onClick={() => onApplyMatrixPlan(reconcileMatrixCells(draft))}
+            className="apple-button-primary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold"
+          >
+            <Check size={14} />
+            {applyLabel}
+          </button>
+        </div>
       </div>
 
       <datalist id="matrix-scope-type-suggestions">
@@ -831,7 +840,8 @@ export default function MatrixEditorView({
         <option value="Ambiente" />
       </datalist>
 
-      <div className="shrink-0 flex items-center gap-2 px-3 py-2 bg-white border-b border-[var(--gray-200)]">
+      <div className="apple-module-header shrink-0 flex items-center gap-2 px-3 py-2">
+        <div className="apple-segmented">
         {[
           ["scopes", "Alcances"],
           ["locations", "Ubicaciones"],
@@ -844,13 +854,14 @@ export default function MatrixEditorView({
             className="rounded-md px-3 py-1.5 text-xs font-semibold"
             style={{
               background:
-                activeMode === mode ? "var(--aia-corp-main)" : "var(--gray-100)",
-              color: activeMode === mode ? "white" : "var(--aia-corp-dark)",
+                activeMode === mode ? "var(--aia-corp-main)" : "transparent",
+              color: activeMode === mode ? "white" : "var(--color-text-muted)",
             }}
           >
             {label}
           </button>
         ))}
+        </div>
         {notice && (
           <span className="ml-auto text-xs font-semibold text-[var(--aia-alert-main)]">
             {notice}
@@ -858,43 +869,43 @@ export default function MatrixEditorView({
         )}
       </div>
 
-      <div className="shrink-0 grid grid-cols-1 md:grid-cols-3 gap-3 p-3 border-b border-[var(--gray-200)] bg-white">
-        <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--aia-corp-dark)]">
+      <div className="apple-module-header shrink-0 grid grid-cols-1 md:grid-cols-3 gap-3 p-3">
+        <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-strong)]">
           Nombre
           <input
             value={draft.name}
             onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-            className="rounded-md border border-[var(--gray-300)] px-2 py-1.5 text-sm font-normal"
+            className={`${matrixInputClass} py-1.5 font-normal`}
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--aia-corp-dark)]">
+        <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-strong)]">
           Inicio
           <input
             type="date"
             value={draft.startDate}
             onChange={(event) => setDraft({ ...draft, startDate: event.target.value })}
-            className="rounded-md border border-[var(--gray-300)] px-2 py-1.5 text-sm font-normal"
+            className={`${matrixInputClass} py-1.5 font-normal`}
           />
         </label>
         <div className="flex items-end gap-2">
-          <span className="text-xs text-[var(--gray-600)]">
+          <span className="text-xs text-[var(--color-text-muted)]">
             Preview: {preview?.tasks.length ?? 0} tareas · {preview?.issues.length ?? 0} alertas
           </span>
         </div>
       </div>
 
-      <div className="shrink-0 grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-white border-b border-[var(--gray-200)]">
+      <div className="apple-module-header shrink-0 grid grid-cols-1 md:grid-cols-2 gap-3 p-3">
         <div className="flex gap-2">
           <input
             value={newScopeName}
             onChange={(event) => setNewScopeName(event.target.value)}
             placeholder="Nueva disciplina"
-            className="min-w-0 flex-1 rounded-md border border-[var(--gray-300)] px-2 py-1.5 text-sm"
+            className={`${matrixInputClass} min-w-0 flex-1 py-1.5`}
           />
           <button
             type="button"
             onClick={addScope}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-[var(--aia-corp-main)] text-white text-xs font-semibold"
+            className="apple-button-primary inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-semibold"
           >
             <Plus size={14} />
             Disciplina
@@ -905,12 +916,12 @@ export default function MatrixEditorView({
             value={newAreaName}
             onChange={(event) => setNewAreaName(event.target.value)}
             placeholder="Nueva ubicación"
-            className="min-w-0 flex-1 rounded-md border border-[var(--gray-300)] px-2 py-1.5 text-sm"
+            className={`${matrixInputClass} min-w-0 flex-1 py-1.5`}
           />
           <button
             type="button"
             onClick={addArea}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-[var(--aia-corp-main)] text-white text-xs font-semibold"
+            className="apple-button-primary inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-semibold"
           >
             <Plus size={14} />
             Ubicación
@@ -923,7 +934,7 @@ export default function MatrixEditorView({
           {draft.scopeTree.length > 0 ? (
             renderScopeTree(draft.scopeTree)
           ) : (
-            <div className="bg-white px-3 py-6 text-sm text-[var(--gray-500)]">
+            <div className="apple-section px-3 py-6 text-sm text-[var(--color-text-muted)]">
               Sin alcances. Agrega el primer alcance para construir la matriz.
             </div>
           )}
@@ -933,7 +944,7 @@ export default function MatrixEditorView({
           {draft.areas.length > 0 ? (
             renderAreaTree(draft.areas)
           ) : (
-            <div className="bg-white px-3 py-6 text-sm text-[var(--gray-500)]">
+            <div className="apple-section px-3 py-6 text-sm text-[var(--color-text-muted)]">
               Sin ubicaciones. Agrega la primera ubicacion para construir la matriz.
             </div>
           )}
@@ -941,16 +952,16 @@ export default function MatrixEditorView({
       ) : (
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] overflow-hidden">
         <div className="min-h-0 overflow-auto">
-          <table className="min-w-full border-collapse text-sm">
+          <table className="apple-table min-w-full text-sm">
             <thead className="sticky top-0 z-10">
               <tr>
-                <th className="bg-[var(--aia-corp-dark)] text-white text-left px-3 py-2 font-semibold">
+                <th className="text-left px-3 py-2 font-semibold">
                   Disciplina
                 </th>
                 {areas.map((area) => (
                   <th
                     key={area.id}
-                    className="bg-[var(--aia-corp-dark)] text-white text-left px-3 py-2 font-semibold"
+                    className="text-left px-3 py-2 font-semibold"
                   >
                     {area.name}
                   </th>
@@ -962,15 +973,15 @@ export default function MatrixEditorView({
                 <tr>
                   <td
                     colSpan={Math.max(1, areas.length + 1)}
-                    className="bg-white px-3 py-6 text-sm text-[var(--gray-500)]"
+                    className="bg-[var(--color-bg-elevated)] px-3 py-6 text-sm text-[var(--color-text-muted)]"
                   >
                     Sin disciplinas. Agrega la primera disciplina para construir la matriz.
                   </td>
                 </tr>
               )}
               {scopes.map((scope) => (
-                <tr key={scope.id} className="border-b border-[var(--gray-200)]">
-                  <th className="sticky left-0 bg-white text-left px-3 py-2 font-semibold text-[var(--aia-corp-dark)]">
+                <tr key={scope.id} className="border-b border-[var(--color-hairline)]">
+                  <th className="sticky left-0 bg-[var(--color-bg-elevated)] text-left px-3 py-2 font-semibold text-[var(--color-text-strong)]">
                     <button
                       type="button"
                       onClick={() =>
@@ -1001,29 +1012,29 @@ export default function MatrixEditorView({
                       selectedCell.areaId === area.id;
 
                     return (
-                      <td key={area.id} className="bg-white px-3 py-2 align-top">
+                      <td key={area.id} className="bg-[var(--color-bg-elevated)] px-3 py-2 align-top">
                         <button
                           type="button"
                           onClick={() =>
                             setSelectedCell({ scopeId: scope.id, areaId: area.id })
                           }
-                          className="w-full text-left rounded-md border px-3 py-2"
+                          className="w-full text-left rounded-lg border px-3 py-2 shadow-sm"
                           style={{
                             borderColor: isSelected
                               ? "var(--aia-corp-main)"
-                              : "var(--gray-200)",
+                              : "var(--color-hairline)",
                             background: cell?.active
-                              ? "var(--aia-corp-xlight)"
-                              : "var(--gray-100)",
+                              ? "color-mix(in oklch, var(--aia-corp-xlight) 58%, var(--color-bg-elevated))"
+                              : "var(--color-bg-surface-secondary)",
                           }}
                         >
-                          <span className="block text-xs font-semibold text-[var(--aia-corp-dark)]">
+                          <span className="block text-xs font-semibold text-[var(--color-text-strong)]">
                             {cell?.active ? recipe?.name ?? "Sin receta" : "Inactiva"}
                           </span>
-                          <span className="block text-xs text-[var(--gray-600)]">
+                          <span className="block text-xs text-[var(--color-text-muted)]">
                             {overrides.length} actividades · {totalDuration} días
                           </span>
-                          <span className="block text-xs text-[var(--gray-500)] truncate">
+                          <span className="block text-xs text-[var(--color-text-muted)] truncate">
                             {quantitySummary}
                           </span>
                         </button>
@@ -1038,23 +1049,23 @@ export default function MatrixEditorView({
 
         <aside
           data-testid="matrix-cell-panel"
-          className="min-h-0 overflow-auto border-l border-[var(--gray-200)] bg-white p-4"
+          className="apple-section min-h-0 overflow-auto border-l border-[var(--color-hairline)] p-4"
         >
           {selectedCell && selectedScope && selectedArea && selectedMatrixCell ? (
             <div className="space-y-4">
               <div>
-                <p className="text-xs font-semibold uppercase text-[var(--gray-500)]">
+                <p className="text-xs font-semibold uppercase text-[var(--color-text-muted)]">
                   Celda seleccionada
                 </p>
-                <h3 className="text-lg font-bold text-[var(--aia-corp-dark)]">
+                <h3 className="text-lg font-bold text-[var(--color-text-strong)]">
                   {selectedScope.name} × {selectedArea.name}
                 </h3>
-                <p className="mt-1 text-xs text-[var(--gray-500)]">
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                   {formatQuantitySummary(selectedOverrides)}
                 </p>
               </div>
 
-              <label className="flex items-center gap-2 text-sm font-semibold text-[var(--aia-corp-dark)]">
+              <label className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-strong)]">
                 <input
                   type="checkbox"
                   checked={selectedMatrixCell.active}
@@ -1067,7 +1078,7 @@ export default function MatrixEditorView({
                 Celda activa
               </label>
 
-              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--aia-corp-dark)]">
+              <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-strong)]">
                 Receta
                 <select
                   value={selectedMatrixCell.recipeId ?? ""}
@@ -1084,7 +1095,7 @@ export default function MatrixEditorView({
                       ),
                     });
                   }}
-                  className="rounded-md border border-[var(--gray-300)] px-2 py-1.5 text-sm font-normal"
+                  className={`${matrixInputClass} py-1.5 font-normal`}
                 >
                   {draft.recipes.map((recipe) => (
                     <option key={recipe.id} value={recipe.id}>
@@ -1113,18 +1124,18 @@ export default function MatrixEditorView({
                   return (
                     <div
                       key={activity.id}
-                      className="rounded-md border border-[var(--gray-200)] p-3"
+                      className="apple-section p-3"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <h4 className="text-sm font-bold text-[var(--aia-corp-dark)]">
+                        <h4 className="text-sm font-bold text-[var(--color-text-strong)]">
                           {activity.name}
                         </h4>
-                        <span className="text-xs text-[var(--gray-500)]">
+                        <span className="text-xs text-[var(--color-text-muted)]">
                           {formatNumber(durationDays(override))} días
                         </span>
                       </div>
                       <div className="mt-3 grid grid-cols-3 gap-2">
-                        <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--gray-600)]">
+                        <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                           Cantidad
                           <input
                             aria-label={`Cantidad ${activity.name}`}
@@ -1136,10 +1147,10 @@ export default function MatrixEditorView({
                                 quantity: Number(event.target.value),
                               })
                             }
-                            className="rounded-md border border-[var(--gray-300)] px-2 py-1 text-sm"
+                            className={matrixInputClass}
                           />
                         </label>
-                        <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--gray-600)]">
+                        <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                           Unidad
                           <input
                             aria-label={`Unidad ${activity.name}`}
@@ -1149,10 +1160,10 @@ export default function MatrixEditorView({
                                 unit: event.target.value,
                               })
                             }
-                            className="rounded-md border border-[var(--gray-300)] px-2 py-1 text-sm"
+                            className={matrixInputClass}
                           />
                         </label>
-                        <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--gray-600)]">
+                        <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                           Rendimiento
                           <input
                             aria-label={`Rendimiento ${activity.name}`}
@@ -1164,7 +1175,7 @@ export default function MatrixEditorView({
                                 productivityPerDay: Number(event.target.value),
                               })
                             }
-                            className="rounded-md border border-[var(--gray-300)] px-2 py-1 text-sm"
+                            className={matrixInputClass}
                           />
                         </label>
                       </div>
@@ -1174,13 +1185,13 @@ export default function MatrixEditorView({
               </div>
 
               {selectedRecipe && selectedRecipe.dependencies.length > 0 && (
-                <div className="rounded-md bg-[var(--aia-corp-xlight)] p-3 text-xs text-[var(--aia-corp-dark)]">
+                <div className="rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-surface-secondary)] p-3 text-xs text-[var(--color-text-strong)]">
                   {selectedRecipe.dependencies.length} dependencias internas configuradas.
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-sm text-[var(--gray-500)]">
+            <div className="text-sm text-[var(--color-text-muted)]">
               Selecciona una celda para editar receta, cantidades y rendimientos.
             </div>
           )}

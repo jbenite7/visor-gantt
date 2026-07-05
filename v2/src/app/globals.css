@@ -49,9 +49,9 @@
   --aia-warn-xlight: oklch(98% 0.05 85);
 
   /* --- NEUTRALS & BACKGROUNDS --- */
-  --aia-linen: oklch(96% 0.01 90);
-  --aia-alabaster: oklch(98% 0.005 90);
-  --aia-beige: oklch(97% 0.02 95);
+  --aia-linen: oklch(97.5% 0.006 255);
+  --aia-alabaster: oklch(99% 0.003 255);
+  --aia-beige: oklch(96.5% 0.01 250);
 
   /* --- GRAYS --- */
   --gray-50: oklch(99% 0 0);
@@ -69,30 +69,33 @@
   --color-primary: var(--aia-corp-main);
   --color-primary-hover: var(--aia-corp-dark);
   --color-secondary: var(--aia-proj-main);
-  --color-bg-body: var(--aia-linen);
-  --color-bg-surface: #ffffff;
-  --color-bg-surface-secondary: var(--aia-alabaster);
-  --color-bg-elevated: #ffffff;
+  --color-bg-body: oklch(97.8% 0.006 255);
+  --color-bg-surface: oklch(99.2% 0.003 255);
+  --color-bg-surface-secondary: oklch(96.8% 0.007 255);
+  --color-bg-elevated: rgb(255 255 255 / 0.88);
+  --color-bg-glass: rgb(255 255 255 / 0.72);
   --color-text-strong: var(--gray-900);
   --color-text-muted: var(--gray-500);
-  --color-border: var(--gray-200);
+  --color-border: rgb(20 28 38 / 0.11);
+  --color-hairline: rgb(20 28 38 / 0.08);
 
   /* --- TYPOGRAPHY --- */
-  --font-montserrat: Montserrat, "Aptos Display", "Segoe UI", system-ui, sans-serif;
-  --font-inter: Inter, Aptos, "Segoe UI", system-ui, sans-serif;
+  --font-montserrat: -apple-system, BlinkMacSystemFont, "SF Pro Display", Montserrat, "Aptos Display", "Segoe UI", system-ui, sans-serif;
+  --font-inter: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, Aptos, "Segoe UI", system-ui, sans-serif;
   --font-heading: var(--font-montserrat);
   --font-body: var(--font-inter);
 
   /* --- BORDERS & SHADOWS --- */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 12px;
+  --radius-sm: 5px;
+  --radius-md: 7px;
+  --radius-lg: 8px;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.05);
   --shadow-md:
-    0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    0 8px 24px rgb(15 23 42 / 0.08), 0 1px 0 rgb(255 255 255 / 0.65) inset;
   --shadow-lg:
-    0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    0 18px 42px rgb(15 23 42 / 0.14), 0 1px 0 rgb(255 255 255 / 0.72) inset;
+  --shadow-focus: 0 0 0 3px rgb(82 160 255 / 0.24);
 
   /* --- GANTT METRICS --- */
   --gantt-row-height: 38px;
@@ -132,10 +135,12 @@
   --color-bg-body: oklch(13% 0.018 145);
   --color-bg-surface: oklch(18% 0.015 145);
   --color-bg-surface-secondary: oklch(21% 0.018 145);
-  --color-bg-elevated: oklch(23% 0.018 145);
+  --color-bg-elevated: rgb(34 40 48 / 0.88);
+  --color-bg-glass: rgb(34 40 48 / 0.72);
   --color-text-strong: var(--gray-900);
   --color-text-muted: var(--gray-500);
-  --color-border: var(--gray-200);
+  --color-border: rgb(255 255 255 / 0.12);
+  --color-hairline: rgb(255 255 255 / 0.08);
 
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.35);
   --shadow-md:
@@ -150,11 +155,51 @@
   --font-sans: var(--font-inter);
 }
 
+* {
+  box-sizing: border-box;
+}
+
+html {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 body {
-  background: var(--color-bg-body);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.72), transparent 34rem),
+    linear-gradient(135deg, rgb(39 118 89 / 0.045), transparent 44rem),
+    var(--color-bg-body);
   color: var(--gray-900);
   font-family: var(--font-inter), system-ui, sans-serif;
   line-height: 1.5;
+  margin: 0;
+}
+
+::selection {
+  background: rgb(82 160 255 / 0.22);
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(90 100 116 / 0.28);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(90 100 116 / 0.42);
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 
 input,
@@ -162,6 +207,39 @@ select,
 textarea {
   background: var(--color-bg-elevated);
   color: var(--color-text-strong);
+  border-color: var(--color-border);
+  outline: none;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+button {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled) {
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
+}
+
+button:not(:disabled):active {
+  transform: translateY(0.5px) scale(0.995);
 }
 
 [data-theme="dark"] .bg-white {
@@ -217,6 +295,280 @@ h6 {
   font-family: var(--font-montserrat), system-ui, sans-serif;
   font-weight: 600;
   color: var(--gray-900);
+}
+
+.app-shell {
+  background: var(--color-bg-body);
+}
+
+.apple-surface {
+  background: var(--color-bg-glass);
+  border: 1px solid var(--color-hairline);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(18px) saturate(1.25);
+}
+
+.apple-panel {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-hairline);
+  box-shadow: var(--shadow-sm);
+}
+
+.apple-card {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.apple-toolbar {
+  background: color-mix(in oklch, var(--color-bg-surface) 82%, transparent);
+  border-bottom: 1px solid var(--color-hairline);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.apple-page {
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.72), transparent 32rem),
+    linear-gradient(135deg, rgb(39 118 89 / 0.052), transparent 42rem),
+    var(--color-bg-body);
+  color: var(--color-text-strong);
+}
+
+.apple-page-header {
+  background: color-mix(in oklch, var(--color-bg-glass) 88%, transparent);
+  border-bottom: 1px solid var(--color-hairline);
+  backdrop-filter: blur(20px) saturate(1.18);
+}
+
+.apple-button-primary {
+  border: 1px solid color-mix(in oklch, var(--aia-corp-dark) 24%, transparent);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.18), transparent),
+    var(--aia-corp-main);
+  color: white;
+  box-shadow: 0 8px 18px rgb(39 118 89 / 0.2);
+}
+
+.apple-button-primary:hover {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.18), transparent),
+    var(--aia-corp-dark);
+}
+
+.apple-button-secondary {
+  border: 1px solid var(--color-hairline);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.apple-button-secondary:hover {
+  border-color: color-mix(in oklch, var(--aia-corp-main) 34%, var(--color-border));
+  background: var(--color-bg-surface);
+}
+
+.apple-dropzone {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.8), rgb(255 255 255 / 0.58)),
+    var(--color-bg-surface);
+  border: 1.5px dashed color-mix(in oklch, var(--aia-corp-main) 28%, var(--color-border));
+  box-shadow: var(--shadow-md);
+}
+
+.apple-dropzone:hover {
+  border-color: var(--aia-corp-main);
+  box-shadow: var(--shadow-lg);
+}
+
+.apple-module {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.62), transparent 24rem),
+    var(--color-bg-body);
+  color: var(--color-text-strong);
+}
+
+.apple-module-header {
+  background: color-mix(in oklch, var(--color-bg-glass) 92%, transparent);
+  border-bottom: 1px solid var(--color-hairline);
+  backdrop-filter: blur(18px) saturate(1.18);
+}
+
+.apple-section {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.apple-segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.apple-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.apple-table th,
+.apple-table td {
+  border-color: var(--color-hairline) !important;
+}
+
+.apple-table thead th {
+  background: var(--color-bg-surface) !important;
+  color: var(--color-text-strong) !important;
+}
+
+.apple-table tbody tr:hover td,
+.apple-table tbody tr:hover th {
+  background: color-mix(in oklch, var(--aia-corp-xlight) 42%, var(--color-bg-elevated)) !important;
+}
+
+.apple-subtoolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 7px 12px;
+  background: color-mix(in oklch, var(--color-bg-glass) 92%, transparent);
+  border-bottom: 1px solid var(--color-hairline);
+  backdrop-filter: blur(16px) saturate(1.16);
+}
+
+.apple-subtoolbar-count {
+  color: var(--color-text-muted);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.apple-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-strong);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.apple-icon-button:hover {
+  border-color: color-mix(in oklch, var(--aia-corp-main) 34%, var(--color-border));
+  background: var(--color-bg-surface);
+}
+
+.apple-icon-button-danger {
+  border-color: color-mix(in oklch, var(--aia-alert-main) 28%, var(--color-border));
+  color: var(--aia-alert-main);
+}
+
+.apple-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  padding: 24px;
+  color: var(--color-text-muted);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 0.9375rem;
+  text-align: center;
+}
+
+.apple-grid-header {
+  background: var(--color-bg-surface) !important;
+  color: var(--color-text-strong) !important;
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.bg-white {
+  background-color: var(--color-bg-elevated) !important;
+}
+
+.bg-slate-950,
+.bg-slate-900 {
+  background-color: var(--color-bg-surface) !important;
+}
+
+.bg-slate-800 {
+  background-color: var(--color-bg-surface-secondary) !important;
+}
+
+.bg-blue-950\/20,
+.bg-red-950\/10,
+.bg-red-950\/20 {
+  background-color: var(--color-bg-surface-secondary) !important;
+}
+
+.bg-blue-600 {
+  background-color: var(--aia-corp-main) !important;
+}
+
+.hover\:bg-blue-500:hover,
+.active\:bg-blue-700:active {
+  background-color: var(--aia-corp-dark) !important;
+}
+
+.bg-\[var\(--aia-alabaster\)\],
+.bg-\[var\(--aia-linen\)\] {
+  background-color: var(--color-bg-surface-secondary) !important;
+}
+
+.border-\[var\(--gray-200\)\],
+.border-\[var\(--gray-300\)\] {
+  border-color: var(--color-hairline) !important;
+}
+
+.border-slate-800,
+.border-slate-700,
+.hover\:border-slate-600:hover {
+  border-color: var(--color-hairline) !important;
+}
+
+.border-blue-400 {
+  border-color: var(--aia-corp-main) !important;
+}
+
+.text-slate-300,
+.text-slate-400,
+.text-slate-500,
+.text-slate-600 {
+  color: var(--color-text-muted) !important;
+}
+
+.text-blue-400 {
+  color: var(--aia-corp-main) !important;
+}
+
+.text-red-400 {
+  color: var(--aia-alert-main) !important;
+}
+
+.rounded,
+.rounded-md,
+.rounded-lg,
+.rounded-xl {
+  border-radius: var(--radius-lg);
+}
+
+.divide-\[var\(--gray-200\)\] > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--color-hairline) !important;
 }
 
 /* ── Gantt Bar Hover Effects ── */

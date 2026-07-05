@@ -144,12 +144,7 @@ export default function ResourceUsageView({
     return (
       <div
         data-testid="resource-usage-view"
-        className="flex items-center justify-center h-full"
-        style={{
-          color: "var(--gray-500)",
-          fontFamily: "var(--font-inter), system-ui, sans-serif",
-          fontSize: "0.9375rem",
-        }}
+        className="apple-module apple-empty-state h-full"
       >
         No hay recursos disponibles.
       </div>
@@ -158,32 +153,14 @@ export default function ResourceUsageView({
 
   if (!hasAssignments) {
     return (
-      <div data-testid="resource-usage-view" className="flex flex-col h-full">
-        <div
-          style={{
-            background: "var(--aia-corp-dark)",
-            padding: "8px 12px",
-            borderBottom: "1px solid var(--aia-corp-mid)",
-          }}
-        >
-          <span
-            style={{
-              fontSize: "0.8125rem",
-              fontFamily: "var(--font-montserrat)",
-              fontWeight: 600,
-              color: "#ffffff",
-            }}
-          >
+      <div data-testid="resource-usage-view" className="apple-module flex h-full flex-col">
+        <div className="apple-subtoolbar">
+          <span className="apple-subtoolbar-count">
             Uso de Recursos
           </span>
         </div>
         <div
-          className="flex items-center justify-center flex-1"
-          style={{
-            color: "var(--gray-500)",
-            fontFamily: "var(--font-inter), system-ui, sans-serif",
-            fontSize: "0.9375rem",
-          }}
+          className="apple-empty-state flex-1"
         >
           No hay asignaciones de recursos.
         </div>
@@ -192,7 +169,7 @@ export default function ResourceUsageView({
   }
 
   return (
-    <div data-testid="resource-usage-view" className="flex flex-col h-full">
+    <div data-testid="resource-usage-view" className="apple-module flex h-full flex-col">
       {/* ── Split Layout ── */}
       <div className="flex flex-1 min-h-0">
         {/* ── Left Panel: Resource List (30%) ── */}
@@ -200,24 +177,18 @@ export default function ResourceUsageView({
           style={{
             width: "30%",
             minWidth: 220,
-            borderRight: "2px solid var(--aia-corp-mid)",
+            borderRight: "1px solid var(--color-hairline)",
             display: "flex",
             flexDirection: "column",
           }}
         >
-          <div
-            style={{
-              background: "var(--aia-corp-dark)",
-              padding: "8px 10px",
-              borderBottom: "1px solid var(--aia-corp-mid)",
-            }}
-          >
+          <div className="apple-grid-header" style={{ padding: "8px 10px" }}>
             <span
               style={{
                 fontSize: "0.6875rem",
                 fontFamily: "var(--font-montserrat)",
                 fontWeight: 600,
-                color: "#ffffff",
+                color: "var(--color-text-strong)",
                 textTransform: "uppercase",
                 letterSpacing: "0.03em",
               }}
@@ -232,8 +203,8 @@ export default function ResourceUsageView({
                 data-testid="resource-usage-row"
                 style={{
                   padding: "8px 10px",
-                  borderBottom: "1px solid var(--gray-200)",
-                  background: index % 2 === 0 ? "var(--aia-alabaster)" : "var(--aia-linen)",
+                  borderBottom: "1px solid var(--color-hairline)",
+                  background: index % 2 === 0 ? "var(--color-bg-elevated)" : "var(--color-bg-surface-secondary)",
                   minHeight: 38,
                   display: "flex",
                   flexDirection: "column",
@@ -269,10 +240,9 @@ export default function ResourceUsageView({
         <div className="flex-1 min-h-0 flex flex-col">
           {/* Period headers */}
           <div
+            className="apple-grid-header"
             style={{
-              background: "var(--aia-corp-dark)",
               display: "flex",
-              borderBottom: "1px solid var(--aia-corp-mid)",
               position: "sticky",
               top: 0,
               zIndex: 5,
@@ -287,9 +257,9 @@ export default function ResourceUsageView({
                   fontSize: "0.625rem",
                   fontFamily: "var(--font-montserrat)",
                   fontWeight: 600,
-                  color: "#ffffff",
+                  color: "var(--color-text-strong)",
                   textAlign: "center",
-                  borderLeft: "1px solid var(--aia-corp-mid)",
+                  borderLeft: "1px solid var(--color-hairline)",
                   whiteSpace: "nowrap",
                   lineHeight: 1.3,
                 }}
@@ -307,8 +277,8 @@ export default function ResourceUsageView({
                 data-testid="resource-usage-grid-row"
                 style={{
                   display: "flex",
-                  borderBottom: "1px solid var(--gray-200)",
-                  background: rowIndex % 2 === 0 ? "var(--aia-alabaster)" : "var(--aia-linen)",
+                  borderBottom: "1px solid var(--color-hairline)",
+                  background: rowIndex % 2 === 0 ? "var(--color-bg-elevated)" : "var(--color-bg-surface-secondary)",
                   minHeight: 38,
                 }}
               >
@@ -329,7 +299,7 @@ export default function ResourceUsageView({
                         fontWeight: cell.hours > 0 ? 600 : 400,
                         color: isOverallocated ? "var(--aia-alert-main)" : cell.hours > 0 ? "var(--gray-900)" : "var(--gray-400)",
                         textAlign: "center",
-                        borderLeft: "1px solid var(--gray-200)",
+                        borderLeft: "1px solid var(--color-hairline)",
                         background: isOverallocated ? "var(--aia-alert-xlight)" : "transparent",
                         display: "flex",
                         alignItems: "center",

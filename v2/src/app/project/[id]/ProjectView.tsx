@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
+import { ArrowLeft } from "lucide-react";
 import GanttView from "@/components/views/GanttView";
 import type { GanttTask } from "@/components/gantt/types";
+import type { PlanningAuditEvent } from "@/types/audit";
 import Link from "next/link";
 import { createProjectDate } from "@/lib/date/projectDate";
 import type { ProjectCalendar } from "@/types/calendar";
@@ -96,6 +98,7 @@ export default function ProjectView({
   resourceColumnSettings,
   assignmentColumnSettings,
   uiSettings,
+  planningAuditEvents,
 }: {
   projectId?: string;
   tasks: SerializedTask[];
@@ -117,6 +120,7 @@ export default function ProjectView({
   resourceColumnSettings?: ResourceColumnSettings;
   assignmentColumnSettings?: AssignmentColumnSettings;
   uiSettings?: UISettings;
+  planningAuditEvents?: PlanningAuditEvent[];
 }) {
   // Deserialize ISO strings back to Date objects — memoized to avoid recreating on every render
   const deserializedTasks: GanttTask[] = useMemo(
@@ -154,21 +158,22 @@ export default function ProjectView({
   );
 
   return (
-    <div className="h-screen flex flex-col bg-[var(--aia-alabaster)]">
-      <header className="shrink-0 px-6 py-4 bg-white border-b border-[var(--gray-200)]">
+    <div className="apple-page h-screen flex flex-col">
+      <header className="apple-page-header shrink-0 px-6 py-4">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-4">
             <Link
               href="/"
-              className="text-sm text-[var(--aia-corp-main)] hover:text-[var(--aia-corp-dark)] font-medium transition-colors"
+              className="apple-button-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors"
             >
-              ← Volver
+              <ArrowLeft size={15} aria-hidden />
+              Volver
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-[var(--aia-corp-dark)] font-[var(--font-heading)]">
+              <h1 className="text-2xl font-semibold text-[var(--color-text-strong)] font-[var(--font-heading)]">
                 {projectName}
               </h1>
-              <p className="text-sm text-[var(--gray-500)]">
+              <p className="text-sm text-[var(--color-text-muted)]">
                 {deserializedTasks.length} tareas
               </p>
             </div>
@@ -197,6 +202,7 @@ export default function ProjectView({
           resourceColumnSettings={resourceColumnSettings}
           assignmentColumnSettings={assignmentColumnSettings}
           uiSettings={uiSettings}
+          planningAuditEvents={planningAuditEvents}
           onTaskClick={(task) => console.log("Clicked:", task.name)}
         />
       </div>

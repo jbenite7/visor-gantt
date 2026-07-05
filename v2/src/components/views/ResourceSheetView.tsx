@@ -62,7 +62,7 @@ const thStyle: React.CSSProperties = {
   fontSize: "0.6875rem",
   fontFamily: "var(--font-montserrat)",
   fontWeight: 600,
-  color: "#ffffff",
+  color: "var(--color-text-strong)",
   textAlign: "left",
   whiteSpace: "nowrap",
   letterSpacing: "0.03em",
@@ -70,9 +70,9 @@ const thStyle: React.CSSProperties = {
 };
 
 const inputStyle: React.CSSProperties = {
-  background: "var(--aia-alabaster)",
-  color: "var(--gray-900)",
-  border: "1px solid var(--aia-corp-mid)",
+  background: "var(--color-bg-elevated)",
+  color: "var(--color-text-strong)",
+  border: "1px solid var(--color-hairline)",
   borderRadius: "var(--radius-sm)",
   padding: "4px 8px",
   fontSize: "0.8125rem",
@@ -290,28 +290,19 @@ export default function ResourceSheetView({
   }, [extraColumns, locale, updateColumnSettings]);
 
   return (
-    <div data-testid="resource-sheet-view" className="flex flex-col h-full">
+    <div data-testid="resource-sheet-view" className="apple-module flex h-full flex-col">
       {/* ── Toolbar ── */}
-      <div
-        style={{
-          background: "var(--aia-corp-dark)",
-          padding: "8px 12px",
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          borderBottom: "1px solid var(--aia-corp-mid)",
-        }}
-      >
+      <div className="apple-subtoolbar">
         {/* Type filter */}
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value as FilterType)}
           style={{
-            background: "var(--aia-alabaster)",
-            color: "var(--aia-corp-dark)",
-            border: "1px solid var(--aia-corp-mid)",
-            borderRadius: "var(--radius-sm)",
-            padding: "4px 8px",
+            background: "var(--color-bg-elevated)",
+            color: "var(--color-text-strong)",
+            border: "1px solid var(--color-hairline)",
+            borderRadius: "var(--radius-lg)",
+            padding: "6px 10px",
             fontSize: "0.8125rem",
             fontFamily: "var(--font-inter), system-ui, sans-serif",
             outline: "none",
@@ -325,34 +316,12 @@ export default function ResourceSheetView({
           ))}
         </select>
 
-        {/* Separator */}
-        <div
-          style={{
-            width: "1px",
-            height: "20px",
-            background: "var(--aia-corp-mid)",
-            opacity: 0.5,
-          }}
-        />
-
         {/* Delete button */}
         {selectedUid != null && onDeleteResource && (
           <button
             onClick={handleDelete}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "4px 10px",
-              background: "var(--aia-alert-main)",
-              color: "#ffffff",
-              border: "none",
-              borderRadius: "var(--radius-sm)",
-              fontSize: "0.75rem",
-              fontFamily: "var(--font-montserrat)",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
+            className="apple-icon-button apple-icon-button-danger"
+            title={labels.delete}
           >
             <Trash2 size={12} />
             {labels.delete}
@@ -376,11 +345,7 @@ export default function ResourceSheetView({
 
         {/* Count */}
         <span
-          style={{
-            fontSize: "0.75rem",
-            color: "var(--aia-corp-light)",
-            fontFamily: "var(--font-inter), system-ui, sans-serif",
-          }}
+          className="apple-subtoolbar-count"
         >
           {filteredResources.length} / {resources.length} {labels.resources}
         </span>
@@ -389,26 +354,7 @@ export default function ResourceSheetView({
         {onAddResource && (
           <button
             onClick={() => setShowAddForm(true)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "4px 12px",
-              background: "var(--aia-corp-main)",
-              color: "#ffffff",
-              border: "none",
-              borderRadius: "var(--radius-sm)",
-              fontSize: "0.75rem",
-              fontFamily: "var(--font-montserrat)",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "var(--aia-corp-dark)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "var(--aia-corp-main)";
-            }}
+            className="apple-icon-button"
           >
             <Plus size={14} />
             {labels.addResource}
@@ -419,16 +365,16 @@ export default function ResourceSheetView({
       {/* ── Table ── */}
       <div className="flex-1 min-h-0 overflow-auto">
         <table
+          className="apple-table"
           style={{
             width: "100%",
-            borderCollapse: "collapse",
             tableLayout: "fixed",
           }}
         >
           <thead>
             <tr
+              className="apple-grid-header"
               style={{
-                background: "var(--aia-corp-dark)",
                 position: "sticky",
                 top: 0,
                 zIndex: 10,
@@ -461,8 +407,8 @@ export default function ResourceSheetView({
               <tr
                 data-testid="add-resource-row"
                 style={{
-                  background: "var(--aia-corp-xlight)",
-                  borderBottom: "2px solid var(--aia-corp-main)",
+                  background: "color-mix(in oklch, var(--aia-corp-xlight) 54%, var(--color-bg-elevated))",
+                  borderBottom: "1px solid var(--color-hairline)",
                 }}
               >
                 <td
@@ -557,9 +503,9 @@ export default function ResourceSheetView({
                       onClick={handleCancelAdd}
                       style={{
                         padding: "2px 8px",
-                        background: "transparent",
-                        color: "var(--gray-500)",
-                        border: "1px solid var(--gray-300)",
+                        background: "var(--color-bg-elevated)",
+                        color: "var(--color-text-muted)",
+                        border: "1px solid var(--color-hairline)",
                         borderRadius: "var(--radius-sm)",
                         fontSize: "0.6875rem",
                         fontFamily: "var(--font-montserrat)",
@@ -581,8 +527,8 @@ export default function ResourceSheetView({
                   key={resource.uid}
                   data-testid="edit-resource-row"
                   style={{
-                    background: "var(--aia-corp-xlight)",
-                    borderBottom: "2px solid var(--aia-corp-main)",
+                    background: "color-mix(in oklch, var(--aia-corp-xlight) 54%, var(--color-bg-elevated))",
+                    borderBottom: "1px solid var(--color-hairline)",
                   }}
                 >
                   <td
@@ -673,9 +619,9 @@ export default function ResourceSheetView({
                         onClick={handleCancelEdit}
                         style={{
                           padding: "2px 8px",
-                          background: "transparent",
-                          color: "var(--gray-500)",
-                          border: "1px solid var(--gray-300)",
+                          background: "var(--color-bg-elevated)",
+                          color: "var(--color-text-muted)",
+                          border: "1px solid var(--color-hairline)",
                           borderRadius: "var(--radius-sm)",
                           fontSize: "0.6875rem",
                           fontFamily: "var(--font-montserrat)",
@@ -710,7 +656,7 @@ export default function ResourceSheetView({
                   style={{
                     padding: "48px 16px",
                     textAlign: "center",
-                    color: "var(--gray-500)",
+                    color: "var(--color-text-muted)",
                     fontFamily: "var(--font-inter), system-ui, sans-serif",
                     fontSize: "0.9375rem",
                   }}

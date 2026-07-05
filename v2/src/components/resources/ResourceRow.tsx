@@ -31,7 +31,7 @@ export default function ResourceRow({
   extraColumns = [],
   locale = "es",
 }: ResourceRowProps) {
-  const stripeBg = index % 2 === 0 ? "var(--aia-alabaster)" : "var(--aia-linen)";
+  const stripeBg = index % 2 === 0 ? "var(--color-bg-elevated)" : "var(--color-bg-surface-secondary)";
   const badge = TYPE_BADGE[resource.type];
   const typeLabel = locale === "en" ? badge.labelEn : badge.labelEs;
 
@@ -42,7 +42,7 @@ export default function ResourceRow({
       onClick={onClick}
       onDoubleClick={() => onEdit?.(resource)}
       style={{
-        background: isSelected ? "var(--aia-proj-xlight)" : stripeBg,
+        background: isSelected ? "color-mix(in oklch, var(--aia-proj-xlight) 62%, var(--color-bg-elevated))" : stripeBg,
         borderLeft: isSelected ? "3px solid var(--aia-proj-main)" : "3px solid transparent",
         cursor: "pointer",
         transition: "background 0.15s ease",
@@ -183,7 +183,7 @@ export default function ResourceRow({
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = "var(--aia-corp-main)";
-              e.currentTarget.style.background = "var(--aia-corp-xlight)";
+              e.currentTarget.style.background = "color-mix(in oklch, var(--aia-corp-xlight) 58%, var(--color-bg-elevated))";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.color = "var(--aia-corp-mid)";

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { LOBActivity, LOBUnit } from "@/types/lob";
-import { computeLOBLayout } from "@/lib/scheduling/lob";
+import { computeLOBLayout, diagnoseLOB } from "@/lib/scheduling/lob";
 
 // ── Layout constants ──────────────────────────────────────────────
 
@@ -57,6 +57,10 @@ interface LineOfBalanceProps {
 export default function LineOfBalance({ activities, units }: LineOfBalanceProps) {
   const layout = useMemo(
     () => computeLOBLayout(activities, units),
+    [activities, units],
+  );
+  const diagnostics = useMemo(
+    () => diagnoseLOB(activities, units),
     [activities, units],
   );
 
@@ -115,10 +119,9 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
     return (
       <div
         data-testid="line-of-balance"
-        className="flex items-center justify-center h-full"
-        style={{ background: "var(--aia-alabaster)" }}
+        className="apple-module apple-empty-state h-full"
       >
-        <p style={{ color: "var(--gray-500)", fontSize: "0.9rem", textAlign: "center" }}>
+        <p>
           No hay actividades de Línea de Balance disponibles.
           <br />
           <span style={{ fontSize: "0.8rem", opacity: 0.7 }}>
@@ -132,23 +135,18 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
   return (
     <div
       data-testid="line-of-balance"
-      className="flex flex-col h-full overflow-auto"
-      style={{ background: "var(--aia-alabaster)" }}
+      className="apple-module flex flex-col h-full overflow-auto"
     >
       {/* Header */}
       <div
-        className="px-4 py-2"
-        style={{
-          borderBottom: "1px solid var(--gray-200)",
-          background: "var(--color-bg-surface)",
-        }}
+        className="apple-module-header px-4 py-2"
       >
         <h2
           style={{
             fontFamily: "var(--font-heading)",
             fontSize: "0.9rem",
             fontWeight: 600,
-            color: "var(--aia-corp-dark)",
+            color: "var(--color-text-strong)",
             margin: 0,
           }}
         >
@@ -158,13 +156,55 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
           style={{
             fontFamily: "var(--font-body)",
             fontSize: "0.7rem",
-            color: "var(--gray-500)",
+            color: "var(--color-text-muted)",
             margin: "2px 0 0",
           }}
         >
           Eje X: Tiempo &middot; Eje Y: Unidades de Producción &middot; Líneas sólidas: Planificado &middot; Líneas punteadas: Real
         </p>
       </div>
+
+      {diagnostics.length > 0 && (
+        <section
+          data-testid="lob-feedback"
+          className="apple-module-header grid gap-2 px-4 py-3 md:grid-cols-3"
+        >
+          {diagnostics.slice(0, 3).map((diagnostic, index) => (
+            <article
+              key={`${diagnostic.kind}-${diagnostic.activityIds.join("-")}-${index}`}
+              data-testid="lob-feedback-card"
+              className="apple-section px-3 py-2"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span
+                  className="text-[0.6875rem] font-semibold uppercase text-[var(--color-text-muted)]"
+                  style={{ letterSpacing: 0 }}
+                >
+                  {diagnostic.severity === "high"
+                    ? "Alta"
+                    : diagnostic.severity === "medium"
+                      ? "Media"
+                      : "Baja"}
+                </span>
+                <span className="text-[0.6875rem] text-[var(--color-text-muted)]">
+                  {diagnostic.unitIndices.length > 0
+                    ? `Unid. ${diagnostic.unitIndices.map((unitIndex) => unitIndex + 1).join(", ")}`
+                    : "General"}
+                </span>
+              </div>
+              <p className="mt-1 text-xs font-semibold text-[var(--color-text-strong)]">
+                {diagnostic.message}
+              </p>
+              <p
+                className="mt-1 overflow-hidden text-xs text-[var(--color-text-muted)]"
+                style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}
+              >
+                {diagnostic.recommendation}
+              </p>
+            </article>
+          ))}
+        </section>
+      )}
 
       {/* Chart */}
       <div className="flex-1 min-h-0 flex items-start justify-center p-4 overflow-auto">
@@ -183,8 +223,10 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
             y={MARGIN.top}
             width={chartWidth}
             height={chartHeight}
-            fill="var(--aia-alabaster)"
-            rx="4"
+            fill="var(--color-bg-elevated)"
+            stroke="var(--color-hairline)"
+            strokeWidth={1}
+            rx="8"
           />
 
           {/* Horizontal grid lines (units) */}
@@ -392,7 +434,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
                 x={x}
                 y={height - MARGIN.bottom + 18}
                 textAnchor="middle"
-                fill="var(--gray-600)"
+                fill="var(--color-text-muted)"
                 fontSize={10}
               >
                 {formatDate(tick)}
@@ -409,7 +451,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
                 x={MARGIN.left - 10}
                 y={y + 4}
                 textAnchor="end"
-                fill="var(--gray-600)"
+                fill="var(--color-text-muted)"
                 fontSize={10}
               >
                 {ul.label}
@@ -501,7 +543,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
               <text
                 x={0}
                 y={0}
-                fill="var(--gray-500)"
+                fill="var(--color-text-muted)"
                 fontSize={9}
                 fontStyle="italic"
               >
@@ -510,7 +552,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
               <text
                 x={0}
                 y={14}
-                fill="var(--gray-500)"
+                fill="var(--color-text-muted)"
                 fontSize={9}
                 fontStyle="italic"
               >

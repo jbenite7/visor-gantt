@@ -5,6 +5,7 @@ import type { GanttTask } from "@/components/gantt/types";
 import { computeNetworkLayout } from "@/lib/layout/networkLayout";
 import NetworkNode from "@/components/network/NetworkNode";
 import NetworkArrow from "@/components/network/NetworkArrow";
+import { RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 
 interface NetworkDiagramViewProps {
   tasks: GanttTask[];
@@ -101,7 +102,7 @@ export default function NetworkDiagramView({
 
   return (
     <div
-      className="relative w-full h-full overflow-hidden bg-[var(--aia-linen)]"
+      className="apple-module relative h-full w-full overflow-hidden"
       data-testid="network-diagram-view"
     >
       <svg
@@ -141,34 +142,31 @@ export default function NetworkDiagramView({
       <div className="absolute bottom-4 right-4 flex gap-2">
         <button
           onClick={() => setZoom((z) => Math.min(z + 0.2, 3))}
-          className="w-8 h-8 flex items-center justify-center rounded-md text-white text-sm font-semibold"
-          style={{ backgroundColor: "var(--aia-corp-dark)" }}
+          className="apple-icon-button"
           title="Zoom in"
         >
-          +
+          <ZoomIn size={15} />
         </button>
         <button
           onClick={() => setZoom((z) => Math.max(z - 0.2, 0.3))}
-          className="w-8 h-8 flex items-center justify-center rounded-md text-white text-sm font-semibold"
-          style={{ backgroundColor: "var(--aia-corp-dark)" }}
+          className="apple-icon-button"
           title="Zoom out"
         >
-          &minus;
+          <ZoomOut size={15} />
         </button>
         <button
           onClick={handleReset}
-          className="px-3 h-8 flex items-center justify-center rounded-md text-white text-xs font-semibold"
-          style={{ backgroundColor: "var(--aia-corp-dark)" }}
+          className="apple-icon-button"
           title="Reset view"
         >
-          Reset
+          <RotateCcw size={15} />
         </button>
       </div>
 
       {/* Empty state */}
       {layout.nodes.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-[var(--aia-corp-mid)] text-lg opacity-60">
+        <div className="apple-empty-state absolute inset-0">
+          <p>
             No hay tareas para mostrar en el diagrama de red
           </p>
         </div>

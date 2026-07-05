@@ -232,9 +232,8 @@ export default function SCurveChart({
   return (
     <div
       data-testid="s-curve-chart"
+      className="apple-section"
       style={{
-        background: "var(--aia-alabaster)",
-        borderRadius: "var(--radius-md)",
         padding: "16px",
         position: "relative",
       }}
@@ -254,8 +253,10 @@ export default function SCurveChart({
           y={MARGIN.top}
           width={chartWidth}
           height={chartHeight}
-          fill="white"
-          rx="2"
+          fill="var(--color-bg-elevated)"
+          stroke="var(--color-hairline)"
+          strokeWidth={1}
+          rx="8"
         />
 
         {/* Horizontal grid lines (value) */}
@@ -268,8 +269,8 @@ export default function SCurveChart({
               y1={y}
               x2={width - MARGIN.right}
               y2={y}
-              stroke="var(--aia-corp-mid)"
-              strokeOpacity={0.15}
+              stroke="var(--color-hairline)"
+              strokeOpacity={1}
               strokeWidth={1}
             />
           );
@@ -285,8 +286,8 @@ export default function SCurveChart({
               y1={MARGIN.top}
               x2={x}
               y2={height - MARGIN.bottom}
-              stroke="var(--aia-corp-mid)"
-              strokeOpacity={0.15}
+              stroke="var(--color-hairline)"
+              strokeOpacity={1}
               strokeWidth={1}
             />
           );
@@ -424,8 +425,8 @@ export default function SCurveChart({
             left: tooltipData.x + 12,
             top: tooltipData.y - 40,
             background: "var(--color-bg-surface)",
-            border: "1px solid var(--gray-200)",
-            borderRadius: "var(--radius-sm)",
+            border: "1px solid var(--color-hairline)",
+            borderRadius: "var(--radius-lg)",
             padding: "6px 10px",
             fontSize: "0.7rem",
             fontFamily: "var(--font-inter)",
@@ -465,13 +466,13 @@ export default function SCurveChart({
                   alignItems: "center",
                   gap: "6px",
                   padding: "3px 8px",
-                  borderRadius: "var(--radius-sm)",
-                  border: `1px solid ${isHidden ? "var(--gray-300)" : line.color}`,
-                  background: isHidden ? "transparent" : `${line.color}10`,
+                  borderRadius: "var(--radius-lg)",
+                  border: `1px solid ${isHidden ? "var(--color-hairline)" : line.color}`,
+                  background: isHidden ? "var(--color-bg-elevated)" : `${line.color}10`,
                   cursor: "pointer",
                   fontSize: "0.7rem",
                   fontFamily: "var(--font-inter)",
-                  color: isHidden ? "var(--gray-400)" : "var(--gray-700)",
+                  color: isHidden ? "var(--color-text-muted)" : "var(--color-text-strong)",
                   opacity: isHidden ? 0.5 : 1,
                   transition: "opacity 0.15s, border-color 0.15s",
                 }}
@@ -518,7 +519,7 @@ export default function SCurveChart({
                   alignItems: "center",
                   gap: "6px",
                   padding: "4px 12px",
-                  borderRadius: "var(--radius-sm)",
+                  borderRadius: "var(--radius-lg)",
                   background: isGood
                     ? "var(--aia-corp-xlight)"
                     : isBad

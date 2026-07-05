@@ -22,6 +22,9 @@ const DAYS = [
   { id: 7, label: "Dom" },
 ];
 
+const inputClass =
+  "mt-1 w-full rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] px-3 py-2 text-sm";
+
 export default function CalendarSettingsView({
   calendar,
   onChange,
@@ -87,17 +90,17 @@ export default function CalendarSettingsView({
   };
 
   return (
-    <div className="h-full overflow-auto bg-[var(--aia-alabaster)] p-5">
+    <div className="apple-module h-full overflow-auto p-5">
       <div className="max-w-4xl space-y-5">
-        <section className="bg-white border border-[var(--gray-200)] rounded-lg p-5">
-          <h2 className="text-lg font-semibold text-[var(--aia-corp-dark)] font-[var(--font-heading)]">
+        <section className="apple-section p-5">
+          <h2 className="text-lg font-semibold text-[var(--color-text-strong)] font-[var(--font-heading)]">
             Calendario laboral
           </h2>
-          <p className="text-sm text-[var(--gray-500)] mt-1">{summary}</p>
+          <p className="text-sm text-[var(--color-text-muted)] mt-1">{summary}</p>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <label className="block">
-              <span className="text-sm font-medium text-[var(--gray-700)]">
+              <span className="text-sm font-medium text-[var(--color-text-strong)]">
                 Zona horaria
               </span>
               <input
@@ -105,11 +108,11 @@ export default function CalendarSettingsView({
                 onChange={(event) =>
                   commitCalendar({ ...calendar, timeZone: event.target.value })
                 }
-                className="mt-1 w-full rounded-md border border-[var(--gray-300)] px-3 py-2 text-sm"
+                className={inputClass}
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-[var(--gray-700)]">
+              <span className="text-sm font-medium text-[var(--color-text-strong)]">
                 Horas por día
               </span>
               <input
@@ -123,11 +126,11 @@ export default function CalendarSettingsView({
                     hoursPerDay: Number(event.target.value),
                   })
                 }
-                className="mt-1 w-full rounded-md border border-[var(--gray-300)] px-3 py-2 text-sm"
+                className={inputClass}
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-[var(--gray-700)]">
+              <span className="text-sm font-medium text-[var(--color-text-strong)]">
                 Inicio jornada
               </span>
               <input
@@ -136,11 +139,11 @@ export default function CalendarSettingsView({
                 onChange={(event) =>
                   commitCalendar({ ...calendar, startHour: event.target.value })
                 }
-                className="mt-1 w-full rounded-md border border-[var(--gray-300)] px-3 py-2 text-sm"
+                className={inputClass}
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-[var(--gray-700)]">
+              <span className="text-sm font-medium text-[var(--color-text-strong)]">
                 Fin jornada
               </span>
               <input
@@ -149,13 +152,13 @@ export default function CalendarSettingsView({
                 onChange={(event) =>
                   commitCalendar({ ...calendar, endHour: event.target.value })
                 }
-                className="mt-1 w-full rounded-md border border-[var(--gray-300)] px-3 py-2 text-sm"
+                className={inputClass}
               />
             </label>
           </div>
 
           <div className="mt-5">
-            <span className="text-sm font-medium text-[var(--gray-700)]">
+            <span className="text-sm font-medium text-[var(--color-text-strong)]">
               Días laborales
             </span>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -166,13 +169,14 @@ export default function CalendarSettingsView({
                     key={day.id}
                     type="button"
                     onClick={() => toggleDay(day.id)}
-                    className="px-3 py-2 rounded-md text-sm font-semibold border"
+                    className="rounded-lg border px-3 py-2 text-sm font-semibold"
                     style={{
-                      background: active ? "var(--aia-corp-main)" : "#fff",
-                      color: active ? "#fff" : "var(--aia-corp-dark)",
+                      background: active ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
+                      color: active ? "#fff" : "var(--color-text-muted)",
                       borderColor: active
                         ? "var(--aia-corp-main)"
-                        : "var(--gray-300)",
+                        : "var(--color-hairline)",
+                      boxShadow: active ? "0 8px 18px rgb(39 118 89 / 0.16)" : "var(--shadow-sm)",
                     }}
                   >
                     {day.label}
@@ -183,8 +187,8 @@ export default function CalendarSettingsView({
           </div>
         </section>
 
-        <section className="bg-white border border-[var(--gray-200)] rounded-lg p-5">
-          <h2 className="text-lg font-semibold text-[var(--aia-corp-dark)] font-[var(--font-heading)]">
+        <section className="apple-section p-5">
+          <h2 className="text-lg font-semibold text-[var(--color-text-strong)] font-[var(--font-heading)]">
             Días no laborales
           </h2>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
@@ -196,7 +200,7 @@ export default function CalendarSettingsView({
                 setFormError(null);
                 setHolidayDate(event.target.value);
               }}
-              className="rounded-md border border-[var(--gray-300)] px-3 py-2 text-sm"
+              className="rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] px-3 py-2 text-sm"
             />
             <input
               aria-label="Nombre del día no laboral"
@@ -206,12 +210,12 @@ export default function CalendarSettingsView({
                 setHolidayName(event.target.value);
               }}
               placeholder="Nombre"
-              className="min-w-0 flex-1 rounded-md border border-[var(--gray-300)] px-3 py-2 text-sm"
+              className="min-w-0 flex-1 rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] px-3 py-2 text-sm"
             />
             <button
               type="button"
               onClick={addHoliday}
-              className="px-4 py-2 rounded-md bg-[var(--aia-corp-main)] text-white text-sm font-semibold"
+              className="apple-button-primary rounded-lg px-4 py-2 text-sm font-semibold"
             >
               Agregar
             </button>
@@ -222,9 +226,9 @@ export default function CalendarSettingsView({
             </p>
           )}
 
-          <div className="mt-4 divide-y divide-[var(--gray-200)]">
+          <div className="mt-4 divide-y divide-[var(--color-hairline)]">
             {calendar.nonWorkingDays.length === 0 ? (
-              <p className="text-sm text-[var(--gray-500)]">
+              <p className="text-sm text-[var(--color-text-muted)]">
                 No hay excepciones configuradas.
               </p>
             ) : (
@@ -234,10 +238,10 @@ export default function CalendarSettingsView({
                   className="flex items-center justify-between py-3"
                 >
                   <div>
-                    <p className="text-sm font-semibold text-[var(--aia-corp-dark)]">
+                    <p className="text-sm font-semibold text-[var(--color-text-strong)]">
                       {day.name}
                     </p>
-                    <p className="text-xs text-[var(--gray-500)]">{day.date}</p>
+                    <p className="text-xs text-[var(--color-text-muted)]">{day.date}</p>
                   </div>
                   <button
                     type="button"

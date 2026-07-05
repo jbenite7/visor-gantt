@@ -48,14 +48,15 @@ const BASELINE_BAR_COLOR = "var(--aia-corp-mid)";
 const BASELINE_BAR_OPACITY = 0.4;
 
 const TOOLBAR_BTN_STYLE: React.CSSProperties = {
-  padding: "4px 12px",
+  padding: "6px 12px",
   fontSize: "0.75rem",
   fontFamily: "var(--font-inter), system-ui, sans-serif",
-  fontWeight: 500,
-  border: "1px solid var(--aia-corp-mid)",
-  borderRadius: "var(--radius-sm)",
-  background: "var(--aia-corp-main)",
-  color: "#ffffff",
+  fontWeight: 600,
+  border: "1px solid var(--color-hairline)",
+  borderRadius: "var(--radius-lg)",
+  background: "var(--color-bg-elevated)",
+  color: "var(--color-text-strong)",
+  boxShadow: "var(--shadow-sm)",
   cursor: "pointer",
   lineHeight: "1.4",
   whiteSpace: "nowrap",
@@ -65,10 +66,10 @@ const TOOLBAR_SELECT_STYLE: React.CSSProperties = {
   padding: "4px 8px",
   fontSize: "0.75rem",
   fontFamily: "var(--font-inter), system-ui, sans-serif",
-  border: "1px solid var(--aia-corp-mid)",
-  borderRadius: "var(--radius-sm)",
-  background: "var(--aia-alabaster)",
-  color: "var(--aia-corp-dark)",
+  border: "1px solid var(--color-hairline)",
+  borderRadius: "var(--radius-lg)",
+  background: "var(--color-bg-elevated)",
+  color: "var(--color-text-strong)",
   cursor: "pointer",
   outline: "none",
 };
@@ -495,19 +496,10 @@ export default function TrackingGanttView({
   return (
     <div
       data-testid="tracking-gantt-view"
-      className="flex flex-col h-full"
+      className="apple-module flex h-full flex-col"
     >
       {/* ── Baseline Toolbar ── */}
-      <div
-        style={{
-          background: "var(--aia-alabaster)",
-          padding: "6px 12px",
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          borderBottom: "1px solid var(--gray-200)",
-        }}
-      >
+      <div className="apple-subtoolbar">
         <button
           data-testid="save-baseline-btn"
           onClick={handleSaveBaseline}
@@ -521,7 +513,7 @@ export default function TrackingGanttView({
             <span
               style={{
                 fontSize: "0.75rem",
-                color: "var(--aia-corp-dark)",
+                color: "var(--color-text-muted)",
                 fontFamily: "var(--font-inter), system-ui, sans-serif",
                 fontWeight: 500,
               }}
@@ -550,7 +542,7 @@ export default function TrackingGanttView({
           <span
             style={{
               fontSize: "0.6875rem",
-              color: "var(--aia-corp-mid)",
+              color: "var(--color-text-muted)",
               fontFamily: "var(--font-inter), system-ui, sans-serif",
             }}
           >

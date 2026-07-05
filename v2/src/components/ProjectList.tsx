@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { FolderOpen, Trash2 } from "lucide-react";
 import { deleteProject } from "@/app/actions/project";
 
 interface Project {
@@ -53,28 +54,34 @@ export default function ProjectList({ projects }: { projects: Project[] }) {
       {projects.map((project) => (
         <div
           key={project.id}
-          className="flex items-center justify-between px-5 py-4 rounded-xl border border-[var(--gray-200)] bg-white hover:shadow-md transition-shadow"
+          className="apple-card flex items-center justify-between gap-4 px-5 py-4 transition-shadow hover:shadow-md"
         >
-          <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold text-[var(--aia-corp-dark)] truncate font-[var(--font-heading)]">
-              {project.name}
-            </h3>
-            <p className="text-xs text-[var(--gray-500)] mt-0.5">
-              Guardado: {formatDate(project.updatedAt)}
-            </p>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-surface-secondary)] text-[var(--aia-corp-main)]">
+              <FolderOpen size={19} aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-semibold text-[var(--color-text-strong)] font-[var(--font-heading)]">
+                {project.name}
+              </h3>
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                Guardado: {formatDate(project.updatedAt)}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 ml-4 shrink-0">
+          <div className="ml-4 flex shrink-0 items-center gap-2">
             <Link
               href={`/project/${project.id}`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-[var(--aia-corp-xlight)] text-[var(--aia-corp-dark)] hover:bg-[var(--aia-corp-light)] transition-colors"
+              className="apple-button-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors"
             >
               Abrir
             </Link>
             <button
               onClick={() => handleDelete(project.id, project.name)}
               disabled={deleting === project.id}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-[var(--aia-alert-main)] hover:bg-[var(--aia-alert-xlight)] transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-transparent px-3 py-1.5 text-sm font-semibold text-[var(--aia-alert-main)] transition-colors hover:border-[var(--aia-alert-main)] hover:bg-[var(--aia-alert-xlight)] disabled:opacity-50"
             >
+              <Trash2 size={14} aria-hidden />
               {deleting === project.id ? "..." : "Eliminar"}
             </button>
           </div>

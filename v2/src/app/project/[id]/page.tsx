@@ -88,6 +88,7 @@ export default async function ProjectPage({
       resourceColumnSettings={project.resourceColumnSettings}
       assignmentColumnSettings={project.assignmentColumnSettings}
       uiSettings={project.uiSettings}
+      planningAuditEvents={project.planningAuditEvents}
     />
   );
 }

@@ -9,6 +9,7 @@ import {
   computeScheduleSCurve,
   computeBudgetSCurve,
   computeEarnedValueSCurve,
+  diagnoseSCurve,
 } from "@/lib/scheduling/scurve";
 
 // ── Types ──
@@ -24,12 +25,12 @@ interface SCurveViewProps {
 // ── Tab style helpers ──
 
 const TAB_BASE: React.CSSProperties = {
-  padding: "5px 14px",
-  borderRadius: "var(--radius-sm)",
+  padding: "6px 14px",
+  borderRadius: "var(--radius-lg)",
   fontSize: "0.7rem",
   fontFamily: "var(--font-montserrat)",
   fontWeight: 600,
-  border: "none",
+  border: "1px solid var(--color-hairline)",
   cursor: "pointer",
   transition: "background 0.15s, color 0.15s",
 };
@@ -37,8 +38,9 @@ const TAB_BASE: React.CSSProperties = {
 function tabStyle(active: boolean): React.CSSProperties {
   return {
     ...TAB_BASE,
-    background: active ? "var(--aia-corp-main)" : "transparent",
-    color: active ? "#ffffff" : "var(--aia-corp-light)",
+    background: active ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
+    color: active ? "#ffffff" : "var(--color-text-muted)",
+    boxShadow: active ? "0 8px 18px rgb(39 118 89 / 0.16)" : "var(--shadow-sm)",
   };
 }
 
@@ -152,27 +154,26 @@ export default function SCurveView({
         : [],
     [evData],
   );
+  const diagnostics = useMemo(
+    () => diagnoseSCurve(tasks, budgetMappings, budgetItems),
+    [tasks, budgetMappings, budgetItems],
+  );
 
   return (
     <div
       data-testid="s-curve-view"
-      className="flex flex-col h-full"
-      style={{ background: "var(--aia-alabaster)" }}
+      className="apple-module flex flex-col h-full"
     >
       {/* Header */}
       <div
-        className="px-4 py-2"
-        style={{
-          borderBottom: "1px solid var(--gray-200)",
-          background: "var(--color-bg-surface)",
-        }}
+        className="apple-module-header px-5 py-4"
       >
         <h2
           style={{
             fontFamily: "var(--font-heading)",
-            fontSize: "0.9rem",
+            fontSize: "1rem",
             fontWeight: 600,
-            color: "var(--aia-corp-dark)",
+            color: "var(--color-text-strong)",
             margin: 0,
           }}
         >
@@ -181,8 +182,8 @@ export default function SCurveView({
         <p
           style={{
             fontFamily: "var(--font-body)",
-            fontSize: "0.7rem",
-            color: "var(--gray-500)",
+            fontSize: "0.8rem",
+            color: "var(--color-text-muted)",
             margin: "2px 0 0",
           }}
         >
@@ -192,11 +193,7 @@ export default function SCurveView({
 
       {/* Sub-view tabs */}
       <div
-        className="flex gap-2 px-4 py-2"
-        style={{
-          borderBottom: "1px solid var(--gray-200)",
-          background: "var(--color-bg-surface)",
-        }}
+        className="apple-subtoolbar flex-wrap"
       >
         <button
           onClick={() => setActiveSubView("schedule")}
@@ -220,6 +217,46 @@ export default function SCurveView({
 
       {/* Content */}
       <div className="flex-1 min-h-0 p-4 overflow-auto">
+        {diagnostics.length > 0 && (
+          <section
+            data-testid="s-curve-feedback"
+            className="mb-4 grid gap-2 md:grid-cols-3"
+          >
+            {diagnostics.slice(0, 3).map((diagnostic) => (
+              <article
+                key={`${diagnostic.kind}-${diagnostic.taskIds.join("-")}`}
+                data-testid="s-curve-feedback-card"
+                className="apple-section px-3 py-2"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span
+                    className="text-[0.6875rem] font-semibold uppercase text-[var(--color-text-muted)]"
+                    style={{ letterSpacing: 0 }}
+                  >
+                    {diagnostic.severity === "high"
+                      ? "Alta"
+                      : diagnostic.severity === "medium"
+                        ? "Media"
+                        : "Baja"}
+                  </span>
+                  <span className="text-[0.6875rem] text-[var(--color-text-muted)]">
+                    {diagnostic.metric}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs font-semibold text-[var(--color-text-strong)]">
+                  {diagnostic.message}
+                </p>
+                <p
+                  className="mt-1 overflow-hidden text-xs text-[var(--color-text-muted)]"
+                  style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}
+                >
+                  {diagnostic.recommendation}
+                </p>
+              </article>
+            ))}
+          </section>
+        )}
+
         {activeSubView === "schedule" && (
           <>
             {scheduleLines.length > 0 ? (
@@ -277,7 +314,7 @@ function EmptyState({ message }: { message: string }) {
     >
       <p
         style={{
-          color: "var(--gray-500)",
+          color: "var(--color-text-muted)",
           fontSize: "0.85rem",
           textAlign: "center",
           maxWidth: 400,

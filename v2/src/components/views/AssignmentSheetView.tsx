@@ -34,7 +34,7 @@ const thStyle: React.CSSProperties = {
   fontSize: "0.6875rem",
   fontFamily: "var(--font-montserrat)",
   fontWeight: 600,
-  color: "#ffffff",
+  color: "var(--color-text-strong)",
   textAlign: "left",
   whiteSpace: "nowrap",
   letterSpacing: "0.03em",
@@ -180,24 +180,9 @@ export default function AssignmentSheetView({
   }, [extraColumns, locale, updateColumnSettings]);
 
   return (
-    <div data-testid="assignment-sheet-view" className="flex flex-col h-full">
-      <div
-        style={{
-          background: "var(--aia-corp-dark)",
-          padding: "8px 12px",
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          borderBottom: "1px solid var(--aia-corp-mid)",
-        }}
-      >
-        <span
-          style={{
-            fontSize: "0.75rem",
-            color: "var(--aia-corp-light)",
-            fontFamily: "var(--font-inter), system-ui, sans-serif",
-          }}
-        >
+    <div data-testid="assignment-sheet-view" className="apple-module flex h-full flex-col">
+      <div className="apple-subtoolbar">
+        <span className="apple-subtoolbar-count">
           {assignments.length} {labels.assignments}
         </span>
         <div style={{ flex: 1 }} />
@@ -215,9 +200,9 @@ export default function AssignmentSheetView({
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto">
-        <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+        <table className="apple-table" style={{ width: "100%", tableLayout: "fixed" }}>
           <thead>
-            <tr style={{ background: "var(--aia-corp-dark)", position: "sticky", top: 0, zIndex: 10 }}>
+            <tr className="apple-grid-header" style={{ position: "sticky", top: 0, zIndex: 10 }}>
               <th style={{ ...thStyle, width: 110 }}>{labels.task}</th>
               <th style={{ ...thStyle }}>{labels.taskName}</th>
               <th style={{ ...thStyle, width: 120 }}>{labels.resource}</th>
@@ -239,7 +224,7 @@ export default function AssignmentSheetView({
               const taskKey = String(assignment.taskId);
               const resourceKey = String(assignment.resourceId);
               const rowId = String(assignment.mppFields?.__rowId ?? `${taskKey}:${resourceKey}:${index}`);
-              const stripeBg = index % 2 === 0 ? "var(--aia-alabaster)" : "var(--aia-linen)";
+              const stripeBg = index % 2 === 0 ? "var(--color-bg-elevated)" : "var(--color-bg-surface-secondary)";
               return (
                 <tr key={rowId} style={{ background: stripeBg, borderLeft: "3px solid transparent" }}>
                   <td style={{ ...tdStyle, width: 110 }}>{taskKey}</td>
@@ -276,7 +261,7 @@ export default function AssignmentSheetView({
                   style={{
                     padding: "48px 16px",
                     textAlign: "center",
-                    color: "var(--gray-500)",
+                    color: "var(--color-text-muted)",
                     fontFamily: "var(--font-inter), system-ui, sans-serif",
                     fontSize: "0.9375rem",
                   }}

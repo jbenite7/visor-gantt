@@ -341,7 +341,7 @@ describe("MPPUploader", () => {
 
     await waitFor(() => {
       const dropZone = getDropZone(container);
-      expect(dropZone.className).toContain("border-red");
+      expect(dropZone.className).toContain("border-[var(--aia-alert-main)]");
     });
   });
 

@@ -3,9 +3,11 @@
 import { useState, useCallback, useMemo } from "react";
 import type { GanttTask } from "@/components/gantt/types";
 import GanttTable from "@/components/gantt/table/GanttTable";
+import { ArrowUpDown, Search } from "lucide-react";
 import type { MppCustomFieldDefinition, MppTaskColumn, TaskColumnSettings } from "@/types/mppColumns";
-import type { UILocale } from "@/types/ui";
+import type { TaskFilterSettings, TaskFilterType, UILocale } from "@/types/ui";
 import { t } from "@/lib/i18n";
+import { filterTasks, normalizeTaskFilter } from "@/lib/gantt/taskFilters";
 
 interface TaskSheetViewProps {
   tasks: GanttTask[];
@@ -22,6 +24,31 @@ interface TaskSheetViewProps {
   locale?: UILocale;
   onColumnSettingsChange?: (settings: TaskColumnSettings) => void;
   onLocaleChange?: (locale: UILocale) => void;
+  taskFilter?: TaskFilterSettings;
+  onTaskFilterChange?: (filter: TaskFilterSettings) => void;
+  onIndentTask?: (taskId: string | number) => void;
+  onOutdentTask?: (taskId: string | number) => void;
+  onMoveTaskUp?: (taskId: string | number) => void;
+  onMoveTaskDown?: (taskId: string | number) => void;
+  onReorderTask?: (
+    taskId: string | number,
+    targetTaskId: string | number,
+    position: "before" | "after" | "child",
+  ) => void;
+  onInsertTask?: (options?: {
+    afterTaskId?: string | number;
+    parentTaskId?: string | number;
+    kind?: "summary" | "task" | "milestone";
+    name?: string;
+  }) => void;
+  onApplyStructureTemplate?: (
+    templateId: "obra-gris-basica",
+    options?: { afterTaskId?: string | number },
+  ) => void;
+  onSmartPasteTasks?: (
+    rawText: string,
+    options?: { afterTaskId?: string | number },
+  ) => void;
 }
 
 type SortDirection = "asc" | "desc";
@@ -30,8 +57,6 @@ interface SortConfig {
   field: string;
   direction: SortDirection;
 }
-
-type FilterType = "all" | "critical" | "non-critical" | "milestones" | "summaries";
 
 interface SortButtonConfig {
   field: string;
@@ -49,7 +74,7 @@ const SORT_BUTTONS: SortButtonConfig[] = [
   { field: "progress", labelEn: "% Complete", labelEs: "% completado" },
 ];
 
-const FILTER_OPTIONS: { value: FilterType; labelKey: "allTasks" | "critical" | "nonCritical" | "milestones" | "summaries" }[] = [
+const FILTER_OPTIONS: { value: TaskFilterType; labelKey: "allTasks" | "critical" | "nonCritical" | "milestones" | "summaries" }[] = [
   { value: "all", labelKey: "allTasks" },
   { value: "critical", labelKey: "critical" },
   { value: "non-critical", labelKey: "nonCritical" },
@@ -100,34 +125,6 @@ function compareValues(
   return direction === "asc" ? cmp : -cmp;
 }
 
-function filterTask(
-  task: GanttTask,
-  filterText: string,
-  filterType: FilterType,
-): boolean {
-  // Text filter (case-insensitive name match)
-  if (filterText) {
-    const query = filterText.toLowerCase();
-    if (!task.name.toLowerCase().includes(query)) {
-      return false;
-    }
-  }
-
-  // Type filter
-  switch (filterType) {
-    case "critical":
-      return task.isCritical;
-    case "non-critical":
-      return !task.isCritical && !task.isMilestone && !task.isSummary;
-    case "milestones":
-      return task.isMilestone;
-    case "summaries":
-      return task.isSummary;
-    default:
-      return true;
-  }
-}
-
 /**
  * TaskSheetView — Full-width sortable/filterable task table.
  *
@@ -145,13 +142,29 @@ export default function TaskSheetView({
   locale = "es",
   onColumnSettingsChange,
   onLocaleChange,
+  taskFilter,
+  onTaskFilterChange,
+  onIndentTask,
+  onOutdentTask,
+  onMoveTaskUp,
+  onMoveTaskDown,
+  onReorderTask,
+  onInsertTask,
+  onApplyStructureTemplate,
+  onSmartPasteTasks,
 }: TaskSheetViewProps) {
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     field: "id",
     direction: "asc",
   });
-  const [filterText, setFilterText] = useState("");
-  const [filterType, setFilterType] = useState<FilterType>("all");
+  const [localTaskFilter, setLocalTaskFilter] = useState<TaskFilterSettings>({
+    text: "",
+    type: "all",
+  });
+  const normalizedTaskFilter = useMemo(
+    () => normalizeTaskFilter(onTaskFilterChange ? taskFilter : localTaskFilter),
+    [localTaskFilter, onTaskFilterChange, taskFilter],
+  );
 
   const handleSort = useCallback((field: string) => {
     setSortConfig((prev) => ({
@@ -159,62 +172,69 @@ export default function TaskSheetView({
       direction: prev.field === field && prev.direction === "asc" ? "desc" : "asc",
     }));
   }, []);
+  const updateTaskFilter = useCallback(
+    (patch: Partial<TaskFilterSettings>) => {
+      const next = { ...normalizedTaskFilter, ...patch };
+      if (onTaskFilterChange) {
+        onTaskFilterChange(next);
+      } else {
+        setLocalTaskFilter(next);
+      }
+    },
+    [normalizedTaskFilter, onTaskFilterChange],
+  );
 
   const processedTasks = useMemo(() => {
     // Filter first
-    const filtered = tasks.filter((t) => filterTask(t, filterText, filterType));
+    const filtered = filterTasks(tasks, normalizedTaskFilter);
     // Then sort
     return [...filtered].sort((a, b) =>
       compareValues(a, b, sortConfig.field, sortConfig.direction),
     );
-  }, [tasks, filterText, filterType, sortConfig]);
+  }, [tasks, normalizedTaskFilter, sortConfig]);
 
   return (
     <div
       data-testid="task-sheet-view"
-      className="flex flex-col h-full"
+      className="apple-module flex h-full flex-col"
     >
       {/* ── Filter & Sort Bar ── */}
       <div
-        style={{
-          background: "var(--aia-corp-dark)",
-          padding: "8px 12px",
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          flexWrap: "wrap",
-          borderBottom: "1px solid var(--aia-corp-mid)",
-        }}
+        className="apple-subtoolbar flex-wrap"
       >
         {/* Text filter */}
-        <input
-          type="text"
-          placeholder={t(locale, "filterByName")}
-          value={filterText}
-          onChange={(e) => setFilterText(e.target.value)}
+        <label
+          className="flex min-w-[220px] items-center gap-2 rounded-lg border px-3 py-1.5"
           style={{
-            background: "var(--aia-alabaster)",
-            color: "var(--aia-corp-dark)",
-            border: "1px solid var(--aia-corp-mid)",
-            borderRadius: "var(--radius-sm)",
-            padding: "4px 10px",
-            fontSize: "0.8125rem",
-            fontFamily: "var(--font-inter), system-ui, sans-serif",
-            outline: "none",
-            minWidth: "180px",
+            background: "var(--color-bg-elevated)",
+            borderColor: "var(--color-hairline)",
           }}
-        />
+        >
+          <Search size={15} color="var(--color-text-muted)" />
+          <input
+            type="text"
+            placeholder={t(locale, "filterByName")}
+            value={normalizedTaskFilter.text}
+            onChange={(e) => updateTaskFilter({ text: e.target.value })}
+            className="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm"
+            style={{
+              color: "var(--color-text-strong)",
+              fontFamily: "var(--font-inter), system-ui, sans-serif",
+              boxShadow: "none",
+            }}
+          />
+        </label>
 
         {/* Type filter */}
         <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value as FilterType)}
+          value={normalizedTaskFilter.type}
+          onChange={(e) => updateTaskFilter({ type: e.target.value as TaskFilterType })}
           style={{
-            background: "var(--aia-alabaster)",
-            color: "var(--aia-corp-dark)",
-            border: "1px solid var(--aia-corp-mid)",
-            borderRadius: "var(--radius-sm)",
-            padding: "4px 8px",
+            background: "var(--color-bg-elevated)",
+            color: "var(--color-text-strong)",
+            border: "1px solid var(--color-hairline)",
+            borderRadius: "var(--radius-lg)",
+            padding: "6px 10px",
             fontSize: "0.8125rem",
             fontFamily: "var(--font-inter), system-ui, sans-serif",
             outline: "none",
@@ -228,25 +248,17 @@ export default function TaskSheetView({
           ))}
         </select>
 
-        {/* Separator */}
-        <div
-          style={{
-            width: "1px",
-            height: "20px",
-            background: "var(--aia-corp-mid)",
-            opacity: 0.5,
-          }}
-        />
-
         {/* Sort buttons */}
         <span
+          className="inline-flex items-center gap-1"
           style={{
             fontSize: "0.6875rem",
-            color: "var(--aia-corp-light)",
+            color: "var(--color-text-muted)",
             fontFamily: "var(--font-inter), system-ui, sans-serif",
             fontWeight: 500,
           }}
         >
+          <ArrowUpDown size={13} />
           {t(locale, "sort")}:
         </span>
         {SORT_BUTTONS.map((btn) => {
@@ -265,13 +277,14 @@ export default function TaskSheetView({
                 fontSize: "0.6875rem",
                 fontFamily: "var(--font-inter), system-ui, sans-serif",
                 fontWeight: isActive ? 600 : 400,
-                border: `1px solid ${isActive ? "var(--aia-corp-light)" : "var(--aia-corp-mid)"}`,
-                borderRadius: "var(--radius-sm)",
-                background: isActive ? "var(--aia-corp-main)" : "transparent",
-                color: isActive ? "#ffffff" : "var(--aia-corp-light)",
+                border: `1px solid ${isActive ? "var(--aia-corp-main)" : "var(--color-hairline)"}`,
+                borderRadius: "var(--radius-lg)",
+                background: isActive ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
+                color: isActive ? "#ffffff" : "var(--color-text-muted)",
                 cursor: "pointer",
                 whiteSpace: "nowrap",
                 lineHeight: "1.4",
+                boxShadow: isActive ? "0 8px 18px rgb(39 118 89 / 0.16)" : "var(--shadow-sm)",
               }}
             >
               {locale === "en" ? btn.labelEn : btn.labelEs}
@@ -282,11 +295,9 @@ export default function TaskSheetView({
 
         {/* Task count */}
         <span
+          className="apple-subtoolbar-count"
           style={{
             marginLeft: "auto",
-            fontSize: "0.75rem",
-            color: "var(--aia-corp-light)",
-            fontFamily: "var(--font-inter), system-ui, sans-serif",
           }}
         >
           {processedTasks.length} / {tasks.length} {t(locale, "tasks")}
@@ -306,6 +317,17 @@ export default function TaskSheetView({
           locale={locale}
           onColumnSettingsChange={onColumnSettingsChange}
           onLocaleChange={onLocaleChange}
+          taskFilter={normalizedTaskFilter}
+          onTaskFilterChange={updateTaskFilter}
+          showTaskFilterControls={false}
+          onIndentTask={onIndentTask}
+          onOutdentTask={onOutdentTask}
+          onMoveTaskUp={onMoveTaskUp}
+          onMoveTaskDown={onMoveTaskDown}
+          onReorderTask={onReorderTask}
+          onInsertTask={onInsertTask}
+          onApplyStructureTemplate={onApplyStructureTemplate}
+          onSmartPasteTasks={onSmartPasteTasks}
         />
       </div>
     </div>

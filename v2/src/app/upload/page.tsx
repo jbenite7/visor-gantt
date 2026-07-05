@@ -2,22 +2,11 @@
 
 import { useState } from "react";
 import { uploadProject } from "../actions/upload";
-import MPPUploader from "@/components/upload/MPPUploader";
-import { mppTasksToGanttTasks } from "@/components/upload/mpp-to-gantt";
-import GanttChart from "@/components/gantt/GanttChart";
-import { GanttTask } from "@/components/gantt/types";
-import { ProjectData } from "@/lib/parser/mpp-parser";
 import ErrorDisplay from "@/components/upload/ErrorDisplay";
-
-type ViewMode = "upload" | "loading" | "gantt" | "error";
+import HomeMppUploadAction from "@/components/upload/HomeMppUploadAction";
+import { CheckCircle2, FileCode2, Loader2, UploadCloud } from "lucide-react";
 
 export default function UploadPage() {
-  // View state
-  const [viewMode, setViewMode] = useState<ViewMode>("upload");
-  const [ganttTasks, setGanttTasks] = useState<GanttTask[]>([]);
-  const [projectName, setProjectName] = useState<string>("");
-  const [errorMessage, setErrorMessage] = useState<string>("");
-
   // Legacy XML upload state
   const [isDragging, setIsDragging] = useState(false);
   const [isXmlUploading, setIsXmlUploading] = useState(false);
@@ -25,27 +14,6 @@ export default function UploadPage() {
     success: boolean;
     message: string;
   } | null>(null);
-
-  // --- MPP Upload Handlers ---
-
-  const handleMPPUploadComplete = (data: ProjectData) => {
-    const tasks = mppTasksToGanttTasks(data.tasks);
-    setGanttTasks(tasks);
-    setProjectName(data.name || "Proyecto Importado");
-    setViewMode("gantt");
-  };
-
-  const handleMPPError = (error: string) => {
-    setErrorMessage(error);
-    setViewMode("error");
-  };
-
-  const handleBackToUpload = () => {
-    setViewMode("upload");
-    setGanttTasks([]);
-    setErrorMessage("");
-    setXmlResult(null);
-  };
 
   // --- Legacy XML Upload Handlers ---
 
@@ -97,145 +65,47 @@ export default function UploadPage() {
 
   // --- Render ---
 
-  // Gantt view after successful parse
-  if (viewMode === "gantt") {
-    return (
-      <div className="min-h-screen bg-slate-950 text-white p-8">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 text-transparent bg-clip-text">
-                {projectName}
-              </h1>
-              <p className="text-slate-400">
-                {ganttTasks.length} tareas cargadas
-              </p>
-            </div>
-            <button
-              onClick={handleBackToUpload}
-              className="px-4 py-2 text-sm text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
-            >
-              ← Volver a importar
-            </button>
-          </div>
-
-          <GanttChart
-            tasks={ganttTasks}
-            onTaskClick={(task) => {
-              // Task click handler - can be extended for task details view
-              void task;
-            }}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  // Error view
-  if (viewMode === "error") {
-    return (
-      <div className="min-h-screen bg-slate-950 text-white p-8">
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 text-transparent bg-clip-text">
-              Importar proyecto
-            </h1>
-          </div>
-
-          <ErrorDisplay error={errorMessage} onDismiss={handleBackToUpload} />
-
-          <button
-            onClick={handleBackToUpload}
-            className="w-full py-3 text-sm text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
-          >
-            Intentar de nuevo
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Loading view (during MPP parse)
-  if (viewMode === "loading") {
-    return (
-      <div className="min-h-screen bg-slate-950 text-white p-8">
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 text-transparent bg-clip-text">
-              Importar proyecto
-            </h1>
-          </div>
-
-          <div className="border border-slate-700 rounded-xl p-12 text-center bg-slate-900">
-            <div className="mx-auto w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mb-4">
-              <svg
-                className="w-8 h-8 text-blue-400 animate-spin"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-            </div>
-            <p className="text-lg text-blue-400 animate-pulse">
-              Parseando archivo...
-            </p>
-            <p className="text-sm text-slate-500 mt-2">
-              Esto puede tomar unos segundos
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Upload view (default)
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-8">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 text-transparent bg-clip-text">
+    <div className="apple-page px-4 py-8 sm:px-8">
+      <div className="mx-auto max-w-3xl space-y-6">
+        <div className="space-y-3 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] text-[var(--aia-corp-main)] shadow-sm">
+            <UploadCloud size={28} aria-hidden />
+          </div>
+          <h1 className="text-4xl font-semibold text-[var(--color-text-strong)]">
             Importar proyecto
           </h1>
-          <p className="text-slate-400">
-            Arrastra un archivo MS Project (.mpp) o haz clic para seleccionar
+          <p className="text-[var(--color-text-muted)]">
+            Carga un cronograma MS Project y conviértelo en Gantt, recursos y programación matricial.
           </p>
         </div>
 
-        {/* MPP Upload Zone */}
-        <MPPUploader
-          onUploadComplete={handleMPPUploadComplete}
-          onError={handleMPPError}
-        />
-
-        {/* Legacy XML Upload Section */}
-        <div className="border-t border-slate-800 pt-6">
-          <p className="text-sm text-slate-500 text-center mb-4">
-            ¿Tienes un archivo XML?{" "}
-            <span className="text-slate-400">Usa la opción heredada</span>
+        <section className="apple-dropzone rounded-lg p-8 text-center">
+          <p className="mb-3 text-sm font-semibold text-[var(--color-text-strong)]">
+            Selecciona un .mpp para importarlo y abrirlo como proyecto guardado.
           </p>
+          <HomeMppUploadAction />
+        </section>
+
+        <section className="apple-section p-5">
+          <div className="mb-4 flex items-center justify-center gap-2 text-sm text-[var(--color-text-muted)]">
+            <FileCode2 size={16} aria-hidden />
+            ¿Tienes un archivo XML?{" "}
+            <span className="font-semibold text-[var(--color-text-strong)]">
+              Usa la opción heredada
+            </span>
+          </div>
 
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             className={`
-              relative border border-dashed rounded-lg p-6 text-center transition-all
+              apple-dropzone relative rounded-lg p-6 text-center transition-all
               ${
                 isDragging
-                  ? "border-blue-400 bg-blue-950/20"
-                  : "border-slate-700 hover:border-slate-600 bg-slate-900"
+                  ? "border-[var(--aia-corp-main)]"
+                  : "border-[var(--color-hairline)]"
               }
               ${isXmlUploading ? "opacity-50 pointer-events-none" : ""}
             `}
@@ -250,17 +120,18 @@ export default function UploadPage() {
 
             <div className="space-y-2">
               {isXmlUploading ? (
-                <p className="text-sm text-blue-400 animate-pulse">
+                <p className="inline-flex items-center gap-2 text-sm text-[var(--aia-corp-main)]">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                   Procesando XML...
                 </p>
               ) : (
                 <>
-                  <p className="text-sm font-medium text-slate-300">
+                  <p className="text-sm font-semibold text-[var(--color-text-strong)]">
                     {isDragging
                       ? "Suelta el archivo XML aquí"
                       : "Arrastra un archivo XML o haz clic"}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-[var(--color-text-muted)]">
                     Compatible con MSPDI XML
                   </p>
                 </>
@@ -271,16 +142,19 @@ export default function UploadPage() {
           {xmlResult && (
             <div
               className={`
-              mt-3 p-3 rounded-lg border text-sm
+              mt-3 rounded-lg border p-3 text-sm
               ${
                 xmlResult.success
-                  ? "bg-emerald-950/20 border-emerald-700 text-emerald-400"
+                  ? "border-[var(--aia-corp-main)] bg-[var(--aia-corp-xlight)] text-[var(--color-text-strong)]"
                   : ""
               }
             `}
             >
               {xmlResult.success ? (
-                <p className="font-medium">✅ {xmlResult.message}</p>
+                <p className="inline-flex items-center gap-2 font-medium">
+                  <CheckCircle2 className="h-4 w-4" aria-hidden />
+                  {xmlResult.message}
+                </p>
               ) : (
                 <ErrorDisplay
                   error={xmlResult.message}
@@ -289,11 +163,11 @@ export default function UploadPage() {
               )}
             </div>
           )}
-        </div>
+        </section>
 
-        <div className="pt-4 border-t border-slate-800">
-          <p className="text-sm text-slate-500 text-center">
-            Visor Gantt v2 - Desarrollado con Next.js + PostgreSQL
+        <div className="border-t border-[var(--color-hairline)] pt-4">
+          <p className="text-center text-sm text-[var(--color-text-muted)]">
+            Visor Gantt v2 - Next.js + PostgreSQL
           </p>
         </div>
       </div>

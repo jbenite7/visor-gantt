@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { CalendarDays, LayoutGrid, PlusCircle } from "lucide-react";
 import { createBlankProject, createMatrixProject } from "@/app/actions/project";
 import MatrixEditorView from "@/components/views/MatrixEditorView";
 import { toDateInputValue } from "@/lib/date/projectDate";
@@ -40,6 +41,8 @@ function NewProjectFormState({ draftKey }: Required<NewProjectFormProps>) {
     createSeedMatrixPlan("Nuevo cronograma", toDateInputValue(new Date()), draftKey),
   );
   const [error, setError] = useState<string | null>(null);
+  const inputClass =
+    "mt-1 w-full rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] px-3 py-2.5 text-sm text-[var(--color-text-strong)] shadow-sm outline-none transition focus:border-[var(--aia-corp-main)] focus:ring-2 focus:ring-[var(--aia-corp-main)]/15";
 
   const handleCreateMatrixProject = (draft: MatrixPlan) => {
     setError(null);
@@ -81,38 +84,42 @@ function NewProjectFormState({ draftKey }: Required<NewProjectFormProps>) {
 
   return (
     <div className="h-[calc(100vh-8rem)] min-h-[640px] flex flex-col gap-4">
-      <div className="shrink-0 flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-md border border-[var(--gray-300)] overflow-hidden bg-white">
+      <div className="apple-section shrink-0 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <div className="apple-segmented">
           <button
             type="button"
             onClick={() => setMode("matrix")}
-            className={`px-3 py-2 text-sm font-semibold ${
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold transition ${
               mode === "matrix"
-                ? "bg-[var(--aia-corp-main)] text-white"
-                : "bg-white text-[var(--aia-corp-dark)]"
+                ? "apple-button-primary"
+                : "text-[var(--color-text-strong)] hover:bg-[var(--color-bg-elevated)]"
             }`}
           >
+            <LayoutGrid size={15} aria-hidden />
             Crear desde Programación Matricial
           </button>
           <button
             type="button"
             onClick={() => setMode("blank")}
-            className={`px-3 py-2 text-sm font-semibold ${
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold transition ${
               mode === "blank"
-                ? "bg-[var(--aia-corp-main)] text-white"
-                : "bg-white text-[var(--aia-corp-dark)]"
+                ? "apple-button-primary"
+                : "text-[var(--color-text-strong)] hover:bg-[var(--color-bg-elevated)]"
             }`}
           >
+            <PlusCircle size={15} aria-hidden />
             Crear cronograma vacío
           </button>
         </div>
         {error && (
-          <p className="text-sm text-[var(--aia-alert-main)]">{error}</p>
+          <p className="rounded-lg border border-[var(--aia-alert-main)] bg-[var(--aia-alert-xlight)] px-3 py-2 text-sm text-[var(--aia-alert-main)]">
+            {error}
+          </p>
         )}
       </div>
 
       {mode === "matrix" ? (
-        <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-[var(--gray-200)] bg-white">
+        <div className="apple-card min-h-0 flex-1 overflow-hidden">
           <MatrixEditorView
             key={draftKey}
             matrixPlan={matrixPlan}
@@ -125,12 +132,21 @@ function NewProjectFormState({ draftKey }: Required<NewProjectFormProps>) {
       ) : (
         <form
           onSubmit={handleCreateBlankProject}
-          className="max-w-3xl bg-white border border-[var(--gray-200)] rounded-lg p-6 space-y-5"
+          className="apple-section max-w-3xl p-6 space-y-5"
         >
+          <div className="border-b border-[var(--color-hairline)] pb-4">
+            <h2 className="text-lg font-semibold text-[var(--color-text-strong)]">
+              Cronograma vacío
+            </h2>
+            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+              Crea una base limpia para construir tareas, dependencias y recursos manualmente.
+            </p>
+          </div>
+
           <div>
             <label
               htmlFor="blank-project-name"
-              className="block text-sm font-semibold text-[var(--aia-corp-dark)] mb-1"
+              className="block text-sm font-semibold text-[var(--color-text-strong)]"
             >
               Nombre del proyecto
             </label>
@@ -138,7 +154,7 @@ function NewProjectFormState({ draftKey }: Required<NewProjectFormProps>) {
               id="blank-project-name"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              className="w-full rounded-md border border-[var(--gray-300)] px-3 py-2 text-sm outline-none focus:border-[var(--aia-corp-main)]"
+              className={inputClass}
               autoFocus
             />
           </div>
@@ -146,8 +162,9 @@ function NewProjectFormState({ draftKey }: Required<NewProjectFormProps>) {
           <div>
             <label
               htmlFor="blank-project-start-date"
-              className="block text-sm font-semibold text-[var(--aia-corp-dark)] mb-1"
+              className="flex items-center gap-1.5 text-sm font-semibold text-[var(--color-text-strong)]"
             >
+              <CalendarDays size={15} aria-hidden />
               Fecha de inicio
             </label>
             <input
@@ -155,22 +172,22 @@ function NewProjectFormState({ draftKey }: Required<NewProjectFormProps>) {
               type="date"
               value={startDate}
               onChange={(event) => setStartDate(event.target.value)}
-              className="w-full rounded-md border border-[var(--gray-300)] px-3 py-2 text-sm outline-none focus:border-[var(--aia-corp-main)]"
+              className={inputClass}
             />
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 border-t border-[var(--color-hairline)] pt-4">
             <button
               type="submit"
               disabled={isPending}
-              className="px-4 py-2 rounded-md bg-[var(--aia-corp-main)] text-white text-sm font-semibold disabled:opacity-60"
+              className="apple-button-primary rounded-lg px-4 py-2.5 text-sm font-semibold transition disabled:opacity-60"
             >
               {isPending ? "Creando..." : "Crear cronograma vacío"}
             </button>
             <button
               type="button"
               onClick={() => router.push("/")}
-              className="px-4 py-2 rounded-md text-[var(--aia-corp-dark)] text-sm font-semibold hover:bg-[var(--aia-corp-xlight)]"
+              className="apple-button-secondary rounded-lg px-4 py-2.5 text-sm font-semibold transition"
             >
               Cancelar
             </button>

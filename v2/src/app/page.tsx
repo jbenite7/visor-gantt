@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ArrowRight, Database, FolderKanban, Plus, UploadCloud } from "lucide-react";
 import pool from "@/lib/db";
 import { listProjects } from "@/app/actions/project";
 import AuthMenu from "@/components/auth/AuthMenu";
@@ -34,21 +35,20 @@ export default async function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--aia-alabaster)]">
-      {/* Header */}
-      <header className="px-6 py-5 bg-white border-b border-[var(--gray-200)]">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+    <div className="apple-page">
+      <header className="apple-page-header px-6 py-5">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-[var(--aia-corp-dark)] font-[var(--font-heading)]">
+            <h1 className="text-2xl font-semibold text-[var(--color-text-strong)] font-[var(--font-heading)]">
               Visor Gantt v2
             </h1>
-            <p className="text-sm text-[var(--gray-500)] mt-1">
-              Next.js + PostgreSQL
+            <p className="text-sm text-[var(--color-text-muted)] mt-1">
+              Cronogramas, matriz, recursos y control de obra en un solo panel.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs font-medium text-[var(--gray-600)]">
-              DB:
+            <span className="apple-panel inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
+              <Database size={13} aria-hidden />
               <span
                 className={`ml-1.5 inline-block w-2 h-2 rounded-full ${
                   dbStatus === "Conectado"
@@ -63,71 +63,55 @@ export default async function Home() {
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="max-w-5xl mx-auto p-6">
-        {/* Action bar */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-[var(--aia-corp-dark)] font-[var(--font-heading)]">
-            Mis Proyectos
-          </h2>
-          <form action="/project/new" method="get">
-            <button
-              type="submit"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--aia-corp-main)] text-white text-sm font-medium hover:bg-[var(--aia-corp-dark)] transition-colors"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+      <main className="max-w-6xl mx-auto p-6">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-[var(--color-text-strong)] font-[var(--font-heading)]">
+              Mis Proyectos
+            </h2>
+            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+              Abre un proyecto existente, importa un .mpp o crea un cronograma nuevo.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-start gap-3">
+            <HomeMppUploadAction className="flex flex-col items-end gap-2" />
+            <form action="/project/new" method="get">
+              <button
+                type="submit"
+                className="apple-button-primary inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Nuevo Proyecto
-            </button>
-          </form>
+                <Plus size={16} aria-hidden />
+                Nuevo Proyecto
+              </button>
+            </form>
+          </div>
         </div>
 
-        {/* Project list */}
         {projects.length > 0 ? (
           <ProjectList projects={projects} />
         ) : (
-          <div className="text-center py-16 rounded-xl border-2 border-dashed border-[var(--gray-300)] bg-white">
-            <svg
-              className="mx-auto w-12 h-12 text-[var(--gray-400)] mb-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-              />
-            </svg>
-            <p className="text-[var(--gray-600)] font-medium">
+          <div className="apple-dropzone rounded-lg px-6 py-16 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] text-[var(--aia-corp-main)] shadow-sm">
+              <FolderKanban size={28} aria-hidden />
+            </div>
+            <p className="font-semibold text-[var(--color-text-strong)]">
               No hay proyectos guardados
             </p>
-            <p className="text-sm text-[var(--gray-500)] mt-1">
+            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
               Sube un archivo .mpp o crea uno nuevo para comenzar
             </p>
             <HomeMppUploadAction />
           </div>
         )}
 
-        {/* Quick links */}
         <div className="mt-8 flex gap-4">
           <Link
             href="/gantt-demo"
-            className="text-sm text-[var(--aia-corp-main)] hover:text-[var(--aia-corp-dark)] font-medium transition-colors"
+            className="apple-button-secondary inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
           >
-            Ver Demo Gantt →
+            <UploadCloud size={15} aria-hidden />
+            Ver Demo Gantt
+            <ArrowRight size={15} aria-hidden />
           </Link>
         </div>
       </main>

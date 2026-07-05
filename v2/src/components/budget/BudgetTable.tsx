@@ -105,8 +105,8 @@ function SummaryBar({ items }: { items: BudgetItem[] }) {
         flexWrap: "wrap",
         gap: "8px",
         padding: "8px 12px",
-        background: "var(--aia-alabaster)",
-        borderBottom: "1px solid var(--gray-200)",
+        background: "var(--color-bg-glass)",
+        borderBottom: "1px solid var(--color-hairline)",
         fontSize: "0.75rem",
         fontFamily: "var(--font-montserrat)",
       }}
@@ -206,15 +206,15 @@ function AddItemForm({
 
   const inputStyle: React.CSSProperties = {
     padding: "4px 8px",
-    border: "1px solid var(--gray-300)",
-    borderRadius: "var(--radius-sm)",
+    border: "1px solid var(--color-hairline)",
+    borderRadius: "var(--radius-lg)",
     fontSize: "0.8rem",
     fontFamily: "var(--font-inter)",
-    background: "#ffffff",
+    background: "var(--color-bg-elevated)",
   };
 
   return (
-    <tr data-testid="add-item-form" style={{ background: "var(--aia-alabaster)" }}>
+    <tr data-testid="add-item-form" style={{ background: "color-mix(in oklch, var(--aia-corp-xlight) 54%, var(--color-bg-elevated))" }}>
       <td style={{ padding: "6px 8px" }}>
         <select
           value={category}
@@ -291,10 +291,10 @@ function AddItemForm({
           onClick={onCancel}
           style={{
             padding: "4px 10px",
-            border: "1px solid var(--gray-300)",
-            borderRadius: "var(--radius-sm)",
-            background: "#ffffff",
-            color: "var(--gray-600)",
+            border: "1px solid var(--color-hairline)",
+            borderRadius: "var(--radius-lg)",
+            background: "var(--color-bg-elevated)",
+            color: "var(--color-text-muted)",
             fontSize: "0.75rem",
             fontFamily: "var(--font-montserrat)",
             cursor: "pointer",
@@ -348,17 +348,17 @@ function EditableRow({
 
   const inputStyle: React.CSSProperties = {
     padding: "4px 8px",
-    border: "1px solid var(--aia-proj-main)",
-    borderRadius: "var(--radius-sm)",
+    border: "1px solid var(--color-hairline)",
+    borderRadius: "var(--radius-lg)",
     fontSize: "0.8rem",
     fontFamily: "var(--font-inter)",
-    background: "var(--aia-alabaster)",
+    background: "var(--color-bg-elevated)",
   };
 
   return (
     <tr
       data-testid="edit-row"
-      style={{ background: "var(--aia-proj-xlight)" }}
+      style={{ background: "color-mix(in oklch, var(--aia-proj-xlight) 58%, var(--color-bg-elevated))" }}
     >
       <td style={{ padding: "6px 8px" }}>
         <select
@@ -438,10 +438,10 @@ function EditableRow({
           onClick={onCancel}
           style={{
             padding: "4px 10px",
-            border: "1px solid var(--gray-300)",
-            borderRadius: "var(--radius-sm)",
-            background: "#ffffff",
-            color: "var(--gray-600)",
+                          border: "1px solid var(--color-hairline)",
+                          borderRadius: "var(--radius-lg)",
+                          background: "var(--color-bg-elevated)",
+                          color: "var(--color-text-muted)",
             fontSize: "0.75rem",
             fontFamily: "var(--font-montserrat)",
             cursor: "pointer",
@@ -530,10 +530,10 @@ export default function BudgetTable({
     fontSize: "0.7rem",
     fontFamily: "var(--font-montserrat)",
     fontWeight: 700,
-    color: "#ffffff",
+    color: "var(--color-text-strong)",
     textTransform: "uppercase" as const,
     letterSpacing: "0.05em",
-    borderBottom: "2px solid var(--aia-corp-main)",
+    borderBottom: "1px solid var(--color-hairline)",
     whiteSpace: "nowrap" as const,
     userSelect: "none" as const,
   };
@@ -541,26 +541,19 @@ export default function BudgetTable({
   return (
     <div
       data-testid="budget-table"
-      className="flex flex-col h-full"
+      className="apple-module flex h-full flex-col"
       style={{ fontFamily: "var(--font-inter)" }}
     >
       {/* ── Toolbar ── */}
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          padding: "8px 12px",
-          background: "var(--aia-corp-dark)",
-          borderBottom: "2px solid var(--aia-corp-main)",
-        }}
+        className="apple-subtoolbar"
       >
         <span
           style={{
             fontFamily: "var(--font-montserrat)",
             fontWeight: 700,
             fontSize: "0.8rem",
-            color: "#ffffff",
+            color: "var(--color-text-strong)",
           }}
         >
           Presupuesto
@@ -587,10 +580,10 @@ export default function BudgetTable({
                 alignItems: "center",
                 gap: "4px",
                 padding: "4px 12px",
-                border: "1px solid var(--aia-corp-mid)",
-                borderRadius: "var(--radius-sm)",
-                background: "transparent",
-                color: "var(--aia-corp-light)",
+                border: "1px solid var(--color-hairline)",
+                borderRadius: "var(--radius-lg)",
+                background: "var(--color-bg-elevated)",
+                color: "var(--color-text-strong)",
                 fontSize: "0.75rem",
                 fontFamily: "var(--font-montserrat)",
                 fontWeight: 600,
@@ -614,7 +607,7 @@ export default function BudgetTable({
               gap: "4px",
               padding: "4px 12px",
               border: "none",
-              borderRadius: "var(--radius-sm)",
+              borderRadius: "var(--radius-lg)",
               background: "var(--aia-corp-main)",
               color: "#ffffff",
               fontSize: "0.75rem",
@@ -639,7 +632,7 @@ export default function BudgetTable({
               gap: "4px",
               padding: "4px 12px",
               border: "1px solid var(--aia-alert-main)",
-              borderRadius: "var(--radius-sm)",
+              borderRadius: "var(--radius-lg)",
               background: "var(--aia-alert-xlight)",
               color: "var(--aia-alert-main)",
               fontSize: "0.75rem",
@@ -662,12 +655,13 @@ export default function BudgetTable({
         <table
           style={{
             width: "100%",
-            borderCollapse: "collapse",
+            borderCollapse: "separate",
+            borderSpacing: 0,
             fontSize: "0.8rem",
           }}
         >
           <thead>
-            <tr style={{ background: "var(--aia-corp-dark)" }}>
+            <tr className="apple-grid-header">
               <th style={thStyle}>Categoría</th>
               <th style={thStyle}>Subcategoría</th>
               <th style={{ ...thStyle, textAlign: "right" }}>Presupuestado</th>
@@ -695,8 +689,7 @@ export default function BudgetTable({
                   style={{
                     padding: "24px",
                     textAlign: "center",
-                    color: "var(--gray-400)",
-                    fontStyle: "italic",
+                    color: "var(--color-text-muted)",
                   }}
                 >
                   No hay items de presupuesto. Importe un CSV o agregue items
@@ -730,12 +723,12 @@ export default function BudgetTable({
                   onClick={() => handleRowClick(item.id)}
                   style={{
                     background: isSelected
-                      ? "var(--aia-corp-xlight)"
+                      ? "color-mix(in oklch, var(--aia-corp-xlight) 58%, var(--color-bg-elevated))"
                       : index % 2 === 0
-                        ? "#ffffff"
-                        : "var(--aia-alabaster)",
+                        ? "var(--color-bg-elevated)"
+                        : "var(--color-bg-surface-secondary)",
                     cursor: "pointer",
-                    borderBottom: "1px solid var(--gray-200)",
+                    borderBottom: "1px solid var(--color-hairline)",
                     transition: "background 0.15s",
                   }}
                 >
@@ -840,10 +833,10 @@ export default function BudgetTable({
                       }}
                       style={{
                         padding: "2px 6px",
-                        border: "1px solid var(--gray-300)",
-                        borderRadius: "var(--radius-sm)",
-                        background: "#ffffff",
-                        color: "var(--gray-500)",
+                        border: "1px solid var(--color-hairline)",
+                        borderRadius: "var(--radius-lg)",
+                        background: "var(--color-bg-elevated)",
+                        color: "var(--color-text-muted)",
                         cursor: "pointer",
                         fontSize: "0.7rem",
                       }}

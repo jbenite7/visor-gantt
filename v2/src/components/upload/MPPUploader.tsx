@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { parseMPP } from "@/lib/api";
 import type { ProjectData } from "@/lib/parser/mpp-parser";
+import { AlertTriangle, CloudUpload, Loader2 } from "lucide-react";
 
 export interface MPPUploaderProps {
   onUploadComplete: (data: ProjectData) => void;
@@ -128,13 +129,13 @@ export default function MPPUploader({
         onDrop={handleDrop}
         onClick={handleClick}
         className={`
-          relative border-2 border-dashed rounded-xl p-12 text-center transition-all cursor-pointer
+          apple-dropzone relative rounded-lg p-12 text-center transition-all cursor-pointer
           ${
             isDragging
-              ? "border-blue-400 bg-blue-950/20 scale-[1.01]"
+              ? "scale-[1.01] border-[var(--aia-corp-main)]"
               : error
-                ? "border-red-500/50 bg-red-950/10 hover:border-red-400/60"
-                : "border-slate-700 hover:border-slate-600 bg-slate-900"
+                ? "border-[var(--aia-alert-main)]"
+                : "border-[var(--color-hairline)]"
           }
           ${disabled || isProcessing ? "opacity-50 pointer-events-none" : ""}
         `}
@@ -150,50 +151,22 @@ export default function MPPUploader({
         />
 
         <div className="space-y-4">
-          <div className="mx-auto w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center">
+          <div className="apple-card mx-auto w-16 h-16 rounded-full flex items-center justify-center">
             {isProcessing ? (
-              <svg
-                className="w-8 h-8 text-blue-400 animate-spin"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
+              <Loader2 className="h-8 w-8 animate-spin text-[var(--aia-corp-main)]" />
             ) : (
-              <svg
-                className={`w-8 h-8 ${isDragging ? "text-blue-400" : "text-slate-400"}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                />
-              </svg>
+              <CloudUpload
+                className={`h-8 w-8 ${isDragging ? "text-[var(--aia-corp-main)]" : "text-[var(--color-text-muted)]"}`}
+              />
             )}
           </div>
 
           {isProcessing ? (
             <div className="space-y-2">
-              <p className="text-lg text-blue-400 animate-pulse">
+              <p className="text-lg text-[var(--aia-corp-main)] animate-pulse">
                 Parseando archivo...
               </p>
-              <p className="text-sm text-slate-500">{fileName}</p>
+              <p className="text-sm text-[var(--color-text-muted)]">{fileName}</p>
             </div>
           ) : (
             <>
@@ -202,10 +175,10 @@ export default function MPPUploader({
                   ? "Suelta el archivo aquí"
                   : "Arrastra tu archivo .mpp aquí"}
               </p>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-[var(--color-text-muted)]">
                 o haz clic para seleccionar desde tu equipo
               </p>
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-[var(--color-text-muted)]">
                 Máximo {MAX_FILE_SIZE_MB} MB — Archivo MS Project (.mpp)
               </p>
             </>
@@ -222,8 +195,8 @@ export default function MPPUploader({
           w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-colors
           ${
             disabled || isProcessing
-              ? "bg-slate-800 text-slate-500 cursor-not-allowed"
-              : "bg-blue-600 text-white hover:bg-blue-500 active:bg-blue-700"
+              ? "apple-button-secondary text-[var(--color-text-muted)] cursor-not-allowed"
+              : "apple-button-primary"
           }
         `}
       >
@@ -232,20 +205,8 @@ export default function MPPUploader({
 
       {/* Error Display */}
       {error && (
-        <div className="flex items-start gap-3 p-3 rounded-lg bg-red-950/20 border border-red-700/50 text-red-400 text-sm">
-          <svg
-            className="w-5 h-5 shrink-0 mt-0.5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
+        <div className="flex items-start gap-3 rounded-lg border border-[var(--aia-alert-main)] bg-[var(--aia-alert-xlight)] p-3 text-sm text-[var(--aia-alert-main)]">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
           <span>{error}</span>
         </div>
       )}

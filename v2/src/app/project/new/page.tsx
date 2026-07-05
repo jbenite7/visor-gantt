@@ -10,21 +10,21 @@ export default async function NewProjectPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--aia-alabaster)]">
-      <header className="px-6 py-5 bg-white border-b border-[var(--gray-200)]">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+    <div className="apple-page">
+      <header className="apple-page-header px-6 py-5">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-[var(--aia-corp-dark)] font-[var(--font-heading)]">
+            <h1 className="text-2xl font-semibold text-[var(--color-text-strong)] font-[var(--font-heading)]">
               Crear cronograma
             </h1>
-            <p className="text-sm text-[var(--gray-500)] mt-1">
+            <p className="text-sm text-[var(--color-text-muted)] mt-1">
               Inicia desde Programación Matricial o desde una hoja vacía.
             </p>
           </div>
           <AuthMenu />
         </div>
       </header>
-      <main className="max-w-5xl mx-auto p-6">
+      <main className="max-w-6xl mx-auto p-6">
         <NewProjectForm />
       </main>
     </div>

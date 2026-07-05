@@ -42,9 +42,10 @@ const panelStyle: React.CSSProperties = {
   flex: 1,
   display: "flex",
   flexDirection: "column",
-  background: "var(--aia-alabaster)",
-  borderRadius: "var(--radius-md)",
-  border: "1px solid var(--gray-200)",
+  background: "var(--color-bg-elevated)",
+  borderRadius: "var(--radius-lg)",
+  border: "1px solid var(--color-hairline)",
+  boxShadow: "var(--shadow-sm)",
   overflow: "hidden",
   minWidth: 0,
 };
@@ -56,13 +57,13 @@ const panelHeaderStyle: React.CSSProperties = {
   fontSize: "0.75rem",
   textTransform: "uppercase" as const,
   letterSpacing: "0.05em",
-  borderBottom: "1px solid var(--gray-200)",
+  borderBottom: "1px solid var(--color-hairline)",
 };
 
 const listItemStyle: React.CSSProperties = {
   padding: "6px 12px",
   fontSize: "0.8rem",
-  borderBottom: "1px solid var(--gray-100)",
+  borderBottom: "1px solid var(--color-hairline)",
   cursor: "pointer",
   transition: "background 0.15s",
   display: "flex",
@@ -141,26 +142,19 @@ export default function BudgetMappingPanel({
   return (
     <div
       data-testid="budget-mapping"
-      className="flex flex-col h-full"
+      className="apple-module flex h-full flex-col"
       style={{ fontFamily: "var(--font-inter)" }}
     >
       {/* ── Toolbar ── */}
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          padding: "8px 12px",
-          background: "var(--aia-corp-dark)",
-          borderBottom: "2px solid var(--aia-corp-main)",
-        }}
+        className="apple-subtoolbar"
       >
         <span
           style={{
             fontFamily: "var(--font-montserrat)",
             fontWeight: 700,
             fontSize: "0.8rem",
-            color: "#ffffff",
+            color: "var(--color-text-strong)",
           }}
         >
           Mapeo Presupuesto ↔ Tareas
@@ -169,7 +163,7 @@ export default function BudgetMappingPanel({
         <span
           style={{
             fontSize: "0.7rem",
-            color: "var(--aia-corp-light)",
+            color: "var(--color-text-muted)",
             fontFamily: "var(--font-montserrat)",
           }}
         >
@@ -192,8 +186,8 @@ export default function BudgetMappingPanel({
           <div
             style={{
               ...panelHeaderStyle,
-              background: "var(--aia-corp-dark)",
-              color: "#ffffff",
+              background: "var(--color-bg-surface)",
+              color: "var(--color-text-strong)",
               display: "flex",
               alignItems: "center",
               gap: "6px",
@@ -208,7 +202,7 @@ export default function BudgetMappingPanel({
                 style={{
                   padding: "24px",
                   textAlign: "center",
-                  color: "var(--gray-400)",
+                  color: "var(--color-text-muted)",
                   fontStyle: "italic",
                   fontSize: "0.8rem",
                 }}
@@ -234,8 +228,8 @@ export default function BudgetMappingPanel({
                   style={{
                     ...listItemStyle,
                     background: isSelected
-                      ? "var(--aia-proj-xlight)"
-                      : "#ffffff",
+                      ? "color-mix(in oklch, var(--aia-proj-xlight) 58%, var(--color-bg-elevated))"
+                      : "var(--color-bg-elevated)",
                     borderLeft: `3px solid ${catColor}`,
                   }}
                 >
@@ -296,8 +290,8 @@ export default function BudgetMappingPanel({
           <div
             style={{
               ...panelHeaderStyle,
-              background: "var(--aia-corp-dark)",
-              color: "#ffffff",
+              background: "var(--color-bg-surface)",
+              color: "var(--color-text-strong)",
               display: "flex",
               alignItems: "center",
               gap: "6px",
@@ -308,7 +302,7 @@ export default function BudgetMappingPanel({
           </div>
 
           {/* Filter */}
-          <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--gray-200)" }}>
+          <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--color-hairline)" }}>
             <input
               type="text"
               value={taskFilter}
@@ -318,11 +312,11 @@ export default function BudgetMappingPanel({
               style={{
                 width: "100%",
                 padding: "4px 8px",
-                border: "1px solid var(--gray-300)",
-                borderRadius: "var(--radius-sm)",
+                border: "1px solid var(--color-hairline)",
+                borderRadius: "var(--radius-lg)",
                 fontSize: "0.8rem",
                 fontFamily: "var(--font-inter)",
-                background: "#ffffff",
+                background: "var(--color-bg-elevated)",
               }}
             />
           </div>
@@ -333,7 +327,7 @@ export default function BudgetMappingPanel({
                 style={{
                   padding: "24px",
                   textAlign: "center",
-                  color: "var(--gray-400)",
+                  color: "var(--color-text-muted)",
                   fontStyle: "italic",
                   fontSize: "0.8rem",
                 }}
@@ -356,11 +350,11 @@ export default function BudgetMappingPanel({
                   style={{
                     ...listItemStyle,
                     background: isSelected
-                      ? "var(--aia-proj-xlight)"
-                      : "#ffffff",
+                      ? "color-mix(in oklch, var(--aia-proj-xlight) 58%, var(--color-bg-elevated))"
+                      : "var(--color-bg-elevated)",
                     borderLeft: task.isCritical
                       ? "3px solid var(--aia-alert-main)"
-                      : "3px solid var(--gray-200)",
+                      : "3px solid var(--color-hairline)",
                   }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -429,8 +423,8 @@ export default function BudgetMappingPanel({
             alignItems: "center",
             gap: "8px",
             padding: "8px 12px",
-            background: "var(--aia-proj-xlight)",
-            borderTop: "2px solid var(--aia-proj-main)",
+            background: "color-mix(in oklch, var(--aia-proj-xlight) 58%, var(--color-bg-elevated))",
+            borderTop: "1px solid var(--color-hairline)",
           }}
         >
           <ArrowRight
@@ -450,7 +444,7 @@ export default function BudgetMappingPanel({
           <span
             style={{
               fontSize: "0.75rem",
-              color: "var(--aia-corp-dark)",
+              color: "var(--color-text-strong)",
               fontWeight: 600,
             }}
           >
@@ -463,7 +457,7 @@ export default function BudgetMappingPanel({
           <span
             style={{
               fontSize: "0.75rem",
-              color: "var(--aia-corp-dark)",
+              color: "var(--color-text-strong)",
               fontWeight: 600,
             }}
           >
@@ -492,10 +486,10 @@ export default function BudgetMappingPanel({
               width: "120px",
               padding: "4px 8px",
               border: "1px solid var(--aia-proj-main)",
-              borderRadius: "var(--radius-sm)",
+              borderRadius: "var(--radius-lg)",
               fontSize: "0.8rem",
               fontFamily: "var(--font-montserrat)",
-              background: "#ffffff",
+              background: "var(--color-bg-elevated)",
               textAlign: "right",
             }}
           />
@@ -509,7 +503,7 @@ export default function BudgetMappingPanel({
               gap: "4px",
               padding: "4px 16px",
               border: "none",
-              borderRadius: "var(--radius-sm)",
+              borderRadius: "var(--radius-lg)",
               background:
                 mappingAmount && parseFloat(mappingAmount) > 0
                   ? "var(--aia-proj-main)"
@@ -534,8 +528,8 @@ export default function BudgetMappingPanel({
       {mappings.length > 0 && (
         <div
           style={{
-            borderTop: "1px solid var(--gray-200)",
-            background: "var(--aia-alabaster)",
+            borderTop: "1px solid var(--color-hairline)",
+            background: "var(--color-bg-surface-secondary)",
           }}
         >
           <div
@@ -547,7 +541,7 @@ export default function BudgetMappingPanel({
               color: "var(--gray-600)",
               textTransform: "uppercase" as const,
               letterSpacing: "0.05em",
-              borderBottom: "1px solid var(--gray-200)",
+              borderBottom: "1px solid var(--color-hairline)",
             }}
           >
             Mapeos Activos
@@ -559,7 +553,8 @@ export default function BudgetMappingPanel({
             <table
               style={{
                 width: "100%",
-                borderCollapse: "collapse",
+                borderCollapse: "separate",
+                borderSpacing: 0,
                 fontSize: "0.75rem",
               }}
             >
@@ -572,7 +567,7 @@ export default function BudgetMappingPanel({
                       fontWeight: 600,
                       color: "var(--gray-600)",
                       fontSize: "0.7rem",
-                      borderBottom: "1px solid var(--gray-200)",
+                      borderBottom: "1px solid var(--color-hairline)",
                     }}
                   >
                     Presupuesto
@@ -584,7 +579,7 @@ export default function BudgetMappingPanel({
                       fontWeight: 600,
                       color: "var(--gray-600)",
                       fontSize: "0.7rem",
-                      borderBottom: "1px solid var(--gray-200)",
+                      borderBottom: "1px solid var(--color-hairline)",
                     }}
                   >
                     Tarea
@@ -596,7 +591,7 @@ export default function BudgetMappingPanel({
                       fontWeight: 600,
                       color: "var(--gray-600)",
                       fontSize: "0.7rem",
-                      borderBottom: "1px solid var(--gray-200)",
+                      borderBottom: "1px solid var(--color-hairline)",
                     }}
                   >
                     Monto
@@ -604,7 +599,7 @@ export default function BudgetMappingPanel({
                   <th
                     style={{
                       padding: "4px 12px",
-                      borderBottom: "1px solid var(--gray-200)",
+                      borderBottom: "1px solid var(--color-hairline)",
                     }}
                   ></th>
                 </tr>
@@ -622,7 +617,7 @@ export default function BudgetMappingPanel({
                       data-testid="mapping-row"
                       style={{
                         background:
-                          idx % 2 === 0 ? "#ffffff" : "var(--aia-alabaster)",
+                          idx % 2 === 0 ? "var(--color-bg-elevated)" : "var(--color-bg-surface-secondary)",
                       }}
                     >
                       <td
@@ -648,7 +643,7 @@ export default function BudgetMappingPanel({
                           textAlign: "right",
                           fontFamily: "var(--font-montserrat)",
                           fontWeight: 600,
-                          color: "var(--aia-corp-dark)",
+                          color: "var(--color-text-strong)",
                         }}
                       >
                         {FORMAT_CURRENCY.format(mapping.amount)}
@@ -660,9 +655,9 @@ export default function BudgetMappingPanel({
                             onClick={() => onRemoveMapping(mapping)}
                             style={{
                               padding: "2px 6px",
-                              border: "1px solid var(--gray-300)",
-                              borderRadius: "var(--radius-sm)",
-                              background: "#ffffff",
+                              border: "1px solid var(--color-hairline)",
+                              borderRadius: "var(--radius-lg)",
+                              background: "var(--color-bg-elevated)",
                               color: "var(--aia-alert-main)",
                               cursor: "pointer",
                               fontSize: "0.7rem",

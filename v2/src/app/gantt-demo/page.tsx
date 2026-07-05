@@ -113,12 +113,12 @@ const sampleTasks: GanttTask[] = [
 
 export default function GanttDemoPage() {
   return (
-    <div className="h-screen flex flex-col bg-[var(--aia-alabaster)]">
-      <header className="shrink-0 px-6 py-4 bg-white border-b border-[var(--gray-200)]">
-        <h1 className="text-2xl font-bold text-[var(--aia-corp-dark)] font-[var(--font-heading)]">
+    <div className="apple-page h-screen flex flex-col">
+      <header className="apple-page-header shrink-0 px-6 py-4">
+        <h1 className="text-2xl font-semibold text-[var(--color-text-strong)] font-[var(--font-heading)]">
           Demo de Gantt
         </h1>
-        <p className="text-sm text-[var(--gray-500)]">
+        <p className="text-sm text-[var(--color-text-muted)]">
           8 tareas de ejemplo con dependencias FS, SS+lag, hitos y resúmenes
         </p>
       </header>

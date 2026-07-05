@@ -1,3 +1,4 @@
+import { LogOut, UserCircle } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { getCurrentUser } from "@/lib/auth/session";
 
@@ -7,13 +8,17 @@ export default async function AuthMenu() {
 
   return (
     <form action={logoutAction} className="flex items-center gap-3">
-      <span className="max-w-48 truncate text-xs font-medium text-[var(--gray-600)]">
-        {user.email}
+      <span className="apple-panel inline-flex max-w-56 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
+        <UserCircle size={14} aria-hidden />
+        <span className="truncate">
+          {user.email}
+        </span>
       </span>
       <button
         type="submit"
-        className="rounded-md border border-[var(--gray-300)] px-3 py-1.5 text-xs font-semibold text-[var(--aia-corp-dark)] hover:bg-[var(--aia-corp-xlight)]"
+        className="apple-button-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
       >
+        <LogOut size={13} aria-hidden />
         Salir
       </button>
     </form>
