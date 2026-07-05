@@ -1,5 +1,7 @@
 import fs from "node:fs/promises";
 import { performance } from "node:perf_hooks";
+import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
+import { buildMatrixPlanFromGantt } from "@/lib/matrix/matrixFromGantt";
 import { calculateMppFields } from "@/lib/mpp/mppCalculationEngine";
 import { normalizeProjectCalendar } from "@/lib/scheduling/projectCalendar";
 import { recalculateSchedule } from "@/lib/scheduling/scheduleEngine";
@@ -11,6 +13,7 @@ import {
 import type { ProjectData as ParsedMppProject } from "@/lib/parser/mpp-parser";
 import type { GanttTask } from "@/components/gantt/types";
 import type { ProjectCalendar } from "@/types/calendar";
+import type { MatrixPlan } from "@/types/matrix";
 
 const DEFAULT_MPP_PATH =
   "/Users/juanfelipebenitezramos/Downloads/20260303_Cronograma preconstrucción_DP 2.mpp";
@@ -22,6 +25,12 @@ interface Sample {
   assignments: ReturnType<typeof mppAssignmentsToAssignments>;
   calendar: ProjectCalendar;
   statusDate: ParsedMppProject["statusDate"];
+}
+
+interface SyntheticBenchmarkSample {
+  matrixPlan: MatrixPlan;
+  tasks: GanttTask[];
+  calendar: ProjectCalendar;
 }
 
 function percentile(values: number[], p: number): number {
@@ -46,6 +55,121 @@ function time(fn: () => void): number {
   const start = performance.now();
   fn();
   return performance.now() - start;
+}
+
+function syntheticCalendar(): ProjectCalendar {
+  return {
+    timeZone: "America/Bogota",
+    workDays: [1, 2, 3, 4, 5],
+    startHour: "08:00",
+    endHour: "17:00",
+    hoursPerDay: 8,
+    nonWorkingDays: [],
+    dateOverrides: [],
+  };
+}
+
+function buildSyntheticMatrixPlan(): MatrixPlan {
+  const floors = Number(process.env.BENCHMARK_SYNTHETIC_FLOORS ?? 40);
+  const scopeTree = [
+    {
+      id: "estructura",
+      name: "Estructura",
+      type: "Disciplina",
+      defaultRecipeId: "estructura-concreto",
+    },
+    {
+      id: "arquitectura",
+      name: "Arquitectura",
+      type: "Disciplina",
+      defaultRecipeId: "arquitectura-muros",
+    },
+    {
+      id: "mep",
+      name: "Redes MEP",
+      type: "Disciplina",
+      defaultRecipeId: "mep-rough-in",
+    },
+  ];
+  const areas = Array.from({ length: floors }, (_, index) => ({
+    id: `piso-${index + 1}`,
+    name: `Piso ${String(index + 1).padStart(2, "0")}`,
+    type: "Piso",
+  }));
+  const recipes = [
+    {
+      id: "estructura-concreto",
+      name: "Estructura en concreto",
+      activities: [
+        { id: "formaleta", name: "Formaleta", productivityPerDay: 50, defaultQuantity: 100, unit: "m2" },
+        { id: "acero", name: "Acero de refuerzo", productivityPerDay: 800, defaultQuantity: 1600, unit: "kg" },
+        { id: "vaciado", name: "Vaciado de concreto", productivityPerDay: 40, defaultQuantity: 80, unit: "m3" },
+      ],
+      dependencies: [
+        { predecessorActivityId: "formaleta", successorActivityId: "acero", type: "FS" as const, lagDays: 0 },
+        { predecessorActivityId: "acero", successorActivityId: "vaciado", type: "FS" as const, lagDays: 0 },
+      ],
+      lineOfBalance: { scopeType: "Piso", offsetDays: 2 },
+    },
+    {
+      id: "arquitectura-muros",
+      name: "Muros y acabados base",
+      activities: [
+        { id: "mamposteria", name: "Mamposteria", productivityPerDay: 35, defaultQuantity: 140, unit: "m2" },
+        { id: "panete", name: "Panete", productivityPerDay: 45, defaultQuantity: 140, unit: "m2" },
+      ],
+      dependencies: [
+        { predecessorActivityId: "mamposteria", successorActivityId: "panete", type: "FS" as const, lagDays: 1 },
+      ],
+      lineOfBalance: { scopeType: "Piso", offsetDays: 3 },
+    },
+    {
+      id: "mep-rough-in",
+      name: "Redes embebidas",
+      activities: [
+        { id: "trazado", name: "Trazado de redes", productivityPerDay: 120, defaultQuantity: 120, unit: "m" },
+        { id: "instalacion", name: "Instalacion de redes", productivityPerDay: 80, defaultQuantity: 120, unit: "m" },
+      ],
+      dependencies: [
+        { predecessorActivityId: "trazado", successorActivityId: "instalacion", type: "FS" as const, lagDays: 0 },
+      ],
+      lineOfBalance: { scopeType: "Piso", offsetDays: 2 },
+    },
+  ];
+
+  return {
+    id: "benchmark-matrix",
+    name: "Benchmark Matrix sintetico",
+    templateId: "benchmark-synthetic",
+    startDate: "2026-01-05",
+    scopeTree,
+    areas,
+    recipes,
+    cells: scopeTree.flatMap((scope) =>
+      areas.map((area) => ({
+        id: `cell-${scope.id}-${area.id}`,
+        scopeId: scope.id,
+        areaId: area.id,
+        recipeId: scope.defaultRecipeId,
+        active: true,
+        quantity: 100,
+        unit: "und",
+        productivityOverridePerDay: 25,
+        lastEditedAt: "2026-01-01T00:00:00.000Z",
+        lastEditedFrom: "matrix" as const,
+      })),
+    ),
+  };
+}
+
+function buildSyntheticSample(): SyntheticBenchmarkSample {
+  const matrixPlan = buildSyntheticMatrixPlan();
+  const generated = generateScheduleFromMatrix(matrixPlan);
+  return {
+    matrixPlan,
+    tasks: generated.tasks,
+    calendar: syntheticCalendar(),
+  };
 }
 
 async function parseMpp(path: string, parserUrl: string): Promise<ParsedMppProject> {
@@ -106,6 +230,69 @@ function editFirstPredecessorLink(tasks: GanttTask[]): GanttTask[] {
 }
 
 async function main() {
+  if (process.env.BENCHMARK_SYNTHETIC === "1") {
+    const runs = Number(process.env.BENCHMARK_RUNS ?? 30);
+    const sample = buildSyntheticSample();
+    const metrics = {
+      matrixGenerateSchedule: [] as number[],
+      matrixRoundTripFromGantt: [] as number[],
+      recalculateSchedule: [] as number[],
+      combinedMatrixGanttPath: [] as number[],
+    };
+
+    for (let i = 0; i < runs; i += 1) {
+      metrics.matrixGenerateSchedule.push(time(() => {
+        generateScheduleFromMatrix(sample.matrixPlan);
+      }));
+
+      metrics.matrixRoundTripFromGantt.push(time(() => {
+        buildMatrixPlanFromGantt({
+          id: `benchmark-roundtrip-${i}`,
+          name: "Benchmark roundtrip",
+          startDate: sample.matrixPlan.startDate,
+          tasks: sample.tasks,
+          generatedAt: "2026-01-01T00:00:00.000Z",
+        });
+      }));
+
+      metrics.recalculateSchedule.push(time(() => {
+        recalculateSchedule(sample.tasks, { calendar: sample.calendar });
+      }));
+
+      metrics.combinedMatrixGanttPath.push(time(() => {
+        const generated = generateScheduleFromMatrix(sample.matrixPlan);
+        const imported = buildMatrixPlanFromGantt({
+          id: `benchmark-combined-${i}`,
+          name: "Benchmark combined",
+          startDate: sample.matrixPlan.startDate,
+          tasks: generated.tasks,
+          generatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        recalculateSchedule(imported.tasks, { calendar: sample.calendar });
+      }));
+    }
+
+    const operationalTasks = sample.tasks.filter((task) => !task.isSummary);
+    console.log(JSON.stringify({
+      mode: "synthetic",
+      runs,
+      matrixCells: sample.matrixPlan.cells.length,
+      tasks: sample.tasks.length,
+      operationalTasks: operationalTasks.length,
+      dependencies: sample.tasks.reduce(
+        (count, task) => count + task.dependencies.length,
+        0,
+      ),
+      results: {
+        matrixGenerateSchedule: summarize(metrics.matrixGenerateSchedule),
+        matrixRoundTripFromGantt: summarize(metrics.matrixRoundTripFromGantt),
+        recalculateSchedule: summarize(metrics.recalculateSchedule),
+        combinedMatrixGanttPath: summarize(metrics.combinedMatrixGanttPath),
+      },
+    }, null, 2));
+    return;
+  }
+
   const mppPath = process.env.BENCHMARK_MPP_PATH ?? DEFAULT_MPP_PATH;
   const parserUrl = process.env.MPP_PARSER_URL ?? DEFAULT_PARSER_URL;
   const runs = Number(process.env.BENCHMARK_RUNS ?? 30);
