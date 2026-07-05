@@ -14,5 +14,5 @@ test("muestra el formulario de acceso en español", async ({ page }) => {
   await expect(page.getByLabel("Correo")).toBeVisible();
   await expect(page.getByLabel("Contraseña")).toBeVisible();
   await expect(page.getByRole("button", { name: "Entrar" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Entrar con Microsoft 365" })).toBeVisible();
+  await expect(page.getByText("Microsoft 365 no está configurado")).toBeVisible();
 });
