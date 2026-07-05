@@ -5,6 +5,7 @@ import type { PoolClient } from "pg";
 import { getCurrentUser } from "@/lib/auth/session";
 import { userHasPermission } from "@/lib/auth/rbac";
 import type { GanttTask } from "@/components/gantt/types";
+import type { PlanningAuditEvent } from "@/types/audit";
 import type { Resource, Assignment } from "@/types/resource";
 import type { BudgetItem, BudgetMapping } from "@/types/budget";
 import type { Baseline } from "@/types/baseline";
@@ -58,6 +59,7 @@ export interface ProjectData {
   resourceColumnSettings?: ResourceColumnSettings;
   assignmentColumnSettings?: AssignmentColumnSettings;
   uiSettings?: UISettings;
+  planningAuditEvents?: PlanningAuditEvent[];
 }
 
 /* ── Serialization helpers ── */
@@ -195,6 +197,7 @@ interface SerializedProjectData {
   resourceColumnSettings?: ResourceColumnSettings;
   assignmentColumnSettings?: AssignmentColumnSettings;
   uiSettings?: UISettings;
+  planningAuditEvents?: PlanningAuditEvent[];
 }
 
 function serializeProjectData(data: ProjectData): SerializedProjectData {
@@ -219,6 +222,7 @@ function serializeProjectData(data: ProjectData): SerializedProjectData {
     resourceColumnSettings: data.resourceColumnSettings,
     assignmentColumnSettings: data.assignmentColumnSettings,
     uiSettings: data.uiSettings ?? DEFAULT_UI_SETTINGS,
+    planningAuditEvents: data.planningAuditEvents ?? [],
   };
 }
 
@@ -249,6 +253,7 @@ function deserializeProjectData(
     resourceColumnSettings: pd.resourceColumnSettings,
     assignmentColumnSettings: pd.assignmentColumnSettings,
     uiSettings: pd.uiSettings ?? DEFAULT_UI_SETTINGS,
+    planningAuditEvents: pd.planningAuditEvents ?? [],
   };
 }
 

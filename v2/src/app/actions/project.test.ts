@@ -1,4 +1,5 @@
-import type { MatrixTemplate } from "@/types/matrix";
+import type { MatrixPlan, MatrixTemplate } from "@/types/matrix";
+import type { ProjectCalendar } from "@/types/calendar";
 
 const query = jest.fn();
 const release = jest.fn();
@@ -19,7 +20,9 @@ jest.mock("@/lib/auth/rbac", () => ({
 
 import {
   createMatrixPlanFromTemplate,
+  loadProject,
   listMatrixTemplates,
+  saveProject,
   saveMatrixTemplate,
 } from "./project";
 
@@ -64,6 +67,81 @@ const template: MatrixTemplate = {
         },
       ],
       dependencies: [],
+    },
+  ],
+};
+
+const calendar: ProjectCalendar = {
+  timeZone: "America/Bogota",
+  workDays: [1, 2, 3, 4, 5],
+  startHour: "08:00",
+  endHour: "17:00",
+  hoursPerDay: 8,
+  nonWorkingDays: [],
+  dateOverrides: [],
+};
+
+const importedMatrixPlan: MatrixPlan = {
+  id: "matrix-mpp-demo",
+  name: "Demo importado - Programacion matricial",
+  templateId: "mpp-import",
+  startDate: "2026-01-01",
+  scopeTree: [
+    {
+      id: "mpp-scope-1",
+      name: "Actividad importada",
+      type: "Tarea MPP",
+    },
+  ],
+  areas: [
+    {
+      id: "mpp-cronograma-importado",
+      name: "Cronograma importado",
+      type: "MPP",
+    },
+  ],
+  recipes: [
+    {
+      id: "recipe-1",
+      name: "Actividad importada",
+      activities: [
+        {
+          id: "activity-1",
+          name: "Actividad importada",
+          productivityPerDay: 1,
+          defaultQuantity: 2,
+          unit: "d",
+        },
+      ],
+      dependencies: [],
+    },
+  ],
+  cells: [
+    {
+      id: "cell-1",
+      scopeId: "mpp-scope-1",
+      areaId: "mpp-cronograma-importado",
+      recipeId: "recipe-1",
+      active: true,
+      generatedTaskIds: [1],
+      syncedTaskIds: [1],
+      activityOverrides: [
+        {
+          activityId: "activity-1",
+          name: "Actividad importada",
+          quantity: 2,
+          unit: "d",
+          productivityPerDay: 1,
+          sourceTaskId: 1,
+          start: "2026-01-01T00:00:00.000Z",
+          finish: "2026-01-02T00:00:00.000Z",
+          duration: 2,
+          progress: 35.25,
+          percentComplete: 35.25,
+          lastEditedAt: "2026-01-01T00:00:00.000Z",
+          lastEditedFrom: "gantt",
+        },
+      ],
     },
   ],
 };
@@ -134,5 +212,89 @@ describe("matrix template actions", () => {
         active: false,
       }),
     ]);
+  });
+
+  test("persists and reloads imported matrix plan links through project_data", async () => {
+    query.mockResolvedValueOnce({ rows: [{ id: "project-1" }] });
+
+    const saveResult = await saveProject({
+      name: "Importado",
+      tasks: [
+        {
+          id: 1,
+          name: "Actividad importada",
+          start: new Date("2026-01-01T00:00:00.000Z"),
+          finish: new Date("2026-01-02T00:00:00.000Z"),
+          duration: 2,
+          progress: 35.25,
+          percentComplete: 35.25,
+          isCritical: false,
+          isMilestone: false,
+          isSummary: false,
+          outlineLevel: 1,
+          dependencies: [],
+          wbs: "1",
+          matrixSource: {
+            matrixPlanId: "matrix-mpp-demo",
+            scopeId: "mpp-scope-1",
+            areaId: "mpp-cronograma-importado",
+            cellId: "cell-1",
+            recipeId: "recipe-1",
+            activityId: "activity-1",
+          },
+        },
+      ],
+      resources: [],
+      assignments: [],
+      budgetItems: [],
+      budgetMappings: [],
+      baselines: [],
+      calendar,
+      matrixPlan: importedMatrixPlan,
+      planningAuditEvents: [
+        {
+          id: "audit-1",
+          kind: "taskEdit",
+          summary: "Update duration on task 1",
+          taskIds: [1],
+          createdAt: "2026-01-02T00:00:00.000Z",
+        },
+      ],
+    });
+    const serializedProject = JSON.parse(query.mock.calls[0][1][1]);
+    query.mockResolvedValueOnce({
+      rows: [
+        {
+          name: "Importado",
+          project_data: serializedProject,
+        },
+      ],
+    });
+    const loaded = await loadProject("project-1");
+
+    expect(saveResult).toEqual({ success: true, id: "project-1" });
+    expect(query.mock.calls[0][0]).toContain("INSERT INTO projects");
+    expect(query.mock.calls[1][0]).toContain("SELECT name, project_data");
+    expect(loaded?.matrixPlan).toEqual(importedMatrixPlan);
+    expect(loaded?.planningAuditEvents).toEqual([
+      {
+        id: "audit-1",
+        kind: "taskEdit",
+        summary: "Update duration on task 1",
+        taskIds: [1],
+        createdAt: "2026-01-02T00:00:00.000Z",
+      },
+    ]);
+    expect(loaded?.tasks[0]).toEqual(
+      expect.objectContaining({
+        id: 1,
+        start: new Date("2026-01-01T00:00:00.000Z"),
+        finish: new Date("2026-01-02T00:00:00.000Z"),
+        matrixSource: expect.objectContaining({
+          matrixPlanId: "matrix-mpp-demo",
+          cellId: "cell-1",
+        }),
+      }),
+    );
   });
 });

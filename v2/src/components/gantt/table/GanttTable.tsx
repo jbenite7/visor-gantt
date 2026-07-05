@@ -1,11 +1,29 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Blocks,
+  ClipboardCopy,
+  ClipboardPaste,
+  CornerDownRight,
+  Download,
+  FolderPlus,
+  IndentDecrease,
+  IndentIncrease,
+  ListPlus,
+  Network,
+  Percent,
+  Search,
+} from "lucide-react";
 import type { GanttTask } from "@/components/gantt/types";
 import type { BudgetItem, BudgetMapping } from "@/types/budget";
 import type { MppCustomFieldDefinition, MppTaskColumn, TaskColumnSettings } from "@/types/mppColumns";
-import type { UILocale } from "@/types/ui";
+import type { TaskFilterSettings, TaskFilterType, UILocale } from "@/types/ui";
 import { t } from "@/lib/i18n";
+import { filterTasks, normalizeTaskFilter } from "@/lib/gantt/taskFilters";
+import { exportedScheduleFileName, tasksToExcelTsv } from "@/lib/gantt/scheduleExchange";
 import { getMppColumnLabel } from "@/lib/mpp/fieldLabels";
 import { inspectMppField } from "@/lib/mpp/fieldInspector";
 import {
@@ -16,6 +34,7 @@ import ColumnHeader from "./ColumnHeader";
 import ColumnSelector from "./ColumnSelector";
 import type { ColumnConfig } from "./ColumnSelector";
 import GanttRow from "./GanttRow";
+import DependencyPanel from "@/components/gantt/dependencies/DependencyPanel";
 
 interface TaskBudgetData {
   budgetedCost?: number;
@@ -42,6 +61,32 @@ interface GanttTableProps {
   locale?: UILocale;
   onColumnSettingsChange?: (settings: TaskColumnSettings) => void;
   onLocaleChange?: (locale: UILocale) => void;
+  taskFilter?: TaskFilterSettings;
+  onTaskFilterChange?: (filter: TaskFilterSettings) => void;
+  showTaskFilterControls?: boolean;
+  onIndentTask?: (taskId: string | number) => void;
+  onOutdentTask?: (taskId: string | number) => void;
+  onMoveTaskUp?: (taskId: string | number) => void;
+  onMoveTaskDown?: (taskId: string | number) => void;
+  onReorderTask?: (
+    taskId: string | number,
+    targetTaskId: string | number,
+    position: "before" | "after" | "child",
+  ) => void;
+  onInsertTask?: (options?: {
+    afterTaskId?: string | number;
+    parentTaskId?: string | number;
+    kind?: "summary" | "task" | "milestone";
+    name?: string;
+  }) => void;
+  onApplyStructureTemplate?: (
+    templateId: "obra-gris-basica",
+    options?: { afterTaskId?: string | number },
+  ) => void;
+  onSmartPasteTasks?: (
+    rawText: string,
+    options?: { afterTaskId?: string | number },
+  ) => void;
 }
 
 /** Default column definitions for the MS Project-style Entry table. */
@@ -117,6 +162,17 @@ const LEVEL_BUTTONS: Array<{ label: string; labelEs: string; level: number }> = 
   { label: "All", labelEs: "Todo", level: 1 },
 ];
 
+const TASK_FILTER_OPTIONS: Array<{
+  value: TaskFilterType;
+  labelKey: "allTasks" | "critical" | "nonCritical" | "milestones" | "summaries";
+}> = [
+  { value: "all", labelKey: "allTasks" },
+  { value: "critical", labelKey: "critical" },
+  { value: "non-critical", labelKey: "nonCritical" },
+  { value: "milestones", labelKey: "milestones" },
+  { value: "summaries", labelKey: "summaries" },
+];
+
 const toolbarBtnStyle: React.CSSProperties = {
   padding: "2px 8px",
   fontSize: "0.6875rem",
@@ -130,6 +186,20 @@ const toolbarBtnStyle: React.CSSProperties = {
   lineHeight: "1.4",
   whiteSpace: "nowrap",
 };
+
+const hierarchyBtnStyle = (disabled = false): React.CSSProperties => ({
+  width: "26px",
+  height: "26px",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  border: "1px solid var(--gray-200)",
+  borderRadius: "4px",
+  background: "var(--aia-corp-xlight)",
+  color: "var(--aia-corp-dark)",
+  cursor: disabled ? "not-allowed" : "pointer",
+  opacity: disabled ? 0.45 : 1,
+});
 
 /**
  * GanttEntryTable — left-side table mirroring MS Project's Entry table.
@@ -151,6 +221,17 @@ export default function GanttTable({
   locale = "es",
   onColumnSettingsChange,
   onLocaleChange,
+  taskFilter,
+  onTaskFilterChange,
+  showTaskFilterControls = true,
+  onIndentTask,
+  onOutdentTask,
+  onMoveTaskUp,
+  onMoveTaskDown,
+  onReorderTask,
+  onInsertTask,
+  onApplyStructureTemplate,
+  onSmartPasteTasks,
 }: GanttTableProps) {
   const [localLocale, setLocalLocale] = useState<UILocale>(locale);
   const [localColumnSettings, setLocalColumnSettings] = useState<TaskColumnSettings>(
@@ -308,6 +389,17 @@ export default function GanttTable({
   const [collapsedTaskIds, setCollapsedTaskIds] = useState<
     Set<string | number>
   >(new Set());
+  const [dependencyPanelTaskId, setDependencyPanelTaskId] = useState<string | number | undefined>();
+  const [smartPasteOpen, setSmartPasteOpen] = useState(false);
+  const [smartPasteText, setSmartPasteText] = useState("");
+  const [bulkProgressOpen, setBulkProgressOpen] = useState(false);
+  const [bulkProgressValue, setBulkProgressValue] = useState("0");
+  const [exportStatus, setExportStatus] = useState<"idle" | "copied" | "downloaded" | "error">("idle");
+  const [draggedTaskId, setDraggedTaskId] = useState<string | number | undefined>();
+  const [dropTarget, setDropTarget] = useState<{
+    taskId: string | number;
+    position: "before" | "after" | "child";
+  } | undefined>();
 
   const handleToggleExpand = useCallback((taskId: string | number) => {
     setCollapsedTaskIds((prev) => {
@@ -328,10 +420,148 @@ export default function GanttTable({
     [tasks],
   );
 
-  const visibleTasks = useMemo(
-    () => getVisibleTasks(tasks, collapsedTaskIds),
-    [tasks, collapsedTaskIds],
+  const filteredTasks = useMemo(
+    () => filterTasks(tasks, taskFilter),
+    [tasks, taskFilter],
   );
+  const visibleTasks = useMemo(
+    () => getVisibleTasks(filteredTasks, collapsedTaskIds),
+    [filteredTasks, collapsedTaskIds],
+  );
+  const normalizedTaskFilter = useMemo(
+    () => normalizeTaskFilter(taskFilter),
+    [taskFilter],
+  );
+  const hasActiveTaskFilter =
+    normalizedTaskFilter.text.trim() !== "" || normalizedTaskFilter.type !== "all";
+  const updateTaskFilter = useCallback(
+    (patch: Partial<TaskFilterSettings>) => {
+      onTaskFilterChange?.({ ...normalizedTaskFilter, ...patch });
+    },
+    [normalizedTaskFilter, onTaskFilterChange],
+  );
+  const clearTaskFilter = useCallback(
+    () => onTaskFilterChange?.({ text: "", type: "all" }),
+    [onTaskFilterChange],
+  );
+  const selectedTaskId = selectedTaskIds?.[0];
+  const hasSelection = selectedTaskId !== undefined;
+  const selectedTask = useMemo(
+    () => tasks.find((task) => task.id === selectedTaskId),
+    [selectedTaskId, tasks],
+  );
+  const selectedTasks = useMemo(() => {
+    const selected = selectedTaskIds ?? [];
+    return selected
+      .map((taskId) => tasks.find((task) => task.id === taskId))
+      .filter((task): task is GanttTask => Boolean(task));
+  }, [selectedTaskIds, tasks]);
+  const canBulkEditProgress = selectedTasks.length > 1 && !!onUpdateTask;
+  const dependencyPanelTask = useMemo(
+    () => tasks.find((task) => task.id === dependencyPanelTaskId),
+    [dependencyPanelTaskId, tasks],
+  );
+
+  const handleInsertTask = useCallback(
+    (kind: "summary" | "task", parentTaskId?: string | number) => {
+      onInsertTask?.({
+        kind,
+        parentTaskId,
+        afterTaskId: parentTaskId === undefined ? selectedTaskId : undefined,
+        name: kind === "summary" ? "Nuevo capitulo" : "Nueva tarea",
+      });
+    },
+    [onInsertTask, selectedTaskId],
+  );
+  const handleApplySmartPaste = useCallback(() => {
+    if (!smartPasteText.trim()) return;
+    onSmartPasteTasks?.(smartPasteText, { afterTaskId: selectedTaskId });
+    setSmartPasteText("");
+    setSmartPasteOpen(false);
+  }, [onSmartPasteTasks, selectedTaskId, smartPasteText]);
+  const handleApplyBulkProgress = useCallback(() => {
+    if (!canBulkEditProgress || !onUpdateTask) return;
+    const parsed = Number.parseFloat(bulkProgressValue);
+    if (!Number.isFinite(parsed)) return;
+    const clamped = Math.min(100, Math.max(0, parsed));
+    selectedTasks.forEach((task) => onUpdateTask(task.id, "progress", clamped));
+    setBulkProgressOpen(false);
+  }, [bulkProgressValue, canBulkEditProgress, onUpdateTask, selectedTasks]);
+
+  const exportText = useMemo(
+    () => tasksToExcelTsv(visibleTasks),
+    [visibleTasks],
+  );
+
+  const handleCopyExport = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(exportText);
+      setExportStatus("copied");
+    } catch {
+      setExportStatus("error");
+    }
+  }, [exportText]);
+
+  const handleDownloadExport = useCallback(() => {
+    const blob = new Blob([exportText], { type: "text/tab-separated-values;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = exportedScheduleFileName();
+    link.click();
+    URL.revokeObjectURL(url);
+    setExportStatus("downloaded");
+  }, [exportText]);
+
+  const handleRowDragStart = useCallback(
+    (taskId: string | number, event: React.DragEvent<HTMLTableRowElement>) => {
+      if (!onReorderTask) return;
+      setDraggedTaskId(taskId);
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", String(taskId));
+    },
+    [onReorderTask],
+  );
+
+  const getDropPosition = useCallback(
+    (event: React.DragEvent<HTMLTableRowElement>): "before" | "after" | "child" => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const offsetY = event.clientY - rect.top;
+      if (offsetY < rect.height / 3) return "before";
+      if (offsetY > (rect.height * 2) / 3) return "after";
+      return "child";
+    },
+    [],
+  );
+
+  const handleRowDragOver = useCallback(
+    (taskId: string | number, event: React.DragEvent<HTMLTableRowElement>) => {
+      if (!onReorderTask || draggedTaskId === undefined || draggedTaskId === taskId) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      setDropTarget({ taskId, position: getDropPosition(event) });
+    },
+    [draggedTaskId, getDropPosition, onReorderTask],
+  );
+
+  const handleRowDrop = useCallback(
+    (taskId: string | number, event: React.DragEvent<HTMLTableRowElement>) => {
+      if (!onReorderTask || draggedTaskId === undefined || draggedTaskId === taskId) return;
+      event.preventDefault();
+      const position = dropTarget?.taskId === taskId
+        ? dropTarget.position
+        : getDropPosition(event);
+      onReorderTask(draggedTaskId, taskId, position);
+      setDraggedTaskId(undefined);
+      setDropTarget(undefined);
+    },
+    [draggedTaskId, dropTarget, getDropPosition, onReorderTask],
+  );
+
+  const handleRowDragEnd = useCallback(() => {
+    setDraggedTaskId(undefined);
+    setDropTarget(undefined);
+  }, []);
 
   const budgetData = useMemo(() => {
     if (!budgetMappings && !budgetItems) return new Map<string | number, TaskBudgetData>();
@@ -427,6 +657,95 @@ export default function GanttTable({
           minWidth: tableMinWidth,
         }}
       >
+        {onTaskFilterChange && showTaskFilterControls && (
+          <>
+            <div
+              data-testid="gantt-task-filter"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                minWidth: 280,
+                maxWidth: 460,
+                flex: "1 1 320px",
+                padding: "2px 8px",
+                border: "1px solid var(--gray-200)",
+                borderRadius: "999px",
+                background: "var(--aia-alabaster)",
+              }}
+            >
+              <Search size={13} color="var(--gray-500)" />
+              <input
+                data-testid="gantt-task-filter-input"
+                type="search"
+                value={normalizedTaskFilter.text}
+                placeholder={t(effectiveLocale, "filterByName")}
+                onChange={(event) => updateTaskFilter({ text: event.target.value })}
+                style={{
+                  flex: 1,
+                  minWidth: 100,
+                  border: 0,
+                  outline: "none",
+                  background: "transparent",
+                  color: "var(--gray-900)",
+                  fontFamily: "var(--font-inter), system-ui, sans-serif",
+                  fontSize: "0.75rem",
+                }}
+              />
+              <select
+                data-testid="gantt-task-filter-type"
+                value={normalizedTaskFilter.type}
+                onChange={(event) =>
+                  updateTaskFilter({ type: event.target.value as TaskFilterType })
+                }
+                style={{
+                  border: 0,
+                  outline: "none",
+                  background: "transparent",
+                  color: "var(--gray-700)",
+                  fontFamily: "var(--font-inter), system-ui, sans-serif",
+                  fontSize: "0.75rem",
+                  cursor: "pointer",
+                }}
+              >
+                {TASK_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {t(effectiveLocale, option.labelKey)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <span
+              data-testid="gantt-task-filter-count"
+              style={{
+                fontSize: "0.6875rem",
+                color: "var(--gray-500)",
+                fontFamily: "var(--font-inter), system-ui, sans-serif",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {visibleTasks.length} / {tasks.length} {t(effectiveLocale, "tasks")}
+            </span>
+            {hasActiveTaskFilter && (
+              <button
+                type="button"
+                data-testid="gantt-task-filter-clear"
+                style={toolbarBtnStyle}
+                onClick={clearTaskFilter}
+              >
+                {effectiveLocale === "en" ? "Clear" : "Limpiar"}
+              </button>
+            )}
+            <span
+              style={{
+                width: 1,
+                height: 18,
+                background: "var(--gray-200)",
+                margin: "0 4px",
+              }}
+            />
+          </>
+        )}
         <span
           style={{
             fontSize: "0.6875rem",
@@ -447,7 +766,309 @@ export default function GanttTable({
             {effectiveLocale === "en" ? btn.label : btn.labelEs ?? btn.label}
           </button>
         ))}
+        <span
+          style={{
+            width: 1,
+            height: 18,
+            background: "var(--gray-200)",
+            margin: "0 4px",
+          }}
+        />
+        <button
+          type="button"
+          data-testid="hierarchy-move-up"
+          title={effectiveLocale === "en" ? "Move task up" : "Mover tarea arriba"}
+          aria-label={effectiveLocale === "en" ? "Move task up" : "Mover tarea arriba"}
+          disabled={!hasSelection || !onMoveTaskUp}
+          style={hierarchyBtnStyle(!hasSelection || !onMoveTaskUp)}
+          onClick={() => selectedTaskId !== undefined && onMoveTaskUp?.(selectedTaskId)}
+        >
+          <ArrowUp size={14} />
+        </button>
+        <button
+          type="button"
+          data-testid="hierarchy-move-down"
+          title={effectiveLocale === "en" ? "Move task down" : "Mover tarea abajo"}
+          aria-label={effectiveLocale === "en" ? "Move task down" : "Mover tarea abajo"}
+          disabled={!hasSelection || !onMoveTaskDown}
+          style={hierarchyBtnStyle(!hasSelection || !onMoveTaskDown)}
+          onClick={() => selectedTaskId !== undefined && onMoveTaskDown?.(selectedTaskId)}
+        >
+          <ArrowDown size={14} />
+        </button>
+        <button
+          type="button"
+          data-testid="hierarchy-outdent"
+          title={effectiveLocale === "en" ? "Outdent task" : "Bajar nivel de jerarquia"}
+          aria-label={effectiveLocale === "en" ? "Outdent task" : "Bajar nivel de jerarquia"}
+          disabled={!hasSelection || !onOutdentTask}
+          style={hierarchyBtnStyle(!hasSelection || !onOutdentTask)}
+          onClick={() => selectedTaskId !== undefined && onOutdentTask?.(selectedTaskId)}
+        >
+          <IndentDecrease size={14} />
+        </button>
+        <button
+          type="button"
+          data-testid="hierarchy-indent"
+          title={effectiveLocale === "en" ? "Indent task" : "Subir nivel de jerarquia"}
+          aria-label={effectiveLocale === "en" ? "Indent task" : "Subir nivel de jerarquia"}
+          disabled={!hasSelection || !onIndentTask}
+          style={hierarchyBtnStyle(!hasSelection || !onIndentTask)}
+          onClick={() => selectedTaskId !== undefined && onIndentTask?.(selectedTaskId)}
+        >
+          <IndentIncrease size={14} />
+        </button>
+        <span
+          style={{
+            width: 1,
+            height: 18,
+            background: "var(--gray-200)",
+            margin: "0 4px",
+          }}
+        />
+        <button
+          type="button"
+          data-testid="hierarchy-add-chapter"
+          title={effectiveLocale === "en" ? "Add chapter" : "Crear capitulo"}
+          aria-label={effectiveLocale === "en" ? "Add chapter" : "Crear capitulo"}
+          disabled={!onInsertTask}
+          style={hierarchyBtnStyle(!onInsertTask)}
+          onClick={() => handleInsertTask("summary")}
+        >
+          <FolderPlus size={14} />
+        </button>
+        <button
+          type="button"
+          data-testid="hierarchy-add-subchapter"
+          title={effectiveLocale === "en" ? "Add subchapter" : "Crear subcapitulo"}
+          aria-label={effectiveLocale === "en" ? "Add subchapter" : "Crear subcapitulo"}
+          disabled={!hasSelection || !onInsertTask}
+          style={hierarchyBtnStyle(!hasSelection || !onInsertTask)}
+          onClick={() => selectedTaskId !== undefined && handleInsertTask("summary", selectedTaskId)}
+        >
+          <CornerDownRight size={14} />
+        </button>
+        <button
+          type="button"
+          data-testid="hierarchy-add-task"
+          title={effectiveLocale === "en" ? "Add task" : "Crear tarea"}
+          aria-label={effectiveLocale === "en" ? "Add task" : "Crear tarea"}
+          disabled={!onInsertTask}
+          style={hierarchyBtnStyle(!onInsertTask)}
+          onClick={() => handleInsertTask("task")}
+        >
+          <ListPlus size={14} />
+        </button>
+        <button
+          type="button"
+          data-testid="hierarchy-apply-template"
+          title={effectiveLocale === "en" ? "Apply construction template" : "Aplicar plantilla constructiva"}
+          aria-label={effectiveLocale === "en" ? "Apply construction template" : "Aplicar plantilla constructiva"}
+          disabled={!onApplyStructureTemplate}
+          style={hierarchyBtnStyle(!onApplyStructureTemplate)}
+          onClick={() =>
+            onApplyStructureTemplate?.("obra-gris-basica", {
+              afterTaskId: selectedTaskId,
+            })
+          }
+        >
+          <Blocks size={14} />
+        </button>
+        <button
+          type="button"
+          data-testid="smart-paste-open"
+          title={effectiveLocale === "en" ? "Smart paste from Excel" : "Pegar desde Excel"}
+          aria-label={effectiveLocale === "en" ? "Smart paste from Excel" : "Pegar desde Excel"}
+          disabled={!onSmartPasteTasks}
+          style={hierarchyBtnStyle(!onSmartPasteTasks)}
+          onClick={() => setSmartPasteOpen((open) => !open)}
+        >
+          <ClipboardPaste size={14} />
+        </button>
+        <button
+          type="button"
+          data-testid="bulk-progress-open"
+          title={effectiveLocale === "en" ? "Bulk update % complete" : "Actualizar % completado en lote"}
+          aria-label={effectiveLocale === "en" ? "Bulk update % complete" : "Actualizar % completado en lote"}
+          disabled={!canBulkEditProgress}
+          style={hierarchyBtnStyle(!canBulkEditProgress)}
+          onClick={() => setBulkProgressOpen((open) => !open)}
+        >
+          <Percent size={14} />
+        </button>
+        <button
+          type="button"
+          data-testid="excel-copy-export"
+          title={effectiveLocale === "en" ? "Copy visible schedule for Excel" : "Copiar cronograma visible para Excel"}
+          aria-label={effectiveLocale === "en" ? "Copy visible schedule for Excel" : "Copiar cronograma visible para Excel"}
+          disabled={visibleTasks.length === 0}
+          style={hierarchyBtnStyle(visibleTasks.length === 0)}
+          onClick={() => void handleCopyExport()}
+        >
+          <ClipboardCopy size={14} />
+        </button>
+        <button
+          type="button"
+          data-testid="excel-download-export"
+          title={effectiveLocale === "en" ? "Download visible schedule as TSV" : "Descargar cronograma visible como TSV"}
+          aria-label={effectiveLocale === "en" ? "Download visible schedule as TSV" : "Descargar cronograma visible como TSV"}
+          disabled={visibleTasks.length === 0}
+          style={hierarchyBtnStyle(visibleTasks.length === 0)}
+          onClick={handleDownloadExport}
+        >
+          <Download size={14} />
+        </button>
+        {exportStatus !== "idle" && (
+          <span
+            data-testid="excel-export-status"
+            style={{
+              fontSize: "0.6875rem",
+              color: exportStatus === "error" ? "var(--aia-alert-main)" : "var(--color-text-secondary)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {exportStatus === "copied"
+              ? effectiveLocale === "en" ? "Copied" : "Copiado"
+              : exportStatus === "downloaded"
+                ? effectiveLocale === "en" ? "Downloaded" : "Descargado"
+                : effectiveLocale === "en" ? "Clipboard unavailable" : "Portapapeles no disponible"}
+          </span>
+        )}
+        <span
+          style={{
+            width: 1,
+            height: 18,
+            background: "var(--gray-200)",
+            margin: "0 4px",
+          }}
+        />
+        <button
+          type="button"
+          data-testid="dependency-panel-open"
+          title={effectiveLocale === "en" ? "Open dependency panel" : "Abrir panel de dependencias"}
+          aria-label={effectiveLocale === "en" ? "Open dependency panel" : "Abrir panel de dependencias"}
+          disabled={!selectedTask || !onUpdateTask}
+          style={hierarchyBtnStyle(!selectedTask || !onUpdateTask)}
+          onClick={() => selectedTask && setDependencyPanelTaskId(selectedTask.id)}
+        >
+          <Network size={14} />
+        </button>
       </div>
+
+      {smartPasteOpen && (
+        <div
+          data-testid="smart-paste-panel"
+          className="apple-section m-2 p-3"
+          style={{ minWidth: tableMinWidth - 16 }}
+        >
+          <label className="block text-xs font-semibold text-[var(--color-text-strong)]">
+            {effectiveLocale === "en"
+              ? "Paste tabular tasks from Excel"
+              : "Pega tareas tabuladas desde Excel"}
+            <textarea
+              data-testid="smart-paste-textarea"
+              value={smartPasteText}
+              onChange={(event) => setSmartPasteText(event.target.value)}
+              placeholder={
+                effectiveLocale === "en"
+                  ? "Activity\tStart\tDuration\t% Complete\tLevel"
+                  : "Actividad\tInicio\tDuración\t% completado\tNivel"
+              }
+              className="mt-2 h-20 w-full rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] p-2 text-xs font-normal text-[var(--color-text-strong)] outline-none"
+            />
+          </label>
+          <div className="mt-2 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              data-testid="smart-paste-cancel"
+              className="apple-button-secondary rounded-lg px-3 py-1.5 text-xs font-semibold"
+              onClick={() => {
+                setSmartPasteText("");
+                setSmartPasteOpen(false);
+              }}
+            >
+              {effectiveLocale === "en" ? "Cancel" : "Cancelar"}
+            </button>
+            <button
+              type="button"
+              data-testid="smart-paste-apply"
+              className="apple-button-primary rounded-lg px-3 py-1.5 text-xs font-semibold"
+              onClick={handleApplySmartPaste}
+            >
+              {effectiveLocale === "en" ? "Paste tasks" : "Pegar tareas"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {bulkProgressOpen && (
+        <div
+          data-testid="bulk-progress-panel"
+          className="apple-section m-2 p-3"
+          style={{ minWidth: tableMinWidth - 16 }}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-[var(--color-text-strong)]">
+                {effectiveLocale === "en"
+                  ? `Apply % complete to ${selectedTasks.length} selected tasks`
+                  : `Aplicar % completado a ${selectedTasks.length} tareas seleccionadas`}
+              </p>
+              <p className="mt-1 text-[0.6875rem] text-[var(--color-text-secondary)]">
+                {selectedTasks.slice(0, 4).map((task) => task.name).join(" · ")}
+                {selectedTasks.length > 4 ? " · ..." : ""}
+              </p>
+            </div>
+            <label className="flex items-center gap-2 text-xs font-semibold text-[var(--color-text-strong)]">
+              %
+              <input
+                data-testid="bulk-progress-input"
+                type="number"
+                min={0}
+                max={100}
+                step={0.01}
+                value={bulkProgressValue}
+                onChange={(event) => setBulkProgressValue(event.target.value)}
+                className="w-24 rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] px-2 py-1 text-right text-xs font-normal text-[var(--color-text-strong)] outline-none"
+              />
+            </label>
+          </div>
+          <div className="mt-3 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              data-testid="bulk-progress-cancel"
+              className="apple-button-secondary rounded-lg px-3 py-1.5 text-xs font-semibold"
+              onClick={() => setBulkProgressOpen(false)}
+            >
+              {effectiveLocale === "en" ? "Cancel" : "Cancelar"}
+            </button>
+            <button
+              type="button"
+              data-testid="bulk-progress-apply"
+              className="apple-button-primary rounded-lg px-3 py-1.5 text-xs font-semibold"
+              onClick={handleApplyBulkProgress}
+            >
+              {effectiveLocale === "en" ? "Apply" : "Aplicar"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {dependencyPanelTask && onUpdateTask && (
+        <DependencyPanel
+          key={dependencyPanelTask.id}
+          task={dependencyPanelTask}
+          tasks={tasks}
+          locale={effectiveLocale}
+          onClose={() => setDependencyPanelTaskId(undefined)}
+          onCommitPredecessors={(dependencies) =>
+            onUpdateTask(dependencyPanelTask.id, "dependencies", dependencies)
+          }
+          onCommitSuccessors={(dependencies) =>
+            onUpdateTask(dependencyPanelTask.id, "successors", dependencies)
+          }
+        />
+      )}
 
       <table
         style={{
@@ -493,6 +1114,14 @@ export default function GanttTable({
                 budgetedCost={taskBudget?.budgetedCost}
                 actualCost={taskBudget?.actualCost}
                 variance={taskBudget?.variance}
+                allTasks={tasks}
+                draggable={!!onReorderTask}
+                isDragging={draggedTaskId === task.id}
+                dropPosition={dropTarget?.taskId === task.id ? dropTarget.position : undefined}
+                onDragStart={(event) => handleRowDragStart(task.id, event)}
+                onDragOver={(event) => handleRowDragOver(task.id, event)}
+                onDrop={(event) => handleRowDrop(task.id, event)}
+                onDragEnd={handleRowDragEnd}
               />
             );
           })}

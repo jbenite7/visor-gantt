@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import type { GanttTask, GanttDependency } from "@/components/gantt/types";
+import type { PlanningAuditEvent, PlanningAuditEventKind } from "@/types/audit";
 import type { ProjectCalendar } from "@/types/calendar";
 import { useHistory } from "@/hooks/useHistory";
 import type { Command } from "@/lib/state/history";
@@ -24,6 +25,22 @@ import {
   rewriteSuccessors,
 } from "@/lib/scheduling/scheduleEngine";
 import type { Bottleneck, ScheduleIssue } from "@/lib/scheduling/types";
+import {
+  indentTask as indentTaskStructure,
+  insertTask as insertTaskStructure,
+  type InsertTaskOptions,
+  moveTaskDown as moveTaskDownStructure,
+  moveTaskUp as moveTaskUpStructure,
+  normalizeTaskStructure,
+  outdentTask as outdentTaskStructure,
+  reorderTask as reorderTaskStructure,
+  type ReorderTaskPosition,
+} from "@/lib/gantt/taskStructure";
+import { insertTasksFromSmartPaste } from "@/lib/gantt/smartPaste";
+import {
+  applyStructureTemplate as applyStructureTemplateModel,
+  type StructureTemplateId,
+} from "@/lib/gantt/structureTemplates";
 
 /* ── Helper: shift a Date by N days (immutable) ── */
 function shiftDate(date: Date, days: number): Date {
@@ -77,10 +94,66 @@ function stampGanttEdit(task: GanttTask): GanttTask {
   };
 }
 
+const MAX_PLANNING_AUDIT_EVENTS = 100;
+
+function auditEventId(): string {
+  return `audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function inferAuditKind(description: string): PlanningAuditEventKind {
+  if (description.startsWith("Create") || description.includes("dependenc")) {
+    return "dependencyEdit";
+  }
+  if (
+    description.startsWith("Indent") ||
+    description.startsWith("Outdent") ||
+    description.startsWith("Move task") ||
+    description.startsWith("Reorder") ||
+    description.startsWith("Insert") ||
+    description.startsWith("Apply structure template") ||
+    description.startsWith("Normalize")
+  ) {
+    return "structureEdit";
+  }
+  if (description.startsWith("Update project calendar")) {
+    return "calendarEdit";
+  }
+  if (description.startsWith("Apply matrix")) {
+    return "matrixEdit";
+  }
+  return "taskEdit";
+}
+
+function changedTaskIds(previous: GanttTask[], next: GanttTask[]): (string | number)[] {
+  const previousById = new Map(previous.map((task) => [task.id, task]));
+  const nextIds = new Set(next.map((task) => task.id));
+  const changed = new Set<string | number>();
+
+  next.forEach((task) => {
+    const previousTask = previousById.get(task.id);
+    if (!previousTask || JSON.stringify(previousTask) !== JSON.stringify(task)) {
+      changed.add(task.id);
+    }
+  });
+  previous.forEach((task) => {
+    if (!nextIds.has(task.id)) changed.add(task.id);
+  });
+
+  return [...changed];
+}
+
+function appendAuditEvent(
+  events: PlanningAuditEvent[],
+  event: PlanningAuditEvent,
+): PlanningAuditEvent[] {
+  return [...events, event].slice(-MAX_PLANNING_AUDIT_EVENTS);
+}
+
 /* ───────────────────── Context ───────────────────── */
 
 export interface ProjectContextValue {
   tasks: GanttTask[];
+  planningAuditEvents: PlanningAuditEvent[];
   setTasks: (updater: (prev: GanttTask[]) => GanttTask[]) => void;
   selectedTaskIds: (string | number)[];
   setSelectedTaskIds: (ids: (string | number)[]) => void;
@@ -104,6 +177,25 @@ export interface ProjectContextValue {
     toId: string | number,
     type: "FS" | "SS" | "FF" | "SF",
   ) => void;
+  indentTask: (taskId: string | number) => void;
+  outdentTask: (taskId: string | number) => void;
+  moveTaskUp: (taskId: string | number) => void;
+  moveTaskDown: (taskId: string | number) => void;
+  reorderTask: (
+    taskId: string | number,
+    targetTaskId: string | number,
+    position: ReorderTaskPosition,
+  ) => void;
+  insertStructuredTask: (options?: InsertTaskOptions) => void;
+  applyStructureTemplate: (
+    templateId: StructureTemplateId,
+    options?: { afterTaskId?: string | number; start?: Date },
+  ) => void;
+  smartPasteTasks: (
+    rawText: string,
+    options?: { afterTaskId?: string | number },
+  ) => void;
+  normalizeStructure: () => void;
   // Undo / Redo
   undo: () => void;
   redo: () => void;
@@ -118,12 +210,14 @@ const ProjectContext = createContext<ProjectContextValue | null>(null);
 interface ProjectProviderProps {
   initialTasks: GanttTask[];
   initialCalendar?: ProjectCalendar;
+  initialPlanningAuditEvents?: PlanningAuditEvent[];
   children: ReactNode;
 }
 
 export function ProjectProvider({
   initialTasks,
   initialCalendar,
+  initialPlanningAuditEvents = [],
   children,
 }: ProjectProviderProps) {
   const normalizedInitialCalendar = useMemo(
@@ -138,6 +232,8 @@ export function ProjectProvider({
     [initialTasks, normalizedInitialCalendar],
   );
   const [tasks, setTasksState] = useState<GanttTask[]>(initialSchedule.tasks);
+  const [planningAuditEvents, setPlanningAuditEvents] =
+    useState<PlanningAuditEvent[]>(initialPlanningAuditEvents);
   const [calendar, setCalendarState] = useState<ProjectCalendar>(
     normalizedInitialCalendar,
   );
@@ -159,6 +255,15 @@ export function ProjectProvider({
       setScheduleIssues(result.issues);
       if (result.issues.length === 0) {
         setTasksState(result.tasks);
+        setPlanningAuditEvents((prev) =>
+          appendAuditEvent(prev, {
+            id: auditEventId(),
+            kind: "matrixEdit",
+            summary: "Apply matrix/task update",
+            taskIds: changedTaskIds(tasks, result.tasks),
+            createdAt: new Date().toISOString(),
+          }),
+        );
       }
     },
     [calendar, tasks],
@@ -178,10 +283,18 @@ export function ProjectProvider({
       }
 
       const next = result.tasks;
+      const auditEvent: PlanningAuditEvent = {
+        id: auditEventId(),
+        kind: inferAuditKind(description),
+        summary: description,
+        taskIds: changedTaskIds(previous, next),
+        createdAt: new Date().toISOString(),
+      };
       const command: Command = {
         description,
         execute: () => {
           setTasksState(next);
+          setPlanningAuditEvents((prev) => appendAuditEvent(prev, auditEvent));
           setScheduleIssues([]);
           setCalendarIssues([]);
         },
@@ -220,6 +333,15 @@ export function ProjectProvider({
         execute: () => {
           setCalendarState(normalized);
           setTasksState(result.tasks);
+          setPlanningAuditEvents((prev) =>
+            appendAuditEvent(prev, {
+              id: auditEventId(),
+              kind: "calendarEdit",
+              summary: "Update project calendar",
+              taskIds: changedTaskIds(previousTasks, result.tasks),
+              createdAt: new Date().toISOString(),
+            }),
+          );
           setCalendarIssues([]);
           setScheduleIssues([]);
         },
@@ -357,6 +479,91 @@ export function ProjectProvider({
     [commitTaskChange, tasks],
   );
 
+  const indentTask = useCallback(
+    (taskId: string | number) => {
+      commitTaskChange(`Indent task ${taskId}`, (prev) =>
+        indentTaskStructure(prev, taskId),
+      );
+    },
+    [commitTaskChange],
+  );
+
+  const outdentTask = useCallback(
+    (taskId: string | number) => {
+      commitTaskChange(`Outdent task ${taskId}`, (prev) =>
+        outdentTaskStructure(prev, taskId),
+      );
+    },
+    [commitTaskChange],
+  );
+
+  const moveTaskUp = useCallback(
+    (taskId: string | number) => {
+      commitTaskChange(`Move task ${taskId} up`, (prev) =>
+        moveTaskUpStructure(prev, taskId),
+      );
+    },
+    [commitTaskChange],
+  );
+
+  const moveTaskDown = useCallback(
+    (taskId: string | number) => {
+      commitTaskChange(`Move task ${taskId} down`, (prev) =>
+        moveTaskDownStructure(prev, taskId),
+      );
+    },
+    [commitTaskChange],
+  );
+
+  const reorderTask = useCallback(
+    (
+      taskId: string | number,
+      targetTaskId: string | number,
+      position: ReorderTaskPosition,
+    ) => {
+      commitTaskChange(`Reorder task ${taskId} ${position} ${targetTaskId}`, (prev) =>
+        reorderTaskStructure(prev, taskId, targetTaskId, position),
+      );
+    },
+    [commitTaskChange],
+  );
+
+  const insertStructuredTask = useCallback(
+    (options: InsertTaskOptions = {}) => {
+      commitTaskChange("Insert structured task", (prev) =>
+        insertTaskStructure(normalizeTaskStructure(prev), options),
+      );
+    },
+    [commitTaskChange],
+  );
+
+  const applyStructureTemplate = useCallback(
+    (
+      templateId: StructureTemplateId,
+      options: { afterTaskId?: string | number; start?: Date } = {},
+    ) => {
+      commitTaskChange(`Apply structure template ${templateId}`, (prev) =>
+        applyStructureTemplateModel(normalizeTaskStructure(prev), templateId, options),
+      );
+    },
+    [commitTaskChange],
+  );
+
+  const smartPasteTasks = useCallback(
+    (rawText: string, options: { afterTaskId?: string | number } = {}) => {
+      commitTaskChange("Smart paste tasks from Excel", (prev) =>
+        insertTasksFromSmartPaste(normalizeTaskStructure(prev), rawText, options),
+      );
+    },
+    [commitTaskChange],
+  );
+
+  const normalizeStructure = useCallback(() => {
+    commitTaskChange("Normalize task structure", (prev) =>
+      normalizeTaskStructure(prev),
+    );
+  }, [commitTaskChange]);
+
   /* ── Keyboard shortcuts: Ctrl+Z / Ctrl+Shift+Z ── */
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -391,6 +598,7 @@ export function ProjectProvider({
   const value: ProjectContextValue = useMemo(
     () => ({
       tasks,
+      planningAuditEvents,
       setTasks,
       selectedTaskIds,
       setSelectedTaskIds,
@@ -405,6 +613,15 @@ export function ProjectProvider({
       moveTask,
       resizeTask,
       createDependency,
+      indentTask,
+      outdentTask,
+      moveTaskUp,
+      moveTaskDown,
+      reorderTask,
+      insertStructuredTask,
+      applyStructureTemplate,
+      smartPasteTasks,
+      normalizeStructure,
       undo: history.undo,
       redo: history.redo,
       canUndo: history.canUndo,
@@ -412,6 +629,7 @@ export function ProjectProvider({
     }),
     [
       tasks,
+      planningAuditEvents,
       setTasks,
       selectedTaskIds,
       scale,
@@ -424,6 +642,15 @@ export function ProjectProvider({
       moveTask,
       resizeTask,
       createDependency,
+      indentTask,
+      outdentTask,
+      moveTaskUp,
+      moveTaskDown,
+      reorderTask,
+      insertStructuredTask,
+      applyStructureTemplate,
+      smartPasteTasks,
+      normalizeStructure,
       history,
     ],
   );

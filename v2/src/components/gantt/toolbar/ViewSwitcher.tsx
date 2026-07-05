@@ -11,11 +11,13 @@ import {
   Settings,
   AlertTriangle,
   Grid3X3,
+  LayoutDashboard,
 } from "lucide-react";
 import type { UILocale } from "@/types/ui";
 
 export type ViewType =
   | "gantt"
+  | "executive"
   | "tracking"
   | "taskSheet"
   | "network"
@@ -35,6 +37,7 @@ interface ViewTab {
 
 const VIEW_TABS: ViewTab[] = [
   { id: "gantt", labelEs: "Gantt", labelEn: "Gantt", icon: BarChart3 },
+  { id: "executive", labelEs: "Ejecutivo", labelEn: "Executive", icon: LayoutDashboard },
   { id: "tracking", labelEs: "Seguimiento", labelEn: "Tracking", icon: GitCompare },
   { id: "taskSheet", labelEs: "Hoja Tareas", labelEn: "Task Sheet", icon: Table },
   { id: "network", labelEs: "Diagrama Red", labelEn: "Network", icon: Network },

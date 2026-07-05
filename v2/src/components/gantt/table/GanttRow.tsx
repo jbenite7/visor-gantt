@@ -4,11 +4,13 @@ import type { GanttTask, GanttDependency } from "@/components/gantt/types";
 import { GANTT_ROW_HEIGHT } from "../layout";
 import WBSExpand from "./WBSExpand";
 import EditableCell from "./EditableCell";
+import DependencyPopover from "@/components/gantt/dependencies/DependencyPopover";
 import { createProjectDate, formatProjectDate, toDateInputValue } from "@/lib/date/projectDate";
 import type { ColumnConfig } from "./ColumnSelector";
 import type { UILocale } from "@/types/ui";
 import { t } from "@/lib/i18n";
 import { getMppRecordValue } from "@/lib/mpp/recordValues";
+import { dependencyToken, findTaskByRowId, taskRowId } from "@/lib/gantt/taskIds";
 
 interface GanttRowProps {
   task: GanttTask;
@@ -28,6 +30,14 @@ interface GanttRowProps {
   budgetedCost?: number;
   actualCost?: number;
   variance?: number;
+  allTasks?: GanttTask[];
+  draggable?: boolean;
+  isDragging?: boolean;
+  dropPosition?: "before" | "after" | "child";
+  onDragStart?: (event: React.DragEvent<HTMLTableRowElement>) => void;
+  onDragOver?: (event: React.DragEvent<HTMLTableRowElement>) => void;
+  onDrop?: (event: React.DragEvent<HTMLTableRowElement>) => void;
+  onDragEnd?: (event: React.DragEvent<HTMLTableRowElement>) => void;
 }
 
 /** Format a Date to DD/MM/YYYY for Colombian locale. */
@@ -46,13 +56,10 @@ function fromISODate(iso: string): Date {
 }
 
 /** Format dependencies array into compact string like "1FS,2SS+5d". */
-function formatDependencies(dependencies: GanttDependency[]): string {
+function formatDependencies(dependencies: GanttDependency[], tasks: GanttTask[]): string {
   if (dependencies.length === 0) return "";
   return dependencies
-    .map((dep) => {
-      const lag = dep.lag ? `${dep.lag > 0 ? "+" : ""}${dep.lag}d` : "";
-      return `${dep.from}${dep.type}${lag}`;
-    })
+    .map((dep) => dependencyToken(tasks.find((candidate) => candidate.id === dep.from), dep.from, dep.type, dep.lag))
     .join(", ");
 }
 
@@ -70,7 +77,8 @@ function formatUniqueId(task: GanttTask): string | number {
  */
 function parsePredecessors(
   raw: string,
-  targetId: string | number
+  targetId: string | number,
+  tasks: GanttTask[],
 ): GanttDependency[] {
   if (!raw.trim()) return [];
 
@@ -83,7 +91,8 @@ function parsePredecessors(
     );
     if (!match) continue;
 
-    const from = isNaN(Number(match[1])) ? match[1] : Number(match[1]);
+    const rawFrom = isNaN(Number(match[1])) ? match[1] : Number(match[1]);
+    const from = findTaskByRowId(tasks, rawFrom)?.id ?? rawFrom;
     const type = match[2].toUpperCase() as GanttDependency["type"];
     const lag = match[3] ? parseInt(match[3], 10) : undefined;
 
@@ -196,6 +205,14 @@ export default function GanttRow({
   budgetedCost,
   actualCost,
   variance,
+  allTasks = [],
+  draggable = false,
+  isDragging = false,
+  dropPosition,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: GanttRowProps) {
   // ── Row background resolution ──
   // Priority: selected > summary > stripe
@@ -213,7 +230,11 @@ export default function GanttRow({
     borderLeft: isSelected
       ? "3px solid var(--aia-proj-main)"
       : "3px solid transparent",
-    cursor: "pointer",
+    borderTop: dropPosition === "before" ? "2px solid var(--aia-proj-main)" : undefined,
+    borderBottom: dropPosition === "after" ? "2px solid var(--aia-proj-main)" : undefined,
+    boxShadow: dropPosition === "child" ? "inset 0 0 0 2px var(--aia-proj-main)" : undefined,
+    cursor: draggable ? "grab" : "pointer",
+    opacity: isDragging ? 0.55 : 1,
     transition: "background 120ms ease",
     height: `${GANTT_ROW_HEIGHT}px`,
   };
@@ -250,7 +271,7 @@ export default function GanttRow({
   const renderCell = (column: ColumnConfig) => {
     switch (column.key) {
       case "id":
-        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>{rowNumber}</td>;
+        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>{taskRowId(task, rowNumber)}</td>;
       case "uniqueId":
         return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>{formatUniqueId(task)}</td>;
       case "wbs":
@@ -347,17 +368,27 @@ export default function GanttRow({
       case "predecessors":
         return <td key={column.key} style={cellStyle}>
         {canEdit ? (
-          <EditableCell
-            value={formatDependencies(task.dependencies)}
-            type="text"
-            align="left"
-            onCommit={(val) => {
-              const deps = parsePredecessors(val, task.id);
-              onUpdateTask!(task.id, "dependencies", deps);
-            }}
-          />
+          <div style={{ display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <EditableCell
+                value={formatDependencies(task.dependencies, allTasks)}
+                type="text"
+                align="left"
+                onCommit={(val) => {
+                  const deps = parsePredecessors(val, task.id, allTasks);
+                  onUpdateTask!(task.id, "dependencies", deps);
+                }}
+              />
+            </div>
+            <DependencyPopover
+              task={task}
+              tasks={allTasks}
+              locale={locale}
+              onCommit={(deps) => onUpdateTask!(task.id, "dependencies", deps)}
+            />
+          </div>
         ) : (
-          <>{formatDependencies(task.dependencies)}</>
+          <>{formatDependencies(task.dependencies, allTasks)}</>
         )}
       </td>;
       case "progress":
@@ -438,8 +469,14 @@ export default function GanttRow({
     <tr
       data-testid="gantt-row"
       data-task-id={task.id}
+      draggable={draggable}
+      aria-grabbed={isDragging || undefined}
       style={rowStyle}
       onClick={(e) => onSelect?.(task.id, e.ctrlKey || e.metaKey)}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
       onMouseEnter={(e) => {
         if (!isSelected) {
           (e.currentTarget as HTMLElement).style.background =

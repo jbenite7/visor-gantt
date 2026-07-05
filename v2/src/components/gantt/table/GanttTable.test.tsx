@@ -3,7 +3,7 @@
  */
 
 import "@testing-library/jest-dom";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, within, createEvent, waitFor } from "@testing-library/react";
 import GanttTable from "./GanttTable";
 import type { GanttTask } from "@/components/gantt/types";
 import type { MppCustomFieldDefinition, MppTaskColumn, TaskColumnSettings } from "@/types/mppColumns";
@@ -26,6 +26,18 @@ function makeTask(overrides: Partial<GanttTask> & { id: string | number }): Gant
     dependencies: [],
     ...overrides,
   };
+}
+
+function fireDragEvent(
+  element: HTMLElement,
+  type: "dragStart" | "dragOver" | "drop",
+  dataTransfer: Record<string, unknown>,
+  clientY = 0,
+) {
+  const event = createEvent[type](element);
+  Object.defineProperty(event, "dataTransfer", { value: dataTransfer });
+  Object.defineProperty(event, "clientY", { value: clientY });
+  fireEvent(element, event);
 }
 
 const summaryTask: GanttTask = makeTask({
@@ -61,6 +73,38 @@ describe("GanttTable", () => {
 
     const rows = screen.getAllByTestId("gantt-row");
     expect(rows).toHaveLength(3);
+  });
+
+  test("filters visible rows from the Gantt toolbar", () => {
+    const onTaskFilterChange = jest.fn();
+
+    const { rerender } = render(
+      <GanttTable
+        tasks={[summaryTask, milestoneTask, regularTask]}
+        taskFilter={{ text: "", type: "all" }}
+        onTaskFilterChange={onTaskFilterChange}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId("gantt-task-filter-input"), {
+      target: { value: "design" },
+    });
+
+    expect(onTaskFilterChange).toHaveBeenCalledWith({ text: "design", type: "all" });
+
+    rerender(
+      <GanttTable
+        tasks={[summaryTask, milestoneTask, regularTask]}
+        taskFilter={{ text: "design", type: "all" }}
+        onTaskFilterChange={onTaskFilterChange}
+      />,
+    );
+
+    expect(screen.getAllByTestId("gantt-row")).toHaveLength(1);
+    expect(screen.getByTestId("gantt-task-filter-count")).toHaveTextContent("1 / 3");
+
+    fireEvent.click(screen.getByTestId("gantt-task-filter-clear"));
+    expect(onTaskFilterChange).toHaveBeenCalledWith({ text: "", type: "all" });
   });
 
   test("applies WBS indentation for outline level 2", () => {
@@ -127,9 +171,57 @@ describe("GanttTable", () => {
 
     const row = screen.getAllByTestId("gantt-row")[0];
     const cells = row.querySelectorAll("td");
-    expect(cells[0]).toHaveTextContent("1");
+    expect(cells[0]).toHaveTextContent("7");
     expect(cells[1]).toHaveTextContent("107");
     expect(cells[3]).toHaveTextContent("Design");
+  });
+
+  test("renders predecessors with row IDs when internal IDs are Unique IDs", () => {
+    const predecessor = makeTask({
+      id: 101,
+      name: "Predecessor",
+      mppFields: { ID: 1, UID: 101 },
+    });
+    const successor = makeTask({
+      id: 205,
+      name: "Successor",
+      dependencies: [{ from: 101, to: 205, type: "FS" }],
+      mppFields: { ID: 2, UID: 205 },
+    });
+
+    render(<GanttTable tasks={[predecessor, successor]} />);
+
+    const successorCells = screen.getAllByTestId("gantt-row")[1].querySelectorAll("td");
+    expect(successorCells[0]).toHaveTextContent("2");
+    expect(successorCells[1]).toHaveTextContent("205");
+    expect(successorCells[8]).toHaveTextContent("1FS");
+  });
+
+  test("commits inline predecessor edits by resolving row ID to internal task ID", () => {
+    const onUpdateTask = jest.fn();
+    const predecessor = makeTask({
+      id: 101,
+      name: "Predecessor",
+      mppFields: { ID: 1, UID: 101 },
+    });
+    const successor = makeTask({
+      id: 205,
+      name: "Successor",
+      dependencies: [],
+      mppFields: { ID: 2, UID: 205 },
+    });
+
+    render(<GanttTable tasks={[predecessor, successor]} onUpdateTask={onUpdateTask} />);
+
+    const predecessorCell = screen.getAllByTestId("gantt-row")[1].querySelectorAll("td")[8];
+    fireEvent.doubleClick(within(predecessorCell).getByTestId("editable-cell"));
+    const input = within(predecessorCell).getByTestId("editable-cell");
+    fireEvent.change(input, { target: { value: "1SS-2d" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onUpdateTask).toHaveBeenCalledWith(205, "dependencies", [
+      { from: 101, to: 205, type: "SS", lag: -2 },
+    ]);
   });
 
   test("renders percent complete with two decimals", () => {
@@ -334,5 +426,383 @@ describe("GanttTable", () => {
     fireEvent.keyDown(input, { key: "Enter" });
 
     expect(onUpdateTask).toHaveBeenCalledWith("t1", "name", "Edited design");
+  });
+
+  test("calls hierarchy action handlers from the table toolbar", () => {
+    const onIndentTask = jest.fn();
+    const onOutdentTask = jest.fn();
+    const onMoveTaskUp = jest.fn();
+    const onMoveTaskDown = jest.fn();
+    const onInsertTask = jest.fn();
+
+    render(
+      <GanttTable
+        tasks={[regularTask]}
+        selectedTaskIds={[regularTask.id]}
+        onIndentTask={onIndentTask}
+        onOutdentTask={onOutdentTask}
+        onMoveTaskUp={onMoveTaskUp}
+        onMoveTaskDown={onMoveTaskDown}
+        onInsertTask={onInsertTask}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("hierarchy-move-up"));
+    fireEvent.click(screen.getByTestId("hierarchy-move-down"));
+    fireEvent.click(screen.getByTestId("hierarchy-outdent"));
+    fireEvent.click(screen.getByTestId("hierarchy-indent"));
+    fireEvent.click(screen.getByTestId("hierarchy-add-chapter"));
+    fireEvent.click(screen.getByTestId("hierarchy-add-subchapter"));
+    fireEvent.click(screen.getByTestId("hierarchy-add-task"));
+
+    expect(onMoveTaskUp).toHaveBeenCalledWith(regularTask.id);
+    expect(onMoveTaskDown).toHaveBeenCalledWith(regularTask.id);
+    expect(onOutdentTask).toHaveBeenCalledWith(regularTask.id);
+    expect(onIndentTask).toHaveBeenCalledWith(regularTask.id);
+    expect(onInsertTask).toHaveBeenCalledWith({
+      kind: "summary",
+      afterTaskId: regularTask.id,
+      parentTaskId: undefined,
+      name: "Nuevo capitulo",
+    });
+    expect(onInsertTask).toHaveBeenCalledWith({
+      kind: "summary",
+      parentTaskId: regularTask.id,
+      afterTaskId: undefined,
+      name: "Nuevo capitulo",
+    });
+    expect(onInsertTask).toHaveBeenCalledWith({
+      kind: "task",
+      afterTaskId: regularTask.id,
+      parentTaskId: undefined,
+      name: "Nueva tarea",
+    });
+  });
+
+  test("calls smart paste handler with tabular clipboard text", () => {
+    const onSmartPasteTasks = jest.fn();
+
+    render(
+      <GanttTable
+        tasks={[regularTask]}
+        selectedTaskIds={[regularTask.id]}
+        onSmartPasteTasks={onSmartPasteTasks}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("smart-paste-open"));
+    fireEvent.change(screen.getByTestId("smart-paste-textarea"), {
+      target: {
+        value: "Actividad\tInicio\tDuración\nFormaleta\t2026-02-01\t3",
+      },
+    });
+    fireEvent.click(screen.getByTestId("smart-paste-apply"));
+
+    expect(onSmartPasteTasks).toHaveBeenCalledWith(
+      "Actividad\tInicio\tDuración\nFormaleta\t2026-02-01\t3",
+      { afterTaskId: regularTask.id },
+    );
+  });
+
+  test("applies percent complete to multiple selected tasks after confirmation", () => {
+    const onUpdateTask = jest.fn();
+    const firstTask = makeTask({ id: 1, name: "Excavacion" });
+    const secondTask = makeTask({ id: 2, name: "Cimentacion" });
+
+    render(
+      <GanttTable
+        tasks={[firstTask, secondTask]}
+        selectedTaskIds={[1, 2]}
+        onUpdateTask={onUpdateTask}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("bulk-progress-open"));
+    expect(screen.getByTestId("bulk-progress-panel")).toHaveTextContent(
+      "Aplicar % completado a 2 tareas seleccionadas",
+    );
+
+    fireEvent.change(screen.getByTestId("bulk-progress-input"), {
+      target: { value: "66.666" },
+    });
+    fireEvent.click(screen.getByTestId("bulk-progress-apply"));
+
+    expect(onUpdateTask).toHaveBeenCalledWith(1, "progress", 66.666);
+    expect(onUpdateTask).toHaveBeenCalledWith(2, "progress", 66.666);
+    expect(screen.queryByTestId("bulk-progress-panel")).not.toBeInTheDocument();
+  });
+
+  test("copies the filtered visible schedule as Excel TSV", async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({ id: 1, name: "Design", progress: 33.3333, wbs: "1" }),
+          makeTask({ id: 2, name: "Build", progress: 10, wbs: "2" }),
+        ]}
+        taskFilter={{ text: "Design", type: "all" }}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("excel-copy-export"));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    const exported = writeText.mock.calls[0][0] as string;
+    expect(exported).toContain("Actividad\tInicio\tFin\tDuración\t% completado");
+    expect(exported).toContain("Design\t2026-01-05\t2026-01-10\t5\t33.33");
+    expect(exported).not.toContain("Build");
+    await waitFor(() =>
+      expect(screen.getByTestId("excel-export-status")).toHaveTextContent("Copiado"),
+    );
+  });
+
+  test("calls row reorder handler when a row is dragged onto another row", () => {
+    const onReorderTask = jest.fn();
+    const first = makeTask({ id: "t1", name: "Design" });
+    const second = makeTask({ id: "t2", name: "Build" });
+
+    render(
+      <GanttTable
+        tasks={[first, second]}
+        onReorderTask={onReorderTask}
+      />,
+    );
+
+    const rows = screen.getAllByTestId("gantt-row");
+    rows[1].getBoundingClientRect = () => ({
+      top: -40,
+      bottom: 0,
+      left: 0,
+      right: 240,
+      width: 240,
+      height: 40,
+      x: 0,
+      y: -40,
+      toJSON: () => undefined,
+    });
+    const dataTransfer = {
+      effectAllowed: "",
+      dropEffect: "",
+      setData: jest.fn(),
+      getData: jest.fn(),
+    };
+
+    fireDragEvent(rows[0], "dragStart", dataTransfer);
+    fireDragEvent(rows[1], "dragOver", dataTransfer, 32);
+    fireDragEvent(rows[1], "drop", dataTransfer, 32);
+
+    expect(onReorderTask).toHaveBeenCalledWith("t1", "t2", "after");
+  });
+
+  test("supports dropping a row as a child of the target row", () => {
+    const onReorderTask = jest.fn();
+    const first = makeTask({ id: "t1", name: "Design" });
+    const second = makeTask({ id: "t2", name: "Build" });
+
+    render(
+      <GanttTable
+        tasks={[first, second]}
+        onReorderTask={onReorderTask}
+      />,
+    );
+
+    const rows = screen.getAllByTestId("gantt-row");
+    rows[1].getBoundingClientRect = () => ({
+      top: -30,
+      bottom: 30,
+      left: 0,
+      right: 240,
+      width: 240,
+      height: 60,
+      x: 0,
+      y: -30,
+      toJSON: () => undefined,
+    });
+    const dataTransfer = {
+      effectAllowed: "",
+      dropEffect: "",
+      setData: jest.fn(),
+      getData: jest.fn(),
+    };
+
+    fireDragEvent(rows[0], "dragStart", dataTransfer);
+    fireDragEvent(rows[1], "dragOver", dataTransfer, 0);
+    fireDragEvent(rows[1], "drop", dataTransfer, 0);
+
+    expect(onReorderTask).toHaveBeenCalledWith("t1", "t2", "child");
+  });
+
+  test("commits predecessors from the visual dependency popover", () => {
+    const onUpdateTask = jest.fn();
+    const predecessor = makeTask({ id: 1, name: "Predecessor", wbs: "1" });
+    const successor = makeTask({ id: 2, name: "Successor", wbs: "2" });
+
+    render(
+      <GanttTable
+        tasks={[predecessor, successor]}
+        onUpdateTask={onUpdateTask}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("dependency-popover-open-2"));
+    fireEvent.change(screen.getByTestId("dependency-search"), {
+      target: { value: "Predecessor" },
+    });
+    fireEvent.change(screen.getByTestId("dependency-type-select"), {
+      target: { value: "SS" },
+    });
+    fireEvent.change(screen.getByTestId("dependency-lag-input"), {
+      target: { value: "-2" },
+    });
+    fireEvent.click(screen.getByTestId("dependency-add"));
+    fireEvent.click(screen.getByTestId("dependency-apply"));
+
+    expect(onUpdateTask).toHaveBeenCalledWith(2, "dependencies", [
+      { from: 1, to: 2, type: "SS", lag: -2 },
+    ]);
+  });
+
+  test("shows row IDs in the visual dependency popover", () => {
+    const onUpdateTask = jest.fn();
+    const predecessor = makeTask({
+      id: 101,
+      name: "Predecessor",
+      wbs: "1",
+      mppFields: { ID: 1, UID: 101 },
+    });
+    const successor = makeTask({
+      id: 205,
+      name: "Successor",
+      wbs: "2",
+      dependencies: [{ from: 101, to: 205, type: "FF", lag: 3 }],
+      mppFields: { ID: 2, UID: 205 },
+    });
+
+    render(
+      <GanttTable
+        tasks={[predecessor, successor]}
+        onUpdateTask={onUpdateTask}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("dependency-popover-open-205"));
+
+    const popover = screen.getByTestId("dependency-popover");
+    expect(within(popover).getByText("1FF+3d")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "1 1 - Predecessor" })).toBeInTheDocument();
+  });
+
+  test("commits successors from the dependency side panel", () => {
+    const onUpdateTask = jest.fn();
+    const predecessor = makeTask({
+      id: 1,
+      name: "Predecessor",
+      wbs: "1",
+      start: new Date("2026-01-05T08:00:00"),
+      finish: new Date("2026-01-05T08:00:00"),
+      duration: 1,
+    });
+    const successor = makeTask({
+      id: 2,
+      name: "Successor",
+      wbs: "2",
+      start: new Date("2026-01-05T08:00:00"),
+      finish: new Date("2026-01-05T08:00:00"),
+      duration: 1,
+    });
+
+    render(
+      <GanttTable
+        tasks={[predecessor, successor]}
+        selectedTaskIds={[1]}
+        onUpdateTask={onUpdateTask}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("dependency-panel-open"));
+    fireEvent.click(screen.getByTestId("dependency-panel-add-successor"));
+
+    const impact = screen.getByTestId("dependency-panel-impact");
+    expect(impact).toHaveTextContent("Tareas afectadas: 1");
+    expect(impact).toHaveTextContent("Fin del proyecto: +1d");
+
+    fireEvent.click(screen.getByTestId("dependency-panel-apply"));
+
+    expect(onUpdateTask).toHaveBeenCalledWith(1, "successors", [
+      { from: 1, to: 2, type: "FS", lag: undefined },
+    ]);
+  });
+
+  test("shows row IDs and commits internal IDs from the dependency side panel", () => {
+    const onUpdateTask = jest.fn();
+    const predecessor = makeTask({
+      id: 101,
+      name: "Predecessor",
+      wbs: "1",
+      start: new Date("2026-01-05T08:00:00"),
+      finish: new Date("2026-01-05T08:00:00"),
+      duration: 1,
+      mppFields: { ID: 1, UID: 101 },
+    });
+    const successor = makeTask({
+      id: 205,
+      name: "Successor",
+      wbs: "2",
+      start: new Date("2026-01-05T08:00:00"),
+      finish: new Date("2026-01-05T08:00:00"),
+      duration: 1,
+      mppFields: { ID: 2, UID: 205 },
+    });
+
+    render(
+      <GanttTable
+        tasks={[predecessor, successor]}
+        selectedTaskIds={[101]}
+        onUpdateTask={onUpdateTask}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("dependency-panel-open"));
+
+    expect(screen.getByText("1 1 - Predecessor")).toBeInTheDocument();
+    expect(screen.getAllByRole("option", { name: "2 2 - Successor" }).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByTestId("dependency-panel-add-successor"));
+    fireEvent.click(screen.getByTestId("dependency-panel-apply"));
+
+    expect(onUpdateTask).toHaveBeenCalledWith(101, "successors", [
+      { from: 101, to: 205, type: "FS", lag: undefined },
+    ]);
+  });
+
+  test("blocks circular dependencies from the dependency side panel", () => {
+    const onUpdateTask = jest.fn();
+    const predecessor = makeTask({
+      id: 1,
+      name: "Predecessor",
+      wbs: "1",
+      dependencies: [{ from: 2, to: 1, type: "FS" }],
+    });
+    const successor = makeTask({ id: 2, name: "Successor", wbs: "2" });
+
+    render(
+      <GanttTable
+        tasks={[predecessor, successor]}
+        selectedTaskIds={[1]}
+        onUpdateTask={onUpdateTask}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("dependency-panel-open"));
+    fireEvent.click(screen.getByTestId("dependency-panel-add-successor"));
+    fireEvent.click(screen.getByTestId("dependency-panel-apply"));
+
+    expect(screen.getByTestId("dependency-panel-validation")).toHaveTextContent("ciclo");
+    expect(onUpdateTask).not.toHaveBeenCalled();
   });
 });

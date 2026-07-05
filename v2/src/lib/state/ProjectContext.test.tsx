@@ -60,6 +60,27 @@ describe("ProjectContext schedule recalculation", () => {
     expect(ctx!.scheduleIssues).toHaveLength(0);
   });
 
+  test("records planning audit events for persisted planning edits", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1, duration: 1 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.updateTask(1, "duration", 3));
+
+    expect(ctx!.planningAuditEvents).toEqual([
+      expect.objectContaining({
+        kind: "taskEdit",
+        summary: "Update duration on task 1",
+        taskIds: [1],
+      }),
+    ]);
+    expect(ctx!.planningAuditEvents[0].createdAt).toEqual(expect.any(String));
+  });
+
   test("keeps progress and percentComplete in sync during edits", () => {
     let ctx: ProjectContextValue | undefined;
 
@@ -118,6 +139,26 @@ describe("ProjectContext schedule recalculation", () => {
 
     expect(ctx!.tasks.find((t) => t.id === 1)!.dependencies).toEqual([]);
     expect(ctx!.scheduleIssues.some((issue) => issue.kind === "selfDependency")).toBe(true);
+  });
+
+  test("structure actions update WBS through the shared project state", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1 }), task({ id: 2 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.indentTask(2));
+
+    expect(ctx!.tasks.map((item) => item.outlineLevel)).toEqual([1, 2]);
+    expect(ctx!.tasks.map((item) => item.wbs)).toEqual(["1", "1.1"]);
+    expect(ctx!.tasks[0].isSummary).toBe(true);
+
+    act(() => ctx!.undo());
+
+    expect(ctx!.tasks.map((item) => item.outlineLevel)).toEqual([1, 1]);
   });
 
   test("calendar edits recalculate schedule and undo restores calendar plus dates", () => {

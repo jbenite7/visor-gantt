@@ -1,10 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Command as CommandIcon, Search, SlidersHorizontal, X } from "lucide-react";
 import type { GanttTask } from "@/components/gantt/types";
+import type { PlanningAuditEvent } from "@/types/audit";
 import SplitPane from "@/components/gantt/SplitPane";
 import GanttTable from "@/components/gantt/table/GanttTable";
 import GanttChart from "@/components/gantt/GanttChart";
+import PlanningAssistantPanel from "@/components/gantt/assistant/PlanningAssistantPanel";
+import WhatIfScenarioPanel from "@/components/gantt/scenarios/WhatIfScenarioPanel";
 import TaskSheetView from "@/components/views/TaskSheetView";
 import TrackingGanttView from "@/components/views/TrackingGanttView";
 import NetworkDiagramView from "@/components/views/NetworkDiagramView";
@@ -18,6 +22,7 @@ import SCurveView from "@/components/views/SCurveView";
 import CalendarSettingsView from "@/components/views/CalendarSettingsView";
 import BottlenecksView from "@/components/views/BottlenecksView";
 import MatrixEditorView from "@/components/views/MatrixEditorView";
+import ExecutivePlanningDashboard from "@/components/reports/ExecutivePlanningDashboard";
 import type { Resource, Assignment } from "@/types/resource";
 import type { BudgetItem, BudgetMapping as BudgetMappingType } from "@/types/budget";
 import type { ProjectCalendar } from "@/types/calendar";
@@ -62,9 +67,27 @@ import {
   applyMatrixUpdate,
   syncMatrixPlanFromTasks,
 } from "@/lib/matrix/matrixSync";
+import { buildPlanningRecommendations } from "@/lib/gantt/planningRecommendations";
+import {
+  applyRoleViewPreset,
+  findRoleViewPreset,
+  ROLE_VIEW_PRESETS,
+  roleViewPresetDescription,
+  roleViewPresetLabel,
+} from "@/lib/gantt/roleViewPresets";
+import { normalizeTaskStructure } from "@/lib/gantt/taskStructure";
+import { buildExecutivePlanningSummary } from "@/lib/gantt/executiveDashboard";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 const AUTOSAVE_DELAY_MS = 750;
+
+interface CommandPaletteAction {
+  id: string;
+  label: string;
+  hint: string;
+  keywords: string;
+  disabled?: boolean;
+}
 
 interface GanttViewProps {
   projectId?: string;
@@ -88,6 +111,7 @@ interface GanttViewProps {
   resourceColumnSettings?: ResourceColumnSettings;
   assignmentColumnSettings?: AssignmentColumnSettings;
   uiSettings?: UISettings;
+  planningAuditEvents?: PlanningAuditEvent[];
   onTaskClick?: (task: GanttTask) => void;
 }
 
@@ -134,6 +158,7 @@ function GanttViewInner({
 }) {
   const {
     tasks,
+    planningAuditEvents,
     setTasks,
     selectedTaskIds,
     setSelectedTaskIds,
@@ -143,6 +168,15 @@ function GanttViewInner({
     moveTask,
     resizeTask,
     createDependency,
+    indentTask,
+    outdentTask,
+    moveTaskUp,
+    moveTaskDown,
+    reorderTask,
+    insertStructuredTask,
+    applyStructureTemplate,
+    smartPasteTasks,
+    normalizeStructure,
     undo,
     redo,
     canUndo,
@@ -152,7 +186,16 @@ function GanttViewInner({
     updateCalendar,
   } = useProject();
 
-  const [activeView, setActiveView] = useState<ViewType>("gantt");
+  const initialRoleViewPreset = useMemo(
+    () =>
+      initialUISettings.roleViewPreset
+        ? findRoleViewPreset(initialUISettings.roleViewPreset)
+        : undefined,
+    [initialUISettings.roleViewPreset],
+  );
+  const [activeView, setActiveView] = useState<ViewType>(
+    initialRoleViewPreset?.view ?? "gantt",
+  );
   const [resources, setResources] = useState<Resource[]>(initialResources);
   const [assignments] = useState<Assignment[]>(initialAssignments);
   const [resourceSubView, setResourceSubView] = useState<"sheet" | "assignments" | "usage" | "budget" | "mapping">("sheet");
@@ -182,6 +225,8 @@ function GanttViewInner({
     ),
   );
   const locale = uiSettings.locale;
+  const interactionMode = uiSettings.interactionMode ?? "advanced";
+  const isAdvancedMode = interactionMode === "advanced";
   const resourceViewLabels =
     locale === "en"
       ? {
@@ -206,9 +251,19 @@ function GanttViewInner({
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [projectId, setProjectId] = useState<string | undefined>(initialProjectId);
   const [projectName] = useState<string>(initialProjectName ?? "Sin título");
+  const [showStructurePreview, setShowStructurePreview] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
   const isDirtyRef = useRef(false);
   const didMountSaveStateRef = useRef(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const commandInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (initialRoleViewPreset) {
+      setScale(initialRoleViewPreset.scale);
+    }
+  }, [initialRoleViewPreset, setScale]);
 
   /* ── Baselines ── */
   const [baselines, setBaselines] = useState<Baseline[]>(initialBaselines);
@@ -294,6 +349,38 @@ function GanttViewInner({
   const mppTaskColumns = calculatedMpp.mppTaskColumns;
   const mppResourceColumns = calculatedMpp.mppResourceColumns;
   const mppAssignmentColumns = calculatedMpp.mppAssignmentColumns;
+  const planningRecommendations = useMemo(
+    () => buildPlanningRecommendations(calculatedTasks),
+    [calculatedTasks],
+  );
+  const normalizedStructurePreview = useMemo(
+    () => normalizeTaskStructure(calculatedTasks),
+    [calculatedTasks],
+  );
+  const structurePreviewSummary = useMemo(() => {
+    if (!showStructurePreview) return undefined;
+    let changedTaskCount = 0;
+    let changedWbsCount = 0;
+    let changedSummaryCount = 0;
+
+    for (let index = 0; index < calculatedTasks.length; index += 1) {
+      const current = calculatedTasks[index];
+      const next = normalizedStructurePreview[index];
+      if (!current || !next) continue;
+
+      const wbsChanged = current.wbs !== next.wbs;
+      const levelChanged = current.outlineLevel !== next.outlineLevel;
+      const summaryChanged = current.isSummary !== next.isSummary;
+
+      if (wbsChanged || levelChanged || summaryChanged) {
+        changedTaskCount += 1;
+      }
+      if (wbsChanged) changedWbsCount += 1;
+      if (summaryChanged) changedSummaryCount += 1;
+    }
+
+    return { changedTaskCount, changedWbsCount, changedSummaryCount };
+  }, [calculatedTasks, normalizedStructurePreview, showStructurePreview]);
 
   /* ── Project info derived from tasks ── */
   const projectInfo = useMemo(() => {
@@ -317,6 +404,17 @@ function GanttViewInner({
   const bottlenecks = useMemo(
     () => detectBottlenecks({ tasks: calculatedTasks, resources: calculatedResources, assignments: calculatedAssignments }),
     [calculatedAssignments, calculatedResources, calculatedTasks],
+  );
+  const executiveSummary = useMemo(
+    () =>
+      buildExecutivePlanningSummary({
+        tasks: calculatedTasks,
+        budgetItems,
+        budgetMappings,
+        scheduleIssues,
+        bottlenecks,
+      }),
+    [bottlenecks, budgetItems, budgetMappings, calculatedTasks, scheduleIssues],
   );
   const matrixEditorKey = useMemo(
     () =>
@@ -566,6 +664,7 @@ function GanttViewInner({
         resourceColumnSettings,
         assignmentColumnSettings,
         uiSettings,
+        planningAuditEvents,
       };
       const result = await saveProject(data);
       if (result.success) {
@@ -580,7 +679,7 @@ function GanttViewInner({
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 3000);
     }
-  }, [projectId, projectName, initialStatusDate, calculatedTasks, calculatedResources, calculatedAssignments, budgetItems, budgetMappings, baselines, calendar, syncedMatrixPlan, mppTaskColumns, mppResourceColumns, mppAssignmentColumns, calculatedMpp.customFieldDefinitions, calculatedMpp.engineVersion, calculatedMpp.calculatedAt, taskColumnSettings, resourceColumnSettings, assignmentColumnSettings, uiSettings]);
+  }, [projectId, projectName, initialStatusDate, calculatedTasks, calculatedResources, calculatedAssignments, budgetItems, budgetMappings, baselines, calendar, syncedMatrixPlan, mppTaskColumns, mppResourceColumns, mppAssignmentColumns, calculatedMpp.customFieldDefinitions, calculatedMpp.engineVersion, calculatedMpp.calculatedAt, taskColumnSettings, resourceColumnSettings, assignmentColumnSettings, uiSettings, planningAuditEvents]);
 
   // Use a ref to avoid the interval effect depending on doSave's reference
   const doSaveRef = useRef(doSave);
@@ -588,6 +687,221 @@ function GanttViewInner({
   useEffect(() => {
     doSaveRef.current = doSave;
   }, [doSave]);
+
+  const handleManualSave = useCallback(() => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    isDirtyRef.current = true;
+    void doSaveRef.current();
+  }, []);
+
+  const handleRoleViewPresetChange = useCallback(
+    (presetId: NonNullable<UISettings["roleViewPreset"]>) => {
+      const next = applyRoleViewPreset(uiSettings, taskColumnSettings, presetId);
+      setUISettings(next.uiSettings);
+      setTaskColumnSettings(next.taskColumnSettings);
+      setActiveView(next.activeView);
+      setScale(next.scale);
+    },
+    [setScale, taskColumnSettings, uiSettings],
+  );
+
+  const handleInteractionModeChange = useCallback(
+    (mode: NonNullable<UISettings["interactionMode"]>) => {
+      setUISettings((current) => ({
+        ...current,
+        interactionMode: mode,
+      }));
+    },
+    [],
+  );
+
+  const commandActions = useMemo<CommandPaletteAction[]>(
+    () => [
+      {
+        id: "add-task",
+        label: locale === "en" ? "Add task" : "Agregar tarea",
+        hint: locale === "en" ? "Create a new task at the end" : "Crea una tarea al final",
+        keywords: "new nueva task tarea crear agregar insert",
+      },
+      {
+        id: "save-now",
+        label: locale === "en" ? "Save now" : "Guardar ahora",
+        hint: locale === "en" ? "Persist the current project" : "Persiste el proyecto actual",
+        keywords: "save guardar persistir autosave",
+      },
+      {
+        id: "undo",
+        label: locale === "en" ? "Undo" : "Deshacer",
+        hint: locale === "en" ? "Revert the last planning edit" : "Revierte la última edición",
+        keywords: "undo deshacer revertir",
+        disabled: !canUndo,
+      },
+      {
+        id: "redo",
+        label: locale === "en" ? "Redo" : "Rehacer",
+        hint: locale === "en" ? "Restore the reverted edit" : "Restaura la edición revertida",
+        keywords: "redo rehacer restaurar",
+        disabled: !canRedo,
+      },
+      {
+        id: "view-gantt",
+        label: locale === "en" ? "Open Gantt" : "Abrir Gantt",
+        hint: locale === "en" ? "Return to the main planning view" : "Vuelve a la vista principal",
+        keywords: "gantt cronograma chart",
+      },
+      {
+        id: "view-task-sheet",
+        label: locale === "en" ? "Open Task Sheet" : "Abrir Hoja de Tareas",
+        hint: locale === "en" ? "Edit the task table" : "Edita la tabla de tareas",
+        keywords: "task sheet hoja tareas tabla",
+      },
+      {
+        id: "view-matrix",
+        label: locale === "en" ? "Open Matrix" : "Abrir Matriz",
+        hint: locale === "en" ? "Edit matrix scheduling" : "Edita la programación matricial",
+        keywords: "matrix matriz programación matricial ubicaciones disciplinas",
+      },
+      {
+        id: "view-executive",
+        label: locale === "en" ? "Open Executive Dashboard" : "Abrir Dashboard Ejecutivo",
+        hint: locale === "en" ? "Review cost, scope and schedule health" : "Revisa costo, alcance y cronograma",
+        keywords: "executive ejecutivo dashboard pmi triple restriccion",
+      },
+      {
+        id: "view-scurve",
+        label: locale === "en" ? "Open S Curve" : "Abrir Curva S",
+        hint: locale === "en" ? "Review schedule, budget and earned value" : "Revisa cronograma, presupuesto y valor ganado",
+        keywords: "s curve curva valor ganado presupuesto avance",
+      },
+      {
+        id: "view-lob",
+        label: locale === "en" ? "Open Line of Balance" : "Abrir Línea de Balance",
+        hint: locale === "en" ? "Review repetitive production flow" : "Revisa producción repetitiva por ubicación",
+        keywords: "lob línea balance linea produccion ubicacion",
+      },
+      {
+        id: "zoom-day",
+        label: locale === "en" ? "Zoom by day" : "Zoom por día",
+        hint: locale === "en" ? "Set timeline scale to days" : "Cambia la escala a días",
+        keywords: "zoom day día dia escala",
+      },
+      {
+        id: "zoom-week",
+        label: locale === "en" ? "Zoom by week" : "Zoom por semana",
+        hint: locale === "en" ? "Set timeline scale to weeks" : "Cambia la escala a semanas",
+        keywords: "zoom week semana escala",
+      },
+      {
+        id: "zoom-month",
+        label: locale === "en" ? "Zoom by month" : "Zoom por mes",
+        hint: locale === "en" ? "Set timeline scale to months" : "Cambia la escala a meses",
+        keywords: "zoom month mes escala",
+      },
+    ],
+    [canRedo, canUndo, locale],
+  );
+
+  const filteredCommands = useMemo(() => {
+    const normalizedQuery = commandQuery.trim().toLowerCase();
+    if (!normalizedQuery) return commandActions;
+    return commandActions.filter((command) => {
+      const haystack = `${command.label} ${command.hint} ${command.keywords}`.toLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }, [commandActions, commandQuery]);
+
+  const runCommand = useCallback((command: CommandPaletteAction) => {
+    if (command.disabled) return;
+
+    switch (command.id) {
+      case "add-task":
+        handleAddTask();
+        break;
+      case "save-now":
+        handleManualSave();
+        break;
+      case "undo":
+        undo();
+        break;
+      case "redo":
+        redo();
+        break;
+      case "view-gantt":
+        setActiveView("gantt");
+        break;
+      case "view-task-sheet":
+        setActiveView("taskSheet");
+        break;
+      case "view-matrix":
+        setActiveView("matrix");
+        break;
+      case "view-executive":
+        setActiveView("executive");
+        break;
+      case "view-scurve":
+        setActiveView("scurve");
+        break;
+      case "view-lob":
+        setActiveView("lob");
+        break;
+      case "zoom-day":
+        setScale("day");
+        break;
+      case "zoom-week":
+        setScale("week");
+        break;
+      case "zoom-month":
+        setScale("month");
+        break;
+    }
+
+    setCommandPaletteOpen(false);
+    setCommandQuery("");
+  }, [handleAddTask, handleManualSave, redo, setScale, undo]);
+
+  useEffect(() => {
+    if (!commandPaletteOpen) return;
+    const frame = requestAnimationFrame(() => {
+      commandInputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [commandPaletteOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const opensPalette =
+        (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
+
+      if (opensPalette) {
+        event.preventDefault();
+        setCommandPaletteOpen((open) => !open);
+        return;
+      }
+
+      if (!commandPaletteOpen) return;
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setCommandPaletteOpen(false);
+        setCommandQuery("");
+        return;
+      }
+
+      if (event.key === "Enter") {
+        const nextCommand = filteredCommands.find((command) => !command.disabled);
+        if (nextCommand) {
+          event.preventDefault();
+          runCommand(nextCommand);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [commandPaletteOpen, filteredCommands, runCommand]);
 
   useEffect(() => {
     if (!didMountSaveStateRef.current) {
@@ -636,7 +950,7 @@ function GanttViewInner({
   );
 
   return (
-    <div data-testid="gantt-view" className="flex flex-col h-screen">
+    <div data-testid="gantt-view" className="app-shell flex flex-col h-screen">
       <div className="flex items-center shrink-0">
         <ProjectToolbar
           activeView={activeView}
@@ -661,7 +975,7 @@ function GanttViewInner({
           locale={locale}
         />
         {saveStatus !== "idle" && (
-          <span className="mr-4 text-xs font-medium px-2 py-1 rounded shrink-0"
+          <span className="apple-card mr-4 shrink-0 px-2 py-1 text-xs font-medium"
             style={{
               color: saveStatus === "saving" ? "var(--aia-warn-dark)" : saveStatus === "saved" ? "var(--aia-corp-dark)" : "var(--aia-alert-main)",
               background: saveStatus === "saving" ? "var(--aia-warn-xlight)" : saveStatus === "saved" ? "var(--aia-corp-xlight)" : "var(--aia-alert-xlight)",
@@ -672,7 +986,155 @@ function GanttViewInner({
             {saveStatus === "error" && "Error al guardar"}
           </span>
         )}
+        <label
+          className="apple-button-secondary mr-2 inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+          title={
+            locale === "en"
+              ? "Apply a role-based saved view preset"
+              : "Aplicar una vista guardada por rol"
+          }
+        >
+          <SlidersHorizontal size={14} aria-hidden />
+          <span>{locale === "en" ? "Role view" : "Vista rol"}</span>
+          <select
+            data-testid="role-view-preset-select"
+            value={uiSettings.roleViewPreset ?? "planner"}
+            onChange={(event) =>
+              handleRoleViewPresetChange(event.target.value as NonNullable<UISettings["roleViewPreset"]>)
+            }
+            className="max-w-28 bg-transparent text-xs font-semibold outline-none"
+            aria-label={locale === "en" ? "Role view preset" : "Preset de vista por rol"}
+          >
+            {ROLE_VIEW_PRESETS.map((preset) => (
+              <option
+                key={preset.id}
+                value={preset.id}
+                title={roleViewPresetDescription(preset, locale)}
+              >
+                {roleViewPresetLabel(preset, locale)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div
+          className="apple-button-secondary mr-2 inline-flex shrink-0 items-center gap-1 rounded-lg p-1 text-xs font-semibold"
+          data-testid="interaction-mode-toggle"
+          title={
+            locale === "en"
+              ? "Switch between simple and advanced planning controls"
+              : "Cambiar entre controles simples y avanzados"
+          }
+        >
+          {(["simple", "advanced"] as const).map((mode) => {
+            const active = interactionMode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                data-testid={`interaction-mode-${mode}`}
+                className="rounded-md px-2 py-1 transition"
+                style={{
+                  background: active ? "var(--aia-corp-main)" : "transparent",
+                  color: active ? "#ffffff" : "var(--color-text-muted)",
+                }}
+                onClick={() => handleInteractionModeChange(mode)}
+              >
+                {mode === "simple"
+                  ? locale === "en" ? "Simple" : "Simple"
+                  : locale === "en" ? "Advanced" : "Avanzado"}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          data-testid="command-palette-open"
+          className="apple-button-secondary mr-4 inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+          onClick={() => setCommandPaletteOpen(true)}
+          title={locale === "en" ? "Command palette" : "Paleta de comandos"}
+        >
+          <CommandIcon size={14} aria-hidden />
+          {locale === "en" ? "Commands" : "Comandos"}
+        </button>
       </div>
+
+      {commandPaletteOpen && (
+        <div
+          data-testid="command-palette"
+          className="fixed inset-0 z-[100] flex items-start justify-center bg-black/20 px-4 pt-24 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label={locale === "en" ? "Command palette" : "Paleta de comandos"}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setCommandPaletteOpen(false);
+              setCommandQuery("");
+            }
+          }}
+        >
+          <div className="apple-surface w-full max-w-xl overflow-hidden rounded-lg">
+            <div className="flex items-center gap-2 border-b border-[var(--color-hairline)] px-3 py-2">
+              <Search size={16} className="text-[var(--color-text-muted)]" aria-hidden />
+              <input
+                ref={commandInputRef}
+                data-testid="command-palette-input"
+                value={commandQuery}
+                onChange={(event) => setCommandQuery(event.target.value)}
+                placeholder={
+                  locale === "en"
+                    ? "Search commands or views"
+                    : "Buscar comandos o vistas"
+                }
+                className="min-w-0 flex-1 bg-transparent px-1 py-2 text-sm text-[var(--color-text-strong)] outline-none"
+              />
+              <button
+                type="button"
+                data-testid="command-palette-close"
+                className="apple-icon-button h-8 w-8"
+                onClick={() => {
+                  setCommandPaletteOpen(false);
+                  setCommandQuery("");
+                }}
+                title={locale === "en" ? "Close" : "Cerrar"}
+              >
+                <X size={15} aria-hidden />
+              </button>
+            </div>
+            <div className="max-h-96 overflow-auto p-2">
+              {filteredCommands.length === 0 ? (
+                <p className="px-3 py-6 text-sm text-[var(--color-text-muted)]">
+                  {locale === "en"
+                    ? "No matching commands."
+                    : "No hay comandos coincidentes."}
+                </p>
+              ) : (
+                filteredCommands.map((command) => (
+                  <button
+                    key={command.id}
+                    type="button"
+                    data-testid={`command-palette-item-${command.id}`}
+                    disabled={command.disabled}
+                    onClick={() => runCommand(command)}
+                    className="flex w-full items-center justify-between gap-4 rounded-lg px-3 py-2 text-left transition hover:bg-[var(--color-bg-surface-secondary)] disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-[var(--color-text-strong)]">
+                        {command.label}
+                      </span>
+                      <span className="block truncate text-xs text-[var(--color-text-muted)]">
+                        {command.hint}
+                      </span>
+                    </span>
+                    <span className="shrink-0 rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] px-2 py-1 text-[0.6875rem] font-semibold text-[var(--color-text-muted)]">
+                      {locale === "en" ? "Enter" : "Enter"}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Sidebar de navegación de vistas */}
@@ -681,40 +1143,82 @@ function GanttViewInner({
         {/* Contenido de la vista activa */}
         <div className="flex-1 min-h-0 min-w-0">
           {activeView === "gantt" && (
-            <SplitPane
-              defaultSplit={35}
-              left={
-                <GanttTable
-                  tasks={calculatedTasks}
-                  selectedTaskIds={selectedTaskIds}
-                  onTaskSelect={handleTaskSelect}
-                  onUpdateTask={updateTask}
-                  mppTaskColumns={mppTaskColumns}
-                  customFieldDefinitions={calculatedMpp.customFieldDefinitions}
-                  columnSettings={taskColumnSettings}
-                  locale={locale}
-                  onColumnSettingsChange={setTaskColumnSettings}
-                  onLocaleChange={(nextLocale: UILocale) =>
-                    setUISettings({ locale: nextLocale })
+            <div className="flex h-full min-h-0 flex-col">
+              {isAdvancedMode && (
+                <>
+                  <PlanningAssistantPanel
+                    recommendations={planningRecommendations}
+                    locale={locale}
+                    structurePreview={structurePreviewSummary}
+                    onPreviewStructureNormalization={() => setShowStructurePreview(true)}
+                    onCancelStructurePreview={() => setShowStructurePreview(false)}
+                    onApplyStructureNormalization={() => {
+                      normalizeStructure();
+                      setShowStructurePreview(false);
+                    }}
+                  />
+                  <WhatIfScenarioPanel
+                    tasks={calculatedTasks}
+                    selectedTaskId={selectedTaskIds[0]}
+                    locale={locale}
+                    onApplyDuration={(taskId, duration) =>
+                      updateTask(taskId, "duration", duration)
+                    }
+                  />
+                </>
+              )}
+              <div className="min-h-0 flex-1">
+                <SplitPane
+                  defaultSplit={35}
+                  left={
+                    <GanttTable
+                      tasks={calculatedTasks}
+                      selectedTaskIds={selectedTaskIds}
+                      onTaskSelect={handleTaskSelect}
+                      onUpdateTask={updateTask}
+                      mppTaskColumns={mppTaskColumns}
+                      customFieldDefinitions={calculatedMpp.customFieldDefinitions}
+                      columnSettings={taskColumnSettings}
+                      locale={locale}
+                      onColumnSettingsChange={setTaskColumnSettings}
+                      onLocaleChange={(nextLocale: UILocale) =>
+                        setUISettings((current) => ({ ...current, locale: nextLocale }))
+                      }
+                      taskFilter={uiSettings.taskFilter}
+                      onTaskFilterChange={(nextFilter) =>
+                        setUISettings((current) => ({
+                          ...current,
+                          taskFilter: nextFilter,
+                        }))
+                      }
+                      onIndentTask={indentTask}
+                      onOutdentTask={outdentTask}
+                      onMoveTaskUp={moveTaskUp}
+                      onMoveTaskDown={moveTaskDown}
+                      onReorderTask={reorderTask}
+                      onInsertTask={insertStructuredTask}
+                      onApplyStructureTemplate={applyStructureTemplate}
+                      onSmartPasteTasks={smartPasteTasks}
+                    />
+                  }
+                  right={
+                    <GanttChart
+                      tasks={calculatedTasks}
+                      calendar={calendar}
+                      scale={scale}
+                      selectedTaskIds={selectedTaskIds}
+                      onTaskSelect={handleTaskSelect}
+                      onTaskClick={onTaskClick}
+                      onCreateDependency={createDependency}
+                      dragState={dragState}
+                      onDragStart={onDragStart}
+                      resizeState={resizeState}
+                      onResizeStart={onResizeStart}
+                    />
                   }
                 />
-              }
-              right={
-                <GanttChart
-                  tasks={calculatedTasks}
-                  calendar={calendar}
-                  scale={scale}
-                  selectedTaskIds={selectedTaskIds}
-                  onTaskSelect={handleTaskSelect}
-                  onTaskClick={onTaskClick}
-                  onCreateDependency={createDependency}
-                  dragState={dragState}
-                  onDragStart={onDragStart}
-                  resizeState={resizeState}
-                  onResizeStart={onResizeStart}
-                />
-              }
-            />
+              </div>
+            </div>
           )}
 
           {activeView === "taskSheet" && (
@@ -729,9 +1233,28 @@ function GanttViewInner({
               locale={locale}
               onColumnSettingsChange={setTaskColumnSettings}
               onLocaleChange={(nextLocale: UILocale) =>
-                setUISettings({ locale: nextLocale })
+                setUISettings((current) => ({ ...current, locale: nextLocale }))
               }
+              taskFilter={uiSettings.taskFilter}
+              onTaskFilterChange={(nextFilter) =>
+                setUISettings((current) => ({
+                  ...current,
+                  taskFilter: nextFilter,
+                }))
+              }
+              onIndentTask={indentTask}
+              onOutdentTask={outdentTask}
+              onMoveTaskUp={moveTaskUp}
+              onMoveTaskDown={moveTaskDown}
+              onReorderTask={reorderTask}
+              onInsertTask={insertStructuredTask}
+              onApplyStructureTemplate={applyStructureTemplate}
+              onSmartPasteTasks={smartPasteTasks}
             />
+          )}
+
+          {activeView === "executive" && (
+            <ExecutivePlanningDashboard summary={executiveSummary} />
           )}
 
           {activeView === "tracking" && (
@@ -749,23 +1272,22 @@ function GanttViewInner({
           )}
 
           {activeView === "resources" && (
-            <div className="flex flex-col h-full">
+            <div className="apple-module flex h-full flex-col">
               <div
-                className="flex gap-2 p-2"
-                style={{ background: "var(--aia-corp-dark)" }}
+                className="apple-subtoolbar"
               >
                 <button
                   onClick={() => setResourceSubView("sheet")}
                   style={{
-                    padding: "4px 12px",
-                    borderRadius: "var(--radius-sm)",
+                    padding: "6px 12px",
+                    borderRadius: "var(--radius-lg)",
                     fontSize: "0.75rem",
                     fontFamily: "var(--font-montserrat)",
                     fontWeight: 600,
-                    border: "none",
+                    border: "1px solid var(--color-hairline)",
                     cursor: "pointer",
-                    background: resourceSubView === "sheet" ? "var(--aia-corp-main)" : "transparent",
-                    color: resourceSubView === "sheet" ? "#ffffff" : "var(--aia-corp-light)",
+                    background: resourceSubView === "sheet" ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
+                    color: resourceSubView === "sheet" ? "#ffffff" : "var(--color-text-muted)",
                   }}
                 >
                   {resourceViewLabels.sheet}
@@ -773,15 +1295,15 @@ function GanttViewInner({
                 <button
                   onClick={() => setResourceSubView("usage")}
                   style={{
-                    padding: "4px 12px",
-                    borderRadius: "var(--radius-sm)",
+                    padding: "6px 12px",
+                    borderRadius: "var(--radius-lg)",
                     fontSize: "0.75rem",
                     fontFamily: "var(--font-montserrat)",
                     fontWeight: 600,
-                    border: "none",
+                    border: "1px solid var(--color-hairline)",
                     cursor: "pointer",
-                    background: resourceSubView === "usage" ? "var(--aia-corp-main)" : "transparent",
-                    color: resourceSubView === "usage" ? "#ffffff" : "var(--aia-corp-light)",
+                    background: resourceSubView === "usage" ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
+                    color: resourceSubView === "usage" ? "#ffffff" : "var(--color-text-muted)",
                   }}
                 >
                   {resourceViewLabels.usage}
@@ -789,15 +1311,15 @@ function GanttViewInner({
                 <button
                   onClick={() => setResourceSubView("assignments")}
                   style={{
-                    padding: "4px 12px",
-                    borderRadius: "var(--radius-sm)",
+                    padding: "6px 12px",
+                    borderRadius: "var(--radius-lg)",
                     fontSize: "0.75rem",
                     fontFamily: "var(--font-montserrat)",
                     fontWeight: 600,
-                    border: "none",
+                    border: "1px solid var(--color-hairline)",
                     cursor: "pointer",
-                    background: resourceSubView === "assignments" ? "var(--aia-corp-main)" : "transparent",
-                    color: resourceSubView === "assignments" ? "#ffffff" : "var(--aia-corp-light)",
+                    background: resourceSubView === "assignments" ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
+                    color: resourceSubView === "assignments" ? "#ffffff" : "var(--color-text-muted)",
                   }}
                 >
                   {resourceViewLabels.assignments}
@@ -805,15 +1327,15 @@ function GanttViewInner({
                 <button
                   onClick={() => setResourceSubView("budget")}
                   style={{
-                    padding: "4px 12px",
-                    borderRadius: "var(--radius-sm)",
+                    padding: "6px 12px",
+                    borderRadius: "var(--radius-lg)",
                     fontSize: "0.75rem",
                     fontFamily: "var(--font-montserrat)",
                     fontWeight: 600,
-                    border: "none",
+                    border: "1px solid var(--color-hairline)",
                     cursor: "pointer",
-                    background: resourceSubView === "budget" ? "var(--aia-corp-main)" : "transparent",
-                    color: resourceSubView === "budget" ? "#ffffff" : "var(--aia-corp-light)",
+                    background: resourceSubView === "budget" ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
+                    color: resourceSubView === "budget" ? "#ffffff" : "var(--color-text-muted)",
                   }}
                 >
                   {resourceViewLabels.budget}
@@ -821,15 +1343,15 @@ function GanttViewInner({
                 <button
                   onClick={() => setResourceSubView("mapping")}
                   style={{
-                    padding: "4px 12px",
-                    borderRadius: "var(--radius-sm)",
+                    padding: "6px 12px",
+                    borderRadius: "var(--radius-lg)",
                     fontSize: "0.75rem",
                     fontFamily: "var(--font-montserrat)",
                     fontWeight: 600,
-                    border: "none",
+                    border: "1px solid var(--color-hairline)",
                     cursor: "pointer",
-                    background: resourceSubView === "mapping" ? "var(--aia-corp-main)" : "transparent",
-                    color: resourceSubView === "mapping" ? "#ffffff" : "var(--aia-corp-light)",
+                    background: resourceSubView === "mapping" ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
+                    color: resourceSubView === "mapping" ? "#ffffff" : "var(--color-text-muted)",
                   }}
                 >
                   {resourceViewLabels.mapping}
@@ -969,6 +1491,7 @@ export default function GanttView({
   resourceColumnSettings,
   assignmentColumnSettings,
   uiSettings = DEFAULT_UI_SETTINGS,
+  planningAuditEvents = [],
   onTaskClick,
 }: GanttViewProps) {
   const initialTasksKey = tasks
@@ -981,6 +1504,7 @@ export default function GanttView({
       key={initialProjectKey}
       initialTasks={tasks}
       initialCalendar={calendar}
+      initialPlanningAuditEvents={planningAuditEvents}
     >
       <GanttViewInner
         initialProjectId={projectId}

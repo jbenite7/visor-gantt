@@ -186,6 +186,34 @@ describe("GanttView", () => {
     expect(within(toolbar).queryByText("Proyecto sin nombre")).not.toBeInTheDocument();
   });
 
+  test("opens the command palette with keyboard and switches views", () => {
+    render(<GanttView tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "matriz" },
+    });
+    fireEvent.keyDown(window, { key: "Enter" });
+
+    expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
+    expect(screen.getByTestId("matrix-editor-empty")).toBeInTheDocument();
+  });
+
+  test("runs editing commands from the command palette", () => {
+    render(<GanttView tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.click(screen.getByTestId("command-palette-open"));
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "agregar" },
+    });
+    fireEvent.click(screen.getByTestId("command-palette-item-add-task"));
+
+    expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("gantt-row")).toHaveLength(2);
+  });
+
   test("skips full MPP calculation on Gantt view when MPP columns are hidden", () => {
     const calculateSpy = jest.spyOn(mppCalculationEngine, "calculateMppFields");
 
@@ -266,6 +294,168 @@ describe("GanttView", () => {
 
     await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
     expect(latestSavedProject().tasks[0].duration).toBe(3);
+    expect(latestSavedProject().planningAuditEvents).toEqual([
+      expect.objectContaining({
+        kind: "taskEdit",
+        summary: "Update duration on task 1",
+        taskIds: [1],
+      }),
+    ]);
+  });
+
+  test("autosaves persistent Gantt task filters in ui settings", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Filtros"
+        tasks={[
+          makeTask({ id: 1, name: "Cimentacion", isCritical: true }),
+          makeTask({ id: 2, name: "Pintura" }),
+        ]}
+      />,
+    );
+
+    mockedSaveProject.mockClear();
+
+    fireEvent.change(screen.getByTestId("gantt-task-filter-input"), {
+      target: { value: "ciment" },
+    });
+    fireEvent.change(screen.getByTestId("gantt-task-filter-type"), {
+      target: { value: "critical" },
+    });
+
+    expect(screen.getByTestId("gantt-task-filter-count")).toHaveTextContent("1 / 2");
+
+    await flushAutosave();
+
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    expect(latestSavedProject().uiSettings).toEqual({
+      locale: "es",
+      taskFilter: { text: "ciment", type: "critical" },
+    });
+  });
+
+  test("applies and autosaves role-based view presets", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Presets por rol"
+        tasks={[
+          makeTask({ id: 1, name: "Ruta critica", isCritical: true, cost: 1000 }),
+          makeTask({ id: 2, name: "Actividad normal", cost: 500 }),
+        ]}
+      />,
+    );
+
+    mockedSaveProject.mockClear();
+
+    fireEvent.change(screen.getByTestId("role-view-preset-select"), {
+      target: { value: "executive" },
+    });
+
+    expect(screen.getByTestId("executive-planning-dashboard")).toBeInTheDocument();
+
+    await flushAutosave();
+
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    const saved = latestSavedProject();
+    expect(saved.uiSettings).toEqual({
+      locale: "es",
+      roleViewPreset: "executive",
+      taskFilter: { text: "", type: "critical" },
+    });
+    expect(saved.taskColumnSettings.visible).toEqual([
+      "wbs",
+      "name",
+      "finish",
+      "progress",
+      "critical",
+      "budgetedCost",
+      "actualCost",
+      "variance",
+    ]);
+  });
+
+  test("hydrates the active view from a persisted role preset", () => {
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Preset persistido"
+        tasks={[
+          makeTask({ id: 1, name: "Ruta critica", isCritical: true }),
+          makeTask({ id: 2, name: "Actividad normal" }),
+        ]}
+        uiSettings={{
+          locale: "es",
+          roleViewPreset: "executive",
+          taskFilter: { text: "", type: "critical" },
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("role-view-preset-select")).toHaveValue("executive");
+    expect(screen.getByTestId("executive-planning-dashboard")).toBeInTheDocument();
+  });
+
+  test("autosaves simple interaction mode and hides advanced panels", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Modo simple"
+        tasks={[
+          makeTask({ id: 1, name: "Ruta critica", isCritical: true }),
+          makeTask({ id: 2, name: "Actividad normal" }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByTestId("planning-assistant-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("what-if-scenario-panel")).toBeInTheDocument();
+
+    mockedSaveProject.mockClear();
+    fireEvent.click(screen.getByTestId("interaction-mode-simple"));
+
+    expect(screen.queryByTestId("planning-assistant-panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("what-if-scenario-panel")).not.toBeInTheDocument();
+
+    await flushAutosave();
+
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    expect(latestSavedProject().uiSettings).toEqual({
+      locale: "es",
+      interactionMode: "simple",
+      taskFilter: { text: "", type: "all" },
+    });
+  });
+
+  test("hydrates simple interaction mode from project data", () => {
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Modo simple persistido"
+        tasks={[
+          makeTask({ id: 1, name: "Ruta critica", isCritical: true }),
+          makeTask({ id: 2, name: "Actividad normal" }),
+        ]}
+        uiSettings={{
+          locale: "es",
+          interactionMode: "simple",
+          taskFilter: { text: "", type: "all" },
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("interaction-mode-simple")).toHaveStyle({
+      background: "var(--aia-corp-main)",
+    });
+    expect(screen.queryByTestId("planning-assistant-panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("what-if-scenario-panel")).not.toBeInTheDocument();
   });
 
   test("autosaves task start date edits with the manual start constraint", async () => {
@@ -298,23 +488,25 @@ describe("GanttView", () => {
   test("autosaves predecessor edits as canonical successor dependencies", async () => {
     jest.useFakeTimers();
 
-    render(
+    const view = render(
       <GanttView
         projectId="1"
         projectName="Persistencia"
         tasks={[
           makeTask({
-            id: 1,
+            id: 101,
             start: createProjectDate("2026-01-05"),
             finish: createProjectDate("2026-01-05"),
             duration: 1,
+            mppFields: { ID: 1, UID: 101 },
           }),
           makeTask({
-            id: 2,
+            id: 205,
             start: createProjectDate("2026-01-05"),
             finish: createProjectDate("2026-01-05"),
             duration: 1,
             dependencies: [],
+            mppFields: { ID: 2, UID: 205 },
           }),
         ]}
       />,
@@ -331,10 +523,360 @@ describe("GanttView", () => {
     await flushAutosave();
 
     await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    const successor = latestSavedProject().tasks.find((task) => task.id === 205);
+    expect(successor?.dependencies).toEqual([
+      expect.objectContaining({ from: 101, to: 205, type: "FS" }),
+    ]);
+
+    const savedProject = latestSavedProject();
+    view.unmount();
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Persistencia"
+        tasks={savedProject.tasks}
+      />,
+    );
+
+    const reloadedSuccessorCells = screen.getAllByTestId("gantt-row")[1].querySelectorAll("td");
+    expect(reloadedSuccessorCells[8]).toHaveTextContent("1FS");
+  });
+
+  test("shows deterministic planning recommendations in the gantt view", () => {
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Asistente"
+        tasks={[
+          makeTask({ id: 1, name: "Inicio" }),
+          makeTask({ id: 2, name: "Excavacion", dependencies: [] }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByTestId("planning-assistant-panel")).toHaveTextContent(
+      "Asistente de planificacion",
+    );
+    expect(screen.getByTestId("planning-assistant-panel")).toHaveTextContent(
+      "Excavacion no tiene predecesoras",
+    );
+  });
+
+  test("renders the executive dashboard from the view sidebar", () => {
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Ejecutivo"
+        tasks={[
+          makeTask({ id: 1, name: "Actividad critica", isCritical: true }),
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-executive"));
+
+    expect(screen.getByTestId("executive-planning-dashboard")).toHaveTextContent(
+      "Dashboard ejecutivo",
+    );
+    expect(screen.getAllByTestId("executive-kpi").length).toBeGreaterThan(0);
+  });
+
+  test("previews and applies structure normalization from the planning assistant", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Asistente"
+        tasks={[
+          makeTask({ id: 1, name: "Capitulo", wbs: "9", isSummary: false }),
+          makeTask({ id: 2, name: "Actividad", wbs: "9.9", outlineLevel: 2 }),
+        ]}
+      />,
+    );
+
+    mockedSaveProject.mockClear();
+
+    fireEvent.click(screen.getByTestId("planning-preview-structure"));
+    expect(screen.getByTestId("planning-structure-action")).toHaveTextContent("tareas cambiaran");
+    fireEvent.click(screen.getByTestId("planning-cancel-structure"));
+    expect(screen.queryByTestId("planning-apply-structure")).not.toBeInTheDocument();
+    expect(mockedSaveProject).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("planning-preview-structure"));
+    fireEvent.click(screen.getByTestId("planning-apply-structure"));
+
+    await flushAutosave();
+
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    const saved = latestSavedProject();
+    expect(saved.tasks.map((task) => task.wbs)).toEqual(["1", "1.1"]);
+    expect(saved.tasks[0].isSummary).toBe(true);
+  });
+
+  test("compares, discards and applies a what-if duration scenario", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="What-if"
+        tasks={[
+          makeTask({
+            id: 1,
+            name: "Actividad base",
+            start: createProjectDate("2026-01-05"),
+            finish: createProjectDate("2026-01-05"),
+            duration: 1,
+          }),
+          makeTask({
+            id: 2,
+            name: "Sucesora",
+            start: createProjectDate("2026-01-05"),
+            finish: createProjectDate("2026-01-05"),
+            duration: 1,
+            dependencies: [{ from: 1, to: 2, type: "FS" }],
+          }),
+        ]}
+      />,
+    );
+
+    mockedSaveProject.mockClear();
+
+    fireEvent.click(screen.getAllByTestId("gantt-row")[0]);
+    fireEvent.change(screen.getByTestId("what-if-duration-delta"), {
+      target: { value: "2" },
+    });
+    fireEvent.click(screen.getByTestId("what-if-preview"));
+    expect(screen.getByTestId("what-if-summary")).toHaveTextContent("Tareas impactadas");
+    fireEvent.click(screen.getByTestId("what-if-discard"));
+    expect(screen.queryByTestId("what-if-summary")).not.toBeInTheDocument();
+    expect(mockedSaveProject).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("what-if-preview"));
+    fireEvent.click(screen.getByTestId("what-if-apply"));
+
+    await flushAutosave();
+
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    const saved = latestSavedProject();
+    expect(saved.tasks.find((task) => task.id === 1)?.duration).toBe(3);
+  });
+
+  test("autosaves predecessors created with the visual dependency popover", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Persistencia"
+        tasks={[
+          makeTask({
+            id: 1,
+            name: "Predecesora",
+            start: createProjectDate("2026-01-05"),
+            finish: createProjectDate("2026-01-05"),
+            duration: 1,
+          }),
+          makeTask({
+            id: 2,
+            name: "Sucesora",
+            start: createProjectDate("2026-01-05"),
+            finish: createProjectDate("2026-01-05"),
+            duration: 1,
+            dependencies: [],
+          }),
+        ]}
+      />,
+    );
+
+    mockedSaveProject.mockClear();
+
+    fireEvent.click(screen.getByTestId("dependency-popover-open-2"));
+    fireEvent.change(screen.getByTestId("dependency-search"), {
+      target: { value: "Predecesora" },
+    });
+    fireEvent.change(screen.getByTestId("dependency-type-select"), {
+      target: { value: "FF" },
+    });
+    fireEvent.change(screen.getByTestId("dependency-lag-input"), {
+      target: { value: "2" },
+    });
+    fireEvent.click(screen.getByTestId("dependency-add"));
+    fireEvent.click(screen.getByTestId("dependency-apply"));
+
+    await flushAutosave();
+
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
     const successor = latestSavedProject().tasks.find((task) => task.id === 2);
     expect(successor?.dependencies).toEqual([
-      expect.objectContaining({ from: 1, to: 2, type: "FS" }),
+      expect.objectContaining({ from: 1, to: 2, type: "FF", lag: 2 }),
     ]);
+  });
+
+  test("autosaves successors created with the dependency side panel", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Persistencia"
+        tasks={[
+          makeTask({
+            id: 1,
+            name: "Predecesora",
+            start: createProjectDate("2026-01-05"),
+            finish: createProjectDate("2026-01-05"),
+            duration: 1,
+          }),
+          makeTask({
+            id: 2,
+            name: "Sucesora",
+            start: createProjectDate("2026-01-05"),
+            finish: createProjectDate("2026-01-05"),
+            duration: 1,
+            dependencies: [],
+          }),
+        ]}
+      />,
+    );
+
+    mockedSaveProject.mockClear();
+
+    fireEvent.click(screen.getAllByTestId("gantt-row")[0]);
+    fireEvent.click(screen.getByTestId("dependency-panel-open"));
+    fireEvent.change(screen.getByTestId("dependency-panel-successor-type-select"), {
+      target: { value: "SF" },
+    });
+    fireEvent.change(screen.getByTestId("dependency-panel-successor-lag-input"), {
+      target: { value: "4" },
+    });
+    fireEvent.click(screen.getByTestId("dependency-panel-add-successor"));
+    fireEvent.click(screen.getByTestId("dependency-panel-apply"));
+
+    await flushAutosave();
+
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    const successor = latestSavedProject().tasks.find((task) => task.id === 2);
+    expect(successor?.dependencies).toEqual([
+      expect.objectContaining({ from: 1, to: 2, type: "SF", lag: 4 }),
+    ]);
+  });
+
+  test("autosaves hierarchy edits from the table toolbar", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Persistencia"
+        tasks={[
+          makeTask({ id: 1, name: "Capitulo" }),
+          makeTask({ id: 2, name: "Actividad" }),
+        ]}
+      />,
+    );
+
+    mockedSaveProject.mockClear();
+
+    const rows = screen.getAllByTestId("gantt-row");
+    fireEvent.click(rows[1]);
+    fireEvent.click(screen.getByTestId("hierarchy-indent"));
+
+    await flushAutosave();
+
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    const saved = latestSavedProject();
+    expect(saved.tasks.map((task) => task.outlineLevel)).toEqual([1, 2]);
+    expect(saved.tasks.map((task) => task.wbs)).toEqual(["1", "1.1"]);
+    expect(saved.tasks[0].isSummary).toBe(true);
+  });
+
+  test("autosaves construction structure templates from the table toolbar", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Plantillas"
+        tasks={[makeTask({ id: 1, name: "Actividad base" })]}
+      />,
+    );
+
+    mockedSaveProject.mockClear();
+
+    fireEvent.click(screen.getByTestId("hierarchy-apply-template"));
+
+    await flushAutosave();
+
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    const saved = latestSavedProject();
+    expect(saved.tasks.map((task) => task.name)).toEqual(
+      expect.arrayContaining([
+        "Obra gris",
+        "Preliminares",
+        "Cimentacion",
+        "Estructura",
+        "Vaciado de concreto",
+      ]),
+    );
+    expect(saved.tasks.find((task) => task.name === "Vaciado de concreto")?.dependencies).toEqual([
+      expect.objectContaining({ type: "FS", lag: 0 }),
+    ]);
+    expect(saved.planningAuditEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "structureEdit",
+          summary: "Apply structure template obra-gris-basica",
+        }),
+      ]),
+    );
+  });
+
+  test("autosaves smart pasted Excel rows as project tasks", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Smart paste"
+        tasks={[makeTask({ id: 1, name: "Existente" })]}
+      />,
+    );
+
+    mockedSaveProject.mockClear();
+
+    fireEvent.click(screen.getByTestId("smart-paste-open"));
+    fireEvent.change(screen.getByTestId("smart-paste-textarea"), {
+      target: {
+        value: "Actividad\tInicio\tDuración\t% completado\tNivel\nCapitulo\t2026-02-01\t1\t0\t1\nFormaleta\t2026-02-02\t3\t25\t2",
+      },
+    });
+    fireEvent.click(screen.getByTestId("smart-paste-apply"));
+
+    await flushAutosave();
+
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    const saved = latestSavedProject();
+    expect(saved.tasks.map((task) => task.name)).toEqual([
+      "Existente",
+      "Capitulo",
+      "Formaleta",
+    ]);
+    expect(saved.tasks[1]).toEqual(
+      expect.objectContaining({ isSummary: true, wbs: "2" }),
+    );
+    expect(saved.tasks[2]).toEqual(
+      expect.objectContaining({ duration: 3, progress: 25, wbs: "2.1" }),
+    );
+    expect(saved.planningAuditEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "taskEdit",
+          summary: "Smart paste tasks from Excel",
+        }),
+      ]),
+    );
   });
 
   test("preserves loaded project side data when autosaving task edits", async () => {

@@ -11,6 +11,7 @@ import {
   Settings,
   AlertTriangle,
   Grid3X3,
+  LayoutDashboard,
 } from "lucide-react";
 import type { ViewType } from "./ViewSwitcher";
 import type { UILocale } from "@/types/ui";
@@ -24,6 +25,7 @@ interface ViewTab {
 
 const VIEW_TABS: ViewTab[] = [
   { id: "gantt", labelEs: "Gantt", labelEn: "Gantt", icon: BarChart3 },
+  { id: "executive", labelEs: "Ejecutivo", labelEn: "Executive", icon: LayoutDashboard },
   { id: "tracking", labelEs: "Seguimiento", labelEn: "Tracking", icon: GitCompare },
   { id: "taskSheet", labelEs: "Hoja Tareas", labelEn: "Task Sheet", icon: Table },
   { id: "network", labelEs: "Diagrama Red", labelEn: "Network", icon: Network },
@@ -49,9 +51,10 @@ export default function ViewSidebar({ activeView, onViewChange, locale = "es" }:
       role="navigation"
       aria-label="Vistas del proyecto"
       style={{
-        width: 52,
-        background: "var(--aia-corp-dark)",
-        borderRight: "1px solid rgba(255,255,255,0.1)",
+        width: 58,
+        background: "color-mix(in oklch, var(--color-bg-surface) 82%, transparent)",
+        borderRight: "1px solid var(--color-hairline)",
+        backdropFilter: "blur(18px) saturate(1.2)",
       }}
     >
       {VIEW_TABS.map((tab) => {
@@ -71,20 +74,24 @@ export default function ViewSidebar({ activeView, onViewChange, locale = "es" }:
             className="flex flex-col items-center justify-center gap-0.5 transition-colors"
             style={{
               padding: "10px 4px",
+              margin: "3px 5px",
               background: isActive ? "var(--aia-corp-main)" : "transparent",
-              color: isActive ? "#ffffff" : "var(--aia-corp-mid)",
+              color: isActive ? "#ffffff" : "var(--gray-500)",
               border: "none",
-              borderLeft: isActive ? "3px solid var(--aia-alert-main)" : "3px solid transparent",
+              borderRadius: "var(--radius-md)",
+              borderLeft: "3px solid transparent",
               cursor: "pointer",
             }}
             onMouseEnter={(e) => {
               if (!isActive) {
-                e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+                e.currentTarget.style.background = "var(--color-bg-elevated)";
+                e.currentTarget.style.color = "var(--aia-corp-dark)";
               }
             }}
             onMouseLeave={(e) => {
               if (!isActive) {
                 e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "var(--gray-500)";
               }
             }}
           >

@@ -66,10 +66,10 @@ interface ProjectToolbarProps {
 /* ── Shared toolbar button style ── */
 
 const toolbarBtnStyle = (active = false, disabled = false): React.CSSProperties => ({
-  background: active ? "var(--aia-corp-main)" : "transparent",
-  color: "#ffffff",
+  background: active ? "var(--aia-corp-main)" : "rgb(255 255 255 / 0.54)",
+  color: active ? "#ffffff" : "var(--aia-corp-dark)",
   opacity: disabled ? 0.4 : 1,
-  border: "none",
+  border: "1px solid var(--color-hairline)",
   borderRadius: "var(--radius-sm)",
   cursor: disabled ? "not-allowed" : "pointer",
   display: "inline-flex",
@@ -81,18 +81,18 @@ const toolbarBtnStyle = (active = false, disabled = false): React.CSSProperties 
 
 const toolbarBtnEnter = (e: React.MouseEvent<HTMLButtonElement>, disabled: boolean) => {
   if (!disabled) {
-    e.currentTarget.style.background = "var(--aia-corp-main)";
+    e.currentTarget.style.background = "var(--aia-corp-xlight)";
   }
 };
 
 const toolbarBtnLeave = (e: React.MouseEvent<HTMLButtonElement>, active: boolean) => {
-  e.currentTarget.style.background = active ? "var(--aia-corp-main)" : "transparent";
+  e.currentTarget.style.background = active ? "var(--aia-corp-main)" : "rgb(255 255 255 / 0.54)";
 };
 
 const sectionDivider: React.CSSProperties = {
   width: 1,
   height: 24,
-  background: "rgba(255, 255, 255, 0.2)",
+  background: "var(--color-hairline)",
   margin: "0 8px",
   flexShrink: 0,
 };
@@ -149,14 +149,12 @@ export default function ProjectToolbar({
   return (
     <div
       data-testid="project-toolbar"
-      className="flex items-center shrink-0 w-full overflow-x-auto"
+      className="apple-toolbar flex items-center shrink-0 w-full overflow-x-auto"
       style={{
-        background: "var(--aia-corp-dark)",
-        borderBottom: "2px solid var(--aia-corp-main)",
         position: "sticky",
         top: 0,
         zIndex: 50,
-        minHeight: 44,
+        minHeight: 48,
       }}
     >
       {/* ─── 1. Project Info (left) ─── */}
@@ -166,7 +164,7 @@ export default function ProjectToolbar({
       >
         <FolderKanban
           size={18}
-          style={{ color: "var(--aia-corp-light)", flexShrink: 0 }}
+          style={{ color: "var(--aia-corp-main)", flexShrink: 0 }}
         />
         <div className="flex flex-col" style={{ minWidth: 0 }}>
           <span
@@ -175,7 +173,7 @@ export default function ProjectToolbar({
               fontFamily: "var(--font-montserrat)",
               fontSize: 13,
               fontWeight: 600,
-              color: "#ffffff",
+              color: "var(--aia-corp-dark)",
               lineHeight: 1.2,
             }}
           >
@@ -186,7 +184,7 @@ export default function ProjectToolbar({
             style={{
               fontFamily: "var(--font-inter)",
               fontSize: 11,
-              color: "var(--aia-corp-light)",
+              color: "var(--gray-500)",
               lineHeight: 1.3,
             }}
           >
@@ -205,7 +203,7 @@ export default function ProjectToolbar({
         <span
           className="text-xs mr-1 opacity-70"
           style={{
-            color: "rgba(255,255,255,0.7)",
+            color: "var(--gray-500)",
             fontFamily: "var(--font-inter)",
           }}
         >
@@ -220,20 +218,21 @@ export default function ProjectToolbar({
               background:
                 scale === btn.scale
                   ? "var(--aia-corp-main)"
-                  : "var(--aia-corp-mid)",
-              color: "#ffffff",
+                  : "rgb(255 255 255 / 0.58)",
+              color: scale === btn.scale ? "#ffffff" : "var(--aia-corp-dark)",
+              border: "1px solid var(--color-hairline)",
               fontFamily: "var(--font-montserrat)",
               fontSize: 12,
               fontWeight: 600,
             }}
             onMouseEnter={(e) => {
               if (scale !== btn.scale) {
-                e.currentTarget.style.background = "var(--aia-corp-main)";
+                e.currentTarget.style.background = "var(--aia-corp-xlight)";
               }
             }}
             onMouseLeave={(e) => {
               if (scale !== btn.scale) {
-                e.currentTarget.style.background = "var(--aia-corp-mid)";
+                e.currentTarget.style.background = "rgb(255 255 255 / 0.58)";
               }
             }}
           >
