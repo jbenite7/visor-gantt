@@ -1,6 +1,14 @@
 import { ProjectData } from "@/lib/parser/mpp-parser";
 
-const DEFAULT_PARSER_URL = "http://localhost:8000";
+const DEFAULT_PARSER_URL = "/api/parse-mpp";
+
+function buildParserUrl(baseUrl: string): string {
+  const trimmed = baseUrl.replace(/\/+$/, "");
+  if (trimmed.endsWith("/api/parse-mpp")) {
+    return trimmed;
+  }
+  return `${trimmed}/api/parse-mpp`;
+}
 
 /**
  * Sends an .mpp file to the Python parsing microservice and returns
@@ -15,7 +23,7 @@ const DEFAULT_PARSER_URL = "http://localhost:8000";
 export async function parseMPP(file: File): Promise<ProjectData> {
   const baseUrl =
     process.env.NEXT_PUBLIC_MPP_PARSER_URL || DEFAULT_PARSER_URL;
-  const url = `${baseUrl}/api/parse-mpp`;
+  const url = buildParserUrl(baseUrl);
 
   const formData = new FormData();
   formData.append("file", file);

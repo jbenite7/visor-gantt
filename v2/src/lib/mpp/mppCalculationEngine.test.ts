@@ -1780,18 +1780,18 @@ describe("MPP calculation engine", () => {
     const result = calculateMppFields({
       tasks: [
         task({
-          id: 1,
+          id: 101,
           name: "Predecesora",
           wbs: "1.1",
           dependencies: [],
-          mppFields: { UNIQUE_ID: 101 },
+          mppFields: { ID: 7, UNIQUE_ID: 101 },
         }),
         task({
-          id: 2,
+          id: 205,
           name: "Sucesora",
           wbs: "1.2",
-          dependencies: [{ from: 1, to: 2, type: "SS", lag: -1 }],
-          mppFields: { UNIQUE_ID: 205 },
+          dependencies: [{ from: 101, to: 205, type: "SS", lag: -1 }],
+          mppFields: { ID: 8, UNIQUE_ID: 205 },
         }),
       ],
       calendar: DEFAULT_PROJECT_CALENDAR,
@@ -1799,14 +1799,16 @@ describe("MPP calculation engine", () => {
 
     expect(result.tasks[0].mppFields).toEqual(
       expect.objectContaining({
-        SUCCESSORS: "2SS-1d",
+        ID: 7,
+        SUCCESSORS: "8SS-1d",
         WBS_SUCCESSORS: "1.2",
         UNIQUE_ID_SUCCESSORS: "205",
       }),
     );
     expect(result.tasks[1].mppFields).toEqual(
       expect.objectContaining({
-        PREDECESSORS: "1SS-1d",
+        ID: 8,
+        PREDECESSORS: "7SS-1d",
         WBS_PREDECESSORS: "1.1",
         UNIQUE_ID_PREDECESSORS: "101",
       }),

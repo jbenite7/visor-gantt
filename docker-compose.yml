@@ -6,8 +6,11 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_MPP_PARSER_URL=http://localhost:8000
-      - DATABASE_URL=postgresql://visoruser:visorpass@db:5432/visormpp
+      - NEXT_PUBLIC_MPP_PARSER_URL=${NEXT_PUBLIC_MPP_PARSER_URL:-/api/parse-mpp}
+      - MPP_PARSER_URL=${MPP_PARSER_URL:-http://mpp-parser:8000}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://visoruser:visorpass@db:5432/visormpp}
+      - INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL:-admin@example.com}
+      - INITIAL_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD:-admin123}
     depends_on:
       mpp-parser:
         condition: service_healthy

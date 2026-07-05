@@ -17,6 +17,7 @@ import {
   isProjectWorkingDay,
   normalizeProjectCalendar,
 } from "@/lib/scheduling/projectCalendar";
+import { dependencyToken, taskRowId, taskUniqueId } from "@/lib/gantt/taskIds";
 import { normalizeMppFieldId } from "./fieldLabels";
 import { evaluateCustomFormula, extractFormulaDependencies } from "./customFormula";
 import { getMppCalculatedFieldSpec } from "./calculatedFields";
@@ -841,17 +842,6 @@ function calculateAssignmentFinancials(
     actualOvertimeCost,
     remainingOvertimeCost: Math.max(0, overtimeCost - actualOvertimeCost),
   };
-}
-
-function dependencyLabel(dep: GanttDependency): string {
-  const lag = dep.lag ? `${dep.lag > 0 ? "+" : ""}${dep.lag}d` : "";
-  return `${dep.from}${dep.type}${lag}`;
-}
-
-function taskUniqueId(task: GanttTask | undefined, fallback: string | number): string | number {
-  if (!task) return fallback;
-  const uniqueId = readCalculatedField(task.mppFields ?? {}, "UNIQUE_ID");
-  return typeof uniqueId === "string" || typeof uniqueId === "number" ? uniqueId : fallback;
 }
 
 function write(fields: Record<string, unknown>, fieldId: string, value: unknown): void {
@@ -1991,7 +1981,7 @@ function calculateTaskFields(
   const preleveledFinish = parseDate(readCalculatedField(fields, "PRELEVELED_FINISH") as Date | string | undefined)
     ?? subtractLevelingDelay(taskForCalculations.finish, levelingDelay, minutesPerDay, calendar);
 
-  write(fields, "ID", taskForCalculations.id);
+  write(fields, "ID", taskRowId(taskForCalculations, taskForCalculations.id));
   writeIfMissing(fields, "UNIQUE_ID", taskForCalculations.id);
   write(fields, "START", dateIso(taskForCalculations.start));
   write(fields, "FINISH", dateIso(taskForCalculations.finish));
@@ -2018,8 +2008,8 @@ function calculateTaskFields(
   write(fields, "NEGATIVE_SLACK", Math.min(0, effectiveTotalSlackDays));
   write(fields, "CRITICAL", calculatedCritical);
   write(fields, "ACTIVE", taskIsActive);
-  fields.PREDECESSORS = predecessors.map(dependencyLabel).join(", ");
-  fields.SUCCESSORS = successors.map((dep) => `${dep.to}${dep.type}${dep.lag ? `${dep.lag > 0 ? "+" : ""}${dep.lag}d` : ""}`).join(", ");
+  fields.PREDECESSORS = predecessors.map((dep) => dependencyToken(taskLookup(dep.from), dep.from, dep.type, dep.lag)).join(", ");
+  fields.SUCCESSORS = successors.map((dep) => dependencyToken(taskLookup(dep.to), dep.to, dep.type, dep.lag)).join(", ");
   fields.WBS_PREDECESSORS = predecessors.map((dep) => taskLookup(dep.from)?.wbs ?? dep.from).join(", ");
   fields.WBS_SUCCESSORS = successors.map((dep) => taskLookup(dep.to)?.wbs ?? dep.to).join(", ");
   fields.UNIQUE_ID_PREDECESSORS = predecessors.map((dep) => {

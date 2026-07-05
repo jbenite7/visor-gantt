@@ -20,6 +20,43 @@ function mspTask(overrides: Partial<MSPTask> = {}): MSPTask {
 }
 
 describe("mppTasksToGanttTasks", () => {
+  test("preserves row ID and resolves imported predecessor links by UID", () => {
+    const tasks = mppTasksToGanttTasks([
+      mspTask({
+        UID: 101,
+        ID: 7,
+        Name: "Predecesora",
+      }),
+      mspTask({
+        UID: 205,
+        ID: 8,
+        Name: "Sucesora",
+        PredecessorLink: [
+          {
+            PredecessorUID: 101,
+            Type: 1,
+            LinkLag: 0,
+            LagFormat: 7,
+          },
+        ],
+      }),
+    ]);
+
+    expect(tasks[0]).toEqual(
+      expect.objectContaining({
+        id: 101,
+        mppFields: expect.objectContaining({ ID: 7, UID: 101 }),
+      }),
+    );
+    expect(tasks[1]).toEqual(
+      expect.objectContaining({
+        id: 205,
+        dependencies: [{ from: 101, to: 205, type: "FS", lag: 0 }],
+        mppFields: expect.objectContaining({ ID: 8, UID: 205 }),
+      }),
+    );
+  });
+
   test("maps MS Project constraint and deadline fields into live task properties", () => {
     const [task] = mppTasksToGanttTasks([
       mspTask({

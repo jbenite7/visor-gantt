@@ -84,9 +84,21 @@ export interface MatrixCell {
 
 export interface MatrixActivityOverride extends MatrixSyncMetadata {
   activityId: string;
+  name?: string;
   quantity: number;
   unit?: string;
   productivityPerDay?: number;
+  sourceTaskId?: string | number;
+  start?: string;
+  finish?: string;
+  duration?: number;
+  progress?: number;
+  percentComplete?: number;
+  isCritical?: boolean;
+  isMilestone?: boolean;
+  resourceNames?: string[];
+  cost?: number;
+  actualCost?: number;
 }
 
 export interface MatrixTemplate {
@@ -107,6 +119,7 @@ export interface MatrixPlan {
   areas: AreaNode[];
   recipes: ActivityRecipe[];
   cells: MatrixCell[];
+  ganttDependencies?: GanttDependency[];
 }
 
 export type MatrixIssueKind =

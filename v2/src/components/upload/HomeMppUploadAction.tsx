@@ -1,26 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { saveProject } from "@/app/actions/project";
-import { parseMPP } from "@/lib/api";
-import {
-  mppAssignmentsToAssignments,
-  mppResourcesToResources,
-  mppTasksToGanttTasks,
-} from "@/components/upload/mpp-to-gantt";
-import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
-import { DEFAULT_UI_SETTINGS } from "@/types/ui";
-import {
-  buildMppAssignmentColumnsFromAssignments,
-  buildMppResourceColumnsFromResources,
-  buildMppTaskColumnsFromTasks,
-} from "@/lib/mpp/taskColumns";
-import { calculateMppFields } from "@/lib/mpp/mppCalculationEngine";
-import { normalizeProjectCalendar } from "@/lib/scheduling/projectCalendar";
+import { Upload } from "lucide-react";
 
 const MAX_FILE_SIZE_MB = 50;
-const GENERIC_IMPORTED_PROJECT_NAME = "Proyecto Importado";
 
 function validateMppFile(file: File): string | null {
   const extension = `.${file.name.split(".").pop()?.toLowerCase()}`;
@@ -33,13 +16,19 @@ function validateMppFile(file: File): string | null {
   return null;
 }
 
-export default function HomeMppUploadAction() {
-  const router = useRouter();
+interface HomeMppUploadActionProps {
+  className?: string;
+}
+
+export default function HomeMppUploadAction({
+  className = "mt-4 flex flex-col items-center gap-2",
+}: HomeMppUploadActionProps) {
+  const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFile = async (file: File) => {
+  const handleFile = (file: File) => {
     const validationError = validateMppFile(file);
     if (validationError) {
       setError(validationError);
@@ -48,85 +37,20 @@ export default function HomeMppUploadAction() {
 
     setIsProcessing(true);
     setError(null);
-
-    try {
-      const parsedProject = await parseMPP(file);
-      const fallbackName = file.name.replace(/\.mpp$/i, "");
-      const projectName =
-        parsedProject.name && parsedProject.name !== GENERIC_IMPORTED_PROJECT_NAME
-          ? parsedProject.name
-          : fallbackName;
-      const projectCalendar = normalizeProjectCalendar(
-        parsedProject.calendar ?? DEFAULT_PROJECT_CALENDAR,
-      );
-      const tasks = mppTasksToGanttTasks(parsedProject.tasks);
-      const mppTaskColumns = buildMppTaskColumnsFromTasks(
-        parsedProject.tasks,
-        parsedProject.availableColumns,
-        parsedProject.mppTaskColumns,
-      );
-      const resources = mppResourcesToResources(parsedProject.resources ?? []);
-      const assignments = mppAssignmentsToAssignments(parsedProject.assignments ?? []);
-      const mppResourceColumns = buildMppResourceColumnsFromResources(
-        resources,
-        parsedProject.availableResourceColumns,
-        parsedProject.mppResourceColumns,
-      );
-      const mppAssignmentColumns = buildMppAssignmentColumnsFromAssignments(
-        assignments,
-        parsedProject.availableAssignmentColumns,
-        parsedProject.mppAssignmentColumns,
-      );
-      const calculated = calculateMppFields({
-        tasks,
-        resources,
-        assignments,
-        baselines: [],
-        calendar: projectCalendar,
-        statusDate: parsedProject.statusDate,
-        mppTaskColumns,
-        mppResourceColumns,
-        mppAssignmentColumns,
-        customFieldDefinitions: parsedProject.customFieldDefinitions ?? [],
-      });
-      const result = await saveProject({
-        name: projectName,
-        statusDate: parsedProject.statusDate,
-        tasks: calculated.tasks,
-        resources: calculated.resources,
-        assignments: calculated.assignments,
-        budgetItems: [],
-        budgetMappings: [],
-        baselines: [],
-        calendar: projectCalendar,
-        mppTaskColumns: calculated.mppTaskColumns,
-        mppResourceColumns: calculated.mppResourceColumns,
-        mppAssignmentColumns: calculated.mppAssignmentColumns,
-        customFieldDefinitions: calculated.customFieldDefinitions,
-        calculationEngineVersion: calculated.engineVersion,
-        calculatedAt: calculated.calculatedAt,
-        uiSettings: DEFAULT_UI_SETTINGS,
-      });
-
-      if (!result.success || !result.id) {
-        throw new Error(result.error ?? "No se pudo guardar el proyecto importado");
-      }
-
-      router.push(`/project/${result.id}`);
-    } catch (uploadError) {
-      setError(
-        uploadError instanceof Error
-          ? uploadError.message
-          : "No se pudo importar el archivo .mpp",
-      );
-      setIsProcessing(false);
-    }
+    formRef.current?.requestSubmit();
   };
 
   return (
-    <div className="mt-4 flex flex-col items-center gap-2">
+    <form
+      ref={formRef}
+      action="/api/import-mpp"
+      method="post"
+      encType="multipart/form-data"
+      className={className}
+    >
       <input
         ref={inputRef}
+        name="file"
         type="file"
         accept=".mpp"
         aria-label="Seleccionar archivo .mpp"
@@ -134,21 +58,23 @@ export default function HomeMppUploadAction() {
         disabled={isProcessing}
         onChange={(event) => {
           const file = event.target.files?.[0];
-          if (file) void handleFile(file);
-          event.target.value = "";
+          if (file) handleFile(file);
         }}
       />
       <button
         type="button"
         disabled={isProcessing}
         onClick={() => inputRef.current?.click()}
-        className="inline-block px-5 py-2 rounded-lg bg-[var(--aia-corp-main)] text-white text-sm font-medium hover:bg-[var(--aia-corp-dark)] transition-colors disabled:opacity-60 disabled:cursor-wait"
+        className="apple-button-primary inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-60"
       >
+        <Upload size={16} aria-hidden />
         {isProcessing ? "Importando..." : "Subir Archivo .mpp"}
       </button>
       {error && (
-        <p className="max-w-md text-sm text-[var(--aia-alert-main)]">{error}</p>
+        <p className="max-w-md rounded-lg border border-[var(--aia-alert-main)] bg-[var(--aia-alert-xlight)] px-3 py-2 text-sm text-[var(--aia-alert-main)]">
+          {error}
+        </p>
       )}
-    </div>
+    </form>
   );
 }

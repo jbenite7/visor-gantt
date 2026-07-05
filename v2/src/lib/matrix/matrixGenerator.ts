@@ -39,6 +39,13 @@ function createDate(value: string): Date {
   return date;
 }
 
+function createDateFromUnknown(value: string | undefined, fallback: Date): Date {
+  if (!value) return new Date(fallback);
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return new Date(fallback);
+  return date;
+}
+
 function addCalendarDays(date: Date, days: number): Date {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
@@ -464,18 +471,29 @@ export function generateScheduleFromMatrix(
         return;
       }
 
-      const duration = durationFrom(quantity, productivity);
-      const finish = finishFromDuration(cursor, duration);
-      const taskId = `mx-task-${sanitizeId(cell.id)}-${sanitizeId(activity.id)}`;
+      const duration =
+        activityOverride?.duration ?? durationFrom(quantity, productivity);
+      const start = createDateFromUnknown(activityOverride?.start, cursor);
+      const finish = createDateFromUnknown(
+        activityOverride?.finish,
+        finishFromDuration(start, duration),
+      );
+      const taskId =
+        activityOverride?.sourceTaskId ??
+        `mx-task-${sanitizeId(cell.id)}-${sanitizeId(activity.id)}`;
       const task: GanttTask = {
         id: taskId,
-        name: buildTaskName(scope, activity.name, area),
-        start: cursor,
+        name: activityOverride?.name ?? buildTaskName(scope, activity.name, area),
+        start,
         finish,
         duration,
-        progress: 0,
-        isCritical: false,
-        isMilestone: false,
+        progress: activityOverride?.progress ?? 0,
+        percentComplete: activityOverride?.percentComplete,
+        resourceNames: activityOverride?.resourceNames,
+        cost: activityOverride?.cost,
+        actualCost: activityOverride?.actualCost,
+        isCritical: activityOverride?.isCritical ?? false,
+        isMilestone: activityOverride?.isMilestone ?? false,
         isSummary: false,
         outlineLevel: flatScope.path.length + flatArea.path.length + 1,
         dependencies: [],
@@ -524,6 +542,28 @@ export function generateScheduleFromMatrix(
   }
 
   recalculateSummaries(tasks, summaries);
+
+  const knownTaskIds = new Set(tasks.map((task) => task.id));
+  for (const dependency of plan.ganttDependencies ?? []) {
+    if (!knownTaskIds.has(dependency.from) || !knownTaskIds.has(dependency.to)) {
+      continue;
+    }
+
+    dependencies.push(dependency);
+    const successor = tasks.find((task) => task.id === dependency.to);
+    if (successor) {
+      const alreadyLinked = successor.dependencies.some(
+        (item) =>
+          item.from === dependency.from &&
+          item.to === dependency.to &&
+          item.type === dependency.type &&
+          (item.lag ?? 0) === (dependency.lag ?? 0),
+      );
+      if (!alreadyLinked) {
+        successor.dependencies = [...successor.dependencies, dependency];
+      }
+    }
+  }
 
   return {
     tasks: tasks.filter((task) => {

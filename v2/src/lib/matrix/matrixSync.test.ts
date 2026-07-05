@@ -136,14 +136,18 @@ describe("matrixSync", () => {
     const synced = syncMatrixPlanFromTasks(plan, editedTasks);
 
     expect(synced.cells[0].activityOverrides).toEqual([
-      {
+      expect.objectContaining({
         activityId: "mamposteria",
+        name: "Piso 1 - Mamposteria - Arquitectura",
         quantity: 50,
         unit: "m2",
         productivityPerDay: 10,
+        sourceTaskId: "mx-task-cell-muros-mamposteria",
+        duration: 5,
+        progress: 0,
         lastEditedAt: "2026-01-02T00:00:00.000Z",
         lastEditedFrom: "gantt",
-      },
+      }),
     ]);
     expect(synced.cells[0].feedback).toBeUndefined();
   });
