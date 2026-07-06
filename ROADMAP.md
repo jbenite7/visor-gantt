@@ -250,3 +250,30 @@
 - [x] **Calendario Dinámico**: actualización del `CalendarService` (Domain) para soportar configuración de días no laborales y festivos desde el XML.
 - [x] **Aritmética de Fechas**: Implementación de `addDuration` y `subtractDuration` con lógica de días laborables para el cálculo de ruta crítica.
 - [x] **Rollup de Resumen**: Verificación del algoritmo de fechas de tareas resumen basado en sus sub-tareas (Min Start / Max Finish).
+
+---
+
+# Track v2: Reescritura Next.js (`v2/`)
+
+> **Nota de arquitectura**: Las Fases 1–29 de arriba documentan la implementación legacy (PHP + parser XML/MSPDI + Frappe Gantt/DHTMLX). El producto activo es la reescritura en `v2/` (Next.js 16 / React 19 / TypeScript / PostgreSQL con parser `.mpp` vía servicio Docker mpxj). Este track se documenta por separado para no desincronizar ambas capas. El roadmap legacy se conserva como referencia histórica, no como estado vigente.
+
+## ✅ Fase v2-G1: Editor operativo de planificación + Refactor apple-like + Paridad matriz/Gantt (Completada)
+
+**Fecha**: 2026-07-06
+**Paquete de objetivo**: `goals/top5-ui-ux-business-improvements-gantt/` (goal.md / facts.md / plan.md)
+
+Convertir el Gantt en editor operativo diferenciado frente a MS Project/Planner, refactor estético apple-like 2026 en toda la app, y generación automática de programación matricial simétrica al importar `.mpp`.
+
+- [x] **Editor de dependencias** (FS/SS/FF/SF + lags) con popover/panel, detección de ciclos, autosave PostgreSQL y recarga verificada — `dependency-visual-persistence.spec.ts`.
+- [x] **Editor de jerarquía** (drag/drop, WBS, outlineLevel, rollups de resumen) con autosave y recarga verificada — `hierarchy-visual-persistence.spec.ts`.
+- [x] **Asistente preventivo** (dependencias faltantes, convergencia crítica, capacidad, deadlines, restricciones MPP, baseline) en runtime sin mutar `project_data` — `planning-assistant-runtime.spec.ts`.
+- [x] **What-if** con preview sin mutar DB, descartar y aplicar con confirmación — `what-if-persistence.spec.ts`.
+- [x] **Integración cronograma/costo/alcance/avance**: Línea de Balance, Curva S, Earned Value, triple restricción, dashboard ejecutivo, export CSV/PDF.
+- [x] **Refactor apple-like 2026**: design system OKLCH en `globals.css` (tokens de radio/sombra multicapa, `--ease-spring`, glass/backdrop-blur con prefijos `-webkit-` Safari, dark mode), auditoría visual desktop/mobile — `final-visual-audit.spec.ts` (40 capturas).
+- [x] **Programación matricial simétrica**: paridad 100% Gantt↔Matriz (`buildMatrixPlanFromGantt` / `generateScheduleFromMatrix` + `matrixSync`).
+- [x] **`.mpp` → matriz automática**: `buildProjectDataFromMpp` genera `matrixPlan` en ambas ramas (con y sin cálculo) vía `buildImportedMatrix` — `mpp-import-matrix-runtime.spec.ts`.
+- [x] **Restricción de negocio respetada**: ninguna acción inteligente/IA modifica el cronograma sin confirmación explícita del usuario (facts.md #50, plan.md L250).
+
+**Verificación de cierre** (2026-07-06): lint limpio; Jest 71 suites / 508 tests; `next build` ✓; E2E en vivo 11 passed / 1 skipped (benchmark de producción omitido por requerir `PRODUCTION_SSH_HOST`) contra PostgreSQL + parser `.mpp` reales; benchmark sintético (60 pisos, 20 corridas) `recalculateSchedule` p95 15.4 ms, `combinedMatrixGanttPath` p95 19.3 ms.
+
+**Deuda de release conocida**: la imagen Docker `visor-gantt-frontend:latest` es del 2026-07-02 (anterior a los commits de feature); requiere `docker compose build frontend` antes de desplegar para no correr código viejo.
