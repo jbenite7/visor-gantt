@@ -7,6 +7,20 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### v2 — Reescritura Next.js 16 (2026-07-06)
+
+#### Added
+
+- **Editor operativo de planificación**: Gantt/CPM interactivo diferenciado de MS Project/Planner (ruta crítica, dependencias FS/SS/FF/SF + lags, WBS/rollups) sobre `v2/` (Next.js 16 + React 19).
+- **Programación matricial simétrica**: paridad 100% con el CPM/Gantt (`buildMatrixPlanFromGantt` ↔ `generateScheduleFromMatrix`); un `.mpp` importado genera su matriz automáticamente en ambas ramas de cálculo (`buildImportedMatrix`).
+- **Refactor estético Apple-like 2026**: design system con tokens OKLCH, superficies glass (`backdrop-filter`), modo oscuro e identidad de marca AIA, centralizado en `v2/src/app/globals.css`.
+
+#### Removed
+
+- **Erradicación del backend PHP legacy (DDD)**: eliminados `backend/` (Domain/Services/tests PHP), `docker/Dockerfile` (php:8.2-apache) y `.eslintrc.json`. No queda ninguna ruta de ejecución fuera de Docker + `v2/`.
+
+### Legacy (PHP + Frappe Gantt) — archivado, referencia histórica
+
 ### Added
 
 - **Favicon y Logo Corporativo**: Integración de `favicon.png` y `logo.png` en la interfaz principal.

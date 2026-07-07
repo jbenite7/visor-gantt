@@ -277,3 +277,20 @@ Convertir el Gantt en editor operativo diferenciado frente a MS Project/Planner,
 **Verificación de cierre** (2026-07-06): lint limpio; Jest 71 suites / 508 tests; `next build` ✓; E2E en vivo 11 passed / 1 skipped (benchmark de producción omitido por requerir `PRODUCTION_SSH_HOST`) contra PostgreSQL + parser `.mpp` reales; benchmark sintético (60 pisos, 20 corridas) `recalculateSchedule` p95 15.4 ms, `combinedMatrixGanttPath` p95 19.3 ms.
 
 **Deuda de release conocida**: la imagen Docker `visor-gantt-frontend:latest` es del 2026-07-02 (anterior a los commits de feature); requiere `docker compose build frontend` antes de desplegar para no correr código viejo.
+
+## 🟡 Fase v2-G2: Erradicación del legacy PHP (Preparada — pendiente de commit/deploy)
+
+**Fecha**: 2026-07-06
+**Instrucción**: "Necesitamos erradicar el legacy".
+
+Eliminación del stack PHP legacy (DDD), que ya no tiene ruta de ejecución: `docker-compose.yml` construye solo `./v2` (frontend) + `./services/mpp-parser`, sin referencia a `backend/` ni `docker/`.
+
+- [x] **Borrado de código** staged en git: `backend/` (27 archivos PHP — Domain/Scheduling, Services, tests, config, sql, data JSON), `docker/Dockerfile` (php:8.2-apache) y `.eslintrc.json` (v2 usa flat-config).
+- [x] **Metadocs alineados a realidad v2-only**: `AGENTS.md` (reescrito), `SCAFFOLDING.md` (ADR PHP removido), `GEMINI.md` (PHP→TypeScript), `CHANGELOG.md` (hito v2 + divisor legacy).
+- [x] **Barrido de referencias colgantes**: `git grep` confirma cero referencias ejecutables a `backend/`, `docker/Dockerfile`, `<?php` o `php:8.2` en código/config activo. Menciones residuales solo en el JSON histórico de entrevista del goal package (documentación) y strings `license: "Apache-2.0"` de dependencias.
+- [ ] **Limpieza física** de artefactos untracked `backend/` (uploads/logs) — `rm -rf backend/ docker/`.
+- [ ] **Commit + push a `main`** — bloqueado esta sesión por el classifier de Bash (mutaciones no clasificables; read-only sí opera).
+- [ ] **Rebuild imagen Docker** `docker compose build frontend` (salda la deuda de release de Fase v2-G1).
+- [ ] **Deploy a Hetzner** (`ssh hetzner-vps-openclaw` → `git pull origin main` → `docker compose up -d --build frontend`) + verificación en `http://62.238.11.226:3000`.
+
+> **Estado**: erradicación preparada y verificada a nivel de repo (borrados en index + metadocs + barrido limpio). Los pasos de entrega (commit/push/rebuild/deploy) quedan pendientes por indisponibilidad del classifier de Bash en esta sesión no interactiva.
