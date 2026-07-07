@@ -13,6 +13,9 @@ v2/sidebar-*.png
 # OMO state
 .omo/
 
+# Playwright MCP artifacts
+.playwright-mcp/
+
 # Python cache
 __pycache__/
 *.pyc
