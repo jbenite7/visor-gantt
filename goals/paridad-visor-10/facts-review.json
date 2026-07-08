@@ -1,0 +1,199 @@
+{
+  "stage": "facts",
+  "title": "Paridad funcional con Visor de Cronogramas (.mpp) — Facts",
+  "goalSlug": "paridad-visor-10",
+  "facts": [
+    {
+      "id": "conflictos-new-view",
+      "text": "Nueva vista 'Conflictos' como ViewType 'conflictos' agregada al ViewSwitcher con su propio ícono y pestaña, separada de BottlenecksView.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "conflictos-restricciones",
+      "text": "ConflictosView detecta violaciones de restricción: una dependencia formal FS/SS/FF/SF existe pero las fechas de las tareas la contradicen (ej. sucesora termina antes que predecesora arranque en FS).",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "conflictos-desviaciones",
+      "text": "ConflictosView detecta desviaciones atípicas: sin dependencia formal entre dos tareas, pero el orden de sus fechas se sale del patrón típico esperado para esa pareja de sistemas.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "conflictos-tabla",
+      "text": "ConflictosView muestra una tabla por tipo con columnas: Nivel, Predecesora, Sucesora, Relación, Lag, Fecha esperada, Fecha real, Días de atraso.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "conflictos-contadores",
+      "text": "ConflictosView muestra contadores en el encabezado: 'X violaciones de restricción · Y desviaciones atípicas'. Muestra 0/0 cuando no hay conflictos.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "unidad-tipica-new-view",
+      "text": "Nueva vista 'Unidad Típica' como ViewType 'unidadTipica' agregada al ViewSwitcher con su propio ícono y pestaña.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "unidad-tipica-deteccion",
+      "text": "UnidadTipicaView detecta sistemas repetidos en ≥3 niveles usando tanto patrones de texto (UNIT_PATTERNS de lob.ts: Piso/Nivel/Zona/Lote) como estructura WBS (niveles outline).",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "unidad-tipica-modos",
+      "text": "UnidadTipicaView tiene toggle entre modo 'Por Nivel' (flujo por cada nivel/piso) y 'Consolidado' (promedio general del sistema repetido).",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "unidad-tipica-productividad",
+      "text": "UnidadTipicaView incluye análisis de productividad (unidades/día) por sistema repetido cuando hay datos suficientes.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "unidad-tipica-degrade",
+      "text": "UnidadTipicaView degrada limpiamente con mensaje 'No se detectaron sistemas que se repitan en al menos 3 niveles' cuando no hay suficientes datos.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "lob-degrade-msg",
+      "text": "LineOfBalance muestra mensaje de degradación alineado con la app destilada cuando no hay actividades repetitivas detectadas.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "lob-location-info",
+      "text": "Cada actividad en LineOfBalance muestra etiqueta de ubicación/nivel/piso detectado.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "lob-scale-selector",
+      "text": "LineOfBalance tiene selector de escala temporal (semanas/meses) en su toolbar.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "calendario-new-view",
+      "text": "Nueva vista 'Calendario' como ViewType 'calendario' agregada al ViewSwitcher con su propio ícono y pestaña.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "calendario-month-grid",
+      "text": "CalendarioView muestra grid mensual con celdas coloreadas por tipo de día: laboral, fin de semana, festivo, laboral especial. Usa 4 colores distintos.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "calendario-stats",
+      "text": "CalendarioView muestra barra de resumen: 'N días laborales · N fines de semana · N festivos' extraídos del calendario del proyecto.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "calendario-task-overlay",
+      "text": "CalendarioView solapa barras de tareas sobre el grid mensual (estilo MS Project Calendar view), mostrando cada tarea en sus fechas correspondientes.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "jerarquia-dinamica",
+      "text": "Los botones de nivel en GanttTable se generan dinámicamente: L1, L2, L3, ..., LX donde X es el máximo outlineLevel del cronograma actual.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "jerarquia-expand-colapse",
+      "text": "Los botones de jerarquía incluyen 'Expandir todo' y 'Colapsar todo' como controles independientes.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "banner-toolbar-mejora",
+      "text": "El ProjectToolbar existente se mejora para mostrar también: duración total del proyecto, % completado general, y conteo de dependencias.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "banner-persistente",
+      "text": "Banner informativo sutil agregado dentro de la vista Gantt (entre el ProjectToolbar y el SplitPane) con: nombre del proyecto, Inicio, Fin, duración total, % completado, N tareas, N dependencias.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "escala-trimestres",
+      "text": "La escala temporal del GanttChart incluye 'Trimestre' como 4ta opción además de Día/Semana/Mes, tanto en el ProjectToolbar como en el cálculo de columnWidth.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "completado-barras",
+      "text": "Las barras de tarea en GanttChart muestran visualmente el % de completado como un fill proporcional (barra de progreso dentro de la barra de tarea).",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "feriados-co",
+      "text": "Al importar un archivo .mpp en buildProjectDataFromMpp, se cargan automáticamente los festivos colombianos como excepciones no laborables del calendario del proyecto.",
+      "accepted": false,
+      "removed": false,
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    }
+  ]
+}

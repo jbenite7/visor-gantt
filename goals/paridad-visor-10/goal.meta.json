@@ -1,0 +1,21 @@
+{
+  "slug": "paridad-visor-10",
+  "title": "Paridad funcional con Visor de Cronogramas (.mpp) — 10 features",
+  "status": "active",
+  "created": "2026-07-08T12:00:00-05:00",
+  "estimatedEffort": "38h",
+  "tasks": 10,
+  "acceptedFacts": 24,
+  "artifacts": [
+    "interview.json",
+    "interview-result.json",
+    "facts-review.json",
+    "facts-result.json",
+    "facts.md",
+    "facts.meta.json",
+    "plan-review.json",
+    "plan-review.md",
+    "goal.md",
+    "goal.meta.json"
+  ]
+}

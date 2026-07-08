@@ -1,0 +1,162 @@
+{
+  "stage": "plan",
+  "title": "Paridad funcional con Visor de Cronogramas (.mpp) — Plan de implementación",
+  "goalSlug": "paridad-visor-10",
+  "tasks": [
+    {
+      "id": "viewtype-infra",
+      "title": "ViewType infrastructure: registrar conflictos, unidadTipica, calendario",
+      "summary": "Agregar los 3 nuevos ViewTypes al enum, al ViewSwitcher, al routing de GanttView y a la toolbar. Cada uno necesita icono, label y entrada en viewComponents.",
+      "requiredSkills": ["TypeScript", "React", "Next.js"],
+      "effort": "2 hours",
+      "sequentialDependencies": [],
+      "implementationSuggestions": [
+        "Agregar 'conflictos', 'unidadTipica', 'calendario' al enum ViewType en ViewSwitcher.tsx",
+        "Registrar componentes lazy en GanttView.tsx",
+        "Agregar entradas al map viewComponents",
+        "Asignar iconos (⚠️ / 📊 / 📅 o equivalentes SVG) en la toolbar"
+      ],
+      "acceptedFacts": ["conflictos-new-view", "unidad-tipica-new-view", "calendario-new-view"]
+    },
+    {
+      "id": "conflictos-view",
+      "title": "Vista Conflictos: análisis de restricciones y desviaciones",
+      "summary": "Nuevo componente ConflictosView que analiza la matriz de dependencias vs fechas reales, detecta violaciones de restricción y desviaciones atípicas, y las muestra en tablas con contadores.",
+      "requiredSkills": ["TypeScript", "React", "CSS", "algoritmos de scheduling"],
+      "effort": "6 hours",
+      "sequentialDependencies": ["viewtype-infra"],
+      "implementationSuggestions": [
+        "Crear v2/src/components/views/ConflictosView.tsx",
+        "Función auxiliar detectarViolaciones(dependencias, tareas) que compara relación (FS/SS/FF/SF) con fechas reales",
+        "Función auxiliar detectarDesviaciones(tareas) que identifica pares sin dependencia formal con orden atípico",
+        "Renderizar dos tablas con columnas: Nivel, Predecesora, Sucesora, Relación, Lag, Fecha esperada, Fecha real, Días de atraso",
+        "Contadores en encabezado: 'X violaciones · Y desviaciones'"
+      ],
+      "acceptedFacts": ["conflictos-restricciones", "conflictos-desviaciones", "conflictos-tabla", "conflictos-contadores"]
+    },
+    {
+      "id": "unidad-tipica-view",
+      "title": "Vista Unidad Típica: detección de sistemas repetidos y productividad",
+      "summary": "Nuevo componente UnidadTipicaView que detecta sistemas repetidos en ≥3 niveles usando patrones de texto y WBS, con toggle Por Nivel/Consolidado, análisis de productividad, y degradación limpia.",
+      "requiredSkills": ["TypeScript", "React", "CSS", "D3 o SVG"],
+      "effort": "8 hours",
+      "sequentialDependencies": ["viewtype-infra"],
+      "implementationSuggestions": [
+        "Crear v2/src/components/views/UnidadTipicaView.tsx",
+        "Reutilizar UNIT_PATTERNS de v2/src/components/charts/lob.ts (Piso/Nivel/Zona/Lote)",
+        "Agregar detección por WBS outlineLevel como fallback",
+        "Filtrar sistemas que aparecen en ≥3 niveles distintos",
+        "Toggle 'Por Nivel' (desglose por piso/nivel) / 'Consolidado' (promedio general por sistema)",
+        "Calcular unidades/día cuando hay datos de fecha y cantidad de unidades",
+        "Mostrar mensaje de degradación cuando no hay suficientes datos"
+      ],
+      "acceptedFacts": ["unidad-tipica-deteccion", "unidad-tipica-modos", "unidad-tipica-productividad", "unidad-tipica-degrade"]
+    },
+    {
+      "id": "lob-mejoras",
+      "title": "Mejoras Líneas de Balance: degradación, ubicación y escala",
+      "summary": "Actualizar LineOfBalance existente: alinear mensaje de degradación con app destilada, agregar etiqueta de ubicación/nivel en actividades, y agregar selector de escala temporal.",
+      "requiredSkills": ["TypeScript", "React", "CSS"],
+      "effort": "3 hours",
+      "sequentialDependencies": [],
+      "implementationSuggestions": [
+        "Modificar LineOfBalance.tsx para mensaje de empty-state similar al de la app destilada",
+        "Extraer etiqueta de ubicación desde el nombre de tarea o WBS y mostrarla junto a la actividad",
+        "Agregar botones/select de escala (semanas/meses) en el toolbar de la vista LOB",
+        "Calcular columnWidth según escala seleccionada"
+      ],
+      "acceptedFacts": ["lob-degrade-msg", "lob-location-info", "lob-scale-selector"]
+    },
+    {
+      "id": "calendario-view",
+      "title": "Vista Calendario: grid mensual, stats y task overlay",
+      "summary": "Nuevo componente CalendarioView con grid mensual, celdas coloreadas por tipo de día, barra de resumen con conteos, y solapamiento de barras de tareas.",
+      "requiredSkills": ["TypeScript", "React", "CSS Grid", "algoritmos de calendario"],
+      "effort": "8 hours",
+      "sequentialDependencies": ["viewtype-infra"],
+      "implementationSuggestions": [
+        "Crear v2/src/components/views/CalendarioView.tsx",
+        "Generar grid mensual con celdas para cada día del proyecto",
+        "Colorear cada celda según: laboral (verde/claro), fin de semana (gris), festivo (rojo claro), laboral especial (amarillo claro)",
+        "Barra de resumen: 'N laborales · N finde · N festivos'",
+        "Obtener datos del calendario del proyecto (projectData.calendar)",
+        "Renderizar barras de tareas sobre el grid en sus fechas correspondientes (estilo MS Project Calendar)"
+      ],
+      "acceptedFacts": ["calendario-month-grid", "calendario-stats", "calendario-task-overlay"]
+    },
+    {
+      "id": "jerarquia-dinamica",
+      "title": "Jerarquía dinámica: niveles L1-LX + Expandir/Colapsar",
+      "summary": "Los botones de filtro de nivel en GanttTable se generan dinámicamente según el outlineLevel máximo del proyecto, y se agregan botones Expandir todo y Colapsar todo.",
+      "requiredSkills": ["TypeScript", "React"],
+      "effort": "3 hours",
+      "sequentialDependencies": [],
+      "implementationSuggestions": [
+        "En GanttTable.tsx, computar maxOutlineLevel de las tareas actuales",
+        "Renderizar botones L1, L2, ..., LX dinámicamente",
+        "Agregar botones 'Expandir todo' (muestra outlineLevel = max) y 'Colapsar todo' (muestra outlineLevel = 1)",
+        "Asegurar que el nivel seleccionado persista al cambiar de tareas"
+      ],
+      "acceptedFacts": ["jerarquia-dinamica", "jerarquia-expand-colapse"]
+    },
+    {
+      "id": "banner-toolbar",
+      "title": "Toolbar mejorado + Banner informativo persistente",
+      "summary": "Mejorar ProjectToolbar con metadata adicional y agregar banner sutil entre toolbar y SplitPane con resumen del proyecto.",
+      "requiredSkills": ["TypeScript", "React", "CSS"],
+      "effort": "2 hours",
+      "sequentialDependencies": [],
+      "implementationSuggestions": [
+        "En ProjectToolbar.tsx, agregar duración total, % completado general, conteo de dependencias",
+        "En GanttView.tsx, agregar banner entre ProjectToolbar y SplitPane",
+        "Banner muestra: nombre del proyecto, Inicio, Fin, duración total, % completado, N tareas, N dependencias",
+        "Banner debe ser sutil (fondo semitransparente o glass, tipografía pequeña)"
+      ],
+      "acceptedFacts": ["banner-toolbar-mejora", "banner-persistente"]
+    },
+    {
+      "id": "escala-trimestres",
+      "title": "Escala Trimestres en GanttChart",
+      "summary": "Agregar 'Trimestre' como 4ta opción de escala temporal en el GanttChart y su toolbar.",
+      "requiredSkills": ["TypeScript", "React"],
+      "effort": "2 hours",
+      "sequentialDependencies": [],
+      "implementationSuggestions": [
+        "Agregar 'Trimestre' al tipo de escala en ProjectToolbar (junto a Día/Semana/Mes)",
+        "Calcular columnWidth para escala trimestral (aprox 3 meses por columna)",
+        "Asegurar que GanttChart.Header y las columnas de fechas se ajusten correctamente"
+      ],
+      "acceptedFacts": ["escala-trimestres"]
+    },
+    {
+      "id": "completado-barras",
+      "title": "% Completado visual en barras de Gantt",
+      "summary": "Las barras de tarea en GanttChart muestran fill proporcional del % de completado como barra de progreso interna.",
+      "requiredSkills": ["TypeScript", "React", "CSS/SVG"],
+      "effort": "2 hours",
+      "sequentialDependencies": [],
+      "implementationSuggestions": [
+        "En GanttChart task bar render, agregar overlay interno que representa % completado",
+        "Usar fill horizontal proporcional al porcentaje (e.g., 60% completado → 60% de la barra coloreada)",
+        "Usar color más intenso para la porción completada vs el resto de la barra"
+      ],
+      "acceptedFacts": ["completado-barras"]
+    },
+    {
+      "id": "feriados-co",
+      "title": "Feriados Colombia en importación .mpp",
+      "summary": "Al importar un .mpp, cargar automáticamente los festivos colombianos como excepciones no laborables del calendario del proyecto.",
+      "requiredSkills": ["TypeScript", "algoritmos de fechas"],
+      "effort": "2 hours",
+      "sequentialDependencies": [],
+      "implementationSuggestions": [
+        "En v2/src/lib/import/mpp-project.ts, función loadColombianHolidays(year)",
+        "Calcular festivos móviles (Pascua, etc.) usando algoritmo computus",
+        "Agregar festivos fijos (Enero 1, Mayo 1, Julio 20, Agosto 7, Diciembre 8, Diciembre 25, etc.)",
+        "Aplicar Ley de Emiliani (traslado al lunes siguiente para festivos que no sean puente festivo)",
+        "Agregar excepciones al calendario del proyecto en buildProjectDataFromMpp"
+      ],
+      "acceptedFacts": ["feriados-co"]
+    }
+  ]
+}

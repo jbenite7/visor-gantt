@@ -1,0 +1,100 @@
+{
+  "stage": "interview",
+  "title": "Paridad funcional con Visor de Cronogramas (.mpp) — 10 features",
+  "goalSlug": "paridad-visor-10",
+  "questions": [
+    {
+      "id": "conflictos-estrategia",
+      "prompt": "¿Cómo integrar la vista Conflictos (violaciones de restricción + desviaciones atípicas)?",
+      "description": "El proyecto ya tiene BottlenecksView (cuellos de botella: crítica, holgura baja, convergencia, sobreasignación). La app destilada detecta dos tipos diferentes: (a) violaciones de restricción (predecesora formal existe pero fechas la contradicen) y (b) desviaciones atípicas (sin dependencia formal, pero el orden se sale del patrón típico).",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Nueva vista separada 'Conflictos' como ViewType adicional (no mezclar con BottlenecksView), con su propio ícono y pestaña.",
+      "recommendedOptionIds": ["new-tab"],
+      "options": [
+        { "id": "new-tab", "label": "Nueva pestaña 'Conflictos' separada de Cuellos" },
+        { "id": "merge-bottlenecks", "label": "Fusionar dentro de BottlenecksView como sección adicional" },
+        { "id": "replace-bottlenecks", "label": "Reemplazar BottlenecksView con Conflictos" }
+      ],
+      "required": true
+    },
+    {
+      "id": "unidad-tipica-estrategia",
+      "prompt": "¿Qué debe detectar y mostrar la vista Unidad Típica?",
+      "description": "La app destilada detecta sistemas que se repiten en ≥3 niveles/pisos y muestra dos modos: 'Por Nivel' (flujo por cada nivel) y 'Consolidado' (promedio general). Cuando no hay suficientes repeticiones, degrada con un mensaje. El proyecto ya tiene LOB con detección de patrones tipo 'Piso/Nivel/Zona/Lote' en lob.ts.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Reutilizar la detección de patrones de lob.ts (UNIT_PATTERNS) pero en una vista independiente con toggle 'Por Nivel / Consolidado'. Degradación limpia cuando no haya suficientes repeticiones.",
+      "recommendedOptionIds": ["lob-patterns", "independent-view", "degrade-gracefully"],
+      "options": [
+        { "id": "lob-patterns", "label": "Reutilizar detección de patrones de LOB (Piso/Nivel/Zona/Lote)" },
+        { "id": "wbs-structure", "label": "Basarse en estructura WBS (niveles outline)" },
+        { "id": "both-patterns", "label": "Ambos: texto + WBS" },
+        { "id": "independent-view", "label": "Vista independiente con su propia pestaña" },
+        { "id": "lob-subtab", "label": "Sub-pestaña dentro de Líneas de Balance" },
+        { "id": "degrade-gracefully", "label": "Degradación limpia cuando no se detecten ≥3 niveles" },
+        { "id": "production-rates", "label": "Incluir análisis de productividad (unidades/día)" }
+      ],
+      "required": true
+    },
+    {
+      "id": "lob-mejoras",
+      "prompt": "¿Qué mejorarías de la vista Líneas de Balance actual?",
+      "description": "El proyecto ya tiene LOB con LineOfBalance.tsx que renderiza un SVG con planned/actual lines, tolerance bands, y tarjetas de diagnóstico. La app destilada es mucho más simple (solo muestra 'No se detectó información de ubicación' cuando no hay datos). Nuestra implementación es más sofisticada. Pero quizá quieras un detalle visual puntual.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "La LOB actual ya supera a la app destilada. Solo verificar que degrade correctamente con el mismo mensaje cuando no detecte datos, y agregar info de ubicación por nivel si es detectable.",
+      "recommendedOptionIds": ["degrade-msg", "location-info"],
+      "options": [
+        { "id": "degrade-msg", "label": "Alinear mensaje de degradación con la app destilada" },
+        { "id": "location-info", "label": "Agregar etiqueta de ubicación/nivel en cada actividad LOB" },
+        { "id": "scale-select", "label": "Agregar selector de escala temporal (semanas/meses)" },
+        { "id": "current-fine", "label": "Dejarla como está — ya es superior" }
+      ],
+      "required": false
+    },
+    {
+      "id": "calendario-ux",
+      "prompt": "¿Qué debe mostrar la vista Calendario heatmap?",
+      "description": "La app destilada muestra un heatmap mensual con: tarjetas de resumen (N días laborales, N fines de semana, N festivos), leyenda de colores (Laboral / Fin de semana / Festivo / Laboral especial), y grid de meses con celdas coloreadas por cada día. El proyecto ya tiene CalendarSettingsView (editor de calendario).",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Nueva vista 'Calendario' como ViewType con grid mensual + resumen estadístico + leyenda de colores. Separada del editor CalendarSettingsView, que ya existe.",
+      "recommendedOptionIds": ["new-view", "month-grid", "stats-header", "task-overlay"],
+      "options": [
+        { "id": "new-view", "label": "Nueva pestaña 'Calendario' en ViewSidebar" },
+        { "id": "month-grid", "label": "Grid mensual con celdas coloreadas (laboral/finde/festivo)" },
+        { "id": "stats-header", "label": "Barra de resumen: N laborales · N finde · N festivos" },
+        { "id": "task-overlay", "label": "Solapar barras de tareas sobre el calendario (tipo MS Project Calendar)" },
+        { "id": "no-task-overlay", "label": "Solo calendario sin tareas — vista informativa pura" }
+      ],
+      "required": true
+    },
+    {
+      "id": "jerarquia-layout",
+      "prompt": "¿Cómo prefieres los botones de jerarquía?",
+      "description": "El proyecto actual tiene en GanttTable: L1, L2, L3, All y expandir/colapsar por fila. La app destilada tiene: 'Expandir todo', 'Colapsar todo', 'Nivel 1', 'Nivel 2', 'Nivel 3', 'Nivel 4' como botones separados con etiquetas explícitas. Nuestra versión tiene botones más compactos pero con menos niveles visibles.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Mantener el diseño actual (L1/L2/L3/All) por ser más compacto, pero agregar Nivel 4 como botón explícito y reemplazar 'All' por 'Expandir todo' + 'Colapsar todo' separados.",
+      "recommendedOptionIds": ["add-level4", "expand-collapse"],
+      "options": [
+        { "id": "keep-current", "label": "Dejar como está — L1/L2/L3/All con expand/colapsar por fila" },
+        { "id": "add-level4", "label": "Agregar botón Nivel 4 explícito" },
+        { "id": "expand-collapse", "label": "Separar Expandir todo / Colapsar todo como botones independientes" },
+        { "id": "destilled-layout", "label": "Copiar exactamente: Expandir todo / Colapsar todo / Nivel 1-4" }
+      ],
+      "required": false
+    },
+    {
+      "id": "banner-ubicacion",
+      "prompt": "¿Dónde debe aparecer el banner persistente del proyecto?",
+      "description": "El proyecto actual muestra nombre y fechas en el ProjectToolbar (barra superior con botones). La app destilada tiene un banner destacado justo debajo del header con: nombre del proyecto + '· Inicio: ... · Fin: ... · N tareas · N dependencias'. Es información duplicada con el toolbar, pero más prominente.",
+      "answerMode": "single-custom",
+      "recommendedAnswer": "Agregar un banner sutil debajo del toolbar/sidebar con: nombre del proyecto, fechas, duración total, % completado general, N tareas, N dependencias. Que se vea solo en la vista Gantt.",
+      "recommendedOptionIds": ["gantt-banner"],
+      "options": [
+        { "id": "gantt-banner", "label": "Banner informativo dentro de la vista Gantt (entre toolbar y SplitPane)" },
+        { "id": "toolbar-enhance", "label": "Mejorar el ProjectToolbar actual con más metadata (dependencias, duración)" },
+        { "id": "both", "label": "Ambos: mejorar toolbar + agregar banner sutil" },
+        { "id": "none", "label": "No agregar banner — el toolbar ya es suficiente" }
+      ],
+      "required": true
+    }
+  ]
+}
