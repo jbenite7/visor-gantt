@@ -3,10 +3,16 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { GanttViewport } from "../types";
 
+const DAYS_PER_SCALE: Record<GanttViewport["scale"], number> = {
+  day: 1,
+  week: 7,
+  month: 30,
+  quarter: 91,
+};
+
 /** Convert pixels to day delta based on viewport scale. */
 function pixelsToDays(px: number, viewport: GanttViewport): number {
-  const daysPerUnit =
-    viewport.scale === "day" ? 1 : viewport.scale === "week" ? 7 : 30;
+  const daysPerUnit = DAYS_PER_SCALE[viewport.scale];
   return Math.round(px / (viewport.columnWidth / daysPerUnit));
 }
 

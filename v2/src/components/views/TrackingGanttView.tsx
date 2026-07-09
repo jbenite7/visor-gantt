@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import type { GanttTask, GanttConfig } from "@/components/gantt/types";
+import type { GanttConfig, GanttScale, GanttTask } from "@/components/gantt/types";
 import type { Baseline } from "@/types/baseline";
 import type { BaselineVariance } from "@/lib/scheduling/baseline";
 import {
@@ -27,7 +27,7 @@ import { GANTT_HEADER_HEIGHT, GANTT_ROW_HEIGHT } from "@/components/gantt/layout
 
 interface TrackingGanttViewProps {
   tasks: GanttTask[];
-  scale: "day" | "week" | "month";
+  scale: GanttScale;
   selectedTaskIds?: (string | number)[];
   onTaskSelect?: (taskId: string | number, ctrlKey: boolean) => void;
   onTaskClick?: (task: GanttTask) => void;
@@ -78,7 +78,7 @@ const TOOLBAR_SELECT_STYLE: React.CSSProperties = {
 
 interface TrackingChartProps {
   tasks: GanttTask[];
-  scale: "day" | "week" | "month";
+  scale: GanttScale;
   config?: Partial<GanttConfig>;
   selectedTaskIds?: (string | number)[];
   onTaskSelect?: (taskId: string | number, ctrlKey: boolean) => void;

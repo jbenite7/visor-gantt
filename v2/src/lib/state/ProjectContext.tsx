@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { GanttTask, GanttDependency } from "@/components/gantt/types";
+import type { GanttDependency, GanttScale, GanttTask } from "@/components/gantt/types";
 import type { PlanningAuditEvent, PlanningAuditEventKind } from "@/types/audit";
 import type { ProjectCalendar } from "@/types/calendar";
 import { useHistory } from "@/hooks/useHistory";
@@ -157,8 +157,8 @@ export interface ProjectContextValue {
   setTasks: (updater: (prev: GanttTask[]) => GanttTask[]) => void;
   selectedTaskIds: (string | number)[];
   setSelectedTaskIds: (ids: (string | number)[]) => void;
-  scale: "day" | "week" | "month";
-  setScale: (scale: "day" | "week" | "month") => void;
+  scale: GanttScale;
+  setScale: (scale: GanttScale) => void;
   calendar: ProjectCalendar;
   calendarIssues: CalendarIssue[];
   scheduleIssues: ScheduleIssue[];
@@ -246,7 +246,7 @@ export function ProjectProvider({
   const [selectedTaskIds, setSelectedTaskIds] = useState<(string | number)[]>(
     [],
   );
-  const [scale, setScale] = useState<"day" | "week" | "month">("day");
+  const [scale, setScale] = useState<GanttScale>("day");
   const history = useHistory(50);
 
   const setTasks = useCallback(

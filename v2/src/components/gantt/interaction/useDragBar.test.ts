@@ -82,5 +82,41 @@ describe("useDragBar", () => {
       expect(result.current.dragState.isDragging).toBe(false);
       expect(result.current.dragState.taskId).toBeNull();
     });
+
+    it("uses quarter scale when converting drag pixels to day delta", () => {
+      const onMove = jest.fn();
+      const quarterViewport: GanttViewport = {
+        ...viewport,
+        scale: "quarter",
+        columnWidth: 120,
+      };
+      const { result } = renderHook(() =>
+        useDragBar({ viewport: quarterViewport, onMove }),
+      );
+
+      act(() => {
+        const mouseEvent = {
+          clientX: 100,
+          clientY: 50,
+          preventDefault: jest.fn(),
+        } as unknown as React.MouseEvent;
+        result.current.onDragStart(42, mouseEvent);
+      });
+
+      act(() => {
+        window.dispatchEvent(new MouseEvent("mousemove", {
+          clientX: 220,
+          clientY: 50,
+        }));
+      });
+
+      expect(result.current.dragState.dayDelta).toBe(91);
+
+      act(() => {
+        result.current.onDragEnd();
+      });
+
+      expect(onMove).toHaveBeenCalledWith(42, 91);
+    });
   });
 });
