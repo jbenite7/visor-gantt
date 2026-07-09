@@ -1,20 +1,7 @@
 const DEFAULT_TIME_ZONE = "America/Bogota";
 
-type TimeZoneResolver = () => string | undefined;
-
-function runtimeTimeZone(): string | undefined {
-  if (typeof Intl === "undefined") return undefined;
-  return Intl.DateTimeFormat().resolvedOptions().timeZone;
-}
-
-export function getConfiguredTimeZone(
-  resolveTimeZone: TimeZoneResolver = runtimeTimeZone,
-): string {
-  return (
-    process.env.NEXT_PUBLIC_PROJECT_TIME_ZONE ||
-    resolveTimeZone() ||
-    DEFAULT_TIME_ZONE
-  );
+export function getConfiguredTimeZone(): string {
+  return process.env.NEXT_PUBLIC_PROJECT_TIME_ZONE?.trim() || DEFAULT_TIME_ZONE;
 }
 
 export function createProjectDate(value: string | Date): Date {

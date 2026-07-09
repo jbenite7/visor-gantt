@@ -5,6 +5,15 @@ import {
   toDateInputValue,
 } from "./projectDate";
 
+function restoreProjectTimeZone(previousTimeZone: string | undefined) {
+  if (previousTimeZone === undefined) {
+    delete process.env.NEXT_PUBLIC_PROJECT_TIME_ZONE;
+    return;
+  }
+
+  process.env.NEXT_PUBLIC_PROJECT_TIME_ZONE = previousTimeZone;
+}
+
 describe("projectDate", () => {
   test("creates date-only project dates at local midnight", () => {
     const date = createProjectDate("2024-01-01");
@@ -22,7 +31,21 @@ describe("projectDate", () => {
     expect(formatProjectDate(date)).toContain("2024");
   });
 
-  test("falls back to Colombia when the runtime does not expose a time zone", () => {
-    expect(getConfiguredTimeZone(() => undefined)).toBe("America/Bogota");
+  test("uses Colombia as stable default project time zone", () => {
+    const previousTimeZone = process.env.NEXT_PUBLIC_PROJECT_TIME_ZONE;
+    delete process.env.NEXT_PUBLIC_PROJECT_TIME_ZONE;
+
+    expect(getConfiguredTimeZone()).toBe("America/Bogota");
+
+    restoreProjectTimeZone(previousTimeZone);
+  });
+
+  test("uses the configured project time zone when provided", () => {
+    const previousTimeZone = process.env.NEXT_PUBLIC_PROJECT_TIME_ZONE;
+    process.env.NEXT_PUBLIC_PROJECT_TIME_ZONE = "UTC";
+
+    expect(getConfiguredTimeZone()).toBe("UTC");
+
+    restoreProjectTimeZone(previousTimeZone);
   });
 });

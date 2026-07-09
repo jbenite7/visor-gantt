@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FolderOpen, Trash2 } from "lucide-react";
 import { deleteProject } from "@/app/actions/project";
+import { formatProjectDate } from "@/lib/date/projectDate";
 
 interface Project {
   id: string;
@@ -39,13 +40,13 @@ export default function ProjectList({ projects }: { projects: Project[] }) {
   );
 
   const formatDate = (date: Date) => {
-    const d = new Date(date);
-    return d.toLocaleDateString("es-CO", {
-      year: "numeric",
+    return formatProjectDate(new Date(date), {
+      day: "2-digit",
       month: "short",
-      day: "numeric",
+      year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      hourCycle: "h23",
     });
   };
 

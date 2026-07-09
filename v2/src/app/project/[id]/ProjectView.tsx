@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import GanttView from "@/components/views/GanttView";
 import type { GanttTask } from "@/components/gantt/types";
@@ -122,6 +122,13 @@ export default function ProjectView({
   uiSettings?: UISettings;
   planningAuditEvents?: PlanningAuditEvent[];
 }) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setIsMounted(true), 0);
+    return () => window.clearTimeout(id);
+  }, []);
+
   // Deserialize ISO strings back to Date objects — memoized to avoid recreating on every render
   const deserializedTasks: GanttTask[] = useMemo(
     () =>
@@ -158,10 +165,10 @@ export default function ProjectView({
   );
 
   return (
-    <div className="apple-page h-screen flex flex-col">
+    <div className="apple-page flex h-screen min-w-0 flex-col overflow-hidden">
       <header className="apple-page-header shrink-0 px-6 py-4">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center gap-4">
+        <div className="mx-auto flex max-w-7xl min-w-0 items-center justify-between">
+          <div className="flex min-w-0 items-center gap-4">
             <Link
               href="/"
               className="apple-button-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors"
@@ -169,8 +176,8 @@ export default function ProjectView({
               <ArrowLeft size={15} aria-hidden />
               Volver
             </Link>
-            <div>
-              <h1 className="text-2xl font-semibold text-[var(--color-text-strong)] font-[var(--font-heading)]">
+            <div className="min-w-0">
+              <h1 className="truncate text-2xl font-semibold text-[var(--color-text-strong)] font-[var(--font-heading)]">
                 {projectName}
               </h1>
               <p className="text-sm text-[var(--color-text-muted)]">
@@ -180,31 +187,37 @@ export default function ProjectView({
           </div>
         </div>
       </header>
-      <div className="flex-1 min-h-0">
-        <GanttView
-          projectId={projectId}
-          projectName={projectName}
-          tasks={deserializedTasks}
-          calendar={calendar}
-          resources={resources}
-          assignments={assignments}
-          budgetItems={budgetItems}
-          budgetMappings={budgetMappings}
-          baselines={deserializedBaselines}
-          matrixPlan={matrixPlan}
-          mppTaskColumns={mppTaskColumns}
-          mppResourceColumns={mppResourceColumns}
-          mppAssignmentColumns={mppAssignmentColumns}
-          customFieldDefinitions={customFieldDefinitions}
-          calculationEngineVersion={calculationEngineVersion}
-          calculatedAt={calculatedAt}
-          taskColumnSettings={taskColumnSettings}
-          resourceColumnSettings={resourceColumnSettings}
-          assignmentColumnSettings={assignmentColumnSettings}
-          uiSettings={uiSettings}
-          planningAuditEvents={planningAuditEvents}
-          onTaskClick={(task) => console.log("Clicked:", task.name)}
-        />
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+        {isMounted ? (
+          <GanttView
+            projectId={projectId}
+            projectName={projectName}
+            tasks={deserializedTasks}
+            calendar={calendar}
+            resources={resources}
+            assignments={assignments}
+            budgetItems={budgetItems}
+            budgetMappings={budgetMappings}
+            baselines={deserializedBaselines}
+            matrixPlan={matrixPlan}
+            mppTaskColumns={mppTaskColumns}
+            mppResourceColumns={mppResourceColumns}
+            mppAssignmentColumns={mppAssignmentColumns}
+            customFieldDefinitions={customFieldDefinitions}
+            calculationEngineVersion={calculationEngineVersion}
+            calculatedAt={calculatedAt}
+            taskColumnSettings={taskColumnSettings}
+            resourceColumnSettings={resourceColumnSettings}
+            assignmentColumnSettings={assignmentColumnSettings}
+            uiSettings={uiSettings}
+            planningAuditEvents={planningAuditEvents}
+            onTaskClick={(task) => console.log("Clicked:", task.name)}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-muted)]">
+            Cargando cronograma...
+          </div>
+        )}
       </div>
     </div>
   );
