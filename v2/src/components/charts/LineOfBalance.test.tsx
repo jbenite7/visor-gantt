@@ -42,6 +42,13 @@ describe("LineOfBalance", () => {
 
     render(<LineOfBalance activities={activities} units={units} />);
 
+    const chart = screen.getByTestId("line-of-balance");
+    const monthLabels = screen
+      .getAllByTestId("lob-x-tick-label")
+      .map((label) => label.textContent ?? "");
+
+    expect(chart).toHaveAttribute("data-scale", "month");
+    expect(monthLabels.some((label) => label.includes("ene 2026"))).toBe(true);
     expect(screen.getByTestId("lob-feedback")).toHaveTextContent("Estructura");
     expect(screen.getAllByTestId("lob-feedback-card").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Meses" })).toHaveAttribute(
@@ -54,6 +61,29 @@ describe("LineOfBalance", () => {
     expect(screen.getByRole("button", { name: "Semanas" })).toHaveAttribute(
       "aria-pressed",
       "true",
+    );
+    expect(chart).toHaveAttribute("data-scale", "week");
+
+    const weekLabels = screen
+      .getAllByTestId("lob-x-tick-label")
+      .map((label) => label.textContent ?? "");
+
+    expect(weekLabels.some((label) => /^S\d+ - /.test(label))).toBe(true);
+    expect(weekLabels.join("|")).not.toBe(monthLabels.join("|"));
+
+    const bottleneckSwitch = screen.getByRole("switch", { name: /Cuellos/ });
+    expect(bottleneckSwitch).toHaveAttribute("aria-checked", "false");
+
+    fireEvent.click(bottleneckSwitch);
+
+    expect(bottleneckSwitch).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByTestId("lob-bottleneck-markers")).toBeInTheDocument();
+
+    const marker = screen.getAllByTestId("lob-bottleneck-marker")[0];
+    fireEvent.click(marker);
+
+    expect(screen.getByTestId("lob-bottleneck-tooltip")).toHaveTextContent(
+      "Cuello de botella",
     );
   });
 });

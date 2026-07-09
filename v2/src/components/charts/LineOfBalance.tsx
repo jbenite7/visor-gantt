@@ -2,13 +2,23 @@
 
 import { useMemo, useState } from "react";
 import type { LOBActivity, LOBUnit } from "@/types/lob";
-import { computeLOBLayout, diagnoseLOB } from "@/lib/scheduling/lob";
+import {
+  computeLOBLayout,
+  diagnoseLOB,
+  type LOBDiagnostic,
+} from "@/lib/scheduling/lob";
 
 // ── Layout constants ──────────────────────────────────────────────
 
 const MARGIN = { top: 40, right: 140, bottom: 60, left: 180 };
+const BOTTLENECK_TOOLTIP_WIDTH = 320;
+const BOTTLENECK_TOOLTIP_HEIGHT = 92;
+const BOTTLENECK_TOOLTIP_LINE_HEIGHT = 14;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 // ── Helper functions ──────────────────────────────────────────────
+
+type LOBScale = "week" | "month";
 
 function dateToX(date: Date, min: Date, max: Date, width: number): number {
   const range = max.getTime() - min.getTime();
@@ -26,21 +36,81 @@ function unitToY(unitIndex: number, maxUnit: number, height: number): number {
   );
 }
 
-function formatDate(d: Date): string {
-  const day = d.getDate();
-  const month = d.toLocaleString("es-ES", { month: "short" });
-  const year = d.getFullYear();
-  return `${day} ${month} ${year}`;
+function startOfDay(date: Date): Date {
+  const result = new Date(date);
+  result.setHours(0, 0, 0, 0);
+  return result;
 }
 
-function generateDateTicks(min: Date, max: Date, scale: "week" | "month"): Date[] {
+function addDays(date: Date, days: number): Date {
+  const result = startOfDay(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function startOfWeek(date: Date): Date {
+  const result = startOfDay(date);
+  const day = result.getDay() || 7;
+  result.setDate(result.getDate() - day + 1);
+  return result;
+}
+
+function endOfWeek(date: Date): Date {
+  return addDays(startOfWeek(date), 6);
+}
+
+function startOfMonth(date: Date): Date {
+  const result = startOfDay(date);
+  result.setDate(1);
+  return result;
+}
+
+function endOfMonth(date: Date): Date {
+  const result = startOfMonth(date);
+  result.setMonth(result.getMonth() + 1);
+  result.setDate(0);
+  return result;
+}
+
+function getISOWeek(date: Date): number {
+  const result = startOfDay(date);
+  result.setDate(result.getDate() + 4 - (result.getDay() || 7));
+  const yearStart = new Date(result.getFullYear(), 0, 1);
+  return Math.ceil(((result.getTime() - yearStart.getTime()) / MS_PER_DAY + 1) / 7);
+}
+
+function getScaledDateDomain(min: Date, max: Date, scale: LOBScale): { min: Date; max: Date } {
+  if (scale === "month") {
+    return {
+      min: startOfMonth(min),
+      max: endOfMonth(max),
+    };
+  }
+
+  return {
+    min: startOfWeek(min),
+    max: endOfWeek(max),
+  };
+}
+
+function formatTickLabel(date: Date, scale: LOBScale): string {
+  if (scale === "month") {
+    return date.toLocaleString("es-ES", {
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  const day = date.getDate();
+  const month = date.toLocaleString("es-ES", { month: "short" });
+  return `S${getISOWeek(date)} - ${day} ${month}`;
+}
+
+function generateDateTicks(min: Date, max: Date, scale: LOBScale): Date[] {
   const ticks: Date[] = [];
-  const current = new Date(min);
+  const current = scale === "month" ? startOfMonth(min) : startOfWeek(min);
   if (scale === "month") {
     current.setDate(1);
-    if (current < min) {
-      current.setMonth(current.getMonth() + 1);
-    }
   } else {
     const day = current.getDay() || 7;
     current.setDate(current.getDate() - day + 1);
@@ -56,6 +126,48 @@ function generateDateTicks(min: Date, max: Date, scale: "week" | "month"): Date[
   return ticks;
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function severityLabel(severity: LOBDiagnostic["severity"]): string {
+  if (severity === "high") return "Alta";
+  if (severity === "medium") return "Media";
+  return "Baja";
+}
+
+function formatUnits(unitIndices: number[]): string {
+  if (unitIndices.length === 0) return "General";
+  return `Unid. ${unitIndices.map((unitIndex) => unitIndex + 1).join(", ")}`;
+}
+
+function wrapTooltipText(value: string, maxLineLength = 54, maxLines = 4): string[] {
+  const words = value.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > maxLineLength && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+    if (lines.length === maxLines) break;
+  }
+
+  if (current && lines.length < maxLines) lines.push(current);
+  if (lines.length === maxLines && words.join(" ").length > lines.join(" ").length) {
+    lines[lines.length - 1] = `${lines[lines.length - 1].replace(/[.,;:]$/, "")}...`;
+  }
+  return lines;
+}
+
+function isBottleneckDiagnostic(diagnostic: LOBDiagnostic): boolean {
+  return diagnostic.kind !== "insufficientUnits";
+}
+
 // ── Component ─────────────────────────────────────────────────────
 
 interface LineOfBalanceProps {
@@ -64,7 +176,9 @@ interface LineOfBalanceProps {
 }
 
 export default function LineOfBalance({ activities, units }: LineOfBalanceProps) {
-  const [scale, setScale] = useState<"week" | "month">("month");
+  const [scale, setScale] = useState<LOBScale>("month");
+  const [showBottlenecks, setShowBottlenecks] = useState(false);
+  const [activeBottleneckId, setActiveBottleneckId] = useState<string | null>(null);
   const layout = useMemo(
     () => computeLOBLayout(activities, units),
     [activities, units],
@@ -81,9 +195,25 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
   const chartWidth = width - MARGIN.left - MARGIN.right;
   const chartHeight = height - MARGIN.top - MARGIN.bottom;
 
+  const dataXScale = useMemo(() => {
+    const dates = layout.lines.flatMap((line) =>
+      line.points.map((point) => point.date.getTime()),
+    );
+    if (dates.length === 0) return layout.xScale;
+    return {
+      min: new Date(Math.min(...dates)),
+      max: new Date(Math.max(...dates)),
+    };
+  }, [layout.lines, layout.xScale]);
+
+  const chartXScale = useMemo(
+    () => getScaledDateDomain(dataXScale.min, dataXScale.max, scale),
+    [dataXScale.max, dataXScale.min, scale],
+  );
+
   const dateTicks = useMemo(
-    () => generateDateTicks(layout.xScale.min, layout.xScale.max, scale),
-    [layout.xScale.min, layout.xScale.max, scale],
+    () => generateDateTicks(chartXScale.min, chartXScale.max, scale),
+    [chartXScale.max, chartXScale.min, scale],
   );
 
   const unitLabels = useMemo(() => {
@@ -125,11 +255,57 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
     return items;
   }, [layout.lines]);
 
+  const bottleneckMarkers = useMemo(() => {
+    return diagnostics
+      .filter(isBottleneckDiagnostic)
+      .map((diagnostic, index) => {
+        const points = diagnostic.activityIds.flatMap((activityId) => {
+          const line = plannedLines.find((candidate) => candidate.activityId === activityId);
+          if (!line) return [];
+          const unitIndices =
+            diagnostic.unitIndices.length > 0
+              ? diagnostic.unitIndices
+              : line.points.map((point) => point.unitIndex);
+          return unitIndices
+            .map((unitIndex) => line.points.find((point) => point.unitIndex === unitIndex))
+            .filter((point): point is (typeof line.points)[number] => point != null);
+        });
+
+        if (points.length === 0) return null;
+
+        const maxUnit = layout.totalUnits || 1;
+        const x =
+          points.reduce(
+            (sum, point) => sum + dateToX(point.date, chartXScale.min, chartXScale.max, chartWidth),
+            0,
+          ) / points.length;
+        const y =
+          points.reduce(
+            (sum, point) => sum + unitToY(point.unitIndex, maxUnit, height),
+            0,
+          ) / points.length;
+
+        return {
+          id: `${diagnostic.kind}-${diagnostic.activityIds.join("-")}-${index}`,
+          diagnostic,
+          x,
+          y,
+          title: `Cuello de botella ${severityLabel(diagnostic.severity).toLowerCase()} - ${formatUnits(diagnostic.unitIndices)}`,
+          lines: wrapTooltipText(`${diagnostic.message} ${diagnostic.recommendation}`),
+        };
+      })
+      .filter((marker): marker is NonNullable<typeof marker> => marker != null);
+  }, [chartWidth, chartXScale.max, chartXScale.min, diagnostics, height, layout.totalUnits, plannedLines]);
+
   const hasLines = layout.lines.length > 0;
+  const activeBottleneck = bottleneckMarkers.find(
+    (marker) => marker.id === activeBottleneckId,
+  );
 
   return (
     <div
       data-testid="line-of-balance"
+      data-scale={scale}
       className="apple-module flex h-full min-w-0 flex-col overflow-hidden"
     >
       <div className="apple-module-header flex flex-wrap items-center justify-between gap-3 px-4 py-2">
@@ -141,19 +317,42 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
             Eje X: Tiempo &middot; Eje Y: Ubicación/nivel &middot; Líneas sólidas: Planificado &middot; Líneas punteadas: Real
           </p>
         </div>
-        <div className="lob-scale-toggle">
-          {(["week", "month"] as const).map((option) => (
+        <div className="lob-header-actions">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={showBottlenecks}
+            data-testid="lob-bottleneck-toggle"
+            className="lob-bottleneck-switch"
+            data-active={showBottlenecks}
+            onClick={() => {
+              setShowBottlenecks((current) => !current);
+              setActiveBottleneckId(null);
+            }}
+          >
+            <span className="lob-bottleneck-switch__track" aria-hidden="true">
+              <span className="lob-bottleneck-switch__thumb" />
+            </span>
+            <span>Cuellos</span>
+            <span className="lob-bottleneck-switch__count">
+              {bottleneckMarkers.length}
+            </span>
+          </button>
+          <div className="lob-scale-toggle">
+            {(["week", "month"] as const).map((option) => (
             <button
               key={option}
               type="button"
               className="lob-scale-toggle__button"
               data-active={scale === option}
+              data-testid={`lob-scale-${option}`}
               aria-pressed={scale === option}
               onClick={() => setScale(option)}
             >
-              {option === "week" ? "Semanas" : "Meses"}
-            </button>
-          ))}
+                {option === "week" ? "Semanas" : "Meses"}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -249,7 +448,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
 
           {/* Vertical grid lines (dates) */}
           {dateTicks.map((tick) => {
-            const x = dateToX(tick, layout.xScale.min, layout.xScale.max, chartWidth);
+            const x = dateToX(tick, chartXScale.min, chartXScale.max, chartWidth);
             return (
               <line
                 key={`vgrid-${tick.getTime()}`}
@@ -269,7 +468,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
             if (line.points.length < 2) return null;
             const maxUnit = layout.totalUnits || 1;
             const bandPoints = line.points.map((p) => {
-              const x = dateToX(p.date, layout.xScale.min, layout.xScale.max, chartWidth);
+              const x = dateToX(p.date, chartXScale.min, chartXScale.max, chartWidth);
               const yCenter = unitToY(p.unitIndex, maxUnit, height);
               return { x, yCenter };
             });
@@ -299,7 +498,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
             const maxUnit = layout.totalUnits || 1;
             const polyline = line.points
               .map((p) => {
-                const x = dateToX(p.date, layout.xScale.min, layout.xScale.max, chartWidth);
+                const x = dateToX(p.date, chartXScale.min, chartXScale.max, chartWidth);
                 const y = unitToY(p.unitIndex, maxUnit, height);
                 return `${x},${y}`;
               })
@@ -317,7 +516,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
                 />
                 {/* Data points */}
                 {line.points.map((p) => {
-                  const x = dateToX(p.date, layout.xScale.min, layout.xScale.max, chartWidth);
+                  const x = dateToX(p.date, chartXScale.min, chartXScale.max, chartWidth);
                   const y = unitToY(p.unitIndex, maxUnit, height);
                   return (
                     <circle
@@ -340,7 +539,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
             const maxUnit = layout.totalUnits || 1;
             const polyline = line.points
               .map((p) => {
-                const x = dateToX(p.date, layout.xScale.min, layout.xScale.max, chartWidth);
+                const x = dateToX(p.date, chartXScale.min, chartXScale.max, chartWidth);
                 const y = unitToY(p.unitIndex, maxUnit, height);
                 return `${x},${y}`;
               })
@@ -359,7 +558,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
                   strokeOpacity={0.85}
                 />
                 {line.points.map((p) => {
-                  const x = dateToX(p.date, layout.xScale.min, layout.xScale.max, chartWidth);
+                  const x = dateToX(p.date, chartXScale.min, chartXScale.max, chartWidth);
                   const y = unitToY(p.unitIndex, maxUnit, height);
                   return (
                     <circle
@@ -402,9 +601,9 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
                 );
 
                 if (plannedDurationMs > 0 && deviationMs > plannedDurationMs * 0.2) {
-                  const x1 = dateToX(matchingPlanned.date, layout.xScale.min, layout.xScale.max, chartWidth);
+                  const x1 = dateToX(matchingPlanned.date, chartXScale.min, chartXScale.max, chartWidth);
                   const y1 = unitToY(matchingPlanned.unitIndex, maxUnit, height);
-                  const x2 = dateToX(aPoint.date, layout.xScale.min, layout.xScale.max, chartWidth);
+                  const x2 = dateToX(aPoint.date, chartXScale.min, chartXScale.max, chartWidth);
                   const y2 = unitToY(aPoint.unitIndex, maxUnit, height);
 
                   highlights.push(
@@ -426,18 +625,96 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
             return highlights;
           })()}
 
+          {showBottlenecks ? (
+            <g data-testid="lob-bottleneck-markers">
+              {bottleneckMarkers.map((marker) => (
+                <g
+                  key={marker.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${marker.title}. ${marker.diagnostic.message}`}
+                  data-testid="lob-bottleneck-marker"
+                  className="lob-bottleneck-marker"
+                  transform={`translate(${marker.x}, ${marker.y})`}
+                  onClick={() => setActiveBottleneckId(marker.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setActiveBottleneckId(marker.id);
+                    }
+                  }}
+                  onMouseEnter={() => setActiveBottleneckId(marker.id)}
+                  onMouseLeave={() => setActiveBottleneckId(null)}
+                  onFocus={() => setActiveBottleneckId(marker.id)}
+                  onBlur={() => setActiveBottleneckId(null)}
+                >
+                  <circle className="lob-bottleneck-marker__halo" r={12} />
+                  <circle className="lob-bottleneck-marker__dot" r={6} />
+                  <text
+                    className="lob-bottleneck-marker__glyph"
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                  >
+                    !
+                  </text>
+                </g>
+              ))}
+            </g>
+          ) : null}
+
+          {showBottlenecks && activeBottleneck ? (
+            <g
+              data-testid="lob-bottleneck-tooltip"
+              className="lob-bottleneck-tooltip"
+              transform={`translate(${clamp(
+                activeBottleneck.x + 16,
+                MARGIN.left,
+                width - MARGIN.right - BOTTLENECK_TOOLTIP_WIDTH,
+              )}, ${clamp(
+                activeBottleneck.y - BOTTLENECK_TOOLTIP_HEIGHT - 12,
+                MARGIN.top,
+                height - MARGIN.bottom - BOTTLENECK_TOOLTIP_HEIGHT,
+              )})`}
+            >
+              <rect
+                className="lob-bottleneck-tooltip__panel"
+                width={BOTTLENECK_TOOLTIP_WIDTH}
+                height={BOTTLENECK_TOOLTIP_HEIGHT}
+              />
+              <text
+                className="lob-bottleneck-tooltip__title"
+                x={12}
+                y={18}
+              >
+                {activeBottleneck.title}
+              </text>
+              <text className="lob-bottleneck-tooltip__body" x={12} y={38}>
+                {activeBottleneck.lines.map((line, index) => (
+                  <tspan
+                    key={`${activeBottleneck.id}-${index}`}
+                    x={12}
+                    dy={index === 0 ? 0 : BOTTLENECK_TOOLTIP_LINE_HEIGHT}
+                  >
+                    {line}
+                  </tspan>
+                ))}
+              </text>
+            </g>
+          ) : null}
+
           {/* X-axis labels (dates) */}
           {dateTicks.map((tick) => {
-            const x = dateToX(tick, layout.xScale.min, layout.xScale.max, chartWidth);
+            const x = dateToX(tick, chartXScale.min, chartXScale.max, chartWidth);
             return (
               <text
                 key={`xlabel-${tick.getTime()}`}
                 x={x}
                 y={height - MARGIN.bottom + 18}
                 textAnchor="middle"
+                data-testid="lob-x-tick-label"
                 className="lob-chart__tick-label"
               >
-                {formatDate(tick)}
+                {formatTickLabel(tick, scale)}
               </text>
             );
           })}
