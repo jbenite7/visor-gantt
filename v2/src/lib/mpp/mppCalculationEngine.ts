@@ -1982,7 +1982,7 @@ function calculateTaskFields(
     ?? subtractLevelingDelay(taskForCalculations.finish, levelingDelay, minutesPerDay, calendar);
 
   write(fields, "ID", taskRowId(taskForCalculations, taskForCalculations.id));
-  writeIfMissing(fields, "UNIQUE_ID", taskForCalculations.id);
+  writeIfMissing(fields, "UNIQUE_ID", taskUniqueId(taskForCalculations, taskRowId(taskForCalculations)));
   write(fields, "START", dateIso(taskForCalculations.start));
   write(fields, "FINISH", dateIso(taskForCalculations.finish));
   write(fields, "DURATION", taskForCalculations.duration);

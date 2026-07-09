@@ -181,6 +181,21 @@ function addSummaryChild(
   summaries.get(parentId)?.childIds.add(childId);
 }
 
+function withMppRowIds(tasks: GanttTask[]): GanttTask[] {
+  return tasks.map((task, index) => {
+    const rowId = index + 1;
+    return {
+      ...task,
+      mppFields: {
+        ...(task.mppFields ?? {}),
+        ID: rowId,
+        UNIQUE_ID: rowId,
+        UID: rowId,
+      },
+    };
+  });
+}
+
 function durationFrom(quantity: number, productivityPerDay: number): number {
   if (productivityPerDay <= 0) return 1;
   return Math.max(1, Math.ceil(quantity / productivityPerDay));
@@ -565,11 +580,13 @@ export function generateScheduleFromMatrix(
     }
   }
 
+  const visibleTasks = tasks.filter((task) => {
+    if (!task.isSummary) return true;
+    return (summaries.get(String(task.id))?.childIds.size ?? 0) > 0;
+  });
+
   return {
-    tasks: tasks.filter((task) => {
-      if (!task.isSummary) return true;
-      return (summaries.get(String(task.id))?.childIds.size ?? 0) > 0;
-    }),
+    tasks: withMppRowIds(visibleTasks),
     dependencies,
     issues,
     provenance,

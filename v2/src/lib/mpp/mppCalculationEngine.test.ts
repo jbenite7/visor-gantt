@@ -1815,6 +1815,27 @@ describe("MPP calculation engine", () => {
     );
   });
 
+  test("does not materialize internal string task ids as Unique ID values", () => {
+    const result = calculateMppFields({
+      tasks: [
+        task({
+          id: "mx-task-etapa-1-formaleta",
+          name: "Formaleta",
+          mppFields: { ID: 12 },
+        }),
+      ],
+      calendar: DEFAULT_PROJECT_CALENDAR,
+    });
+
+    expect(result.tasks[0].mppFields).toEqual(
+      expect.objectContaining({
+        ID: 12,
+        UNIQUE_ID: 12,
+      }),
+    );
+    expect(typeof result.tasks[0].mppFields?.UNIQUE_ID).toBe("number");
+  });
+
   test("materializes visible ID and Unique ID fields for tasks resources and assignments", () => {
     const result = calculateMppFields({
       tasks: [

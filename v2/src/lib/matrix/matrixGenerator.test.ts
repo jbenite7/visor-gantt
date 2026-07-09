@@ -98,6 +98,20 @@ describe("generateScheduleFromMatrix", () => {
       "Estructura - Formaleta - Piso 2",
       "Estructura - Vaciado de concreto - Piso 2",
     ]);
+    expect(result.tasks.map((task) => task.mppFields?.UNIQUE_ID)).toEqual([
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+    ]);
+    expect(
+      result.tasks.every((task) => Number.isInteger(task.mppFields?.UNIQUE_ID)),
+    ).toBe(true);
 
     const piso1Formaleta = result.tasks.find(
       (task) => task.name === "Estructura - Formaleta - Piso 1",
