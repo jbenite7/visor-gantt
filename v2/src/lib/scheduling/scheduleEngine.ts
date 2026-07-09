@@ -25,7 +25,7 @@ export interface RecalculateScheduleResult {
 }
 
 function dependencyKey(dep: GanttDependency): string {
-  return `${dep.from}->${dep.to}:${dep.type}:${dep.lag ?? 0}`;
+  return `${dep.from}->${dep.to}:${dep.type}:${dep.lag ?? 0}:${dep.lagUnit ?? "days"}`;
 }
 
 function fieldValue(record: Record<string, unknown> | undefined, fieldId: string): unknown {
@@ -256,8 +256,10 @@ function toSchedulingDependency(
     predecessorId: dep.from,
     successorId: dep.to,
     type: dep.type as DependencyType,
-    lag: Math.round((dep.lag ?? 0) * minutesPerDay),
-    isPercentage: false,
+    lag: dep.lagUnit === "percent"
+      ? dep.lag ?? 0
+      : Math.round((dep.lag ?? 0) * minutesPerDay),
+    isPercentage: dep.lagUnit === "percent",
   };
 }
 

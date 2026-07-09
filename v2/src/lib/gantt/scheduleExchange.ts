@@ -32,6 +32,7 @@ function formatDependencies(task: GanttTask, tasks: GanttTask[]): string {
         dependency.from,
         dependency.type,
         dependency.lag,
+        dependency.lagUnit,
       );
     })
     .join(", ");

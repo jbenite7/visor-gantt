@@ -86,8 +86,8 @@ export function ganttTaskToTask(gantt: GanttTask): Task {
 /**
  * Converts a scheduling {@link Dependency} to a rendering {@link GanttDependency}.
  *
- * - Lag is converted from minutes to days.
- * - `isPercentage` is not representable in GanttDependency and is discarded.
+ * - Duration lag is converted from minutes to days.
+ * - Percentage lag is preserved as a percent value.
  *
  * @param dep - The scheduling Dependency to convert.
  * @returns A rendering GanttDependency.
@@ -97,15 +97,16 @@ export function depToGanttDep(dep: Dependency): GanttDependency {
     from: dep.predecessorId,
     to: dep.successorId,
     type: dep.type as GanttDependency["type"],
-    lag: dep.lag / MINUTES_PER_DAY,
+    lag: dep.isPercentage ? dep.lag : dep.lag / MINUTES_PER_DAY,
+    lagUnit: dep.isPercentage ? "percent" : undefined,
   };
 }
 
 /**
  * Converts a rendering {@link GanttDependency} to a scheduling {@link Dependency}.
  *
- * - Lag is converted from days to minutes.
- * - `isPercentage` defaults to false (not representable in GanttDependency).
+ * - Duration lag is converted from days to minutes.
+ * - Percentage lag is passed as percentage.
  *
  * @param gantt - The rendering GanttDependency to convert.
  * @returns A scheduling Dependency.
@@ -115,7 +116,9 @@ export function ganttDepToDep(gantt: GanttDependency): Dependency {
     predecessorId: gantt.from,
     successorId: gantt.to,
     type: gantt.type as DependencyType,
-    lag: (gantt.lag ?? 0) * MINUTES_PER_DAY,
-    isPercentage: false,
+    lag: gantt.lagUnit === "percent"
+      ? gantt.lag ?? 0
+      : (gantt.lag ?? 0) * MINUTES_PER_DAY,
+    isPercentage: gantt.lagUnit === "percent",
   };
 }

@@ -268,7 +268,8 @@
   --gantt-dependency-popover-icon-button-size: 1.625rem;
   --gantt-dependency-popover-icon-size: 0.8125rem;
   --gantt-dependency-popover-type-column-width: 4rem;
-  --gantt-dependency-popover-lag-column-width: 3.75rem;
+  --gantt-dependency-popover-lag-column-width: 3.375rem;
+  --gantt-dependency-popover-lag-unit-column-width: 3rem;
   --gantt-wbs-toggle-size: 1rem;
   --gantt-wbs-icon-size: 0.875rem;
   --gantt-wbs-indent-step: 0.625rem;
@@ -1680,6 +1681,7 @@ h6 {
     minmax(0, 1fr)
     var(--gantt-dependency-popover-type-column-width)
     var(--gantt-dependency-popover-lag-column-width)
+    var(--gantt-dependency-popover-lag-unit-column-width)
     var(--gantt-dependency-popover-icon-button-size);
   align-items: center;
   gap: var(--gantt-dependency-popover-row-gap);

@@ -10,6 +10,7 @@ import type { UILocale } from "@/types/ui";
 import { t } from "@/lib/i18n";
 import { getMppRecordValue } from "@/lib/mpp/recordValues";
 import { dependencyTokenForTaskId, findTaskByRowId, taskRowId } from "@/lib/gantt/taskIds";
+import { parseDependencyLagText } from "@/lib/gantt/dependencyLag";
 
 interface GanttRowProps {
   task: GanttTask;
@@ -69,7 +70,7 @@ function fromISODate(iso: string): Date {
 function formatDependencies(dependencies: GanttDependency[], tasks: GanttTask[]): string {
   if (dependencies.length === 0) return "";
   return dependencies
-    .map((dep) => dependencyTokenForTaskId(tasks, dep.from, dep.type, dep.lag))
+    .map((dep) => dependencyTokenForTaskId(tasks, dep.from, dep.type, dep.lag, dep.lagUnit))
     .join(", ");
 }
 
@@ -109,9 +110,9 @@ function formatUniqueId(task: GanttTask, fallback: number): number {
 /**
  * Parse a predecessor string like "1FS,2SS+5d,3FF-2d" into GanttDependency[].
  *
- * Format per entry: <taskId><type>[+/-<lag>d]
+ * Format per entry: <taskId><type>[+/-<lag>d|%]
  * - type: FS, SS, FF, SF
- * - lag: optional integer days (e.g. +5, -2)
+ * - lag: optional days or percentage (e.g. +5d, -2d, +50%)
  */
 function parsePredecessors(
   raw: string,
@@ -125,7 +126,7 @@ function parsePredecessors(
 
   for (const entry of parts) {
     const match = entry.match(
-      /^(\w+)(FS|SS|FF|SF)([+-]\d+)?d?$/i
+      /^(\S+?)(FS|SS|FF|SF)(?:([+-]\d+(?:\.\d+)?)(d|%)?)?$/i
     );
     if (!match) continue;
 
@@ -133,9 +134,9 @@ function parsePredecessors(
     const source = findTaskByRowId(tasks, rawFrom);
     if (!source) continue;
     const type = match[2].toUpperCase() as GanttDependency["type"];
-    const lag = match[3] ? parseInt(match[3], 10) : undefined;
+    const { lag, lagUnit } = parseDependencyLagText(match[3], match[4]);
 
-    result.push({ from: source.id, to: targetId, type, lag });
+    result.push({ from: source.id, to: targetId, type, lag, lagUnit });
   }
 
   return result;

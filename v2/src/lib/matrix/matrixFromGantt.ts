@@ -120,6 +120,7 @@ function collectImportedDependencies(tasks: GanttTask[]): GanttDependency[] {
         dependency.to,
         dependency.type,
         dependency.lag ?? 0,
+        dependency.lagUnit ?? "days",
       ].join("::");
       if (seen.has(key)) return;
       seen.add(key);

@@ -51,6 +51,24 @@ describe("recalculateSchedule", () => {
     expect(isoDate(result.tasks[1].finish)).toBe("2026-01-09");
   });
 
+  test("uses percentage lag as a share of predecessor duration", () => {
+    const tasks = [
+      task({ id: 1, duration: 4 }),
+      task({
+        id: 2,
+        duration: 1,
+        dependencies: [{ from: 1, to: 2, type: "SS", lag: 50, lagUnit: "percent" }],
+      }),
+    ];
+
+    const result = recalculateSchedule(tasks, {
+      projectStart: new Date("2026-01-05T08:00:00"),
+    });
+
+    expect(result.issues).toHaveLength(0);
+    expect(isoDate(result.tasks[1].start)).toBe("2026-01-07");
+  });
+
   test("manualStart from direct date edit is respected as start-no-earlier-than", () => {
     const tasks = [
       task({

@@ -43,7 +43,9 @@ function expectedForDependency(
   predecessor: GanttTask,
   dependency: GanttDependency,
 ): Date {
-  const lag = dependency.lag ?? 0;
+  const lag = dependency.lagUnit === "percent"
+    ? (predecessor.duration * (dependency.lag ?? 0)) / 100
+    : dependency.lag ?? 0;
   switch (dependency.type) {
     case "SS":
     case "SF":

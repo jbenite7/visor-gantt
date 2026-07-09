@@ -91,7 +91,10 @@ export interface GanttDependency {
   from: string | number;
   to: string | number;
   type: "FS" | "SS" | "FF" | "SF";
+  /** Lag value. Defaults to days when `lagUnit` is omitted. */
   lag?: number;
+  /** Microsoft Project-style lag unit: fixed duration days or percentage. */
+  lagUnit?: "days" | "percent";
 }
 
 export interface GanttViewport {

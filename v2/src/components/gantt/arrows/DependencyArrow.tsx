@@ -11,6 +11,7 @@
 
 import { calculateArrowPath, getArrowDirection } from "./ArrowPath";
 import type { DependencyType } from "./ArrowPath";
+import { formatDependencyLag } from "@/lib/gantt/dependencyLag";
 
 interface DependencyArrowProps {
   /** Predecessor endpoint coordinates and criticality. */
@@ -21,6 +22,8 @@ interface DependencyArrowProps {
   type: DependencyType;
   /** Optional lag in days. */
   lag?: number;
+  /** Optional lag unit. Defaults to days. */
+  lagUnit?: "days" | "percent";
   /** Row height in pixels (default 40). */
   rowHeight: number;
 }
@@ -80,6 +83,7 @@ export default function DependencyArrow({
   to,
   type,
   lag,
+  lagUnit,
 }: DependencyArrowProps) {
   const d = calculateArrowPath(from.x, from.y, to.x, to.y, type);
   const direction = getArrowDirection(from.x, from.y, to.x, to.y, type);
@@ -92,7 +96,7 @@ export default function DependencyArrow({
 
   // Lag label
   const showLag = lag !== undefined && lag !== 0;
-  const lagText = lag !== undefined ? (lag > 0 ? `+${lag}d` : `${lag}d`) : "";
+  const lagText = formatDependencyLag(lag, lagUnit);
   const mid = showLag ? midPoint(from.x, from.y, to.x, to.y, type) : null;
   const lagBadgeWidth = lagText.length * 6 + LAG_BADGE_PADDING_X * 2;
 

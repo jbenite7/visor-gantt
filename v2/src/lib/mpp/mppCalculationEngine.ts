@@ -2008,8 +2008,8 @@ function calculateTaskFields(
   write(fields, "NEGATIVE_SLACK", Math.min(0, effectiveTotalSlackDays));
   write(fields, "CRITICAL", calculatedCritical);
   write(fields, "ACTIVE", taskIsActive);
-  fields.PREDECESSORS = predecessors.map((dep) => dependencyToken(taskLookup(dep.from), dep.from, dep.type, dep.lag)).join(", ");
-  fields.SUCCESSORS = successors.map((dep) => dependencyToken(taskLookup(dep.to), dep.to, dep.type, dep.lag)).join(", ");
+  fields.PREDECESSORS = predecessors.map((dep) => dependencyToken(taskLookup(dep.from), dep.from, dep.type, dep.lag, dep.lagUnit)).join(", ");
+  fields.SUCCESSORS = successors.map((dep) => dependencyToken(taskLookup(dep.to), dep.to, dep.type, dep.lag, dep.lagUnit)).join(", ");
   fields.WBS_PREDECESSORS = predecessors.map((dep) => taskLookup(dep.from)?.wbs ?? dep.from).join(", ");
   fields.WBS_SUCCESSORS = successors.map((dep) => taskLookup(dep.to)?.wbs ?? dep.to).join(", ");
   fields.UNIQUE_ID_PREDECESSORS = predecessors.map((dep) => {

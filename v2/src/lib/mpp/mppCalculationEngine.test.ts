@@ -1815,6 +1815,41 @@ describe("MPP calculation engine", () => {
     );
   });
 
+  test("formats percentage lags with visible row IDs in predecessor and successor fields", () => {
+    const result = calculateMppFields({
+      tasks: [
+        task({
+          id: 101,
+          name: "Predecesora",
+          wbs: "1.1",
+          dependencies: [],
+          mppFields: { ID: 7, UNIQUE_ID: 101 },
+        }),
+        task({
+          id: 205,
+          name: "Sucesora",
+          wbs: "1.2",
+          dependencies: [{ from: 101, to: 205, type: "SS", lag: 50, lagUnit: "percent" }],
+          mppFields: { ID: 8, UNIQUE_ID: 205 },
+        }),
+      ],
+      calendar: DEFAULT_PROJECT_CALENDAR,
+    });
+
+    expect(result.tasks[0].mppFields).toEqual(
+      expect.objectContaining({
+        SUCCESSORS: "8SS+50%",
+        UNIQUE_ID_SUCCESSORS: "205",
+      }),
+    );
+    expect(result.tasks[1].mppFields).toEqual(
+      expect.objectContaining({
+        PREDECESSORS: "7SS+50%",
+        UNIQUE_ID_PREDECESSORS: "101",
+      }),
+    );
+  });
+
   test("does not materialize internal string task ids as Unique ID values", () => {
     const result = calculateMppFields({
       tasks: [

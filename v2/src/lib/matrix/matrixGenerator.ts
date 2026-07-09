@@ -572,7 +572,8 @@ export function generateScheduleFromMatrix(
           item.from === dependency.from &&
           item.to === dependency.to &&
           item.type === dependency.type &&
-          (item.lag ?? 0) === (dependency.lag ?? 0),
+          (item.lag ?? 0) === (dependency.lag ?? 0) &&
+          (item.lagUnit ?? "days") === (dependency.lagUnit ?? "days"),
       );
       if (!alreadyLinked) {
         successor.dependencies = [...successor.dependencies, dependency];

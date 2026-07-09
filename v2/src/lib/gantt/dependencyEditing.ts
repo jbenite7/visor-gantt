@@ -1,15 +1,16 @@
 import type { GanttDependency, GanttTask } from "@/components/gantt/types";
+import { normalizeDependencyLagFields } from "@/lib/gantt/dependencyLag";
 
 export function dependencyKey(dep: GanttDependency): string {
-  return `${String(dep.from)}->${String(dep.to)}:${dep.type}:${dep.lag ?? 0}`;
+  return `${String(dep.from)}->${String(dep.to)}:${dep.type}:${dep.lag ?? 0}:${dep.lagUnit ?? "days"}`;
 }
 
 export function normalizeDependency(dep: GanttDependency, fallbackTo?: string | number): GanttDependency {
-  return {
+  return normalizeDependencyLagFields({
     ...dep,
     to: dep.to ?? fallbackTo ?? dep.to,
     lag: dep.lag === undefined ? undefined : Number(dep.lag),
-  };
+  });
 }
 
 export function normalizeDependencyList(
@@ -89,7 +90,7 @@ export function replaceSuccessors(
 
 export function removeDependency(
   tasks: GanttTask[],
-  dependency: Pick<GanttDependency, "from" | "to"> & Partial<Pick<GanttDependency, "type" | "lag">>,
+  dependency: Pick<GanttDependency, "from" | "to"> & Partial<Pick<GanttDependency, "type" | "lag" | "lagUnit">>,
 ): GanttTask[] {
   return tasks.map((task) => {
     if (task.id !== dependency.to) return task;
@@ -99,9 +100,9 @@ export function removeDependency(
         if (dep.from !== dependency.from || dep.to !== dependency.to) return true;
         if (dependency.type !== undefined && dep.type !== dependency.type) return true;
         if (dependency.lag !== undefined && (dep.lag ?? 0) !== dependency.lag) return true;
+        if (dependency.lagUnit !== undefined && (dep.lagUnit ?? "days") !== dependency.lagUnit) return true;
         return false;
       }),
     };
   });
 }
-

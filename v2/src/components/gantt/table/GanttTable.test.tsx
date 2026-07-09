@@ -352,6 +352,31 @@ describe("GanttTable", () => {
     ]);
   });
 
+  test("commits inline percent lag edits without falling back to internal IDs", () => {
+    const onUpdateTask = jest.fn();
+    const predecessor = makeTask({
+      id: "mx-task-cell-scope-1783549803757-estructura-area-formaleta",
+      name: "Formaleta",
+    });
+    const successor = makeTask({
+      id: "mx-task-cell-scope-1783549803757-estructura-area-acero",
+      name: "Acero",
+      dependencies: [],
+    });
+
+    render(<GanttTable tasks={[predecessor, successor]} onUpdateTask={onUpdateTask} />);
+
+    const predecessorCell = screen.getAllByTestId("gantt-row")[1].querySelectorAll("td")[8];
+    fireEvent.doubleClick(within(predecessorCell).getByTestId("editable-cell"));
+    const input = within(predecessorCell).getByTestId("editable-cell");
+    fireEvent.change(input, { target: { value: "1SS+50%" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onUpdateTask).toHaveBeenCalledWith(successor.id, "dependencies", [
+      { from: predecessor.id, to: successor.id, type: "SS", lag: 50, lagUnit: "percent" },
+    ]);
+  });
+
   test("renders percent complete with two decimals", () => {
     render(
       <GanttTable
@@ -909,6 +934,39 @@ describe("GanttTable", () => {
     ]);
   });
 
+  test("commits percent lag from the visual dependency popover", () => {
+    const onUpdateTask = jest.fn();
+    const predecessor = makeTask({ id: 1, name: "Predecessor", wbs: "1" });
+    const successor = makeTask({ id: 2, name: "Successor", wbs: "2" });
+
+    render(
+      <GanttTable
+        tasks={[predecessor, successor]}
+        onUpdateTask={onUpdateTask}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("dependency-popover-open-2"));
+    fireEvent.change(screen.getByTestId("dependency-search"), {
+      target: { value: "Predecessor" },
+    });
+    fireEvent.change(screen.getByTestId("dependency-type-select"), {
+      target: { value: "SS" },
+    });
+    fireEvent.change(screen.getByTestId("dependency-lag-input"), {
+      target: { value: "50" },
+    });
+    fireEvent.change(screen.getByTestId("dependency-lag-unit-select"), {
+      target: { value: "percent" },
+    });
+    fireEvent.click(screen.getByTestId("dependency-add"));
+    fireEvent.click(screen.getByTestId("dependency-apply"));
+
+    expect(onUpdateTask).toHaveBeenCalledWith(2, "dependencies", [
+      { from: 1, to: 2, type: "SS", lag: 50, lagUnit: "percent" },
+    ]);
+  });
+
   test("shows row IDs in the visual dependency popover", () => {
     const onUpdateTask = jest.fn();
     const predecessor = makeTask({
@@ -1019,11 +1077,17 @@ describe("GanttTable", () => {
     expect(screen.getAllByRole("option", { name: "2 - Successor" }).length).toBeGreaterThan(0);
     expect(screen.queryByRole("option", { name: "2 2 - Successor" })).not.toBeInTheDocument();
 
+    fireEvent.change(screen.getByTestId("dependency-panel-successor-lag-input"), {
+      target: { value: "50" },
+    });
+    fireEvent.change(screen.getByTestId("dependency-panel-successor-lag-unit-select"), {
+      target: { value: "percent" },
+    });
     fireEvent.click(screen.getByTestId("dependency-panel-add-successor"));
     fireEvent.click(screen.getByTestId("dependency-panel-apply"));
 
     expect(onUpdateTask).toHaveBeenCalledWith(101, "successors", [
-      { from: 101, to: 205, type: "FS", lag: undefined },
+      { from: 101, to: 205, type: "FS", lag: 50, lagUnit: "percent" },
     ]);
   });
 

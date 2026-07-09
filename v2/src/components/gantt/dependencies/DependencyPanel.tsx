@@ -9,6 +9,12 @@ import {
   replacePredecessors,
   replaceSuccessors,
 } from "@/lib/gantt/dependencyEditing";
+import {
+  dependencyLagUnitValue,
+  formatDependencyLag,
+  lagPatch,
+  type DependencyLagUnit,
+} from "@/lib/gantt/dependencyLag";
 import { dependencyRowId, taskVisibleRowId } from "@/lib/gantt/taskIds";
 import { recalculateSchedule, validateDependencies } from "@/lib/scheduling/scheduleEngine";
 import { formatProjectDate } from "@/lib/date/projectDate";
@@ -23,6 +29,7 @@ interface DependencyPanelProps {
 }
 
 const dependencyTypes: GanttDependency["type"][] = ["FS", "SS", "FF", "SF"];
+const dependencyLagUnits: DependencyLagUnit[] = ["days", "percent"];
 const CONTROL_RADIUS = "var(--radius-sm)";
 const SURFACE_RADIUS = "var(--radius-md)";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -46,7 +53,7 @@ function parseLag(value: string): number | undefined {
 function dependencyLabel(dep: GanttDependency, tasks: GanttTask[], direction: "predecessor" | "successor"): string {
   const id = direction === "predecessor" ? dep.from : dep.to;
   const related = tasks.find((candidate) => candidate.id === id);
-  const lag = dep.lag ? `${dep.lag > 0 ? "+" : ""}${dep.lag}d` : "";
+  const lag = formatDependencyLag(dep.lag, dep.lagUnit);
   return `${dependencyRowId(tasks, id)} - ${related?.name ?? ""} ${dep.type}${lag}`;
 }
 
@@ -151,6 +158,8 @@ export default function DependencyPanel({
   const [successorType, setSuccessorType] = useState<GanttDependency["type"]>("FS");
   const [predecessorLag, setPredecessorLag] = useState("0");
   const [successorLag, setSuccessorLag] = useState("0");
+  const [predecessorLagUnit, setPredecessorLagUnit] = useState<DependencyLagUnit>("days");
+  const [successorLagUnit, setSuccessorLagUnit] = useState<DependencyLagUnit>("days");
   const [validationMessages, setValidationMessages] = useState<string[]>([]);
 
   const nextPredecessors = useMemo(
@@ -185,7 +194,7 @@ export default function DependencyPanel({
             from: source.id,
             to: task.id,
             type: predecessorType,
-            lag: parseLag(predecessorLag),
+            ...lagPatch(parseLag(predecessorLag), predecessorLagUnit),
           },
         ],
         task.id,
@@ -203,7 +212,7 @@ export default function DependencyPanel({
           from: task.id,
           to: target.id,
           type: successorType,
-          lag: parseLag(successorLag),
+          ...lagPatch(parseLag(successorLag), successorLagUnit),
         },
       ]),
     );
@@ -236,11 +245,11 @@ export default function DependencyPanel({
       ) : (
         dependencies.map((dep, index) => (
           <div
-            key={`${dep.from}-${dep.to}-${dep.type}-${dep.lag ?? 0}-${index}`}
+            key={`${dep.from}-${dep.to}-${dep.type}-${dep.lag ?? 0}-${dep.lagUnit ?? "days"}-${index}`}
             data-testid={`dependency-panel-${direction}-row`}
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(0, 1fr) 64px 64px 30px",
+              gridTemplateColumns: "minmax(0, 1fr) 56px 56px 44px 30px",
               gap: "5px",
               alignItems: "center",
             }}
@@ -282,7 +291,9 @@ export default function DependencyPanel({
                 onChange(
                   normalizeDependencyList(
                     dependencies.map((item, itemIndex) =>
-                      itemIndex === index ? { ...item, lag: parseLag(event.target.value) } : item,
+                      itemIndex === index
+                        ? { ...item, ...lagPatch(parseLag(event.target.value), item.lagUnit) }
+                        : item,
                     ),
                     direction === "predecessor" ? task.id : undefined,
                   ),
@@ -290,6 +301,29 @@ export default function DependencyPanel({
               }
               style={{ minWidth: 0, padding: "4px", fontSize: "0.75rem" }}
             />
+            <select
+              aria-label={locale === "en" ? "Lag unit" : "Unidad de lag"}
+              value={dependencyLagUnitValue(dep.lagUnit)}
+              onChange={(event) =>
+                onChange(
+                  normalizeDependencyList(
+                    dependencies.map((item, itemIndex) =>
+                      itemIndex === index
+                        ? { ...item, ...lagPatch(item.lag, event.target.value as DependencyLagUnit) }
+                        : item,
+                    ),
+                    direction === "predecessor" ? task.id : undefined,
+                  ),
+                )
+              }
+              style={{ minWidth: 0, padding: "4px", fontSize: "0.75rem" }}
+            >
+              {dependencyLagUnits.map((unit) => (
+                <option key={unit} value={unit}>
+                  {unit === "percent" ? "%" : "d"}
+                </option>
+              ))}
+            </select>
             <button
               type="button"
               aria-label={locale === "en" ? "Remove dependency" : "Eliminar dependencia"}
@@ -322,12 +356,14 @@ export default function DependencyPanel({
     setType: (value: GanttDependency["type"]) => void,
     lag: string,
     setLag: (value: string) => void,
+    lagUnit: DependencyLagUnit,
+    setLagUnit: (value: DependencyLagUnit) => void,
     onAdd: () => void,
   ) => (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "minmax(0, 1fr) 64px 64px 30px",
+        gridTemplateColumns: "minmax(0, 1fr) 56px 56px 44px 30px",
         gap: "5px",
         alignItems: "center",
       }}
@@ -363,6 +399,19 @@ export default function DependencyPanel({
         onChange={(event) => setLag(event.target.value)}
         style={{ minWidth: 0, padding: "4px", fontSize: "0.75rem" }}
       />
+      <select
+        data-testid={`dependency-panel-${direction}-lag-unit-select`}
+        value={lagUnit}
+        aria-label={locale === "en" ? "Lag unit" : "Unidad de lag"}
+        onChange={(event) => setLagUnit(event.target.value as DependencyLagUnit)}
+        style={{ minWidth: 0, padding: "4px", fontSize: "0.75rem" }}
+      >
+        {dependencyLagUnits.map((unit) => (
+          <option key={unit} value={unit}>
+            {unit === "percent" ? "%" : "d"}
+          </option>
+        ))}
+      </select>
       <button
         type="button"
         data-testid={`dependency-panel-add-${direction}`}
@@ -469,6 +518,8 @@ export default function DependencyPanel({
           setPredecessorType,
           predecessorLag,
           setPredecessorLag,
+          predecessorLagUnit,
+          setPredecessorLagUnit,
           addPredecessor,
         )}
         {renderDependencyRows(predecessors, "predecessor", setPredecessors)}
@@ -486,6 +537,8 @@ export default function DependencyPanel({
           setSuccessorType,
           successorLag,
           setSuccessorLag,
+          successorLagUnit,
+          setSuccessorLagUnit,
           addSuccessor,
         )}
         {renderDependencyRows(successors, "successor", setSuccessors)}

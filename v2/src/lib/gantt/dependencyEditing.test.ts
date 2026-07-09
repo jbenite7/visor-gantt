@@ -30,10 +30,33 @@ describe("dependency editing", () => {
         { from: 1, to: 2, type: "FS", lag: 2 },
         { from: 1, to: 2, type: "FS", lag: 2 },
         { from: 1, to: 2, type: "SS", lag: -1 },
+        { from: 1, to: 2, type: "SS", lag: -1, lagUnit: "percent" },
       ]),
     ).toEqual([
       { from: 1, to: 2, type: "FS", lag: 2 },
       { from: 1, to: 2, type: "SS", lag: -1 },
+      { from: 1, to: 2, type: "SS", lag: -1, lagUnit: "percent" },
+    ]);
+  });
+
+  test("keeps day and percent lags as distinct dependency contracts", () => {
+    const normalized = normalizeDependencyList([
+      { from: 1, to: 2, type: "FS", lag: 2 },
+      { from: 1, to: 2, type: "FS", lag: 2, lagUnit: "percent" },
+      { from: 1, to: 2, type: "FS", lag: 2, lagUnit: "percent" },
+    ]);
+
+    expect(normalized).toEqual([
+      { from: 1, to: 2, type: "FS", lag: 2 },
+      { from: 1, to: 2, type: "FS", lag: 2, lagUnit: "percent" },
+    ]);
+
+    const result = removeDependency(
+      [task({ id: 1 }), task({ id: 2, dependencies: normalized })],
+      { from: 1, to: 2, type: "FS", lag: 2, lagUnit: "percent" },
+    );
+    expect(result.find((item) => item.id === 2)?.dependencies).toEqual([
+      { from: 1, to: 2, type: "FS", lag: 2 },
     ]);
   });
 
@@ -95,4 +118,3 @@ describe("dependency editing", () => {
     ]);
   });
 });
-

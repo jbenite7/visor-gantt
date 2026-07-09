@@ -272,6 +272,21 @@ describe("depToGanttDep", () => {
     expect(results[2].type).toBe("FF");
     expect(results[3].type).toBe("SF");
   });
+
+  test("preserves percentage lag from scheduling dependencies", () => {
+    const dep: Dependency = {
+      predecessorId: 1,
+      successorId: 2,
+      type: DependencyType.FinishToStart,
+      lag: 50,
+      isPercentage: true,
+    };
+
+    const result = depToGanttDep(dep);
+
+    expect(result.lag).toBe(50);
+    expect(result.lagUnit).toBe("percent");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -309,6 +324,21 @@ describe("ganttDepToDep", () => {
     expect(result.type).toBe(DependencyType.StartToFinish);
     expect(result.lag).toBe(0);
     expect(result.isPercentage).toBe(false);
+  });
+
+  test("preserves percentage lag when converting to scheduling dependency", () => {
+    const gantt: GanttDependency = {
+      from: 1,
+      to: 2,
+      type: "FS",
+      lag: 50,
+      lagUnit: "percent",
+    };
+
+    const result = ganttDepToDep(gantt);
+
+    expect(result.lag).toBe(50);
+    expect(result.isPercentage).toBe(true);
   });
 
   test("roundtrip: ganttDepToDep(depToGanttDep(dep)) preserves from/to/type", () => {

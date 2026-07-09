@@ -1,5 +1,6 @@
 import type { GanttTask } from "@/components/gantt/types";
 import { getMppRecordValue } from "@/lib/mpp/recordValues";
+import { formatDependencyLag } from "@/lib/gantt/dependencyLag";
 
 function numericRecordValue(value: unknown): number | undefined {
   if (typeof value === "number" && Number.isInteger(value)) return value;
@@ -44,8 +45,9 @@ export function dependencyToken(
   fallback: string | number,
   type: string,
   lag?: number,
+  lagUnit?: "days" | "percent",
 ): string {
-  const lagText = lag ? `${lag > 0 ? "+" : ""}${lag}d` : "";
+  const lagText = formatDependencyLag(lag, lagUnit);
   return `${taskRowId(task, fallback)}${type}${lagText}`;
 }
 
@@ -54,7 +56,8 @@ export function dependencyTokenForTaskId(
   taskId: string | number,
   type: string,
   lag?: number,
+  lagUnit?: "days" | "percent",
 ): string {
-  const lagText = lag ? `${lag > 0 ? "+" : ""}${lag}d` : "";
+  const lagText = formatDependencyLag(lag, lagUnit);
   return `${dependencyRowId(tasks, taskId)}${type}${lagText}`;
 }

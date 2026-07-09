@@ -373,6 +373,7 @@ export default function GanttChart({
                     to={{ x: endpoints.toX, y: endpoints.toY }}
                     type={dep.type}
                     lag={dep.lag}
+                    lagUnit={dep.lagUnit}
                     rowHeight={finalConfig.rowHeight}
                   />
                 );

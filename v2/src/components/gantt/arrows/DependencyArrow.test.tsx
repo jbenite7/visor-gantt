@@ -135,6 +135,23 @@ describe("DependencyArrow", () => {
     expect(screen.getByText("-3d")).toBeInTheDocument();
   });
 
+  test("renders percentage lag text correctly", () => {
+    render(
+      <svg>
+        <DependencyArrow
+          from={{ x: 100, y: 40, isCritical: false }}
+          to={{ x: 300, y: 80 }}
+          type="FS"
+          lag={50}
+          lagUnit="percent"
+          rowHeight={40}
+        />
+      </svg>,
+    );
+
+    expect(screen.getByText("+50%")).toBeInTheDocument();
+  });
+
   test("does not render lag text when lag is zero", () => {
     render(
       <svg>

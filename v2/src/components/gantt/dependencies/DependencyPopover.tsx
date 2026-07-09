@@ -7,6 +7,7 @@ import type { GanttDependency, GanttTask } from "@/components/gantt/types";
 import type { UILocale } from "@/types/ui";
 import { normalizeDependencyList } from "@/lib/gantt/dependencyEditing";
 import { dependencyTokenForTaskId, taskVisibleRowId } from "@/lib/gantt/taskIds";
+import { dependencyLagUnitValue, lagPatch, type DependencyLagUnit } from "@/lib/gantt/dependencyLag";
 
 interface DependencyPopoverProps {
   task: GanttTask;
@@ -16,13 +17,14 @@ interface DependencyPopoverProps {
 }
 
 const dependencyTypes: GanttDependency["type"][] = ["FS", "SS", "FF", "SF"];
+const dependencyLagUnits: DependencyLagUnit[] = ["days", "percent"];
 const POPOVER_OFFSET = 8;
 const VIEWPORT_MARGIN = 16;
 const POPOVER_FALLBACK_WIDTH = 360;
 const POPOVER_FALLBACK_HEIGHT = 320;
 
 function dependencyLabel(dep: GanttDependency, tasks: GanttTask[]): string {
-  return dependencyTokenForTaskId(tasks, dep.from, dep.type, dep.lag);
+  return dependencyTokenForTaskId(tasks, dep.from, dep.type, dep.lag, dep.lagUnit);
 }
 
 function taskOptionLabel(tasks: GanttTask[], task: GanttTask): string {
@@ -49,6 +51,7 @@ export default function DependencyPopover({
   });
   const [type, setType] = useState<GanttDependency["type"]>("FS");
   const [lag, setLag] = useState("0");
+  const [lagUnit, setLagUnit] = useState<DependencyLagUnit>("days");
 
   const availableTasks = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -106,7 +109,7 @@ export default function DependencyPopover({
       from: source.id,
       to: task.id,
       type,
-      lag: Number.isFinite(parsedLag) && parsedLag !== 0 ? parsedLag : undefined,
+      ...lagPatch(Number.isFinite(parsedLag) && parsedLag !== 0 ? parsedLag : undefined, lagUnit),
     };
     setDraft((prev) => normalizeDependencyList([...prev, next], task.id));
   };
@@ -247,6 +250,19 @@ export default function DependencyPopover({
               value={lag}
               onChange={(event) => setLag(event.target.value)}
             />
+            <select
+              data-testid="dependency-lag-unit-select"
+              className="gantt-dependency-popover__control"
+              value={lagUnit}
+              aria-label={locale === "en" ? "Lag unit" : "Unidad de lag"}
+              onChange={(event) => setLagUnit(event.target.value as DependencyLagUnit)}
+            >
+              {dependencyLagUnits.map((unit) => (
+                <option key={unit} value={unit}>
+                  {unit === "percent" ? "%" : "d"}
+                </option>
+              ))}
+            </select>
             <button
               type="button"
               data-testid="dependency-add"
@@ -267,7 +283,7 @@ export default function DependencyPopover({
             ) : (
               draft.map((dep, index) => (
                 <div
-                  key={`${dep.from}-${dep.to}-${dep.type}-${dep.lag ?? 0}-${index}`}
+                  key={`${dep.from}-${dep.to}-${dep.type}-${dep.lag ?? 0}-${dep.lagUnit ?? "days"}-${index}`}
                   data-testid="dependency-row"
                   className="gantt-dependency-popover__row"
                 >
@@ -298,10 +314,29 @@ export default function DependencyPopover({
                     onChange={(event) => {
                       const value = Number(event.target.value);
                       updateDependency(index, {
-                        lag: Number.isFinite(value) && value !== 0 ? value : undefined,
+                        ...lagPatch(
+                          Number.isFinite(value) && value !== 0 ? value : undefined,
+                          dep.lagUnit,
+                        ),
                       });
                     }}
                   />
+                  <select
+                    className="gantt-dependency-popover__control"
+                    aria-label={locale === "en" ? "Lag unit" : "Unidad de lag"}
+                    value={dependencyLagUnitValue(dep.lagUnit)}
+                    onChange={(event) =>
+                      updateDependency(index, {
+                        ...lagPatch(dep.lag, event.target.value as DependencyLagUnit),
+                      })
+                    }
+                  >
+                    {dependencyLagUnits.map((unit) => (
+                      <option key={unit} value={unit}>
+                        {unit === "percent" ? "%" : "d"}
+                      </option>
+                    ))}
+                  </select>
                   <button
                     type="button"
                     className="gantt-dependency-popover__icon-button"
