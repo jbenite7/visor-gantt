@@ -208,6 +208,8 @@
   --gantt-column-selector-panel-width: 13.75rem;
   --gantt-column-selector-panel-max-height: min(70vh, 38.75rem);
   --gantt-column-selector-panel-offset: 0.375rem;
+  --gantt-column-selector-viewport-margin: 0.75rem;
+  --gantt-column-selector-z-index: 80;
   --gantt-column-selector-panel-padding-block: 0.5rem;
   --gantt-column-selector-header-padding: 0.375rem 0.875rem 0.5rem;
   --gantt-column-selector-section-padding: 0.25rem 0.875rem 0.5rem;
@@ -1866,10 +1868,10 @@ h6 {
 }
 
 .gantt-column-selector__panel {
-  position: absolute;
-  top: calc(100% + var(--gantt-column-selector-panel-offset));
-  right: 0;
-  z-index: 50;
+  position: fixed;
+  top: var(--gantt-column-selector-panel-top);
+  left: var(--gantt-column-selector-panel-left);
+  z-index: var(--gantt-column-selector-z-index);
   box-sizing: border-box;
   width: min(var(--gantt-column-selector-panel-width), calc(100vw - (var(--gantt-meta-strip-padding-inline) * 2)));
   min-width: 0;
@@ -1882,6 +1884,10 @@ h6 {
   box-shadow: var(--gantt-column-selector-shadow);
   font-family: var(--font-body), system-ui, sans-serif;
   padding: var(--gantt-column-selector-panel-padding-block) 0;
+}
+
+.gantt-column-selector__panel[data-positioned="false"] {
+  visibility: hidden;
 }
 
 .gantt-column-selector__header {

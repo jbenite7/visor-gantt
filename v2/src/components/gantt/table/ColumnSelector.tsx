@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  type CSSProperties,
+} from "react";
+import { createPortal } from "react-dom";
 import { Columns, Info } from "lucide-react";
 import type { MppCalculationSpec } from "@/types/mppColumns";
 import type { UILocale } from "@/types/ui";
@@ -48,8 +56,59 @@ export default function ColumnSelector({
 }: ColumnSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedColumnKey, setSelectedColumnKey] = useState<string | undefined>();
+  const [panelPosition, setPanelPosition] = useState({
+    top: 0,
+    left: 0,
+    ready: false,
+  });
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const cssLength = useCallback((name: string, fallbackPx: number) => {
+    if (typeof window === "undefined") return fallbackPx;
+    const raw = window.getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    if (!raw) return fallbackPx;
+    const probe = document.createElement("div");
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.width = raw;
+    document.body.appendChild(probe);
+    const value = probe.getBoundingClientRect().width;
+    probe.remove();
+    return Number.isFinite(value) && value > 0 ? value : fallbackPx;
+  }, []);
+
+  const updatePanelPosition = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const trigger = buttonRef.current;
+    const panel = panelRef.current;
+    if (!trigger || !panel) return;
+
+    const triggerRect = trigger.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    const panelWidth = panel.offsetWidth || panelRect.width;
+    const panelHeight = panel.offsetHeight || panelRect.height;
+    const offset = cssLength("--gantt-column-selector-panel-offset", 6);
+    const margin = cssLength("--gantt-column-selector-viewport-margin", 12);
+    const maxLeft = window.innerWidth - panelWidth - margin;
+    const preferredLeft = triggerRect.right - panelWidth;
+    const maxTop = window.innerHeight - panelHeight - margin;
+    const preferredTop = triggerRect.bottom + offset;
+    const nextLeft = Math.max(margin, Math.min(preferredLeft, Math.max(margin, maxLeft)));
+    const nextTop = Math.max(margin, Math.min(preferredTop, Math.max(margin, maxTop)));
+
+    setPanelPosition((current) => {
+      if (
+        current.ready &&
+        Math.abs(current.top - nextTop) < 1 &&
+        Math.abs(current.left - nextLeft) < 1
+      ) {
+        return current;
+      }
+
+      return { top: nextTop, left: nextLeft, ready: true };
+    });
+  }, [cssLength]);
 
   // Close on outside click
   const handleOutsideClick = useCallback(
@@ -72,6 +131,27 @@ export default function ColumnSelector({
       return () => document.removeEventListener("mousedown", handleOutsideClick);
     }
   }, [isOpen, handleOutsideClick]);
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+
+    updatePanelPosition();
+    const frame = window.requestAnimationFrame(updatePanelPosition);
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [columns.length, isOpen, selectedColumnKey, updatePanelPosition]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    window.addEventListener("resize", updatePanelPosition);
+    window.addEventListener("scroll", updatePanelPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePanelPosition);
+      window.removeEventListener("scroll", updatePanelPosition, true);
+    };
+  }, [isOpen, updatePanelPosition]);
 
   // Keyboard: Escape to close
   useEffect(() => {
@@ -253,28 +333,25 @@ export default function ColumnSelector({
     }
   };
 
-  return (
-    <div className="gantt-column-selector">
-      {/* Toggle Button */}
-      <button
-        ref={buttonRef}
-        data-testid="column-selector"
-        className="gantt-column-selector__trigger"
-        data-open={isOpen}
-        onClick={() => setIsOpen((prev) => !prev)}
-        aria-label={t(locale, "toggleColumns")}
-        aria-expanded={isOpen}
-      >
-        <Columns className="gantt-column-selector__trigger-icon" aria-hidden />
-      </button>
+  const handleTriggerClick = () => {
+    setPanelPosition((current) => ({ ...current, ready: false }));
+    setIsOpen((prev) => !prev);
+  };
 
-      {/* Dropdown Panel */}
-      {isOpen && (
+  const panelStyle = {
+    "--gantt-column-selector-panel-top": `${panelPosition.top}px`,
+    "--gantt-column-selector-panel-left": `${panelPosition.left}px`,
+  } as CSSProperties;
+
+  const panel = isOpen && typeof document !== "undefined"
+    ? createPortal(
         <div
           ref={panelRef}
           data-testid="column-selector-panel"
+          data-positioned={panelPosition.ready}
           role="menu"
           className="gantt-column-selector__panel"
+          style={panelStyle}
         >
           {/* Header */}
           <div className="gantt-column-selector__header">
@@ -392,8 +469,27 @@ export default function ColumnSelector({
               {t(locale, "reset")}
             </button>
           </div>
-        </div>
-      )}
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <div className="gantt-column-selector">
+      {/* Toggle Button */}
+      <button
+        ref={buttonRef}
+        data-testid="column-selector"
+        className="gantt-column-selector__trigger"
+        data-open={isOpen}
+        onClick={handleTriggerClick}
+        aria-label={t(locale, "toggleColumns")}
+        aria-expanded={isOpen}
+      >
+        <Columns className="gantt-column-selector__trigger-icon" aria-hidden />
+      </button>
+
+      {panel}
     </div>
   );
 }
