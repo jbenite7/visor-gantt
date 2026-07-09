@@ -1986,6 +1986,71 @@ h6 {
   gap: var(--gantt-topbar-gap);
 }
 
+.lob-zoom-controls {
+  display: inline-flex;
+  min-height: var(--gantt-topbar-control-height);
+  max-width: 100%;
+  align-items: center;
+  gap: var(--project-view-sidebar-item-gap);
+  border: var(--border-width-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  padding: var(--project-view-sidebar-item-gap);
+}
+
+.lob-zoom-button {
+  display: inline-flex;
+  width: var(--gantt-topbar-control-height);
+  height: var(--gantt-topbar-control-height);
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-transparent);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    background var(--motion-control-transition),
+    color var(--motion-control-transition),
+    opacity var(--motion-control-transition),
+    transform var(--motion-control-transition);
+}
+
+.lob-zoom-button:hover:not(:disabled),
+.lob-zoom-button:focus-visible {
+  background: var(--aia-corp-xlight);
+  color: var(--aia-corp-dark);
+}
+
+.lob-zoom-button:focus-visible {
+  outline: 0;
+  box-shadow: var(--shadow-focus);
+}
+
+.lob-zoom-button:active:not(:disabled) {
+  transform: scale(var(--motion-press-scale));
+}
+
+.lob-zoom-button:disabled {
+  cursor: not-allowed;
+  opacity: var(--disabled-opacity);
+}
+
+.lob-zoom-icon {
+  width: var(--gantt-topbar-icon-size);
+  height: var(--gantt-topbar-icon-size);
+}
+
+.lob-zoom-value {
+  min-width: calc(var(--gantt-topbar-control-height) + var(--gantt-topbar-control-padding-inline));
+  color: var(--color-text-strong);
+  font-family: var(--font-heading), system-ui, sans-serif;
+  font-size: var(--gantt-topbar-font-size);
+  font-weight: 700;
+  text-align: center;
+}
+
 .lob-bottleneck-switch {
   display: inline-flex;
   min-height: var(--gantt-topbar-control-height);
@@ -2118,6 +2183,15 @@ h6 {
   height: auto;
   font-family: var(--font-body), system-ui, sans-serif;
   font-size: var(--gantt-toolbar-meta-size);
+}
+
+.lob-chart[data-pannable="true"] {
+  cursor: grab;
+  touch-action: none;
+}
+
+.lob-chart[data-dragging="true"] {
+  cursor: grabbing;
 }
 
 .lob-chart__frame {

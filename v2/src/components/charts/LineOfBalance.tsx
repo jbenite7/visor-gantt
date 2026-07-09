@@ -1,6 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useId,
+  useMemo,
+  useState,
+  type PointerEvent,
+  type WheelEvent,
+} from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import type { LOBActivity, LOBUnit } from "@/types/lob";
 import {
   computeLOBLayout,
@@ -15,10 +28,18 @@ const BOTTLENECK_TOOLTIP_WIDTH = 320;
 const BOTTLENECK_TOOLTIP_HEIGHT = 92;
 const BOTTLENECK_TOOLTIP_LINE_HEIGHT = 14;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 4;
+const ZOOM_STEP = 0.5;
+const PAN_VISIBLE_RATIO_STEP = 0.25;
 
 // ── Helper functions ──────────────────────────────────────────────
 
 type LOBScale = "week" | "month";
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
 
 function dateToX(date: Date, min: Date, max: Date, width: number): number {
   const range = max.getTime() - min.getTime();
@@ -42,12 +63,6 @@ function startOfDay(date: Date): Date {
   return result;
 }
 
-function addDays(date: Date, days: number): Date {
-  const result = startOfDay(date);
-  result.setDate(result.getDate() + days);
-  return result;
-}
-
 function startOfWeek(date: Date): Date {
   const result = startOfDay(date);
   const day = result.getDay() || 7;
@@ -55,20 +70,9 @@ function startOfWeek(date: Date): Date {
   return result;
 }
 
-function endOfWeek(date: Date): Date {
-  return addDays(startOfWeek(date), 6);
-}
-
 function startOfMonth(date: Date): Date {
   const result = startOfDay(date);
   result.setDate(1);
-  return result;
-}
-
-function endOfMonth(date: Date): Date {
-  const result = startOfMonth(date);
-  result.setMonth(result.getMonth() + 1);
-  result.setDate(0);
   return result;
 }
 
@@ -80,17 +84,104 @@ function getISOWeek(date: Date): number {
 }
 
 function getScaledDateDomain(min: Date, max: Date, scale: LOBScale): { min: Date; max: Date } {
-  if (scale === "month") {
-    return {
-      min: startOfMonth(min),
-      max: endOfMonth(max),
-    };
-  }
+  const minTime = min.getTime();
+  const maxTime = max.getTime();
+  const range = Math.max(maxTime - minTime, MS_PER_DAY);
+  const minimumPadding = scale === "month" ? MS_PER_DAY * 2 : MS_PER_DAY;
+  const padding = Math.max(range * 0.08, minimumPadding);
 
   return {
-    min: startOfWeek(min),
-    max: endOfWeek(max),
+    min: new Date(minTime - padding),
+    max: new Date(maxTime + padding),
   };
+}
+
+function getZoomedDateDomain(
+  domain: { min: Date; max: Date },
+  zoomLevel: number,
+  centerRatio: number,
+): { min: Date; max: Date } {
+  if (zoomLevel <= ZOOM_MIN) return domain;
+
+  const minTime = domain.min.getTime();
+  const maxTime = domain.max.getTime();
+  const range = Math.max(maxTime - minTime, MS_PER_DAY);
+  const visibleRange = Math.max(range / zoomLevel, MS_PER_DAY);
+  const bounds = getZoomCenterBounds(domain, zoomLevel);
+  const center = minTime + range * clamp(centerRatio, bounds.min, bounds.max);
+
+  return {
+    min: new Date(center - visibleRange / 2),
+    max: new Date(center + visibleRange / 2),
+  };
+}
+
+function getZoomCenterBounds(
+  domain: { min: Date; max: Date },
+  zoomLevel: number,
+): { min: number; max: number } {
+  if (zoomLevel <= ZOOM_MIN) return { min: 0.5, max: 0.5 };
+
+  const range = Math.max(domain.max.getTime() - domain.min.getTime(), MS_PER_DAY);
+  const visibleRange = Math.max(range / zoomLevel, MS_PER_DAY);
+  const edgePadding = Math.min(0.5, visibleRange / range / 2);
+  return {
+    min: edgePadding,
+    max: 1 - edgePadding,
+  };
+}
+
+function clampZoomCenterRatio(
+  domain: { min: Date; max: Date },
+  zoomLevel: number,
+  centerRatio: number,
+): number {
+  const bounds = getZoomCenterBounds(domain, zoomLevel);
+  return clamp(centerRatio, bounds.min, bounds.max);
+}
+
+function getAnchoredZoomCenterRatio(
+  domain: { min: Date; max: Date },
+  currentZoom: number,
+  currentCenterRatio: number,
+  nextZoom: number,
+  anchorRatio: number,
+): number {
+  if (nextZoom <= ZOOM_MIN) return 0.5;
+
+  const minTime = domain.min.getTime();
+  const maxTime = domain.max.getTime();
+  const range = Math.max(maxTime - minTime, MS_PER_DAY);
+  const currentDomain = getZoomedDateDomain(domain, currentZoom, currentCenterRatio);
+  const currentRange = Math.max(
+    currentDomain.max.getTime() - currentDomain.min.getTime(),
+    MS_PER_DAY,
+  );
+  const anchorTime =
+    currentDomain.min.getTime() + currentRange * clamp(anchorRatio, 0, 1);
+  const nextVisibleRange = Math.max(range / nextZoom, MS_PER_DAY);
+  const nextCenterTime =
+    anchorTime - (clamp(anchorRatio, 0, 1) - 0.5) * nextVisibleRange;
+
+  return clampZoomCenterRatio(
+    domain,
+    nextZoom,
+    (nextCenterTime - minTime) / range,
+  );
+}
+
+function panZoomCenterRatio(
+  domain: { min: Date; max: Date },
+  zoomLevel: number,
+  centerRatio: number,
+  visibleRatioDelta: number,
+): number {
+  if (zoomLevel <= ZOOM_MIN) return 0.5;
+  return clampZoomCenterRatio(
+    domain,
+    zoomLevel,
+    centerRatio + visibleRatioDelta / zoomLevel,
+  );
 }
 
 function formatTickLabel(date: Date, scale: LOBScale): string {
@@ -108,26 +199,32 @@ function formatTickLabel(date: Date, scale: LOBScale): string {
 
 function generateDateTicks(min: Date, max: Date, scale: LOBScale): Date[] {
   const ticks: Date[] = [];
+  const pushTick = (tick: Date) => {
+    const previous = ticks.at(-1);
+    if (!previous || previous.getTime() !== tick.getTime()) {
+      ticks.push(new Date(tick));
+    }
+  };
   const current = scale === "month" ? startOfMonth(min) : startOfWeek(min);
-  if (scale === "month") {
-    current.setDate(1);
-  } else {
-    const day = current.getDay() || 7;
-    current.setDate(current.getDate() - day + 1);
-  }
-  while (current <= max) {
-    ticks.push(new Date(current));
+
+  while (current < min) {
     if (scale === "month") {
       current.setMonth(current.getMonth() + 1);
     } else {
       current.setDate(current.getDate() + 7);
     }
   }
-  return ticks;
-}
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
+  while (current <= max) {
+    pushTick(current);
+    if (scale === "month") {
+      current.setMonth(current.getMonth() + 1);
+    } else {
+      current.setDate(current.getDate() + 7);
+    }
+  }
+  if (ticks.length === 0) ticks.push(new Date(min));
+  return ticks;
 }
 
 function severityLabel(severity: LOBDiagnostic["severity"]): string {
@@ -176,7 +273,15 @@ interface LineOfBalanceProps {
 }
 
 export default function LineOfBalance({ activities, units }: LineOfBalanceProps) {
+  const clipPathId = useId().replace(/:/g, "");
   const [scale, setScale] = useState<LOBScale>("month");
+  const [zoomLevel, setZoomLevel] = useState(ZOOM_MIN);
+  const [zoomCenterRatio, setZoomCenterRatio] = useState(0.5);
+  const [dragState, setDragState] = useState<{
+    pointerId: number;
+    startClientX: number;
+    startCenterRatio: number;
+  } | null>(null);
   const [showBottlenecks, setShowBottlenecks] = useState(false);
   const [activeBottleneckId, setActiveBottleneckId] = useState<string | null>(null);
   const layout = useMemo(
@@ -206,9 +311,23 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
     };
   }, [layout.lines, layout.xScale]);
 
-  const chartXScale = useMemo(
+  const baseXScale = useMemo(
     () => getScaledDateDomain(dataXScale.min, dataXScale.max, scale),
     [dataXScale.max, dataXScale.min, scale],
+  );
+  const zoomBounds = useMemo(
+    () => getZoomCenterBounds(baseXScale, zoomLevel),
+    [baseXScale, zoomLevel],
+  );
+  const boundedZoomCenterRatio = clamp(
+    zoomCenterRatio,
+    zoomBounds.min,
+    zoomBounds.max,
+  );
+
+  const chartXScale = useMemo(
+    () => getZoomedDateDomain(baseXScale, zoomLevel, boundedZoomCenterRatio),
+    [baseXScale, boundedZoomCenterRatio, zoomLevel],
   );
 
   const dateTicks = useMemo(
@@ -301,11 +420,97 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
   const activeBottleneck = bottleneckMarkers.find(
     (marker) => marker.id === activeBottleneckId,
   );
+  const zoomLabel = `${Math.round(zoomLevel * 100)}%`;
+  const plotClipPathId = `${clipPathId}-lob-plot`;
+  const canPanLeft = zoomLevel > ZOOM_MIN && boundedZoomCenterRatio > zoomBounds.min;
+  const canPanRight = zoomLevel > ZOOM_MIN && boundedZoomCenterRatio < zoomBounds.max;
+
+  const plotRatioFromClientX = (
+    clientX: number,
+    target: SVGSVGElement,
+  ): number => {
+    const rect = target.getBoundingClientRect();
+    if (rect.width <= 0) return 0.5;
+    const svgX = ((clientX - rect.left) / rect.width) * width;
+    return clamp((svgX - MARGIN.left) / chartWidth, 0, 1);
+  };
+
+  const updateZoom = (nextZoom: number, anchorRatio = 0.5) => {
+    const boundedNextZoom = clamp(nextZoom, ZOOM_MIN, ZOOM_MAX);
+    const nextCenterRatio = getAnchoredZoomCenterRatio(
+      baseXScale,
+      zoomLevel,
+      boundedZoomCenterRatio,
+      boundedNextZoom,
+      anchorRatio,
+    );
+    setZoomLevel(boundedNextZoom);
+    setZoomCenterRatio(nextCenterRatio);
+    if (boundedNextZoom <= ZOOM_MIN) {
+      setDragState(null);
+    }
+  };
+
+  const panChart = (direction: -1 | 1) => {
+    setZoomCenterRatio((current) =>
+      panZoomCenterRatio(
+        baseXScale,
+        zoomLevel,
+        current,
+        direction * PAN_VISIBLE_RATIO_STEP,
+      ),
+    );
+  };
+
+  const handleChartWheel = (event: WheelEvent<SVGSVGElement>) => {
+    event.preventDefault();
+    const anchorRatio = plotRatioFromClientX(event.clientX, event.currentTarget);
+    const direction = event.deltaY < 0 ? 1 : -1;
+    updateZoom(zoomLevel + direction * ZOOM_STEP, anchorRatio);
+  };
+
+  const handleChartPointerDown = (event: PointerEvent<SVGSVGElement>) => {
+    if (zoomLevel <= ZOOM_MIN || event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragState({
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startCenterRatio: boundedZoomCenterRatio,
+    });
+  };
+
+  const handleChartPointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    if (!dragState || dragState.pointerId !== event.pointerId || zoomLevel <= ZOOM_MIN) {
+      return;
+    }
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const plotScreenWidth = Math.max((chartWidth / width) * rect.width, 1);
+    const visibleRatioDelta = -(event.clientX - dragState.startClientX) / plotScreenWidth;
+    setZoomCenterRatio(
+      panZoomCenterRatio(
+        baseXScale,
+        zoomLevel,
+        dragState.startCenterRatio,
+        visibleRatioDelta,
+      ),
+    );
+  };
+
+  const handleChartPointerEnd = (event: PointerEvent<SVGSVGElement>) => {
+    if (dragState?.pointerId === event.pointerId) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+      setDragState(null);
+    }
+  };
 
   return (
     <div
       data-testid="line-of-balance"
       data-scale={scale}
+      data-zoom={zoomLevel}
+      data-zoom-center={boundedZoomCenterRatio.toFixed(3)}
       className="apple-module flex h-full min-w-0 flex-col overflow-hidden"
     >
       <div className="apple-module-header flex flex-wrap items-center justify-between gap-3 px-4 py-2">
@@ -318,6 +523,74 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
           </p>
         </div>
         <div className="lob-header-actions">
+          <div
+            role="group"
+            aria-label="Zoom del gráfico"
+            className="lob-zoom-controls"
+          >
+            <button
+              type="button"
+              className="lob-zoom-button"
+              data-testid="lob-pan-left"
+              aria-label="Mover gráfico a fechas anteriores"
+              title="Mover gráfico a fechas anteriores"
+              disabled={!canPanLeft}
+              onClick={() => panChart(-1)}
+            >
+              <ChevronLeft className="lob-zoom-icon" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="lob-zoom-button"
+              data-testid="lob-zoom-out"
+              aria-label="Alejar gráfico"
+              title="Alejar gráfico"
+              disabled={zoomLevel <= ZOOM_MIN}
+              onClick={() => updateZoom(zoomLevel - ZOOM_STEP)}
+            >
+              <ZoomOut className="lob-zoom-icon" aria-hidden="true" />
+            </button>
+            <span className="lob-zoom-value" data-testid="lob-zoom-value">
+              {zoomLabel}
+            </span>
+            <button
+              type="button"
+              className="lob-zoom-button"
+              data-testid="lob-zoom-in"
+              aria-label="Acercar gráfico"
+              title="Acercar gráfico"
+              disabled={zoomLevel >= ZOOM_MAX}
+              onClick={() => updateZoom(zoomLevel + ZOOM_STEP)}
+            >
+              <ZoomIn className="lob-zoom-icon" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="lob-zoom-button"
+              data-testid="lob-pan-right"
+              aria-label="Mover gráfico a fechas posteriores"
+              title="Mover gráfico a fechas posteriores"
+              disabled={!canPanRight}
+              onClick={() => panChart(1)}
+            >
+              <ChevronRight className="lob-zoom-icon" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="lob-zoom-button"
+              data-testid="lob-zoom-reset"
+              aria-label="Restablecer zoom"
+              title="Restablecer zoom"
+              disabled={zoomLevel === ZOOM_MIN}
+              onClick={() => {
+                setZoomLevel(ZOOM_MIN);
+                setZoomCenterRatio(0.5);
+                setDragState(null);
+              }}
+            >
+              <RotateCcw className="lob-zoom-icon" aria-hidden="true" />
+            </button>
+          </div>
           <button
             type="button"
             role="switch"
@@ -340,15 +613,15 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
           </button>
           <div className="lob-scale-toggle">
             {(["week", "month"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              className="lob-scale-toggle__button"
-              data-active={scale === option}
-              data-testid={`lob-scale-${option}`}
-              aria-pressed={scale === option}
-              onClick={() => setScale(option)}
-            >
+              <button
+                key={option}
+                type="button"
+                className="lob-scale-toggle__button"
+                data-active={scale === option}
+                data-testid={`lob-scale-${option}`}
+                aria-pressed={scale === option}
+                onClick={() => setScale(option)}
+              >
                 {option === "week" ? "Semanas" : "Meses"}
               </button>
             ))}
@@ -411,12 +684,31 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
       {hasLines ? (
         <div className="flex min-h-0 min-w-0 flex-1 items-start justify-center overflow-x-hidden overflow-y-auto p-4">
           <svg
+            data-testid="lob-chart-svg"
+            data-pannable={zoomLevel > ZOOM_MIN}
+            data-dragging={dragState != null}
             width={width}
             height={height}
             viewBox={`0 0 ${width} ${height}`}
             preserveAspectRatio="xMinYMin meet"
             className="lob-chart"
+            onWheel={handleChartWheel}
+            onPointerDown={handleChartPointerDown}
+            onPointerMove={handleChartPointerMove}
+            onPointerUp={handleChartPointerEnd}
+            onPointerCancel={handleChartPointerEnd}
+            onPointerLeave={handleChartPointerEnd}
           >
+          <defs>
+            <clipPath id={plotClipPathId}>
+              <rect
+                x={MARGIN.left}
+                y={MARGIN.top}
+                width={chartWidth}
+                height={chartHeight}
+              />
+            </clipPath>
+          </defs>
           {/* Background */}
           <rect
             x={MARGIN.left}
@@ -429,238 +721,241 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
             className="lob-chart__frame"
           />
 
-          {/* Horizontal grid lines (units) */}
-          {unitLabels.map((ul) => {
-            const y = unitToY(ul.index, layout.totalUnits, height);
-            return (
-              <line
-                key={`hgrid-${ul.index}`}
-                x1={MARGIN.left}
-                y1={y}
-                x2={width - MARGIN.right}
-                y2={y}
-                stroke="var(--aia-corp-mid)"
-                strokeOpacity={0.15}
-                strokeWidth={1}
-              />
-            );
-          })}
-
-          {/* Vertical grid lines (dates) */}
-          {dateTicks.map((tick) => {
-            const x = dateToX(tick, chartXScale.min, chartXScale.max, chartWidth);
-            return (
-              <line
-                key={`vgrid-${tick.getTime()}`}
-                x1={x}
-                y1={MARGIN.top}
-                x2={x}
-                y2={height - MARGIN.bottom}
-                stroke="var(--aia-corp-mid)"
-                strokeOpacity={0.15}
-                strokeWidth={1}
-              />
-            );
-          })}
-
-          {/* Tolerance bands — ±10% around each planned line */}
-          {plannedLines.map((line) => {
-            if (line.points.length < 2) return null;
-            const maxUnit = layout.totalUnits || 1;
-            const bandPoints = line.points.map((p) => {
-              const x = dateToX(p.date, chartXScale.min, chartXScale.max, chartWidth);
-              const yCenter = unitToY(p.unitIndex, maxUnit, height);
-              return { x, yCenter };
-            });
-
-            // Build a polygon: top edge → bottom edge (reversed)
-            const topEdge = bandPoints.map(
-              (bp) => `${bp.x},${bp.yCenter - toleranceBandHeight}`,
-            );
-            const bottomEdge = bandPoints
-              .map((bp) => `${bp.x},${bp.yCenter + toleranceBandHeight}`)
-              .reverse();
-            const polygonPoints = [...topEdge, ...bottomEdge].join(" ");
-
-            return (
-              <polygon
-                key={`band-${line.activityId}`}
-                points={polygonPoints}
-                fill={line.color}
-                fillOpacity={0.08}
-                stroke="none"
-              />
-            );
-          })}
-
-          {/* Planned lines (solid) */}
-          {plannedLines.map((line) => {
-            const maxUnit = layout.totalUnits || 1;
-            const polyline = line.points
-              .map((p) => {
-                const x = dateToX(p.date, chartXScale.min, chartXScale.max, chartWidth);
-                const y = unitToY(p.unitIndex, maxUnit, height);
-                return `${x},${y}`;
-              })
-              .join(" ");
-
-            return (
-              <g key={`planned-${line.activityId}`}>
-                <polyline
-                  points={polyline}
-                  fill="none"
-                  stroke={line.color}
-                  strokeWidth={2.5}
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
+          <g clipPath={`url(#${plotClipPathId})`}>
+            {/* Horizontal grid lines (units) */}
+            {unitLabels.map((ul) => {
+              const y = unitToY(ul.index, layout.totalUnits, height);
+              return (
+                <line
+                  key={`hgrid-${ul.index}`}
+                  x1={MARGIN.left}
+                  y1={y}
+                  x2={width - MARGIN.right}
+                  y2={y}
+                  stroke="var(--aia-corp-mid)"
+                  strokeOpacity={0.15}
+                  strokeWidth={1}
                 />
-                {/* Data points */}
-                {line.points.map((p) => {
-                  const x = dateToX(p.date, chartXScale.min, chartXScale.max, chartWidth);
-                  const y = unitToY(p.unitIndex, maxUnit, height);
-                  return (
-                    <circle
-                      key={`point-${line.activityId}-${p.unitIndex}`}
-                      cx={x}
-                      cy={y}
-                      r={4}
-                      fill={line.color}
-                      stroke="white"
-                      strokeWidth={1.5}
-                    />
-                  );
-                })}
-              </g>
-            );
-          })}
-
-          {/* Actual lines (dashed) */}
-          {actualLines.map((line) => {
-            const maxUnit = layout.totalUnits || 1;
-            const polyline = line.points
-              .map((p) => {
-                const x = dateToX(p.date, chartXScale.min, chartXScale.max, chartWidth);
-                const y = unitToY(p.unitIndex, maxUnit, height);
-                return `${x},${y}`;
-              })
-              .join(" ");
-
-            return (
-              <g key={`actual-${line.activityId}`}>
-                <polyline
-                  points={polyline}
-                  fill="none"
-                  stroke={line.color}
-                  strokeWidth={2}
-                  strokeDasharray="6,4"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                  strokeOpacity={0.85}
-                />
-                {line.points.map((p) => {
-                  const x = dateToX(p.date, chartXScale.min, chartXScale.max, chartWidth);
-                  const y = unitToY(p.unitIndex, maxUnit, height);
-                  return (
-                    <circle
-                      key={`actual-point-${line.activityId}-${p.unitIndex}`}
-                      cx={x}
-                      cy={y}
-                      r={3.5}
-                      fill="none"
-                      stroke={line.color}
-                      strokeWidth={1.5}
-                    />
-                  );
-                })}
-              </g>
-            );
-          })}
-
-          {/* Critical deviation highlights — red segments where actual > planned by >20% */}
-          {(() => {
-            const highlights: React.ReactElement[] = [];
-            for (const actualLine of actualLines) {
-              const plannedLine = plannedLines.find(
-                (pl) => pl.activityId === actualLine.activityId.replace("-actual", ""),
               );
-              if (!plannedLine) continue;
+            })}
 
+            {/* Vertical grid lines (dates) */}
+            {dateTicks.map((tick) => {
+              const x = dateToX(tick, chartXScale.min, chartXScale.max, chartWidth);
+              return (
+                <line
+                  key={`vgrid-${tick.getTime()}`}
+                  x1={x}
+                  y1={MARGIN.top}
+                  x2={x}
+                  y2={height - MARGIN.bottom}
+                  stroke="var(--aia-corp-mid)"
+                  strokeOpacity={0.15}
+                  strokeWidth={1}
+                />
+              );
+            })}
+
+            {/* Tolerance bands — ±10% around each planned line */}
+            {plannedLines.map((line) => {
+              if (line.points.length < 2) return null;
               const maxUnit = layout.totalUnits || 1;
-              for (const aPoint of actualLine.points) {
-                const matchingPlanned = plannedLine.points.find(
-                  (pp) => pp.unitIndex === aPoint.unitIndex,
+              const bandPoints = line.points.map((p) => {
+                const x = dateToX(p.date, chartXScale.min, chartXScale.max, chartWidth);
+                const yCenter = unitToY(p.unitIndex, maxUnit, height);
+                return { x, yCenter };
+              });
+
+              // Build a polygon: top edge → bottom edge (reversed)
+              const topEdge = bandPoints.map(
+                (bp) => `${bp.x},${bp.yCenter - toleranceBandHeight}`,
+              );
+              const bottomEdge = bandPoints
+                .map((bp) => `${bp.x},${bp.yCenter + toleranceBandHeight}`)
+                .reverse();
+              const polygonPoints = [...topEdge, ...bottomEdge].join(" ");
+
+              return (
+                <polygon
+                  key={`band-${line.activityId}`}
+                  points={polygonPoints}
+                  fill={line.color}
+                  fillOpacity={0.08}
+                  stroke="none"
+                />
+              );
+            })}
+
+            {/* Planned lines (solid) */}
+            {plannedLines.map((line) => {
+              const maxUnit = layout.totalUnits || 1;
+              const polyline = line.points
+                .map((p) => {
+                  const x = dateToX(p.date, chartXScale.min, chartXScale.max, chartWidth);
+                  const y = unitToY(p.unitIndex, maxUnit, height);
+                  return `${x},${y}`;
+                })
+                .join(" ");
+
+              return (
+                <g key={`planned-${line.activityId}`}>
+                  <polyline
+                    data-testid="lob-planned-line"
+                    points={polyline}
+                    fill="none"
+                    stroke={line.color}
+                    strokeWidth={2.5}
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+                  {/* Data points */}
+                  {line.points.map((p) => {
+                    const x = dateToX(p.date, chartXScale.min, chartXScale.max, chartWidth);
+                    const y = unitToY(p.unitIndex, maxUnit, height);
+                    return (
+                      <circle
+                        key={`point-${line.activityId}-${p.unitIndex}`}
+                        cx={x}
+                        cy={y}
+                        r={4}
+                        fill={line.color}
+                        stroke="white"
+                        strokeWidth={1.5}
+                      />
+                    );
+                  })}
+                </g>
+              );
+            })}
+
+            {/* Actual lines (dashed) */}
+            {actualLines.map((line) => {
+              const maxUnit = layout.totalUnits || 1;
+              const polyline = line.points
+                .map((p) => {
+                  const x = dateToX(p.date, chartXScale.min, chartXScale.max, chartWidth);
+                  const y = unitToY(p.unitIndex, maxUnit, height);
+                  return `${x},${y}`;
+                })
+                .join(" ");
+
+              return (
+                <g key={`actual-${line.activityId}`}>
+                  <polyline
+                    points={polyline}
+                    fill="none"
+                    stroke={line.color}
+                    strokeWidth={2}
+                    strokeDasharray="6,4"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                    strokeOpacity={0.85}
+                  />
+                  {line.points.map((p) => {
+                    const x = dateToX(p.date, chartXScale.min, chartXScale.max, chartWidth);
+                    const y = unitToY(p.unitIndex, maxUnit, height);
+                    return (
+                      <circle
+                        key={`actual-point-${line.activityId}-${p.unitIndex}`}
+                        cx={x}
+                        cy={y}
+                        r={3.5}
+                        fill="none"
+                        stroke={line.color}
+                        strokeWidth={1.5}
+                      />
+                    );
+                  })}
+                </g>
+              );
+            })}
+
+            {/* Critical deviation highlights — red segments where actual > planned by >20% */}
+            {(() => {
+              const highlights: React.ReactElement[] = [];
+              for (const actualLine of actualLines) {
+                const plannedLine = plannedLines.find(
+                  (pl) => pl.activityId === actualLine.activityId.replace("-actual", ""),
                 );
-                if (!matchingPlanned) continue;
+                if (!plannedLine) continue;
 
-                const deviationMs = aPoint.date.getTime() - matchingPlanned.date.getTime();
-                const plannedDurationMs = Math.abs(
-                  plannedLine.points.length > 1
-                    ? plannedLine.points[plannedLine.points.length - 1].date.getTime() -
-                      plannedLine.points[0].date.getTime()
-                    : 86400000,
-                );
-
-                if (plannedDurationMs > 0 && deviationMs > plannedDurationMs * 0.2) {
-                  const x1 = dateToX(matchingPlanned.date, chartXScale.min, chartXScale.max, chartWidth);
-                  const y1 = unitToY(matchingPlanned.unitIndex, maxUnit, height);
-                  const x2 = dateToX(aPoint.date, chartXScale.min, chartXScale.max, chartWidth);
-                  const y2 = unitToY(aPoint.unitIndex, maxUnit, height);
-
-                  highlights.push(
-                    <line
-                      key={`critical-${actualLine.activityId}-${aPoint.unitIndex}`}
-                      x1={x1}
-                      y1={y1}
-                      x2={x2}
-                      y2={y2}
-                      stroke="var(--aia-alert-main)"
-                      strokeWidth={3}
-                      strokeOpacity={0.6}
-                      strokeDasharray="4,3"
-                    />,
+                const maxUnit = layout.totalUnits || 1;
+                for (const aPoint of actualLine.points) {
+                  const matchingPlanned = plannedLine.points.find(
+                    (pp) => pp.unitIndex === aPoint.unitIndex,
                   );
+                  if (!matchingPlanned) continue;
+
+                  const deviationMs = aPoint.date.getTime() - matchingPlanned.date.getTime();
+                  const plannedDurationMs = Math.abs(
+                    plannedLine.points.length > 1
+                      ? plannedLine.points[plannedLine.points.length - 1].date.getTime() -
+                        plannedLine.points[0].date.getTime()
+                      : 86400000,
+                  );
+
+                  if (plannedDurationMs > 0 && deviationMs > plannedDurationMs * 0.2) {
+                    const x1 = dateToX(matchingPlanned.date, chartXScale.min, chartXScale.max, chartWidth);
+                    const y1 = unitToY(matchingPlanned.unitIndex, maxUnit, height);
+                    const x2 = dateToX(aPoint.date, chartXScale.min, chartXScale.max, chartWidth);
+                    const y2 = unitToY(aPoint.unitIndex, maxUnit, height);
+
+                    highlights.push(
+                      <line
+                        key={`critical-${actualLine.activityId}-${aPoint.unitIndex}`}
+                        x1={x1}
+                        y1={y1}
+                        x2={x2}
+                        y2={y2}
+                        stroke="var(--aia-alert-main)"
+                        strokeWidth={3}
+                        strokeOpacity={0.6}
+                        strokeDasharray="4,3"
+                      />,
+                    );
+                  }
                 }
               }
-            }
-            return highlights;
-          })()}
+              return highlights;
+            })()}
 
-          {showBottlenecks ? (
-            <g data-testid="lob-bottleneck-markers">
-              {bottleneckMarkers.map((marker) => (
-                <g
-                  key={marker.id}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`${marker.title}. ${marker.diagnostic.message}`}
-                  data-testid="lob-bottleneck-marker"
-                  className="lob-bottleneck-marker"
-                  transform={`translate(${marker.x}, ${marker.y})`}
-                  onClick={() => setActiveBottleneckId(marker.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setActiveBottleneckId(marker.id);
-                    }
-                  }}
-                  onMouseEnter={() => setActiveBottleneckId(marker.id)}
-                  onMouseLeave={() => setActiveBottleneckId(null)}
-                  onFocus={() => setActiveBottleneckId(marker.id)}
-                  onBlur={() => setActiveBottleneckId(null)}
-                >
-                  <circle className="lob-bottleneck-marker__halo" r={12} />
-                  <circle className="lob-bottleneck-marker__dot" r={6} />
-                  <text
-                    className="lob-bottleneck-marker__glyph"
-                    textAnchor="middle"
-                    dominantBaseline="central"
+            {showBottlenecks ? (
+              <g data-testid="lob-bottleneck-markers">
+                {bottleneckMarkers.map((marker) => (
+                  <g
+                    key={marker.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${marker.title}. ${marker.diagnostic.message}`}
+                    data-testid="lob-bottleneck-marker"
+                    className="lob-bottleneck-marker"
+                    transform={`translate(${marker.x}, ${marker.y})`}
+                    onClick={() => setActiveBottleneckId(marker.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setActiveBottleneckId(marker.id);
+                      }
+                    }}
+                    onMouseEnter={() => setActiveBottleneckId(marker.id)}
+                    onMouseLeave={() => setActiveBottleneckId(null)}
+                    onFocus={() => setActiveBottleneckId(marker.id)}
+                    onBlur={() => setActiveBottleneckId(null)}
                   >
-                    !
-                  </text>
-                </g>
-              ))}
-            </g>
-          ) : null}
+                    <circle className="lob-bottleneck-marker__halo" r={12} />
+                    <circle className="lob-bottleneck-marker__dot" r={6} />
+                    <text
+                      className="lob-bottleneck-marker__glyph"
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                    >
+                      !
+                    </text>
+                  </g>
+                ))}
+              </g>
+            ) : null}
+          </g>
 
           {showBottlenecks && activeBottleneck ? (
             <g

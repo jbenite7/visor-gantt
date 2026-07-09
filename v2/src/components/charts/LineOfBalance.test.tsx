@@ -49,12 +49,67 @@ describe("LineOfBalance", () => {
 
     expect(chart).toHaveAttribute("data-scale", "month");
     expect(monthLabels.some((label) => label.includes("ene 2026"))).toBe(true);
+    expect(chart).toHaveAttribute("data-zoom", "1");
+    expect(chart).toHaveAttribute("data-zoom-center", "0.500");
+    expect(screen.getByTestId("lob-zoom-value")).toHaveTextContent("100%");
     expect(screen.getByTestId("lob-feedback")).toHaveTextContent("Estructura");
     expect(screen.getAllByTestId("lob-feedback-card").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Meses" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
+
+    const initialPolyline = screen
+      .getAllByTestId("lob-planned-line")[0]
+      .getAttribute("points");
+
+    fireEvent.click(screen.getByTestId("lob-zoom-in"));
+
+    expect(chart).toHaveAttribute("data-zoom", "1.5");
+    expect(chart).toHaveAttribute("data-zoom-center", "0.500");
+    expect(screen.getByTestId("lob-zoom-value")).toHaveTextContent("150%");
+
+    const zoomedPolyline = screen
+      .getAllByTestId("lob-planned-line")[0]
+      .getAttribute("points");
+
+    expect(zoomedPolyline).not.toBe(initialPolyline);
+
+    const centerBeforePan = Number(chart.getAttribute("data-zoom-center"));
+    fireEvent.click(screen.getByTestId("lob-pan-right"));
+
+    expect(Number(chart.getAttribute("data-zoom-center"))).toBeGreaterThan(
+      centerBeforePan,
+    );
+
+    fireEvent.click(screen.getByTestId("lob-zoom-reset"));
+
+    expect(chart).toHaveAttribute("data-zoom", "1");
+    expect(chart).toHaveAttribute("data-zoom-center", "0.500");
+    expect(screen.getByTestId("lob-zoom-value")).toHaveTextContent("100%");
+
+    const svg = screen.getByTestId("lob-chart-svg");
+    Object.defineProperty(svg, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        bottom: 400,
+        height: 400,
+        left: 0,
+        right: 980,
+        top: 0,
+        width: 980,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.wheel(svg, { clientX: 230, deltaY: -100 });
+
+    expect(chart).toHaveAttribute("data-zoom", "1.5");
+    expect(Number(chart.getAttribute("data-zoom-center"))).toBeLessThan(0.5);
+
+    fireEvent.click(screen.getByTestId("lob-zoom-reset"));
 
     fireEvent.click(screen.getByRole("button", { name: "Semanas" }));
 
