@@ -89,9 +89,10 @@ function getScaledDateDomain(min: Date, max: Date, scale: LOBScale): { min: Date
   const range = Math.max(maxTime - minTime, MS_PER_DAY);
   const minimumPadding = scale === "month" ? MS_PER_DAY * 2 : MS_PER_DAY;
   const padding = Math.max(range * 0.08, minimumPadding);
+  const domainMin = scale === "month" ? startOfMonth(min) : startOfWeek(min);
 
   return {
-    min: new Date(minTime - padding),
+    min: domainMin,
     max: new Date(maxTime + padding),
   };
 }
@@ -745,6 +746,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
               return (
                 <line
                   key={`vgrid-${tick.getTime()}`}
+                  data-testid="lob-x-grid"
                   x1={x}
                   y1={MARGIN.top}
                   x2={x}

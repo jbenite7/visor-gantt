@@ -8,6 +8,51 @@ import LineOfBalance from "./LineOfBalance";
 import type { LOBActivity, LOBUnit } from "@/types/lob";
 
 describe("LineOfBalance", () => {
+  test("keeps the first month visible when data starts after month start", () => {
+    const activities: LOBActivity[] = [
+      {
+        id: "act-a",
+        name: "Estructura",
+        taskIds: [1, 2],
+        plannedRate: 1,
+        unitLabel: "Piso",
+        plannedStart: new Date("2026-01-05"),
+        plannedFinish: new Date("2026-02-05"),
+      },
+    ];
+    const units: LOBUnit[] = [
+      {
+        activityId: "act-a",
+        unitIndex: 0,
+        plannedDate: new Date("2026-01-05"),
+      },
+      {
+        activityId: "act-a",
+        unitIndex: 1,
+        plannedDate: new Date("2026-02-05"),
+      },
+    ];
+
+    render(<LineOfBalance activities={activities} units={units} />);
+
+    const monthLabels = screen
+      .getAllByTestId("lob-x-tick-label")
+      .map((label) => label.textContent ?? "");
+
+    expect(monthLabels.some((label) => label.includes("ene 2026"))).toBe(true);
+    expect(monthLabels.some((label) => label.includes("feb 2026"))).toBe(true);
+
+    fireEvent.click(screen.getByTestId("lob-scale-week"));
+
+    const weekLabels = screen
+      .getAllByTestId("lob-x-tick-label")
+      .map((label) => label.textContent ?? "");
+
+    expect(weekLabels.some((label) => /^S\d+ - /.test(label))).toBe(true);
+    expect(weekLabels.join("|")).not.toBe(monthLabels.join("|"));
+    expect(screen.getAllByTestId("lob-x-grid").length).toBe(weekLabels.length);
+  });
+
   test("renders automatic feedback cards for LOB diagnostics", () => {
     const activities: LOBActivity[] = [
       {
