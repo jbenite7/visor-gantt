@@ -42,7 +42,7 @@ function NewProjectFormState({ draftKey }: Required<NewProjectFormProps>) {
   );
   const [error, setError] = useState<string | null>(null);
   const inputClass =
-    "mt-1 w-full rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] px-3 py-2.5 text-sm text-[var(--color-text-strong)] shadow-sm outline-none transition focus:border-[var(--aia-corp-main)] focus:ring-2 focus:ring-[var(--aia-corp-main)]/15";
+    "mt-1 w-full rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] px-3 py-2.5 text-sm text-[var(--color-text-strong)] shadow-sm outline-none transition focus:border-[var(--aia-corp-main)] focus:ring-2 focus:ring-[var(--aia-corp-main)]/15";
 
   const handleCreateMatrixProject = (draft: MatrixPlan) => {
     setError(null);
@@ -89,7 +89,7 @@ function NewProjectFormState({ draftKey }: Required<NewProjectFormProps>) {
           <button
             type="button"
             onClick={() => setMode("matrix")}
-            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold transition ${
+            className={`inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-2 text-sm font-semibold transition ${
               mode === "matrix"
                 ? "apple-button-primary"
                 : "text-[var(--color-text-strong)] hover:bg-[var(--color-bg-elevated)]"
@@ -101,7 +101,7 @@ function NewProjectFormState({ draftKey }: Required<NewProjectFormProps>) {
           <button
             type="button"
             onClick={() => setMode("blank")}
-            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold transition ${
+            className={`inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-2 text-sm font-semibold transition ${
               mode === "blank"
                 ? "apple-button-primary"
                 : "text-[var(--color-text-strong)] hover:bg-[var(--color-bg-elevated)]"
@@ -112,7 +112,7 @@ function NewProjectFormState({ draftKey }: Required<NewProjectFormProps>) {
           </button>
         </div>
         {error && (
-          <p className="rounded-lg border border-[var(--aia-alert-main)] bg-[var(--aia-alert-xlight)] px-3 py-2 text-sm text-[var(--aia-alert-main)]">
+          <p className="rounded-[var(--radius-lg)] border border-[var(--aia-alert-main)] bg-[var(--aia-alert-xlight)] px-3 py-2 text-sm text-[var(--aia-alert-main)]">
             {error}
           </p>
         )}
@@ -180,14 +180,14 @@ function NewProjectFormState({ draftKey }: Required<NewProjectFormProps>) {
             <button
               type="submit"
               disabled={isPending}
-              className="apple-button-primary rounded-lg px-4 py-2.5 text-sm font-semibold transition disabled:opacity-60"
+              className="apple-button-primary rounded-[var(--radius-lg)] px-4 py-2.5 text-sm font-semibold transition disabled:opacity-60"
             >
               {isPending ? "Creando..." : "Crear cronograma vacío"}
             </button>
             <button
               type="button"
               onClick={() => router.push("/")}
-              className="apple-button-secondary rounded-lg px-4 py-2.5 text-sm font-semibold transition"
+              className="apple-button-secondary rounded-[var(--radius-lg)] px-4 py-2.5 text-sm font-semibold transition"
             >
               Cancelar
             </button>
