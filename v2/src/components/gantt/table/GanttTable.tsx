@@ -100,7 +100,7 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: "duration", label: "Duración", labelEn: "Duration", labelEs: "Duración", width: 90, align: "right", defaultVisible: true },
   { key: "start", label: "Comienzo", labelEn: "Start", labelEs: "Comienzo", width: 110, align: "left", defaultVisible: true },
   { key: "finish", label: "Fin", labelEn: "Finish", labelEs: "Fin", width: 110, align: "left", defaultVisible: true },
-  { key: "predecessors", label: "Predecesora", labelEn: "Predecessor", labelEs: "Predecesora", width: 120, align: "left", defaultVisible: true },
+  { key: "predecessors", label: "Predecesoras", labelEn: "Predecessors", labelEs: "Predecesoras", width: 180, align: "left", defaultVisible: true },
   { key: "progress", label: "% completado", labelEn: "% Complete", labelEs: "% completado", width: 100, align: "right", defaultVisible: true },
   { key: "critical", label: "Crítica", labelEn: "Critical", labelEs: "Crítica", width: 80, align: "center", defaultVisible: true },
   { key: "budgetedCost", label: "Costo presupuestado", labelEn: "Budgeted Cost", labelEs: "Costo presupuestado", width: 140, align: "right", defaultVisible: false },
@@ -118,6 +118,17 @@ const COMPACT_GANTT_COLUMNS = new Set([
   "wbs",
   "name",
   "duration",
+  "progress",
+]);
+const READABLE_GANTT_COLUMNS = new Set([
+  "id",
+  "uniqueId",
+  "wbs",
+  "name",
+  "duration",
+  "start",
+  "finish",
+  "predecessors",
   "progress",
 ]);
 const BALANCED_GANTT_COLUMNS = new Set([
@@ -139,6 +150,20 @@ const COMPACT_COLUMN_LABELS: Record<string, { en: string; es: string }> = {
   predecessors: { en: "Pred.", es: "Pred." },
   progress: { en: "%", es: "%" },
   critical: { en: "Crit.", es: "Crit." },
+};
+const COMPACT_TABLE_WIDTH = 360;
+const BALANCED_TABLE_WIDTH = 560;
+const READABLE_TABLE_WIDTH = 800;
+const READABLE_COLUMN_WEIGHTS: Record<string, number> = {
+  id: 44,
+  uniqueId: 68,
+  wbs: 64,
+  name: 190,
+  duration: 64,
+  start: 104,
+  finish: 104,
+  predecessors: 190,
+  progress: 66,
 };
 const GANTT_TABLE_RIBBON_HOST_ID = "gantt-table-ribbon-host";
 
@@ -320,10 +345,12 @@ export default function GanttTable({
 
   const responsiveVisibleColumns = useMemo(() => {
     const preferredKeys =
-      tablePanelWidth > 0 && tablePanelWidth < 360
+      tablePanelWidth > 0 && tablePanelWidth < COMPACT_TABLE_WIDTH
         ? COMPACT_GANTT_COLUMNS
-        : tablePanelWidth > 0 && tablePanelWidth < 560
+        : tablePanelWidth > 0 && tablePanelWidth < BALANCED_TABLE_WIDTH
           ? BALANCED_GANTT_COLUMNS
+          : tablePanelWidth > 0 && tablePanelWidth < READABLE_TABLE_WIDTH
+            ? READABLE_GANTT_COLUMNS
           : undefined;
 
     if (!preferredKeys) return visibleColumns;
@@ -336,15 +363,30 @@ export default function GanttTable({
     () => allColumns.filter((col) => responsiveVisibleColumns.includes(col.key)),
     [allColumns, responsiveVisibleColumns]
   );
+  const displayColumnWidths = useMemo(() => {
+    const useReadableWeights =
+      tablePanelWidth > 0 &&
+      tablePanelWidth < READABLE_TABLE_WIDTH &&
+      tablePanelWidth >= BALANCED_TABLE_WIDTH;
+
+    return Object.fromEntries(
+      displayColumns.map((column) => [
+        column.key,
+        useReadableWeights
+          ? READABLE_COLUMN_WEIGHTS[column.key] ?? columnWidths[column.key] ?? column.width
+          : columnWidths[column.key] ?? column.width,
+      ]),
+    );
+  }, [columnWidths, displayColumns, tablePanelWidth]);
   const displayColumnTotalWidth = useMemo(
     () =>
       displayColumns.reduce(
-        (total, column) => total + (columnWidths[column.key] ?? column.width),
+        (total, column) => total + (displayColumnWidths[column.key] ?? column.width),
         0,
       ),
-    [columnWidths, displayColumns],
+    [displayColumnWidths, displayColumns],
   );
-  const useCompactColumnLabels = tablePanelWidth > 0 && tablePanelWidth < 560;
+  const useCompactColumnLabels = tablePanelWidth > 0 && tablePanelWidth < READABLE_TABLE_WIDTH;
 
   const applySettings = useCallback(
     (next: TaskColumnSettings) => {
@@ -1155,7 +1197,7 @@ export default function GanttTable({
           {displayColumns.map((column) => (
             <col
               key={column.key}
-              width={`${((columnWidths[column.key] ?? column.width) / displayColumnTotalWidth) * 100}%`}
+              width={`${((displayColumnWidths[column.key] ?? column.width) / displayColumnTotalWidth) * 100}%`}
             />
           ))}
         </colgroup>
@@ -1174,7 +1216,7 @@ export default function GanttTable({
                   key={col.key}
                   label={label}
                   locale={effectiveLocale}
-                  width={columnWidths[col.key] ?? col.width}
+                  width={displayColumnWidths[col.key] ?? col.width}
                   align={col.align}
                   calculationSpec={col.calculationSpec}
                   onResize={(newWidth) => handleResize(col.key, newWidth)}

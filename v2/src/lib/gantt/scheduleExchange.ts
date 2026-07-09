@@ -1,6 +1,6 @@
 import type { GanttTask } from "@/components/gantt/types";
 import { formatProjectDate, toDateInputValue } from "@/lib/date/projectDate";
-import { taskRowId } from "@/lib/gantt/taskIds";
+import { dependencyTokenForTaskId } from "@/lib/gantt/taskIds";
 
 function tsvCell(value: unknown): string {
   if (value == null) return "";
@@ -27,10 +27,12 @@ function formatScheduleDate(value: Date): string {
 function formatDependencies(task: GanttTask, tasks: GanttTask[]): string {
   return task.dependencies
     .map((dependency) => {
-      const predecessor = tasks.find((candidate) => candidate.id === dependency.from);
-      const rowId = predecessor ? taskRowId(predecessor) : dependency.from;
-      const lag = dependency.lag ? `${dependency.lag > 0 ? "+" : ""}${dependency.lag}d` : "";
-      return `${rowId}${dependency.type}${lag}`;
+      return dependencyTokenForTaskId(
+        tasks,
+        dependency.from,
+        dependency.type,
+        dependency.lag,
+      );
     })
     .join(", ");
 }

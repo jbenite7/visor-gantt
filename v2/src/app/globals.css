@@ -125,7 +125,8 @@
     0 1px 2px rgb(16 24 40 / 0.08);
 
   /* --- GANTT METRICS --- */
-  --gantt-row-height: 38px;
+  --gantt-row-height: 52px;
+  --gantt-row-cell-wrap-lines: 2;
   --gantt-header-height: 85px;
   --gantt-demo-header-padding-block: 0.25rem;
   --gantt-demo-header-padding-inline: 1.25rem;
@@ -243,9 +244,34 @@
   --gantt-row-drop-border-width: 0.125rem;
   --gantt-row-dragging-opacity: 0.55;
   --gantt-row-dependency-gap: 0.25rem;
+  --gantt-row-dependency-trigger-height: 1.625rem;
+  --gantt-row-dependency-trigger-padding-inline: 0.4375rem;
+  --gantt-row-dependency-trigger-gap: 0.25rem;
+  --gantt-row-dependency-trigger-icon-size: 0.8125rem;
+  --gantt-row-dependency-trigger-label-size: 0.6875rem;
+  --gantt-row-dependency-token-padding-inline: 0.3125rem;
+  --gantt-row-dependency-token-padding-block: 0.0625rem;
+  --gantt-row-dependency-token-font-size: 0.75rem;
+  --gantt-row-dependency-empty-font-size: 0.75rem;
+  --gantt-dependency-popover-width: 22.5rem;
+  --gantt-dependency-popover-viewport-margin: 1rem;
+  --gantt-dependency-popover-z-index: 90;
+  --gantt-dependency-popover-padding: 0.625rem;
+  --gantt-dependency-popover-gap: 0.5rem;
+  --gantt-dependency-popover-row-gap: 0.25rem;
+  --gantt-dependency-popover-control-height: 1.75rem;
+  --gantt-dependency-popover-control-padding-block: 0.25rem;
+  --gantt-dependency-popover-control-padding-inline: 0.375rem;
+  --gantt-dependency-popover-control-font-size: 0.75rem;
+  --gantt-dependency-popover-action-padding-block: 0.3125rem;
+  --gantt-dependency-popover-action-padding-inline: 0.5625rem;
+  --gantt-dependency-popover-icon-button-size: 1.625rem;
+  --gantt-dependency-popover-icon-size: 0.8125rem;
+  --gantt-dependency-popover-type-column-width: 4rem;
+  --gantt-dependency-popover-lag-column-width: 3.75rem;
   --gantt-wbs-toggle-size: 1rem;
   --gantt-wbs-icon-size: 0.875rem;
-  --gantt-wbs-indent-step: 1.25rem;
+  --gantt-wbs-indent-step: 0.625rem;
   --gantt-timescale-nonworking-fill: rgb(0 0 0 / 0.15);
   --gantt-chart-nonworking-fill: rgb(0 0 0 / 0.08);
   --gantt-chart-label-shadow-stroke: rgb(0 0 0 / 0.24);
@@ -1439,6 +1465,39 @@ h6 {
   white-space: nowrap;
 }
 
+.gantt-row-cell--name,
+.gantt-row-cell--date,
+.gantt-row-cell--predecessors {
+  white-space: normal;
+}
+
+.gantt-row-cell--name .gantt-editable-cell,
+.gantt-row-cell--predecessors .gantt-editable-cell {
+  height: 100%;
+  align-items: center;
+}
+
+.gantt-row-cell--name .gantt-editable-cell__value,
+.gantt-row-cell--name > span {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--gantt-row-cell-wrap-lines);
+  white-space: normal;
+}
+
+.gantt-row-cell--predecessors .gantt-editable-cell__value {
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+}
+
+.gantt-row-cell--date .gantt-editable-cell__value {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 .gantt-row-cell[data-align="left"] {
   text-align: left;
 }
@@ -1469,7 +1528,9 @@ h6 {
 }
 
 .gantt-row-dependencies {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  height: 100%;
   min-width: 0;
   align-items: center;
   gap: var(--gantt-row-dependency-gap);
@@ -1478,6 +1539,213 @@ h6 {
 .gantt-row-dependencies__editor {
   min-width: 0;
   flex: 1 1 auto;
+}
+
+.gantt-row-predecessor-list {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gantt-row-dependency-gap);
+}
+
+.gantt-row-predecessor-token {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  border: 1px solid var(--aia-corp-mid);
+  border-radius: var(--radius-sm);
+  background: var(--aia-corp-xlight);
+  color: var(--aia-corp-dark);
+  font-size: var(--gantt-row-dependency-token-font-size);
+  font-weight: 600;
+  line-height: var(--gantt-row-cell-line-height);
+  overflow: hidden;
+  padding: var(--gantt-row-dependency-token-padding-block) var(--gantt-row-dependency-token-padding-inline);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gantt-row-predecessor-empty {
+  color: var(--color-text-muted);
+  font-size: var(--gantt-row-dependency-empty-font-size);
+  font-style: italic;
+}
+
+.gantt-dependency-popover-host {
+  display: inline-flex;
+}
+
+.gantt-dependency-trigger {
+  display: inline-flex;
+  height: var(--gantt-row-dependency-trigger-height);
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gantt-row-dependency-trigger-gap);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+  color: var(--aia-corp-dark);
+  cursor: pointer;
+  font-family: var(--font-body), system-ui, sans-serif;
+  padding: 0 var(--gantt-row-dependency-trigger-padding-inline);
+}
+
+.gantt-dependency-trigger:hover {
+  border-color: var(--aia-corp-mid);
+  background: var(--aia-corp-xlight);
+}
+
+.gantt-dependency-trigger__icon {
+  width: var(--gantt-row-dependency-trigger-icon-size);
+  height: var(--gantt-row-dependency-trigger-icon-size);
+  flex-shrink: 0;
+}
+
+.gantt-dependency-trigger__label {
+  font-size: var(--gantt-row-dependency-trigger-label-size);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.gantt-dependency-popover {
+  position: fixed;
+  top: var(--gantt-dependency-popover-top);
+  left: var(--gantt-dependency-popover-left);
+  z-index: var(--gantt-dependency-popover-z-index);
+  width: var(--gantt-dependency-popover-width);
+  max-width: min(
+    var(--gantt-dependency-popover-width),
+    calc(100vw - (var(--gantt-dependency-popover-viewport-margin) * 2))
+  );
+  border: var(--border-width-hairline) solid var(--aia-corp-mid);
+  border-radius: var(--radius-md);
+  background: var(--aia-alabaster);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text-strong);
+  font-family: var(--font-body), system-ui, sans-serif;
+  padding: var(--gantt-dependency-popover-padding);
+}
+
+.gantt-dependency-popover__header,
+.gantt-dependency-popover__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--gantt-dependency-popover-gap);
+}
+
+.gantt-dependency-popover__header {
+  justify-content: space-between;
+  margin-bottom: var(--gantt-dependency-popover-gap);
+}
+
+.gantt-dependency-popover__footer {
+  justify-content: flex-end;
+}
+
+.gantt-dependency-popover__title,
+.gantt-dependency-popover__empty,
+.gantt-dependency-popover__dependency-label,
+.gantt-dependency-popover__action {
+  font-size: var(--gantt-dependency-popover-control-font-size);
+}
+
+.gantt-dependency-popover__title {
+  font-weight: 700;
+}
+
+.gantt-dependency-popover__search,
+.gantt-dependency-popover__control {
+  min-width: 0;
+  height: var(--gantt-dependency-popover-control-height);
+  border: var(--border-width-hairline) solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-strong);
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: var(--gantt-dependency-popover-control-font-size);
+  padding: var(--gantt-dependency-popover-control-padding-block) var(--gantt-dependency-popover-control-padding-inline);
+}
+
+.gantt-dependency-popover__search {
+  width: 100%;
+  margin-bottom: var(--gantt-dependency-popover-gap);
+}
+
+.gantt-dependency-popover__composer,
+.gantt-dependency-popover__row {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    var(--gantt-dependency-popover-type-column-width)
+    var(--gantt-dependency-popover-lag-column-width)
+    var(--gantt-dependency-popover-icon-button-size);
+  align-items: center;
+  gap: var(--gantt-dependency-popover-row-gap);
+}
+
+.gantt-dependency-popover__composer,
+.gantt-dependency-popover__list {
+  margin-bottom: var(--gantt-dependency-popover-gap);
+}
+
+.gantt-dependency-popover__list {
+  display: grid;
+  gap: var(--gantt-dependency-popover-row-gap);
+}
+
+.gantt-dependency-popover__dependency-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gantt-dependency-popover__empty {
+  color: var(--color-text-muted);
+}
+
+.gantt-dependency-popover__icon-button,
+.gantt-dependency-popover__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--border-width-hairline) solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+  color: var(--aia-corp-dark);
+  cursor: pointer;
+}
+
+.gantt-dependency-popover__icon-button {
+  width: var(--gantt-dependency-popover-icon-button-size);
+  height: var(--gantt-dependency-popover-icon-button-size);
+}
+
+.gantt-dependency-popover__icon-button--add {
+  border-color: var(--aia-corp-mid);
+  background: var(--aia-corp-xlight);
+}
+
+.gantt-dependency-popover__icon-button:disabled {
+  cursor: not-allowed;
+  opacity: var(--disabled-opacity);
+}
+
+.gantt-dependency-popover__icon {
+  width: var(--gantt-dependency-popover-icon-size);
+  height: var(--gantt-dependency-popover-icon-size);
+}
+
+.gantt-dependency-popover__action {
+  padding: var(--gantt-dependency-popover-action-padding-block) var(--gantt-dependency-popover-action-padding-inline);
+}
+
+.gantt-dependency-popover__action--primary {
+  border-color: var(--aia-corp-mid);
+  background: var(--aia-corp-main);
+  color: var(--color-text-on-primary);
+  font-weight: 700;
 }
 
 .gantt-wbs-expand {

@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { Link2, Plus, Trash2, X } from "lucide-react";
 import type { GanttDependency, GanttTask } from "@/components/gantt/types";
 import type { UILocale } from "@/types/ui";
 import { normalizeDependencyList } from "@/lib/gantt/dependencyEditing";
-import { dependencyToken, taskRowId } from "@/lib/gantt/taskIds";
+import { dependencyTokenForTaskId, taskVisibleRowId } from "@/lib/gantt/taskIds";
 
 interface DependencyPopoverProps {
   task: GanttTask;
@@ -15,11 +16,17 @@ interface DependencyPopoverProps {
 }
 
 const dependencyTypes: GanttDependency["type"][] = ["FS", "SS", "FF", "SF"];
-const CONTROL_RADIUS = "var(--radius-sm)";
-const SURFACE_RADIUS = "var(--radius-md)";
+const POPOVER_OFFSET = 8;
+const VIEWPORT_MARGIN = 16;
+const POPOVER_FALLBACK_WIDTH = 360;
+const POPOVER_FALLBACK_HEIGHT = 320;
 
 function dependencyLabel(dep: GanttDependency, tasks: GanttTask[]): string {
-  return dependencyToken(tasks.find((candidate) => candidate.id === dep.from), dep.from, dep.type, dep.lag);
+  return dependencyTokenForTaskId(tasks, dep.from, dep.type, dep.lag);
+}
+
+function taskOptionLabel(tasks: GanttTask[], task: GanttTask): string {
+  return `${taskVisibleRowId(tasks, task)} - ${task.name}`;
 }
 
 export default function DependencyPopover({
@@ -28,7 +35,10 @@ export default function DependencyPopover({
   locale,
   onCommit,
 }: DependencyPopoverProps) {
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 });
   const [draft, setDraft] = useState<GanttDependency[]>(
     () => normalizeDependencyList(task.dependencies, task.id),
   );
@@ -45,11 +55,42 @@ export default function DependencyPopover({
     return tasks.filter((candidate) => {
       if (candidate.id === task.id) return false;
       if (!normalizedQuery) return true;
-      return `${taskRowId(candidate)} ${candidate.name} ${candidate.wbs ?? ""}`
+      return `${taskOptionLabel(tasks, candidate)}`
         .toLowerCase()
         .includes(normalizedQuery);
     });
   }, [query, task.id, tasks]);
+
+  const updatePopoverPosition = useCallback(() => {
+    if (typeof window === "undefined") return;
+
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+
+    const triggerRect = trigger.getBoundingClientRect();
+    const popoverWidth = popoverRef.current?.offsetWidth || POPOVER_FALLBACK_WIDTH;
+    const popoverHeight = popoverRef.current?.offsetHeight || POPOVER_FALLBACK_HEIGHT;
+    const maxLeft = window.innerWidth - popoverWidth - VIEWPORT_MARGIN;
+    const preferredLeft = triggerRect.right - popoverWidth;
+    const nextLeft = Math.max(VIEWPORT_MARGIN, Math.min(preferredLeft, maxLeft));
+    const belowTop = triggerRect.bottom + POPOVER_OFFSET;
+    const aboveTop = triggerRect.top - popoverHeight - POPOVER_OFFSET;
+    const hasRoomBelow = belowTop + popoverHeight <= window.innerHeight - VIEWPORT_MARGIN;
+    const nextTop = hasRoomBelow
+      ? belowTop
+      : Math.max(VIEWPORT_MARGIN, aboveTop);
+
+    setPopoverPosition((current) => {
+      if (
+        Math.abs(current.top - nextTop) < 1 &&
+        Math.abs(current.left - nextLeft) < 1
+      ) {
+        return current;
+      }
+
+      return { top: nextTop, left: nextLeft };
+    });
+  }, []);
 
   const open = () => {
     setDraft(normalizeDependencyList(task.dependencies, task.id));
@@ -93,130 +134,105 @@ export default function DependencyPopover({
     setIsOpen(false);
   };
 
-  return (
-    <span style={{ position: "relative", display: "inline-flex" }}>
-      <button
-        type="button"
-        data-testid={`dependency-popover-open-${task.id}`}
-        title={locale === "en" ? "Edit predecessors" : "Editar predecesoras"}
-        aria-label={locale === "en" ? "Edit predecessors" : "Editar predecesoras"}
-        onClick={(event) => {
-          event.stopPropagation();
-          open();
-        }}
-        style={{
-          width: "22px",
-          height: "22px",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          border: "1px solid var(--gray-200)",
-          borderRadius: CONTROL_RADIUS,
-          background: "var(--color-bg-elevated)",
-          color: "var(--aia-corp-dark)",
-          cursor: "pointer",
-          flexShrink: 0,
-        }}
-      >
-        <Link2 size={13} />
-      </button>
+  useLayoutEffect(() => {
+    if (!isOpen) return;
 
-      {isOpen && (
+    updatePopoverPosition();
+    const frame = window.requestAnimationFrame(updatePopoverPosition);
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [availableTasks.length, draft.length, isOpen, updatePopoverPosition]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    window.addEventListener("resize", updatePopoverPosition);
+    window.addEventListener("scroll", updatePopoverPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePopoverPosition);
+      window.removeEventListener("scroll", updatePopoverPosition, true);
+    };
+  }, [isOpen, updatePopoverPosition]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (triggerRef.current?.contains(target) || popoverRef.current?.contains(target)) return;
+      setIsOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const popoverStyle = {
+    "--gantt-dependency-popover-top": `${popoverPosition.top}px`,
+    "--gantt-dependency-popover-left": `${popoverPosition.left}px`,
+  } as CSSProperties;
+
+  const popover = isOpen && typeof document !== "undefined"
+    ? createPortal(
         <div
+          ref={popoverRef}
           data-testid="dependency-popover"
           role="dialog"
           aria-label={locale === "en" ? "Predecessor editor" : "Editor de predecesoras"}
+          className="gantt-dependency-popover"
+          style={popoverStyle}
           onClick={(event) => event.stopPropagation()}
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            right: 0,
-            width: "360px",
-            maxWidth: "min(360px, 90vw)",
-            zIndex: 80,
-            padding: "10px",
-            border: "1px solid var(--aia-corp-mid)",
-            borderRadius: SURFACE_RADIUS,
-            background: "var(--aia-alabaster)",
-            boxShadow: "0 10px 24px rgba(26, 60, 42, 0.18)",
-            fontFamily: "var(--font-inter), system-ui, sans-serif",
-            color: "var(--color-text-strong)",
-          }}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "8px",
-              marginBottom: "8px",
-            }}
-          >
-            <strong style={{ fontSize: "0.75rem" }}>
+          <div className="gantt-dependency-popover__header">
+            <strong className="gantt-dependency-popover__title">
               {locale === "en" ? "Predecessors" : "Predecesoras"}
             </strong>
             <button
               type="button"
+              className="gantt-dependency-popover__icon-button"
               aria-label={locale === "en" ? "Close" : "Cerrar"}
               onClick={() => setIsOpen(false)}
-              style={{
-                width: "24px",
-                height: "24px",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-              }}
             >
-              <X size={14} />
+              <X className="gantt-dependency-popover__icon" aria-hidden />
             </button>
           </div>
 
           <input
             data-testid="dependency-search"
+            className="gantt-dependency-popover__search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={locale === "en" ? "Search task" : "Buscar tarea"}
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              marginBottom: "8px",
-              padding: "5px 7px",
-              border: "1px solid var(--gray-200)",
-              borderRadius: CONTROL_RADIUS,
-              fontSize: "0.75rem",
-            }}
           />
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "minmax(0, 1fr) 64px 60px 28px",
-              gap: "4px",
-              alignItems: "center",
-              marginBottom: "8px",
-            }}
-          >
+          <div className="gantt-dependency-popover__composer">
             <select
               data-testid="dependency-task-select"
+              className="gantt-dependency-popover__control"
               value={selectedTaskId}
               onChange={(event) => setSelectedTaskId(event.target.value)}
-              style={{ minWidth: 0, padding: "4px", fontSize: "0.75rem" }}
             >
               {availableTasks.map((candidate) => (
                 <option key={candidate.id} value={String(candidate.id)}>
-                  {candidate.wbs ? `${candidate.wbs} ` : ""}
-                  {taskRowId(candidate)} - {candidate.name}
+                  {taskOptionLabel(tasks, candidate)}
                 </option>
               ))}
             </select>
             <select
               data-testid="dependency-type-select"
+              className="gantt-dependency-popover__control"
               value={type}
               onChange={(event) => setType(event.target.value as GanttDependency["type"])}
-              style={{ padding: "4px", fontSize: "0.75rem" }}
             >
               {dependencyTypes.map((item) => (
                 <option key={item} value={item}>
@@ -226,32 +242,26 @@ export default function DependencyPopover({
             </select>
             <input
               data-testid="dependency-lag-input"
+              className="gantt-dependency-popover__control"
               type="number"
               value={lag}
               onChange={(event) => setLag(event.target.value)}
-              style={{ padding: "4px", fontSize: "0.75rem" }}
             />
             <button
               type="button"
               data-testid="dependency-add"
+              className="gantt-dependency-popover__icon-button gantt-dependency-popover__icon-button--add"
               aria-label={locale === "en" ? "Add predecessor" : "Agregar predecesora"}
               onClick={addDependency}
               disabled={!selectedTaskId}
-              style={{
-                height: "26px",
-                border: "1px solid var(--aia-corp-mid)",
-                borderRadius: CONTROL_RADIUS,
-                background: "var(--aia-corp-xlight)",
-                cursor: selectedTaskId ? "pointer" : "not-allowed",
-              }}
             >
-              <Plus size={13} />
+              <Plus className="gantt-dependency-popover__icon" aria-hidden />
             </button>
           </div>
 
-          <div style={{ display: "grid", gap: "4px", marginBottom: "10px" }}>
+          <div className="gantt-dependency-popover__list">
             {draft.length === 0 ? (
-              <span style={{ fontSize: "0.75rem", color: "var(--gray-500)" }}>
+              <span className="gantt-dependency-popover__empty">
                 {locale === "en" ? "No predecessors" : "Sin predecesoras"}
               </span>
             ) : (
@@ -259,17 +269,13 @@ export default function DependencyPopover({
                 <div
                   key={`${dep.from}-${dep.to}-${dep.type}-${dep.lag ?? 0}-${index}`}
                   data-testid="dependency-row"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "minmax(0, 1fr) 64px 60px 28px",
-                    gap: "4px",
-                    alignItems: "center",
-                  }}
+                  className="gantt-dependency-popover__row"
                 >
-                  <span style={{ fontSize: "0.75rem", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <span className="gantt-dependency-popover__dependency-label">
                     {dependencyLabel(dep, tasks)}
                   </span>
                   <select
+                    className="gantt-dependency-popover__control"
                     aria-label={locale === "en" ? "Dependency type" : "Tipo de dependencia"}
                     value={dep.type}
                     onChange={(event) =>
@@ -277,7 +283,6 @@ export default function DependencyPopover({
                         type: event.target.value as GanttDependency["type"],
                       })
                     }
-                    style={{ padding: "4px", fontSize: "0.75rem" }}
                   >
                     {dependencyTypes.map((item) => (
                       <option key={item} value={item}>
@@ -286,6 +291,7 @@ export default function DependencyPopover({
                     ))}
                   </select>
                   <input
+                    className="gantt-dependency-popover__control"
                     aria-label={locale === "en" ? "Lag days" : "Lag en dias"}
                     type="number"
                     value={dep.lag ?? 0}
@@ -295,62 +301,62 @@ export default function DependencyPopover({
                         lag: Number.isFinite(value) && value !== 0 ? value : undefined,
                       });
                     }}
-                    style={{ padding: "4px", fontSize: "0.75rem" }}
                   />
                   <button
                     type="button"
+                    className="gantt-dependency-popover__icon-button"
                     aria-label={locale === "en" ? "Remove dependency" : "Eliminar dependencia"}
                     onClick={() => removeDependency(index)}
-                    style={{
-                      height: "26px",
-                      border: "1px solid var(--gray-200)",
-                      borderRadius: CONTROL_RADIUS,
-                      background: "var(--color-bg-elevated)",
-                      cursor: "pointer",
-                    }}
                   >
-                    <Trash2 size={13} />
+                    <Trash2 className="gantt-dependency-popover__icon" aria-hidden />
                   </button>
                 </div>
               ))
             )}
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+          <div className="gantt-dependency-popover__footer">
             <button
               type="button"
+              className="gantt-dependency-popover__action"
               onClick={() => setIsOpen(false)}
-              style={{
-                padding: "5px 9px",
-                border: "1px solid var(--gray-200)",
-                borderRadius: CONTROL_RADIUS,
-                background: "var(--color-bg-elevated)",
-                cursor: "pointer",
-                fontSize: "0.75rem",
-              }}
             >
               {locale === "en" ? "Cancel" : "Cancelar"}
             </button>
             <button
               type="button"
               data-testid="dependency-apply"
+              className="gantt-dependency-popover__action gantt-dependency-popover__action--primary"
               onClick={apply}
-              style={{
-                padding: "5px 9px",
-                border: "1px solid var(--aia-corp-mid)",
-                borderRadius: CONTROL_RADIUS,
-                background: "var(--aia-corp-main)",
-                color: "white",
-                cursor: "pointer",
-                fontSize: "0.75rem",
-                fontWeight: 600,
-              }}
             >
               {locale === "en" ? "Apply" : "Aplicar"}
             </button>
           </div>
-        </div>
-      )}
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <span className="gantt-dependency-popover-host">
+      <button
+        ref={triggerRef}
+        type="button"
+        data-testid={`dependency-popover-open-${task.id}`}
+        title={locale === "en" ? "Edit predecessors" : "Editar predecesoras"}
+        aria-label={locale === "en" ? "Edit predecessors" : "Editar predecesoras"}
+        className="gantt-dependency-trigger"
+        onClick={(event) => {
+          event.stopPropagation();
+          open();
+        }}
+      >
+        <Link2 className="gantt-dependency-trigger__icon" aria-hidden />
+        <span className="gantt-dependency-trigger__label">
+          {locale === "en" ? "Edit" : "Editar"}
+        </span>
+      </button>
+      {popover}
     </span>
   );
 }

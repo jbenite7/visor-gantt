@@ -22,7 +22,21 @@ export function taskUniqueId(task: GanttTask | undefined, fallback?: string | nu
 }
 
 export function findTaskByRowId(tasks: GanttTask[], rowId: string | number): GanttTask | undefined {
-  return tasks.find((task) => String(taskRowId(task)) === String(rowId));
+  return tasks.find((task, index) => String(taskRowId(task, index + 1)) === String(rowId));
+}
+
+export function taskVisibleRowId(tasks: GanttTask[], task: GanttTask): string | number {
+  const rowIndex = tasks.findIndex((candidate) => candidate.id === task.id);
+  return taskRowId(task, rowIndex >= 0 ? rowIndex + 1 : undefined);
+}
+
+export function dependencyRowId(
+  tasks: GanttTask[],
+  taskId: string | number,
+): string | number {
+  const rowIndex = tasks.findIndex((candidate) => candidate.id === taskId);
+  if (rowIndex < 0) return typeof taskId === "number" ? taskId : "?";
+  return taskRowId(tasks[rowIndex], rowIndex + 1);
 }
 
 export function dependencyToken(
@@ -33,4 +47,14 @@ export function dependencyToken(
 ): string {
   const lagText = lag ? `${lag > 0 ? "+" : ""}${lag}d` : "";
   return `${taskRowId(task, fallback)}${type}${lagText}`;
+}
+
+export function dependencyTokenForTaskId(
+  tasks: GanttTask[],
+  taskId: string | number,
+  type: string,
+  lag?: number,
+): string {
+  const lagText = lag ? `${lag > 0 ? "+" : ""}${lag}d` : "";
+  return `${dependencyRowId(tasks, taskId)}${type}${lagText}`;
 }

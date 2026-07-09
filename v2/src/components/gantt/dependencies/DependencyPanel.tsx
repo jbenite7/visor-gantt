@@ -9,7 +9,7 @@ import {
   replacePredecessors,
   replaceSuccessors,
 } from "@/lib/gantt/dependencyEditing";
-import { taskRowId } from "@/lib/gantt/taskIds";
+import { dependencyRowId, taskVisibleRowId } from "@/lib/gantt/taskIds";
 import { recalculateSchedule, validateDependencies } from "@/lib/scheduling/scheduleEngine";
 import { formatProjectDate } from "@/lib/date/projectDate";
 
@@ -47,11 +47,11 @@ function dependencyLabel(dep: GanttDependency, tasks: GanttTask[], direction: "p
   const id = direction === "predecessor" ? dep.from : dep.to;
   const related = tasks.find((candidate) => candidate.id === id);
   const lag = dep.lag ? `${dep.lag > 0 ? "+" : ""}${dep.lag}d` : "";
-  return `${related?.wbs ? `${related.wbs} ` : ""}${taskRowId(related, id)} ${related?.name ?? ""} ${dep.type}${lag}`;
+  return `${dependencyRowId(tasks, id)} - ${related?.name ?? ""} ${dep.type}${lag}`;
 }
 
-function taskOptionLabel(task: GanttTask): string {
-  return `${task.wbs ? `${task.wbs} ` : ""}${taskRowId(task)} - ${task.name}`;
+function taskOptionLabel(tasks: GanttTask[], task: GanttTask): string {
+  return `${taskVisibleRowId(tasks, task)} - ${task.name}`;
 }
 
 function dateDeltaDays(before?: Date, after?: Date): number {
@@ -340,7 +340,7 @@ export default function DependencyPanel({
       >
         {relatedTasks.map((candidate) => (
           <option key={candidate.id} value={String(candidate.id)}>
-            {taskOptionLabel(candidate)}
+            {taskOptionLabel(tasks, candidate)}
           </option>
         ))}
       </select>
@@ -434,8 +434,7 @@ export default function DependencyPanel({
               color: "var(--gray-600)",
             }}
           >
-            {task.wbs ? `${task.wbs} ` : ""}
-            {taskRowId(task)} - {task.name}
+            {taskVisibleRowId(tasks, task)} - {task.name}
           </span>
         </div>
         <button

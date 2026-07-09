@@ -98,4 +98,24 @@ describe("tasksToExcelTsv", () => {
     expect(result).toContain("\t33.33\t");
     expect(imported[1]).toEqual(expect.objectContaining({ duration: 3, outlineLevel: 2 }));
   });
+
+  test("exports matrix dependencies with visible row IDs instead of internal IDs", () => {
+    const predecessorId = "mx-task-cell-scope-1783549803757-estructura-area-formaleta";
+    const successorId = "mx-task-cell-scope-1783549803757-estructura-area-acero";
+
+    const result = tasksToExcelTsv([
+      {
+        ...task(predecessorId, "Formaleta"),
+        wbs: "1.1.1",
+      },
+      {
+        ...task(successorId, "Acero"),
+        wbs: "1.1.2",
+        dependencies: [{ from: predecessorId, to: successorId, type: "FS" }],
+      },
+    ]);
+
+    expect(result).toContain("\t1FS\t");
+    expect(result).not.toContain("mx-task-cell-scope");
+  });
 });

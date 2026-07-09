@@ -165,7 +165,7 @@ describe("GanttTable", () => {
       "Duración",
       "Comienzo",
       "Fin",
-      "Predecesora",
+      "Predecesoras",
       "% completado",
       "Crítica",
     ]);
@@ -175,6 +175,73 @@ describe("GanttTable", () => {
     expect(cells[0]).toHaveTextContent("7");
     expect(cells[1]).toHaveTextContent("107");
     expect(cells[3]).toHaveTextContent("Design");
+  });
+
+  test("uses a readable medium-width column set before the table becomes cramped", async () => {
+    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect() {
+      return {
+        width: 700,
+        height: 500,
+        top: 0,
+        right: 700,
+        bottom: 500,
+        left: 0,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      };
+    };
+
+    try {
+      render(<GanttTable tasks={[regularTask]} />);
+
+      await waitFor(() => {
+        const headers = screen.getAllByRole("columnheader").map((header) => header.textContent);
+        expect(headers).toContain("Comienzo");
+        expect(headers).toContain("Fin");
+        expect(headers).toContain("Pred.");
+        expect(headers).not.toContain("Resumen");
+        expect(headers).not.toContain("Crítica");
+      });
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    }
+  });
+
+  test("marks activity dates and predecessors for compact readable wrapping", () => {
+    const predecessor = makeTask({ id: 1, name: "Predecessor" });
+    const successor = makeTask({
+      id: 2,
+      name: "Actividad con nombre deliberadamente largo para probar wrap",
+      dependencies: [{ from: 1, to: 2, type: "FS" }],
+    });
+
+    render(
+      <GanttTable
+        tasks={[predecessor, successor]}
+        onUpdateTask={jest.fn()}
+      />,
+    );
+
+    const successorCells = screen.getAllByTestId("gantt-row")[1].querySelectorAll("td");
+    expect(successorCells[3]).toHaveClass("gantt-row-cell--name");
+    expect(successorCells[6]).toHaveClass("gantt-row-cell--date");
+    expect(successorCells[7]).toHaveClass("gantt-row-cell--date");
+    expect(successorCells[8]).toHaveClass("gantt-row-cell--predecessors");
+    expect(successorCells[8]).toHaveTextContent("1FS");
+    expect(within(successorCells[8]).getByRole("button", { name: "Editar predecesoras" })).toBeInTheDocument();
+    expect(successorCells[8]).toHaveTextContent("Editar");
+    expect(successorCells[6]).not.toHaveTextContent("2026-01-05");
+  });
+
+  test("shows an explicit empty predecessor state instead of a blank icon-only cell", () => {
+    render(<GanttTable tasks={[regularTask]} onUpdateTask={jest.fn()} />);
+
+    const cells = screen.getAllByTestId("gantt-row")[0].querySelectorAll("td");
+    expect(cells[8]).toHaveTextContent("Sin pred.");
+    expect(within(cells[8]).getByRole("button", { name: "Editar predecesoras" })).toBeInTheDocument();
+    expect(cells[8]).toHaveTextContent("Editar");
   });
 
   test("renders numeric ID fallbacks for matrix tasks with string internal ids", () => {
@@ -213,6 +280,49 @@ describe("GanttTable", () => {
     expect(successorCells[0]).toHaveTextContent("2");
     expect(successorCells[1]).toHaveTextContent("205");
     expect(successorCells[8]).toHaveTextContent("1FS");
+  });
+
+  test("renders matrix predecessors with visible row fallback instead of internal string ids", () => {
+    const predecessor = makeTask({
+      id: "mx-task-cell-scope-1783549803757-estructura-area-formaleta",
+      name: "Formaleta",
+    });
+    const successor = makeTask({
+      id: "mx-task-cell-scope-1783549803757-estructura-area-acero",
+      name: "Acero",
+      dependencies: [{ from: predecessor.id, to: "mx-task-cell-scope-1783549803757-estructura-area-acero", type: "FS" }],
+    });
+
+    render(<GanttTable tasks={[predecessor, successor]} />);
+
+    const successorCells = screen.getAllByTestId("gantt-row")[1].querySelectorAll("td");
+    expect(successorCells[8]).toHaveTextContent("1FS");
+    expect(successorCells[8]).not.toHaveTextContent("mx-task-cell-scope");
+  });
+
+  test("commits matrix predecessor edits by resolving visible row IDs to internal task IDs", () => {
+    const onUpdateTask = jest.fn();
+    const predecessor = makeTask({
+      id: "mx-task-cell-scope-1783549803757-estructura-area-formaleta",
+      name: "Formaleta",
+    });
+    const successor = makeTask({
+      id: "mx-task-cell-scope-1783549803757-estructura-area-acero",
+      name: "Acero",
+      dependencies: [],
+    });
+
+    render(<GanttTable tasks={[predecessor, successor]} onUpdateTask={onUpdateTask} />);
+
+    const predecessorCell = screen.getAllByTestId("gantt-row")[1].querySelectorAll("td")[8];
+    fireEvent.doubleClick(within(predecessorCell).getByTestId("editable-cell"));
+    const input = within(predecessorCell).getByTestId("editable-cell");
+    fireEvent.change(input, { target: { value: "1FS" } });
+    fireEvent.blur(input);
+
+    expect(onUpdateTask).toHaveBeenCalledWith(successor.id, "dependencies", [
+      { from: predecessor.id, to: successor.id, type: "FS", lag: undefined },
+    ]);
   });
 
   test("commits inline predecessor edits by resolving row ID to internal task ID", () => {
@@ -825,8 +935,11 @@ describe("GanttTable", () => {
     fireEvent.click(screen.getByTestId("dependency-popover-open-205"));
 
     const popover = screen.getByTestId("dependency-popover");
+    expect(popover).toHaveClass("gantt-dependency-popover");
+    expect(popover.closest(".gantt-row-cell--predecessors")).toBeNull();
     expect(within(popover).getByText("1FF+3d")).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "1 1 - Predecessor" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "1 - Predecessor" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "1 1 - Predecessor" })).not.toBeInTheDocument();
   });
 
   test("commits successors from the dependency side panel", () => {
@@ -901,8 +1014,10 @@ describe("GanttTable", () => {
 
     fireEvent.click(screen.getByTestId("dependency-panel-open"));
 
-    expect(screen.getByText("1 1 - Predecessor")).toBeInTheDocument();
-    expect(screen.getAllByRole("option", { name: "2 2 - Successor" }).length).toBeGreaterThan(0);
+    expect(screen.getByText("1 - Predecessor")).toBeInTheDocument();
+    expect(screen.queryByText("1 1 - Predecessor")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("option", { name: "2 - Successor" }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("option", { name: "2 2 - Successor" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("dependency-panel-add-successor"));
     fireEvent.click(screen.getByTestId("dependency-panel-apply"));

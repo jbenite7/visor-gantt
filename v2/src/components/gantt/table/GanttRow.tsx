@@ -9,7 +9,7 @@ import type { ColumnConfig } from "./ColumnSelector";
 import type { UILocale } from "@/types/ui";
 import { t } from "@/lib/i18n";
 import { getMppRecordValue } from "@/lib/mpp/recordValues";
-import { dependencyToken, findTaskByRowId, taskRowId } from "@/lib/gantt/taskIds";
+import { dependencyTokenForTaskId, findTaskByRowId, taskRowId } from "@/lib/gantt/taskIds";
 
 interface GanttRowProps {
   task: GanttTask;
@@ -45,6 +45,16 @@ function formatDate(date: Date): string {
   return formatProjectDate(date);
 }
 
+function formatCompactDate(date: Date): string {
+  return formatProjectDate(date, {
+    day: "2-digit",
+    month: "short",
+    year: "2-digit",
+  })
+    .replace(/\./g, "")
+    .replace(/\s+de\s+/g, " ");
+}
+
 /** Convert a Date to yyyy-mm-dd string for <input type="date">. */
 function toISODate(date: Date): string {
   return toDateInputValue(date);
@@ -59,8 +69,28 @@ function fromISODate(iso: string): Date {
 function formatDependencies(dependencies: GanttDependency[], tasks: GanttTask[]): string {
   if (dependencies.length === 0) return "";
   return dependencies
-    .map((dep) => dependencyToken(tasks.find((candidate) => candidate.id === dep.from), dep.from, dep.type, dep.lag))
+    .map((dep) => dependencyTokenForTaskId(tasks, dep.from, dep.type, dep.lag))
     .join(", ");
+}
+
+function renderDependencyDisplay(value: string, locale: UILocale) {
+  if (!value) {
+    return (
+      <span className="gantt-row-predecessor-empty">
+        {locale === "en" ? "No pred." : "Sin pred."}
+      </span>
+    );
+  }
+
+  return (
+    <span className="gantt-row-predecessor-list">
+      {value.split(", ").map((token) => (
+        <span className="gantt-row-predecessor-token" key={token}>
+          {token}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 function numericRecordValue(value: unknown): number | undefined {
@@ -100,11 +130,12 @@ function parsePredecessors(
     if (!match) continue;
 
     const rawFrom = isNaN(Number(match[1])) ? match[1] : Number(match[1]);
-    const from = findTaskByRowId(tasks, rawFrom)?.id ?? rawFrom;
+    const source = findTaskByRowId(tasks, rawFrom);
+    if (!source) continue;
     const type = match[2].toUpperCase() as GanttDependency["type"];
     const lag = match[3] ? parseInt(match[3], 10) : undefined;
 
-    result.push({ from, to: targetId, type, lag });
+    result.push({ from: source.id, to: targetId, type, lag });
   }
 
   return result;
@@ -310,10 +341,11 @@ export default function GanttRow({
         )}
       </td>;
       case "start":
-        return <td key={column.key} {...cellAttributes()}>
+        return <td key={column.key} {...cellAttributes("left", "gantt-row-cell--date")}>
         {canEdit ? (
           <EditableCell
             value={toISODate(task.start)}
+            displayValue={formatCompactDate(task.start)}
             type="date"
             align="left"
             onCommit={(val) => {
@@ -328,10 +360,11 @@ export default function GanttRow({
         )}
       </td>;
       case "finish":
-        return <td key={column.key} {...cellAttributes()}>
+        return <td key={column.key} {...cellAttributes("left", "gantt-row-cell--date")}>
         {canEdit ? (
           <EditableCell
             value={toISODate(task.finish)}
+            displayValue={formatCompactDate(task.finish)}
             type="date"
             align="left"
             onCommit={(val) => {
@@ -345,13 +378,15 @@ export default function GanttRow({
           <>{formatDate(task.finish)}</>
         )}
       </td>;
-      case "predecessors":
-        return <td key={column.key} {...cellAttributes()}>
+      case "predecessors": {
+        const predecessorValue = formatDependencies(task.dependencies, allTasks);
+        return <td key={column.key} {...cellAttributes("left", "gantt-row-cell--predecessors")}>
         {canEdit ? (
           <div className="gantt-row-dependencies">
             <div className="gantt-row-dependencies__editor">
               <EditableCell
-                value={formatDependencies(task.dependencies, allTasks)}
+                value={predecessorValue}
+                displayValue={renderDependencyDisplay(predecessorValue, locale)}
                 type="text"
                 align="left"
                 onCommit={(val) => {
@@ -368,9 +403,10 @@ export default function GanttRow({
             />
           </div>
         ) : (
-          <>{formatDependencies(task.dependencies, allTasks)}</>
+          renderDependencyDisplay(predecessorValue, locale)
         )}
       </td>;
+      }
       case "progress":
         return <td key={column.key} {...cellAttributes("right")}>
         {canEdit ? (
@@ -441,6 +477,13 @@ export default function GanttRow({
                   onUpdateTask!(task.id, `mppFields:${sourceKey}`, parseMppEditValue(val, column.dataType));
                 }}
               />
+            </td>
+          );
+        }
+        if (column.dataType === "date") {
+          return (
+            <td key={column.key} {...cellAttributes(column.align, "gantt-row-cell--date")}>
+              {formatGenericValue(getMppCellValue(task, column), column.dataType, locale)}
             </td>
           );
         }
