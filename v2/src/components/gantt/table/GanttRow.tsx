@@ -122,14 +122,18 @@ const FORMAT_CURRENCY = new Intl.NumberFormat("es-CO", {
 });
 
 function formatProgressValue(value: unknown): string {
+  return `${formatProgressNumber(value)}%`;
+}
+
+function formatProgressNumber(value: unknown): string {
   const numericValue = typeof value === "number" && Number.isFinite(value)
     ? value
     : Number(value);
 
-  if (!Number.isFinite(numericValue)) return "0.00%";
+  if (!Number.isFinite(numericValue)) return "0";
 
   const clamped = Math.max(0, Math.min(100, numericValue));
-  return `${clamped.toFixed(2)}%`;
+  return clamped.toFixed(2).replace(/\.?0+$/, "");
 }
 
 function formatGenericValue(value: unknown, dataType: string | undefined, locale: UILocale): string {
@@ -396,10 +400,12 @@ export default function GanttRow({
         {canEdit ? (
           <EditableCell
             value={progress}
+            displayValue={formatProgressNumber(progress)}
             type="slider"
             align="right"
+            sliderDisplayValue={formatProgressValue}
             onCommit={(val) => {
-              const num = parseInt(val, 10);
+              const num = parseFloat(val);
               if (!isNaN(num) && num >= 0 && num <= 100) {
                 onUpdateTask!(task.id, "progress", num);
               }

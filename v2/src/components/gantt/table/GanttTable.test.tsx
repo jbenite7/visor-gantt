@@ -240,6 +240,24 @@ describe("GanttTable", () => {
     expect(screen.getByText("33.33%")).toBeInTheDocument();
   });
 
+  test("renders editable percent complete with at most two decimals", () => {
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({
+            id: 1,
+            name: "Con decimales",
+            progress: 46.666666666666664,
+          }),
+        ]}
+        onUpdateTask={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText("46.67")).toBeInTheDocument();
+    expect(screen.queryByText("46.666666666666664")).not.toBeInTheDocument();
+  });
+
   test("renders imported MPP columns in Spanish by default and switches labels to English", () => {
     const columns: MppTaskColumn[] = [
       {

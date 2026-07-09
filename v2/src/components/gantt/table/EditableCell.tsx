@@ -11,9 +11,11 @@ export type EditableCellType =
 
 interface EditableCellProps {
   value: string | number;
+  displayValue?: React.ReactNode;
   type: EditableCellType;
   onCommit: (newValue: string) => void;
   align?: "left" | "right" | "center";
+  sliderDisplayValue?: (value: string) => string;
   /** Extra content rendered before the value (e.g. WBSExpand + name). */
   prefix?: React.ReactNode;
   /** Whether the cell is non-editable (e.g. summary rows). */
@@ -42,9 +44,11 @@ const inputStyle: React.CSSProperties = {
  */
 export default function EditableCell({
   value,
+  displayValue,
   type,
   onCommit,
   align = "left",
+  sliderDisplayValue,
   prefix,
   readOnly = false,
 }: EditableCellProps) {
@@ -95,6 +99,7 @@ export default function EditableCell({
       inputType = "date";
     } else if (type === "slider") {
       inputType = "range";
+      step = "0.01";
     }
 
     if (type === "slider") {
@@ -121,7 +126,7 @@ export default function EditableCell({
             data-testid="editable-cell"
           />
           <span style={{ fontSize: "11px", color: "var(--gray-600)", minWidth: "28px", textAlign: "right" }}>
-            {editValue}%
+            {sliderDisplayValue ? sliderDisplayValue(editValue) : `${editValue}%`}
           </span>
         </div>
       );
@@ -163,7 +168,7 @@ export default function EditableCell({
       data-testid="editable-cell"
     >
       {prefix}
-      {prefix ? <span>{value}</span> : value}
+      {prefix ? <span>{displayValue ?? value}</span> : displayValue ?? value}
     </div>
   );
 }
