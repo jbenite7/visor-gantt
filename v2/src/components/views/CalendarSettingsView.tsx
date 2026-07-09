@@ -90,7 +90,7 @@ export default function CalendarSettingsView({
   };
 
   return (
-    <div className="apple-module h-full overflow-auto p-5">
+    <div data-testid="calendar-settings-view" className="apple-module h-full overflow-auto p-5">
       <div className="max-w-4xl space-y-5">
         <section className="apple-section p-5">
           <h2 className="text-lg font-semibold text-[var(--color-text-strong)] font-[var(--font-heading)]">
@@ -169,15 +169,8 @@ export default function CalendarSettingsView({
                     key={day.id}
                     type="button"
                     onClick={() => toggleDay(day.id)}
-                    className="rounded-lg border px-3 py-2 text-sm font-semibold"
-                    style={{
-                      background: active ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
-                      color: active ? "#fff" : "var(--color-text-muted)",
-                      borderColor: active
-                        ? "var(--aia-corp-main)"
-                        : "var(--color-hairline)",
-                      boxShadow: active ? "0 8px 18px rgb(39 118 89 / 0.16)" : "var(--shadow-sm)",
-                    }}
+                    data-active={active}
+                    className="calendar-workday-toggle"
                   >
                     {day.label}
                   </button>

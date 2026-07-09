@@ -12,6 +12,7 @@ import {
 import { buildMatrixPlanFromGantt } from "@/lib/matrix/matrixFromGantt";
 import type { ProjectData as ParsedMppProject } from "@/lib/parser/mpp-parser";
 import { normalizeProjectCalendar } from "@/lib/scheduling/projectCalendar";
+import { withColombiaHolidays } from "@/lib/scheduling/colombiaHolidays";
 import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
 import { DEFAULT_UI_SETTINGS } from "@/types/ui";
 import type { ProjectData } from "@/app/actions/project";
@@ -79,6 +80,20 @@ function enrichTasksWithImportedAssignments(
   });
 }
 
+function importedProjectYears(parsedProject: ParsedMppProject, tasks: GanttTask[]): number[] {
+  const years = new Set<number>();
+  for (const raw of [parsedProject.startDate, parsedProject.finishDate, parsedProject.statusDate]) {
+    if (!raw) continue;
+    const date = new Date(raw);
+    if (!Number.isNaN(date.getTime())) years.add(date.getUTCFullYear());
+  }
+  for (const task of tasks) {
+    years.add(task.start.getUTCFullYear());
+    years.add(task.finish.getUTCFullYear());
+  }
+  return years.size > 0 ? [...years] : [new Date().getFullYear()];
+}
+
 export function buildProjectDataFromMpp(
   parsedProject: ParsedMppProject,
   fallbackFileName: string,
@@ -89,9 +104,6 @@ export function buildProjectDataFromMpp(
     parsedProject.name && parsedProject.name !== GENERIC_IMPORTED_PROJECT_NAME
       ? parsedProject.name
       : fallbackName;
-  const projectCalendar = normalizeProjectCalendar(
-    parsedProject.calendar ?? DEFAULT_PROJECT_CALENDAR,
-  );
   const resources = mppResourcesToResources(parsedProject.resources ?? []);
   const assignments = mppAssignmentsToAssignments(
     parsedProject.assignments ?? [],
@@ -100,6 +112,10 @@ export function buildProjectDataFromMpp(
     mppTasksToGanttTasks(parsedProject.tasks),
     resources,
     assignments,
+  );
+  const projectCalendar = withColombiaHolidays(
+    normalizeProjectCalendar(parsedProject.calendar ?? DEFAULT_PROJECT_CALENDAR),
+    importedProjectYears(parsedProject, tasks),
   );
   const buildImportedMatrix = (projectTasks: typeof tasks) =>
     buildMatrixPlanFromGantt({

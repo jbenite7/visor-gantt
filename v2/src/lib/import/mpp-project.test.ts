@@ -147,12 +147,32 @@ describe("buildProjectDataFromMpp", () => {
       expect.objectContaining({
         name: "Cronograma importado",
         statusDate: "2026-01-08T00:00:00",
-        calendar: importedCalendar,
+        calendar: expect.objectContaining({
+          timeZone: importedCalendar.timeZone,
+          workDays: importedCalendar.workDays,
+          startHour: importedCalendar.startHour,
+          endHour: importedCalendar.endHour,
+          hoursPerDay: importedCalendar.hoursPerDay,
+          dateOverrides: importedCalendar.dateOverrides,
+        }),
         uiSettings: {
           locale: "es",
           taskFilter: { text: "", type: "all" },
         },
       }),
+    );
+    expect(project.calendar.nonWorkingDays).toEqual(
+      expect.arrayContaining([
+        importedCalendar.nonWorkingDays[0],
+        expect.objectContaining({
+          date: "2026-01-01",
+          name: "Año Nuevo",
+        }),
+        expect.objectContaining({
+          date: "2026-07-20",
+          name: "Día de la Independencia",
+        }),
+      ]),
     );
     expect(project.tasks).toEqual([
       expect.objectContaining({
