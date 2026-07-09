@@ -171,7 +171,7 @@ export default function ProjectView({
           <div className="flex min-w-0 items-center gap-4">
             <Link
               href="/"
-              className="apple-button-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors"
+              className="apple-button-secondary inline-flex items-center gap-1.5 rounded-[var(--radius-lg)] px-3 py-1.5 text-sm font-semibold transition-colors"
             >
               <ArrowLeft size={15} aria-hidden />
               Volver
