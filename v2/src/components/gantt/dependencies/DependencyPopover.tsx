@@ -15,6 +15,8 @@ interface DependencyPopoverProps {
 }
 
 const dependencyTypes: GanttDependency["type"][] = ["FS", "SS", "FF", "SF"];
+const CONTROL_RADIUS = "var(--radius-sm)";
+const SURFACE_RADIUS = "var(--radius-md)";
 
 function dependencyLabel(dep: GanttDependency, tasks: GanttTask[]): string {
   return dependencyToken(tasks.find((candidate) => candidate.id === dep.from), dep.from, dep.type, dep.lag);
@@ -109,7 +111,7 @@ export default function DependencyPopover({
           alignItems: "center",
           justifyContent: "center",
           border: "1px solid var(--gray-200)",
-          borderRadius: "4px",
+          borderRadius: CONTROL_RADIUS,
           background: "var(--color-bg-elevated)",
           color: "var(--aia-corp-dark)",
           cursor: "pointer",
@@ -134,7 +136,7 @@ export default function DependencyPopover({
             zIndex: 80,
             padding: "10px",
             border: "1px solid var(--aia-corp-mid)",
-            borderRadius: "8px",
+            borderRadius: SURFACE_RADIUS,
             background: "var(--aia-alabaster)",
             boxShadow: "0 10px 24px rgba(26, 60, 42, 0.18)",
             fontFamily: "var(--font-inter), system-ui, sans-serif",
@@ -183,7 +185,7 @@ export default function DependencyPopover({
               marginBottom: "8px",
               padding: "5px 7px",
               border: "1px solid var(--gray-200)",
-              borderRadius: "4px",
+              borderRadius: CONTROL_RADIUS,
               fontSize: "0.75rem",
             }}
           />
@@ -238,7 +240,7 @@ export default function DependencyPopover({
               style={{
                 height: "26px",
                 border: "1px solid var(--aia-corp-mid)",
-                borderRadius: "4px",
+                borderRadius: CONTROL_RADIUS,
                 background: "var(--aia-corp-xlight)",
                 cursor: selectedTaskId ? "pointer" : "not-allowed",
               }}
@@ -302,7 +304,7 @@ export default function DependencyPopover({
                     style={{
                       height: "26px",
                       border: "1px solid var(--gray-200)",
-                      borderRadius: "4px",
+                      borderRadius: CONTROL_RADIUS,
                       background: "var(--color-bg-elevated)",
                       cursor: "pointer",
                     }}
@@ -321,7 +323,7 @@ export default function DependencyPopover({
               style={{
                 padding: "5px 9px",
                 border: "1px solid var(--gray-200)",
-                borderRadius: "4px",
+                borderRadius: CONTROL_RADIUS,
                 background: "var(--color-bg-elevated)",
                 cursor: "pointer",
                 fontSize: "0.75rem",
@@ -336,7 +338,7 @@ export default function DependencyPopover({
               style={{
                 padding: "5px 9px",
                 border: "1px solid var(--aia-corp-mid)",
-                borderRadius: "4px",
+                borderRadius: CONTROL_RADIUS,
                 background: "var(--aia-corp-main)",
                 color: "white",
                 cursor: "pointer",

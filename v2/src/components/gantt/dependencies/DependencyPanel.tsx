@@ -23,6 +23,8 @@ interface DependencyPanelProps {
 }
 
 const dependencyTypes: GanttDependency["type"][] = ["FS", "SS", "FF", "SF"];
+const CONTROL_RADIUS = "var(--radius-sm)";
+const SURFACE_RADIUS = "var(--radius-md)";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 interface DependencyImpactSummary {
@@ -299,7 +301,7 @@ export default function DependencyPanel({
                 alignItems: "center",
                 justifyContent: "center",
                 border: "1px solid var(--gray-200)",
-                borderRadius: "4px",
+                borderRadius: CONTROL_RADIUS,
                 background: "var(--color-bg-elevated)",
                 cursor: "pointer",
               }}
@@ -374,7 +376,7 @@ export default function DependencyPanel({
           alignItems: "center",
           justifyContent: "center",
           border: "1px solid var(--aia-corp-mid)",
-          borderRadius: "4px",
+          borderRadius: CONTROL_RADIUS,
           background: "var(--aia-corp-xlight)",
           cursor: selectedTaskId ? "pointer" : "not-allowed",
           opacity: selectedTaskId ? 1 : 0.5,
@@ -402,7 +404,7 @@ export default function DependencyPanel({
         zIndex: 85,
         padding: "12px",
         border: "1px solid var(--aia-corp-mid)",
-        borderRadius: "8px",
+        borderRadius: SURFACE_RADIUS,
         background: "var(--aia-alabaster)",
         boxShadow: "0 14px 32px rgba(26, 60, 42, 0.2)",
         color: "var(--color-text-strong)",
@@ -500,7 +502,7 @@ export default function DependencyPanel({
             marginBottom: "12px",
             padding: "8px",
             border: "1px solid var(--aia-alert-main)",
-            borderRadius: "4px",
+            borderRadius: CONTROL_RADIUS,
             background: "rgba(170, 67, 45, 0.08)",
             color: "var(--aia-alert-main)",
             fontSize: "0.75rem",
@@ -521,7 +523,7 @@ export default function DependencyPanel({
             marginBottom: "12px",
             padding: "8px",
             border: "1px solid var(--gray-200)",
-            borderRadius: "4px",
+            borderRadius: CONTROL_RADIUS,
             background: "var(--color-bg-elevated)",
             fontSize: "0.75rem",
           }}
@@ -565,7 +567,7 @@ export default function DependencyPanel({
           style={{
             padding: "6px 10px",
             border: "1px solid var(--gray-200)",
-            borderRadius: "4px",
+            borderRadius: CONTROL_RADIUS,
             background: "var(--color-bg-elevated)",
             cursor: "pointer",
             fontSize: "0.75rem",
@@ -580,7 +582,7 @@ export default function DependencyPanel({
           style={{
             padding: "6px 10px",
             border: "1px solid var(--aia-corp-mid)",
-            borderRadius: "4px",
+            borderRadius: CONTROL_RADIUS,
             background: "var(--aia-corp-main)",
             color: "white",
             cursor: "pointer",
