@@ -47,15 +47,9 @@ export default function ViewSidebar({ activeView, onViewChange, locale = "es" }:
   return (
     <nav
       data-testid="view-sidebar"
-      className="flex flex-col shrink-0"
+      className="project-view-sidebar"
       role="navigation"
       aria-label="Vistas del proyecto"
-      style={{
-        width: 58,
-        background: "color-mix(in oklch, var(--color-bg-surface) 82%, transparent)",
-        borderRight: "1px solid var(--color-hairline)",
-        backdropFilter: "blur(18px) saturate(1.2)",
-      }}
     >
       {VIEW_TABS.map((tab) => {
         const isActive = activeView === tab.id;
@@ -71,42 +65,11 @@ export default function ViewSidebar({ activeView, onViewChange, locale = "es" }:
             aria-label={label}
             onClick={() => onViewChange(tab.id)}
             title={label}
-            className="flex flex-col items-center justify-center gap-0.5 transition-colors"
-            style={{
-              padding: "10px 4px",
-              margin: "3px 5px",
-              background: isActive ? "var(--aia-corp-main)" : "transparent",
-              color: isActive ? "#ffffff" : "var(--gray-500)",
-              border: "none",
-              borderRadius: "var(--radius-md)",
-              borderLeft: "3px solid transparent",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) => {
-              if (!isActive) {
-                e.currentTarget.style.background = "var(--color-bg-elevated)";
-                e.currentTarget.style.color = "var(--aia-corp-dark)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isActive) {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "var(--gray-500)";
-              }
-            }}
+            className="project-view-sidebar__item"
+            type="button"
           >
-            <Icon size={18} />
-            <span
-              style={{
-                fontFamily: "var(--font-inter)",
-                fontSize: "9px",
-                fontWeight: 500,
-                lineHeight: 1.1,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {label}
-            </span>
+            <Icon className="project-view-sidebar__icon" aria-hidden />
+            <span className="project-view-sidebar__label">{label}</span>
           </button>
         );
       })}
