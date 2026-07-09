@@ -1,0 +1,791 @@
+{
+  "stage": "facts",
+  "title": "Correcciones Gantt, matriz y evidencia completa",
+  "goalSlug": "correcciones-gantt-matriz-evidencia",
+  "acceptedFacts": [
+    {
+      "id": "global-01",
+      "text": "La verificacion principal se ejecuta contra el runtime real de Docker, no solo contra componentes aislados.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "global-02",
+      "text": "Cada modulo principal de la app debe tener evidencia visual nueva: screenshot, video Playwright o captura del browser nativo cuando aplique.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "global-03",
+      "text": "Cada modulo principal debe adjuntar logs con consola, pageerror, requestfailed, respuestas >=400, URL final, modulo, escenario y timestamp.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "global-04",
+      "text": "La regla global de cero overflow se cumple cuando html/body no tienen scroll horizontal y los scrolls internos aparecen solo en regiones intencionales.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "global-05",
+      "text": "Un modulo se considera funcional cuando carga contenido distintivo, no produce errores JavaScript, no recibe respuestas 500 y conserva navegacion estable.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "global-06",
+      "text": "La suite E2E conserva los proyectos creados/importados en la base local para revision posterior.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "login-01",
+      "text": "Login permite autenticar con email/password validos y redirige a Home con sesion persistida.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "login-02",
+      "text": "Login rechaza credenciales invalidas con un error visible y sin dejar una sesion activa.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "login-03",
+      "text": "Una sesion/cookie valida permite entrar a Home sin repetir login.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "login-04",
+      "text": "Las rutas protegidas redirigen a Login cuando no hay sesion valida.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "login-05",
+      "text": "La pantalla Login cumple cero overflow en escritorio y movil.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "login-06",
+      "text": "Login queda cubierto con captura visual y logs sin errores criticos.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "home-01",
+      "text": "Home lista proyectos existentes con nombre, fechas y acciones de navegacion estables.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "home-02",
+      "text": "Home muestra un estado vacio limpio cuando no hay proyectos visibles para el usuario.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "home-03",
+      "text": "Home permite abrir un proyecto importado o creado y llega a la ruta /project/<id> correcta.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "home-04",
+      "text": "Las fechas visibles en Home son deterministas y no cambian por locale/hidratacion entre SSR y cliente.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "home-05",
+      "text": "Home cumple cero overflow y mantiene controles accesibles en escritorio y movil.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "home-06",
+      "text": "Home queda cubierto con captura visual, video y logs por escenario.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "upload-01",
+      "text": "Upload importa el archivo real /Users/juanfelipebenitezramos/Downloads/20260303_Cronograma preconstrucción_DP 2.mpp.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "upload-02",
+      "text": "Upload funciona por UI autenticada y por endpoint/API usada por la suite E2E.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "upload-03",
+      "text": "La importacion conserva campos MPP clave: ID entero, Unique ID entero, WBS, fechas, duracion, dependencias, porcentaje y recursos cuando existan.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "upload-04",
+      "text": "Los errores del parser MPP se muestran como error recuperable y no como pantalla rota.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "upload-05",
+      "text": "Despues de importar, el proyecto abre en /project/<id> y contiene tareas, dependencias y matrixPlan persistidos en BD.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "upload-06",
+      "text": "Upload queda cubierto con captura, video, trace y logs del parser/API.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "new-project-01",
+      "text": "Crear Proyecto permite crear un proyecto matricial de vivienda con 3 etapas, una torre de 10 pisos por etapa y urbanismo.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "new-project-02",
+      "text": "El proyecto matricial nuevo incluye alcances Estructura, Arquitectura, Redes MEP y Urbanismo.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "new-project-03",
+      "text": "El proyecto matricial nuevo crea ubicaciones Etapa 1/Torre 1/Piso 01..10, Etapa 2/Torre 2/Piso 01..10, Etapa 3/Torre 3/Piso 01..10 y Urbanismo con Vias, Redes exteriores y Zonas comunes.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "new-project-04",
+      "text": "Crear Proyecto valida datos obligatorios y muestra errores visibles sin perder el formulario.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "new-project-05",
+      "text": "El proyecto matricial nuevo persiste en BD y sobrevive guardar, recargar y reabrir desde Home.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "new-project-06",
+      "text": "Crear Proyecto queda cubierto con evidencia nativa y E2E incluyendo logs de persistencia.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "gantt-01",
+      "text": "Gantt muestra ID y Id. unico como enteros estilo MS Project, sin slugs ni strings derivados del id interno.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "gantt-02",
+      "text": "Las tareas generadas desde matriz reciben ID, UNIQUE_ID y UID enteros secuenciales y persistibles.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "gantt-03",
+      "text": "Arrastrar una actividad a la derecha con el mouse la indenta: sube profundidad WBS y queda hija del grupo inmediatamente superior.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "gantt-04",
+      "text": "Arrastrar una actividad a la izquierda con el mouse la desindenta: baja profundidad WBS y deja de estar empaquetada en el grupo anterior.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "gantt-05",
+      "text": "Los cambios WBS por drag se guardan y sobreviven recarga del proyecto.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "gantt-06",
+      "text": "Gantt cumple cero overflow global: tabla y timeline manejan scroll interno sin crear franja vacia lateral en la pagina.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "executive-01",
+      "text": "Ejecutivo muestra KPIs principales del proyecto con datos reales: tareas, avance, duracion, fechas, ruta critica o indicadores equivalentes disponibles.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "executive-02",
+      "text": "Ejecutivo no muestra ceros falsos cuando el proyecto tiene datos; usa estados vacios solo cuando el dato realmente no existe.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "executive-03",
+      "text": "Ejecutivo permite exportar o preparar reporte sin bloquear la pantalla ni producir errores.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "executive-04",
+      "text": "Ejecutivo degrada limpiamente cuando faltan costos, baseline u otros datos opcionales.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "executive-05",
+      "text": "Ejecutivo cumple cero overflow y se puede revisar visualmente en captura.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "tracking-01",
+      "text": "Seguimiento muestra linea base o estado 'sin linea base' de forma clara y no rota.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "tracking-02",
+      "text": "Seguimiento compara plan vs real cuando hay datos suficientes.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "tracking-03",
+      "text": "Los controles de Seguimiento modifican vista o filtros sin errores ni perdida de contexto.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "tracking-04",
+      "text": "Los datos editados o seleccionados en Seguimiento persisten cuando el flujo los guarda.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "tracking-05",
+      "text": "Seguimiento cumple cero overflow y queda cubierto con evidencia visual y logs.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "task-sheet-01",
+      "text": "Hoja Tareas muestra columnas por defecto utiles: ID, Id. unico, EDT, actividad, fechas, duracion, avance y dependencias cuando existan.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "task-sheet-02",
+      "text": "Hoja Tareas conserva tipos MPP clave: identificadores enteros, fechas parseables, porcentajes numericos y duraciones consistentes.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "task-sheet-03",
+      "text": "Hoja Tareas permite edicion inline en campos editables y bloquea o degrada limpiamente los no editables.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "task-sheet-04",
+      "text": "Filtros, busqueda o seleccion en Hoja Tareas no rompen la tabla ni cambian IDs visibles.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "task-sheet-05",
+      "text": "Hoja Tareas cumple cero overflow con scroll interno controlado para muchas columnas.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "network-01",
+      "text": "Diagrama Red muestra nodos y dependencias del proyecto cuando existen relaciones.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "network-02",
+      "text": "Diagrama Red destaca ruta critica o tareas criticas cuando el calculo CPM las identifica.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "network-03",
+      "text": "Diagrama Red permite interaccion basica con nodos sin errores de layout.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "network-04",
+      "text": "Diagrama Red detecta o degrada ciclos/dependencias invalidas sin pantalla rota.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "network-05",
+      "text": "Diagrama Red cumple cero overflow y queda cubierto con captura y logs.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "resources-01",
+      "text": "Recursos muestra subvistas o secciones disponibles para asignaciones, carga y resumen de recursos.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "resources-02",
+      "text": "Recursos conserva campos importados de MPP cuando el archivo incluye recursos o asignaciones.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "resources-03",
+      "text": "Recursos permite editar o revisar asignaciones sin romper dependencias ni tareas.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "resources-04",
+      "text": "Recursos muestra estado vacio limpio si el proyecto no tiene recursos importados.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "resources-05",
+      "text": "Recursos cumple cero overflow y queda cubierto con evidencia visual y logs.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "lob-01",
+      "text": "Linea de Balance deriva patrones, ejes o series desde tareas reales y/o matrixPlan, no desde datos demo invisibles.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "lob-02",
+      "text": "Linea de Balance usa clasificacion semiautomatica auditada para familias de actividad: nombre, breadcrumb/WBS, capitulo/ruta, reglas regex, prioridad y confianza.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "lob-03",
+      "text": "Linea de Balance registra fuente de clasificacion, matchedBy, nivel de breadcrumb, confianza y motivo de revision cuando la familia no es automatica.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "lob-04",
+      "text": "Linea de Balance no aplica una familia solo por palabras ambiguas como Piso, Torre, Staff, Retiro, Ejes o Zona si el WBS/breadcrumb indica otra familia.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "lob-05",
+      "text": "Linea de Balance muestra estado limpio cuando no hay patrones suficientes y explica que falta clasificacion o matriz.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "lob-06",
+      "text": "Linea de Balance cumple cero overflow y queda cubierta con tests de datos, captura, video y logs.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "matrix-01",
+      "text": "Matriz muestra jerarquia de alcances y ubicaciones del proyecto con expandir/colapsar estable.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "matrix-02",
+      "text": "Matriz permite activar celdas y asignar recetas o actividades sin generar tareas duplicadas incoherentes.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "matrix-03",
+      "text": "Matriz sincroniza cambios hacia Gantt y Gantt conserva paridad con matrixPlan.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "matrix-04",
+      "text": "Matriz persiste celdas, jerarquia, recetas y tareas generadas despues de guardar y recargar.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "matrix-05",
+      "text": "Matriz cumple cero overflow y permite revisar tablas amplias con scroll interno controlado.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "matrix-06",
+      "text": "Matriz queda cubierta con tests de paridad matriz-Gantt y evidencia visual.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "scurve-01",
+      "text": "Curva S calcula curvas a partir de fuentes disponibles del proyecto: avance, duracion, costos o tareas segun corresponda.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "scurve-02",
+      "text": "Curva S muestra granularidad configurable o predeterminada sin romper el grafico.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "scurve-03",
+      "text": "Curva S degrada limpiamente cuando faltan costos o baseline y usa una fuente alternativa explicita.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "scurve-04",
+      "text": "Curva S no produce errores de grafico con proyectos importados ni con proyectos matriciales nuevos.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "scurve-05",
+      "text": "Curva S cumple cero overflow y queda cubierta con captura y logs.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "bottlenecks-01",
+      "text": "Cuellos identifica tipos de problemas relevantes: tareas sin predecesora, dependencias criticas, holgura negativa, atrasos o señales equivalentes disponibles.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "bottlenecks-02",
+      "text": "Cuellos asigna severidad clara a cada hallazgo y la muestra visualmente.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "bottlenecks-03",
+      "text": "Cuellos muestra recomendaciones sin modificar el cronograma automaticamente.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "bottlenecks-04",
+      "text": "Cuellos muestra estado limpio cuando no hay hallazgos.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "bottlenecks-05",
+      "text": "Cuellos cumple cero overflow y queda cubierto con captura, video y logs.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "conflicts-01",
+      "text": "Conflictos detecta problemas de dependencias, fechas o reglas del cronograma y los vincula a tarea/origen.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "conflicts-02",
+      "text": "Conflictos permite filtrar por tipo, severidad u origen sin perder resultados.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "conflicts-03",
+      "text": "Conflictos muestra estado limpio cuando no hay conflictos.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "conflicts-04",
+      "text": "Conflictos no persiste cambios automaticos al cronograma sin confirmacion explicita del usuario.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "conflicts-05",
+      "text": "Conflictos cumple cero overflow y queda cubierto con evidencia visual y logs.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "typical-unit-01",
+      "text": "Unidad Tipica detecta patrones repetidos de pisos, torres, etapas o unidades desde WBS/matrixPlan y tareas reales.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "typical-unit-02",
+      "text": "Unidad Tipica reutiliza el criterio semiautomatico de familias: breadcrumb/WBS/ruta, reglas, confianza y revision cuando la clasificacion sea ambigua.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "typical-unit-03",
+      "text": "Unidad Tipica muestra resumen visual comparando patrones entre pisos o ubicaciones equivalentes.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "typical-unit-04",
+      "text": "Unidad Tipica muestra estado limpio cuando no hay patron repetible suficiente.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "typical-unit-05",
+      "text": "Unidad Tipica cumple cero overflow y queda cubierta con tests, captura, video y logs.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "calendar-01",
+      "text": "Calendario muestra dias laborales, no laborales y festivos segun configuracion del proyecto.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "calendar-02",
+      "text": "Calendario superpone tareas o hitos relevantes en sus fechas correctas.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "calendar-03",
+      "text": "Calendario permite editar configuraciones permitidas sin corromper el cronograma.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "calendar-04",
+      "text": "Calendario respeta datos importados cuando el MPP trae calendario o excepciones reconocibles.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "calendar-05",
+      "text": "Calendario cumple cero overflow y queda cubierto con evidencia visual y logs.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "settings-01",
+      "text": "Configuracion permite editar ajustes de calendario y parametros del proyecto con validacion visible.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "settings-02",
+      "text": "Configuracion persiste cambios guardados y los refleja despues de recargar.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "settings-03",
+      "text": "Configuracion recalcula o solicita recalculo cuando un ajuste afecta fechas del cronograma.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "settings-04",
+      "text": "Configuracion bloquea valores invalidos sin dejar estado parcial corrupto.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "settings-05",
+      "text": "Configuracion cumple cero overflow y queda cubierta con captura, video y logs.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "evidence-01",
+      "text": "El reporte final indica rutas exactas a screenshots, videos, traces, logs JSON y reporte HTML.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "evidence-02",
+      "text": "La evidencia final incluye una revision manual explicita de las capturas para detectar overflow, pantallas vacias o modulos rotos.",
+      "comment": "",
+      "recommendedAutomatedVerification": false,
+      "automatedVerification": false
+    },
+    {
+      "id": "evidence-03",
+      "text": "El cierre solo se acepta si Playwright pasa en Chromium con workers=1 sobre Docker y con trace/video/screenshot habilitados.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "evidence-04",
+      "text": "La verificacion complementaria incluye tests unitarios/Jest, lint y build cuando el cambio toca codigo compartido.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "scope-01",
+      "text": "No se desplegara a produccion durante este goal.",
+      "comment": "",
+      "recommendedAutomatedVerification": false,
+      "automatedVerification": false
+    },
+    {
+      "id": "scope-02",
+      "text": "No se borraran proyectos E2E al finalizar.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "scope-03",
+      "text": "No se implementaran mutaciones automaticas por IA sobre el cronograma sin confirmacion explicita del usuario.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    },
+    {
+      "id": "scope-04",
+      "text": "No se hara un rediseño amplio no relacionado; los cambios visuales se limitan a corregir modulo, evidencia y cero overflow.",
+      "comment": "",
+      "recommendedAutomatedVerification": false,
+      "automatedVerification": false
+    },
+    {
+      "id": "scope-05",
+      "text": "Chromium es el navegador principal de evidencia; Firefox y WebKit quedan fuera salvo nueva instruccion.",
+      "comment": "",
+      "recommendedAutomatedVerification": true,
+      "automatedVerification": true
+    }
+  ]
+}

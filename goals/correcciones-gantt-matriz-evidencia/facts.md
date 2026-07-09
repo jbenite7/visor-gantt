@@ -1,0 +1,114 @@
+# Facts
+
+- La verificacion principal se ejecuta contra el runtime real de Docker, no solo contra componentes aislados.
+- Cada modulo principal de la app debe tener evidencia visual nueva: screenshot, video Playwright o captura del browser nativo cuando aplique.
+- Cada modulo principal debe adjuntar logs con consola, pageerror, requestfailed, respuestas >=400, URL final, modulo, escenario y timestamp.
+- La regla global de cero overflow se cumple cuando html/body no tienen scroll horizontal y los scrolls internos aparecen solo en regiones intencionales.
+- Un modulo se considera funcional cuando carga contenido distintivo, no produce errores JavaScript, no recibe respuestas 500 y conserva navegacion estable.
+- La suite E2E conserva los proyectos creados/importados en la base local para revision posterior.
+- Login permite autenticar con email/password validos y redirige a Home con sesion persistida.
+- Login rechaza credenciales invalidas con un error visible y sin dejar una sesion activa.
+- Una sesion/cookie valida permite entrar a Home sin repetir login.
+- Las rutas protegidas redirigen a Login cuando no hay sesion valida.
+- La pantalla Login cumple cero overflow en escritorio y movil.
+- Login queda cubierto con captura visual y logs sin errores criticos.
+- Home lista proyectos existentes con nombre, fechas y acciones de navegacion estables.
+- Home muestra un estado vacio limpio cuando no hay proyectos visibles para el usuario.
+- Home permite abrir un proyecto importado o creado y llega a la ruta /project/<id> correcta.
+- Las fechas visibles en Home son deterministas y no cambian por locale/hidratacion entre SSR y cliente.
+- Home cumple cero overflow y mantiene controles accesibles en escritorio y movil.
+- Home queda cubierto con captura visual, video y logs por escenario.
+- Upload importa el archivo real /Users/juanfelipebenitezramos/Downloads/20260303_Cronograma preconstrucción_DP 2.mpp.
+- Upload funciona por UI autenticada y por endpoint/API usada por la suite E2E.
+- La importacion conserva campos MPP clave: ID entero, Unique ID entero, WBS, fechas, duracion, dependencias, porcentaje y recursos cuando existan.
+- Los errores del parser MPP se muestran como error recuperable y no como pantalla rota.
+- Despues de importar, el proyecto abre en /project/<id> y contiene tareas, dependencias y matrixPlan persistidos en BD.
+- Upload queda cubierto con captura, video, trace y logs del parser/API.
+- Crear Proyecto permite crear un proyecto matricial de vivienda con 3 etapas, una torre de 10 pisos por etapa y urbanismo.
+- El proyecto matricial nuevo incluye alcances Estructura, Arquitectura, Redes MEP y Urbanismo.
+- El proyecto matricial nuevo crea ubicaciones Etapa 1/Torre 1/Piso 01..10, Etapa 2/Torre 2/Piso 01..10, Etapa 3/Torre 3/Piso 01..10 y Urbanismo con Vias, Redes exteriores y Zonas comunes.
+- Crear Proyecto valida datos obligatorios y muestra errores visibles sin perder el formulario.
+- El proyecto matricial nuevo persiste en BD y sobrevive guardar, recargar y reabrir desde Home.
+- Crear Proyecto queda cubierto con evidencia nativa y E2E incluyendo logs de persistencia.
+- Gantt muestra ID y Id. unico como enteros estilo MS Project, sin slugs ni strings derivados del id interno.
+- Las tareas generadas desde matriz reciben ID, UNIQUE_ID y UID enteros secuenciales y persistibles.
+- Arrastrar una actividad a la derecha con el mouse la indenta: sube profundidad WBS y queda hija del grupo inmediatamente superior.
+- Arrastrar una actividad a la izquierda con el mouse la desindenta: baja profundidad WBS y deja de estar empaquetada en el grupo anterior.
+- Los cambios WBS por drag se guardan y sobreviven recarga del proyecto.
+- Gantt cumple cero overflow global: tabla y timeline manejan scroll interno sin crear franja vacia lateral en la pagina.
+- Ejecutivo muestra KPIs principales del proyecto con datos reales: tareas, avance, duracion, fechas, ruta critica o indicadores equivalentes disponibles.
+- Ejecutivo no muestra ceros falsos cuando el proyecto tiene datos; usa estados vacios solo cuando el dato realmente no existe.
+- Ejecutivo permite exportar o preparar reporte sin bloquear la pantalla ni producir errores.
+- Ejecutivo degrada limpiamente cuando faltan costos, baseline u otros datos opcionales.
+- Ejecutivo cumple cero overflow y se puede revisar visualmente en captura.
+- Seguimiento muestra linea base o estado 'sin linea base' de forma clara y no rota.
+- Seguimiento compara plan vs real cuando hay datos suficientes.
+- Los controles de Seguimiento modifican vista o filtros sin errores ni perdida de contexto.
+- Los datos editados o seleccionados en Seguimiento persisten cuando el flujo los guarda.
+- Seguimiento cumple cero overflow y queda cubierto con evidencia visual y logs.
+- Hoja Tareas muestra columnas por defecto utiles: ID, Id. unico, EDT, actividad, fechas, duracion, avance y dependencias cuando existan.
+- Hoja Tareas conserva tipos MPP clave: identificadores enteros, fechas parseables, porcentajes numericos y duraciones consistentes.
+- Hoja Tareas permite edicion inline en campos editables y bloquea o degrada limpiamente los no editables.
+- Filtros, busqueda o seleccion en Hoja Tareas no rompen la tabla ni cambian IDs visibles.
+- Hoja Tareas cumple cero overflow con scroll interno controlado para muchas columnas.
+- Diagrama Red muestra nodos y dependencias del proyecto cuando existen relaciones.
+- Diagrama Red destaca ruta critica o tareas criticas cuando el calculo CPM las identifica.
+- Diagrama Red permite interaccion basica con nodos sin errores de layout.
+- Diagrama Red detecta o degrada ciclos/dependencias invalidas sin pantalla rota.
+- Diagrama Red cumple cero overflow y queda cubierto con captura y logs.
+- Recursos muestra subvistas o secciones disponibles para asignaciones, carga y resumen de recursos.
+- Recursos conserva campos importados de MPP cuando el archivo incluye recursos o asignaciones.
+- Recursos permite editar o revisar asignaciones sin romper dependencias ni tareas.
+- Recursos muestra estado vacio limpio si el proyecto no tiene recursos importados.
+- Recursos cumple cero overflow y queda cubierto con evidencia visual y logs.
+- Linea de Balance deriva patrones, ejes o series desde tareas reales y/o matrixPlan, no desde datos demo invisibles.
+- Linea de Balance usa clasificacion semiautomatica auditada para familias de actividad: nombre, breadcrumb/WBS, capitulo/ruta, reglas regex, prioridad y confianza.
+- Linea de Balance registra fuente de clasificacion, matchedBy, nivel de breadcrumb, confianza y motivo de revision cuando la familia no es automatica.
+- Linea de Balance no aplica una familia solo por palabras ambiguas como Piso, Torre, Staff, Retiro, Ejes o Zona si el WBS/breadcrumb indica otra familia.
+- Linea de Balance muestra estado limpio cuando no hay patrones suficientes y explica que falta clasificacion o matriz.
+- Linea de Balance cumple cero overflow y queda cubierta con tests de datos, captura, video y logs.
+- Matriz muestra jerarquia de alcances y ubicaciones del proyecto con expandir/colapsar estable.
+- Matriz permite activar celdas y asignar recetas o actividades sin generar tareas duplicadas incoherentes.
+- Matriz sincroniza cambios hacia Gantt y Gantt conserva paridad con matrixPlan.
+- Matriz persiste celdas, jerarquia, recetas y tareas generadas despues de guardar y recargar.
+- Matriz cumple cero overflow y permite revisar tablas amplias con scroll interno controlado.
+- Matriz queda cubierta con tests de paridad matriz-Gantt y evidencia visual.
+- Curva S calcula curvas a partir de fuentes disponibles del proyecto: avance, duracion, costos o tareas segun corresponda.
+- Curva S muestra granularidad configurable o predeterminada sin romper el grafico.
+- Curva S degrada limpiamente cuando faltan costos o baseline y usa una fuente alternativa explicita.
+- Curva S no produce errores de grafico con proyectos importados ni con proyectos matriciales nuevos.
+- Curva S cumple cero overflow y queda cubierta con captura y logs.
+- Cuellos identifica tipos de problemas relevantes: tareas sin predecesora, dependencias criticas, holgura negativa, atrasos o señales equivalentes disponibles.
+- Cuellos asigna severidad clara a cada hallazgo y la muestra visualmente.
+- Cuellos muestra recomendaciones sin modificar el cronograma automaticamente.
+- Cuellos muestra estado limpio cuando no hay hallazgos.
+- Cuellos cumple cero overflow y queda cubierto con captura, video y logs.
+- Conflictos detecta problemas de dependencias, fechas o reglas del cronograma y los vincula a tarea/origen.
+- Conflictos permite filtrar por tipo, severidad u origen sin perder resultados.
+- Conflictos muestra estado limpio cuando no hay conflictos.
+- Conflictos no persiste cambios automaticos al cronograma sin confirmacion explicita del usuario.
+- Conflictos cumple cero overflow y queda cubierto con evidencia visual y logs.
+- Unidad Tipica detecta patrones repetidos de pisos, torres, etapas o unidades desde WBS/matrixPlan y tareas reales.
+- Unidad Tipica reutiliza el criterio semiautomatico de familias: breadcrumb/WBS/ruta, reglas, confianza y revision cuando la clasificacion sea ambigua.
+- Unidad Tipica muestra resumen visual comparando patrones entre pisos o ubicaciones equivalentes.
+- Unidad Tipica muestra estado limpio cuando no hay patron repetible suficiente.
+- Unidad Tipica cumple cero overflow y queda cubierta con tests, captura, video y logs.
+- Calendario muestra dias laborales, no laborales y festivos segun configuracion del proyecto.
+- Calendario superpone tareas o hitos relevantes en sus fechas correctas.
+- Calendario permite editar configuraciones permitidas sin corromper el cronograma.
+- Calendario respeta datos importados cuando el MPP trae calendario o excepciones reconocibles.
+- Calendario cumple cero overflow y queda cubierto con evidencia visual y logs.
+- Configuracion permite editar ajustes de calendario y parametros del proyecto con validacion visible.
+- Configuracion persiste cambios guardados y los refleja despues de recargar.
+- Configuracion recalcula o solicita recalculo cuando un ajuste afecta fechas del cronograma.
+- Configuracion bloquea valores invalidos sin dejar estado parcial corrupto.
+- Configuracion cumple cero overflow y queda cubierta con captura, video y logs.
+- El reporte final indica rutas exactas a screenshots, videos, traces, logs JSON y reporte HTML.
+- La evidencia final incluye una revision manual explicita de las capturas para detectar overflow, pantallas vacias o modulos rotos.
+- El cierre solo se acepta si Playwright pasa en Chromium con workers=1 sobre Docker y con trace/video/screenshot habilitados.
+- La verificacion complementaria incluye tests unitarios/Jest, lint y build cuando el cambio toca codigo compartido.
+- No se desplegara a produccion durante este goal.
+- No se borraran proyectos E2E al finalizar.
+- No se implementaran mutaciones automaticas por IA sobre el cronograma sin confirmacion explicita del usuario.
+- No se hara un rediseño amplio no relacionado; los cambios visuales se limitan a corregir modulo, evidencia y cero overflow.
+- Chromium es el navegador principal de evidencia; Firefox y WebKit quedan fuera salvo nueva instruccion.

@@ -1,0 +1,363 @@
+{
+  "stage": "interview",
+  "title": "Correcciones Gantt, matriz y evidencia completa",
+  "goalSlug": "correcciones-gantt-matriz-evidencia",
+  "questions": [
+    {
+      "id": "global_success_contract",
+      "prompt": "Contrato global de exito para toda la app: confirma o ajusta el nivel esperado de correccion, evidencia y cero regresiones.",
+      "description": "Este contrato se aplicara a todos los modulos, ademas de las preguntas especificas por modulo.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Cada modulo debe quedar usable en Docker, sin errores JS, sin respuestas 500, sin overflow horizontal del documento, con datos reales visibles, persistencia cuando aplique, screenshot revisada, logs adjuntos y al menos una verificacion automatizada relevante. El browser nativo de Codex se usa para la auditoria visual critica y Playwright queda como paquete automatizado de evidencias.",
+      "recommendedOptionIds": ["docker", "native-browser", "zero-overflow", "logs", "automated"],
+      "options": [
+        { "id": "docker", "label": "Docker runtime real" },
+        { "id": "native-browser", "label": "Browser nativo Codex" },
+        { "id": "zero-overflow", "label": "Cero overflow global" },
+        { "id": "logs", "label": "Logs por modulo" },
+        { "id": "automated", "label": "Checks automatizados" }
+      ],
+      "required": true
+    },
+    {
+      "id": "login_module",
+      "prompt": "Modulo Login: responde estas 6 decisiones. 1) Que credenciales/roles deben validarse? 2) Que estados de error deben cubrirse? 3) Que debe verse en desktop/mobile sin overflow? 4) Que logs/errores son inaceptables? 5) Que evidencia visual esperas? 6) Que automatizacion debe bloquear regresiones?",
+      "description": "Incluye login por password, sesion/cookie y redireccion.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Validar admin seed y usuario E2E, error de credenciales invalidas, cookie segura segun entorno, redireccion a Home, formulario sin overflow, captura nativa de pantalla, logs sin pageerror/requestfailed critico y test E2E de login directo mas autenticacion por cookie.",
+      "recommendedOptionIds": ["password", "cookie", "invalid", "redirect", "visual", "e2e"],
+      "options": [
+        { "id": "password", "label": "Password login" },
+        { "id": "cookie", "label": "Sesion/cookie" },
+        { "id": "invalid", "label": "Errores visibles" },
+        { "id": "redirect", "label": "Redireccion Home" },
+        { "id": "visual", "label": "Captura nativa" },
+        { "id": "e2e", "label": "E2E bloqueo" }
+      ],
+      "required": true
+    },
+    {
+      "id": "home_module",
+      "prompt": "Modulo Home/Listado: responde estas 6 decisiones. 1) Que proyectos deben verse? 2) Como deben mostrarse fechas y conteos? 3) Que acciones principales deben funcionar? 4) Que filtros/estados vacios importan? 5) Que evidencia visual/logs esperas? 6) Que pruebas deben bloquear regresiones?",
+      "description": "Cubre lista de proyectos y navegacion a crear/importar/abrir.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Mostrar proyectos importados y matriciales conservados, fechas estables sin hydration mismatch, conteos correctos, abrir proyecto, ir a Upload y Nuevo Proyecto, estado vacio limpio, cero overflow, screenshot nativa, logs limpios y test de navegacion/listado.",
+      "recommendedOptionIds": ["projects", "dates", "navigation", "empty", "visual", "tests"],
+      "options": [
+        { "id": "projects", "label": "Proyectos visibles" },
+        { "id": "dates", "label": "Fechas estables" },
+        { "id": "navigation", "label": "Navegacion" },
+        { "id": "empty", "label": "Estado vacio" },
+        { "id": "visual", "label": "Evidencia visual" },
+        { "id": "tests", "label": "Tests listado" }
+      ],
+      "required": true
+    },
+    {
+      "id": "upload_module",
+      "prompt": "Modulo Upload/Import MPP: responde estas 6 decisiones. 1) Que archivo real debe ser obligatorio? 2) Debe usarse UI, API o ambos? 3) Que campos MPP deben preservarse? 4) Que fallos de parser/red deben mostrarse limpio? 5) Que evidencia audiovisual/logs esperas? 6) Que validacion automatizada debe quedar?",
+      "description": "Archivo principal: /Users/juanfelipebenitezramos/Downloads/20260303_Cronograma preconstrucción_DP 2.mpp.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Usar el archivo real exacto por UI y API cuando convenga, validar parser health, preservar ID/Unique ID/WBS/dependencias/campos importados, generar matrixPlan, abrir /project/<id>, manejar errores sin pantalla rota, capturar video/screenshot/logs y test E2E con validacion en BD.",
+      "recommendedOptionIds": ["real-file", "ui-api", "mpp-fields", "parser-errors", "evidence", "db"],
+      "options": [
+        { "id": "real-file", "label": "Archivo real" },
+        { "id": "ui-api", "label": "UI y API" },
+        { "id": "mpp-fields", "label": "Campos MPP" },
+        { "id": "parser-errors", "label": "Errores parser" },
+        { "id": "evidence", "label": "Video/capturas/logs" },
+        { "id": "db", "label": "Validar BD" }
+      ],
+      "required": true
+    },
+    {
+      "id": "new_project_module",
+      "prompt": "Modulo Crear Proyecto: responde estas 6 decisiones. 1) Que plantilla o matriz inicial debe existir? 2) Que datos minimos debe pedir? 3) Como se debe guardar y abrir? 4) Que validaciones de campos deben aplicar? 5) Que evidencia visual/logs esperas? 6) Que pruebas deben bloquear regresiones?",
+      "description": "Cubre proyecto desde cero con metodologia matricial de vivienda.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Crear proyecto vivienda matricial con 3 etapas, 1 torre de 10 pisos por etapa y urbanismo; pedir nombre/fecha/alcances/ubicaciones; guardar project_data completo; abrir proyecto persistido; validar errores de campos; cero overflow; evidencia nativa y E2E con BD.",
+      "recommendedOptionIds": ["housing", "matrix", "persistence", "validation", "visual", "e2e"],
+      "options": [
+        { "id": "housing", "label": "Vivienda 3 etapas" },
+        { "id": "matrix", "label": "Matriz inicial" },
+        { "id": "persistence", "label": "Persistencia" },
+        { "id": "validation", "label": "Validaciones" },
+        { "id": "visual", "label": "Captura nativa" },
+        { "id": "e2e", "label": "E2E/BD" }
+      ],
+      "required": true
+    },
+    {
+      "id": "gantt_module",
+      "prompt": "Modulo Gantt: responde estas 6 decisiones. 1) Como deben verse ID, ID unico y EDT? 2) Que debe hacer el arrastre horizontal izquierda/derecha? 3) Que ediciones de barras/fechas/duraciones deben persistir? 4) Que controles de zoom/vista deben funcionar? 5) Que regla de overflow aplica? 6) Que evidencia y pruebas son obligatorias?",
+      "description": "Incluye el caso exacto reportado en /project/126 y el demo seguro de drag.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "ID e ID unico deben ser enteros estilo MS Project; EDT debe recalcularse; arrastrar derecha indenta/empaqueta bajo el grupo superior inmediato y arrastrar izquierda outdenta; barras, dependencias y cambios guardan; zoom dia/semana/mes/trimestre funciona; cero overflow global; evidencia nativa con captura antes/despues y pruebas unit/E2E.",
+      "recommendedOptionIds": ["numeric-ids", "wbs-drag", "persistence", "zoom", "zero-overflow", "native-evidence"],
+      "options": [
+        { "id": "numeric-ids", "label": "IDs enteros" },
+        { "id": "wbs-drag", "label": "Drag WBS" },
+        { "id": "persistence", "label": "Persistencia" },
+        { "id": "zoom", "label": "Zoom/vistas" },
+        { "id": "zero-overflow", "label": "Cero overflow" },
+        { "id": "native-evidence", "label": "Evidencia nativa" }
+      ],
+      "required": true
+    },
+    {
+      "id": "executive_module",
+      "prompt": "Modulo Ejecutivo: responde estas 6 decisiones. 1) Que KPIs son obligatorios? 2) Que datos deben derivarse del cronograma real? 3) Que exportaciones deben funcionar? 4) Que degradacion limpia aplica si faltan datos? 5) Que evidencia visual/logs esperas? 6) Que automatizacion debe validar el modulo?",
+      "description": "Dashboard ejecutivo de costo, avance, alcance y salud del plan.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "KPIs de tareas, avance, duracion, dependencias, riesgos, costos cuando existan; derivar de project_data real; exportar/copiar/descargar/imprimir sin error; mostrar mensajes limpios si falta costo; cero overflow; screenshot/logs y test E2E de botones/export.",
+      "recommendedOptionIds": ["kpis", "real-data", "exports", "empty-states", "visual", "e2e"],
+      "options": [
+        { "id": "kpis", "label": "KPIs obligatorios" },
+        { "id": "real-data", "label": "Datos reales" },
+        { "id": "exports", "label": "Exportaciones" },
+        { "id": "empty-states", "label": "Estados limpios" },
+        { "id": "visual", "label": "Evidencia" },
+        { "id": "e2e", "label": "E2E export" }
+      ],
+      "required": true
+    },
+    {
+      "id": "tracking_module",
+      "prompt": "Modulo Seguimiento: responde estas 6 decisiones. 1) Que linea base debe guardarse? 2) Como se comparan plan vs real? 3) Que controles deben operar? 4) Que pasa si no hay baseline? 5) Que evidencia visual/logs esperas? 6) Que pruebas deben cubrir persistencia?",
+      "description": "Tracking Gantt, baseline y avance.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Guardar baseline desde tareas actuales, seleccionarla, comparar barras/fechas/avance, permitir estados sin baseline con mensaje claro, persistir baseline en project_data, cero overflow, evidencia nativa y test E2E de guardar/recargar.",
+      "recommendedOptionIds": ["baseline", "comparison", "controls", "empty", "visual", "persistence-tests"],
+      "options": [
+        { "id": "baseline", "label": "Linea base" },
+        { "id": "comparison", "label": "Plan vs real" },
+        { "id": "controls", "label": "Controles" },
+        { "id": "empty", "label": "Sin baseline" },
+        { "id": "visual", "label": "Evidencia" },
+        { "id": "persistence-tests", "label": "Persistencia" }
+      ],
+      "required": true
+    },
+    {
+      "id": "task_sheet_module",
+      "prompt": "Modulo Hoja de Tareas: responde estas 6 decisiones. 1) Que columnas deben verse por defecto? 2) Que ediciones inline deben permitirse? 3) Como funcionan filtros/seleccion/masivo? 4) Que campos MPP deben preservar tipo? 5) Que evidencia visual/logs esperas? 6) Que pruebas deben bloquear regresiones?",
+      "description": "Tabla operacional de tareas.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Mostrar ID, ID unico, EDT, actividad, resumen, duracion, comienzo, fin, predecesoras, avance; permitir edicion segura de tareas y campos editables; filtros por nombre/tipo; seleccion masiva; tipos MPP correctos; cero overflow; pruebas de render/edicion/filtro y evidencia E2E.",
+      "recommendedOptionIds": ["default-columns", "inline-edit", "filters", "mpp-types", "visual", "tests"],
+      "options": [
+        { "id": "default-columns", "label": "Columnas default" },
+        { "id": "inline-edit", "label": "Edicion inline" },
+        { "id": "filters", "label": "Filtros/seleccion" },
+        { "id": "mpp-types", "label": "Tipos MPP" },
+        { "id": "visual", "label": "Evidencia" },
+        { "id": "tests", "label": "Tests tabla" }
+      ],
+      "required": true
+    },
+    {
+      "id": "network_module",
+      "prompt": "Modulo Diagrama Red: responde estas 6 decisiones. 1) Que nodos/dependencias deben mostrarse? 2) Como se maneja ruta critica? 3) Que zoom/pan/seleccion debe existir? 4) Que pasa con ciclos o dependencias faltantes? 5) Que evidencia visual/logs esperas? 6) Que pruebas validan layout?",
+      "description": "Diagrama de red CPM.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Mostrar nodos por tarea y dependencias FS/SS/FF/SF, marcar critica, soportar seleccion y lectura estable, degradar ciclos con advertencia controlada, cero overflow, evidencia visual de red y tests de layout/topologia/ciclos.",
+      "recommendedOptionIds": ["nodes", "critical", "interaction", "cycles", "visual", "layout-tests"],
+      "options": [
+        { "id": "nodes", "label": "Nodos/deps" },
+        { "id": "critical", "label": "Ruta critica" },
+        { "id": "interaction", "label": "Interaccion" },
+        { "id": "cycles", "label": "Ciclos" },
+        { "id": "visual", "label": "Evidencia" },
+        { "id": "layout-tests", "label": "Tests layout" }
+      ],
+      "required": true
+    },
+    {
+      "id": "resources_module",
+      "prompt": "Modulo Recursos: responde estas 6 decisiones. 1) Que vistas de recursos/asignaciones/presupuesto entran? 2) Que campos MPP de recursos deben preservarse? 3) Que ediciones y asignaciones deben funcionar? 4) Que estados vacios deben ser limpios? 5) Que evidencia visual/logs esperas? 6) Que pruebas deben cubrirlo?",
+      "description": "Hoja de recursos, uso, asignaciones, presupuesto y mapeo.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Cubrir hoja de recursos, uso, asignaciones, presupuesto y mapeo; preservar UID/ID/tipo/costos/campos personalizados; permitir alta/edicion/borrado donde aplique; estados vacios sin romper; cero overflow; evidencia por subvista y tests de recursos/asignaciones.",
+      "recommendedOptionIds": ["subviews", "mpp-fields", "edits", "empty", "visual", "tests"],
+      "options": [
+        { "id": "subviews", "label": "Subvistas" },
+        { "id": "mpp-fields", "label": "Campos MPP" },
+        { "id": "edits", "label": "Ediciones" },
+        { "id": "empty", "label": "Estados vacios" },
+        { "id": "visual", "label": "Evidencia" },
+        { "id": "tests", "label": "Tests recursos" }
+      ],
+      "required": true
+    },
+    {
+      "id": "lob_module",
+      "prompt": "Modulo Linea de Balance: responde estas 6 decisiones. 1) Que patrones repetitivos debe detectar? 2) Que ejes/series son obligatorios? 3) Como se muestra si no hay repeticion suficiente? 4) Que datos matriciales deben reflejarse? 5) Que evidencia visual/logs esperas? 6) Que pruebas validan calculo y render?",
+      "description": "Flujo repetitivo por ubicacion/unidad.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Detectar pisos, unidades, WBS y matriz; graficar ubicacion vs tiempo por actividad; estado limpio cuando no hay repeticion; reflejar offsets LOB matriciales; cero overflow; evidencia visual y tests de deteccion/calculo/render.",
+      "recommendedOptionIds": ["patterns", "axes", "empty", "matrix", "visual", "tests"],
+      "options": [
+        { "id": "patterns", "label": "Patrones" },
+        { "id": "axes", "label": "Ejes/series" },
+        { "id": "empty", "label": "Estado limpio" },
+        { "id": "matrix", "label": "Datos matriz" },
+        { "id": "visual", "label": "Evidencia" },
+        { "id": "tests", "label": "Tests LOB" }
+      ],
+      "required": true
+    },
+    {
+      "id": "matrix_module",
+      "prompt": "Modulo Matriz: responde estas 6 decisiones. 1) Que jerarquia de alcances/ubicaciones debe soportar? 2) Que reglas de celdas/recetas/productividad aplican? 3) Como debe sincronizar con Gantt? 4) Que persistencia exacta debe garantizar? 5) Que evidencia visual/logs esperas? 6) Que pruebas deben proteger paridad matriz-Gantt?",
+      "description": "Editor matricial y paridad simetrica con cronograma.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Soportar 3 etapas, torres, pisos, urbanismo, alcances y recetas; activar celdas, cantidades, productividad y dependencias; sincronizar bidireccional con Gantt sin romper IDs/EDT; persistir matrixPlan/matrixSource/matrixSync; cero overflow; evidencia nativa y tests matrixGenerator/matrixSync/E2E.",
+      "recommendedOptionIds": ["hierarchy", "recipes", "sync", "persistence", "visual", "parity-tests"],
+      "options": [
+        { "id": "hierarchy", "label": "Jerarquia" },
+        { "id": "recipes", "label": "Celdas/recetas" },
+        { "id": "sync", "label": "Sync Gantt" },
+        { "id": "persistence", "label": "Persistencia" },
+        { "id": "visual", "label": "Evidencia" },
+        { "id": "parity-tests", "label": "Tests paridad" }
+      ],
+      "required": true
+    },
+    {
+      "id": "scurve_module",
+      "prompt": "Modulo Curva S: responde estas 6 decisiones. 1) Que curvas deben mostrarse? 2) Que fuentes de costo/avance se aceptan? 3) Que granularidad temporal aplica? 4) Que estado limpio si faltan costos? 5) Que evidencia visual/logs esperas? 6) Que pruebas validan calculo?",
+      "description": "Curva S, avance, presupuesto y valor ganado cuando haya datos.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Mostrar plan/real/valor ganado cuando existan datos, derivar avance de tareas y costos de budget/cost, granularidad semanal o mensual segun escala, estado limpio sin costos, cero overflow, evidencia visual y tests de scurve.",
+      "recommendedOptionIds": ["curves", "sources", "granularity", "empty", "visual", "tests"],
+      "options": [
+        { "id": "curves", "label": "Curvas" },
+        { "id": "sources", "label": "Fuentes datos" },
+        { "id": "granularity", "label": "Granularidad" },
+        { "id": "empty", "label": "Sin costos" },
+        { "id": "visual", "label": "Evidencia" },
+        { "id": "tests", "label": "Tests Curva S" }
+      ],
+      "required": true
+    },
+    {
+      "id": "bottlenecks_module",
+      "prompt": "Modulo Cuellos: responde estas 6 decisiones. 1) Que tipos de cuellos debe detectar? 2) Que severidades deben existir? 3) Que acciones/recomendaciones deben mostrarse? 4) Que pasa si no hay issues? 5) Que evidencia visual/logs esperas? 6) Que pruebas validan deteccion?",
+      "description": "Cuellos de botella y problemas del plan.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Detectar tareas sin predecesora relevante, solapes, recursos sobreasignados, duraciones raras y dependencias criticas; severidad alta/media/baja; recomendaciones accionables sin modificar automaticamente; estado limpio sin issues; cero overflow; tests de bottlenecks y evidencia E2E.",
+      "recommendedOptionIds": ["issue-types", "severity", "recommendations", "empty", "visual", "tests"],
+      "options": [
+        { "id": "issue-types", "label": "Tipos issue" },
+        { "id": "severity", "label": "Severidad" },
+        { "id": "recommendations", "label": "Recomendaciones" },
+        { "id": "empty", "label": "Sin issues" },
+        { "id": "visual", "label": "Evidencia" },
+        { "id": "tests", "label": "Tests cuellos" }
+      ],
+      "required": true
+    },
+    {
+      "id": "conflicts_module",
+      "prompt": "Modulo Conflictos: responde estas 6 decisiones. 1) Que conflictos deben detectarse? 2) Como se muestra origen y tarea afectada? 3) Que filtros o agrupaciones son necesarios? 4) Que degradacion limpia aplica? 5) Que evidencia visual/logs esperas? 6) Que pruebas deben validar violaciones?",
+      "description": "Conflictos de dependencias y coherencia del cronograma.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Detectar violaciones de dependencias, WBS incoherente, fechas imposibles y solapes; mostrar tarea, relacion, severidad y recomendacion; filtrar por severidad/tipo; estado limpio si no hay conflictos; cero overflow; tests conflicts y evidencia nativa.",
+      "recommendedOptionIds": ["dependency-conflicts", "source", "filters", "empty", "visual", "tests"],
+      "options": [
+        { "id": "dependency-conflicts", "label": "Conflictos deps" },
+        { "id": "source", "label": "Origen/tarea" },
+        { "id": "filters", "label": "Filtros" },
+        { "id": "empty", "label": "Estado limpio" },
+        { "id": "visual", "label": "Evidencia" },
+        { "id": "tests", "label": "Tests conflictos" }
+      ],
+      "required": true
+    },
+    {
+      "id": "typical_unit_module",
+      "prompt": "Modulo Unidad Tipica: responde estas 6 decisiones. 1) Que patrones de unidad/piso/sistema debe detectar? 2) Que resumen visual debe mostrar? 3) Que comparaciones entre unidades importan? 4) Que pasa si no hay unidades tipicas? 5) Que evidencia visual/logs esperas? 6) Que pruebas validan deteccion?",
+      "description": "Analisis de sistemas repetidos y unidades tipicas.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Detectar pisos/unidades/sistemas por WBS, nombre y matriz; mostrar actividades repetitivas, duracion, secuencia y desviaciones; comparar unidades; estado limpio si no hay patron; cero overflow; tests typicalUnit y evidencia E2E.",
+      "recommendedOptionIds": ["patterns", "summary", "comparison", "empty", "visual", "tests"],
+      "options": [
+        { "id": "patterns", "label": "Patrones unidad" },
+        { "id": "summary", "label": "Resumen visual" },
+        { "id": "comparison", "label": "Comparacion" },
+        { "id": "empty", "label": "Sin patron" },
+        { "id": "visual", "label": "Evidencia" },
+        { "id": "tests", "label": "Tests unidad" }
+      ],
+      "required": true
+    },
+    {
+      "id": "calendar_module",
+      "prompt": "Modulo Calendario: responde estas 6 decisiones. 1) Que dias laborales/festivos deben aplicarse? 2) Como se reflejan tareas sobre calendario? 3) Que ediciones deben estar permitidas? 4) Que pasa con calendarios importados? 5) Que evidencia visual/logs esperas? 6) Que pruebas validan reglas de calendario?",
+      "description": "Vista calendario del proyecto y feriados.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Aplicar calendario Colombia/proyecto importado, mostrar tareas por fecha y no laborales, permitir ajustes controlados en Configuracion, preservar calendarios importados, cero overflow, evidencia visual y tests projectCalendar/calendar view.",
+      "recommendedOptionIds": ["working-days", "task-overlay", "edits", "imported", "visual", "tests"],
+      "options": [
+        { "id": "working-days", "label": "Dias/festivos" },
+        { "id": "task-overlay", "label": "Tareas calendario" },
+        { "id": "edits", "label": "Ediciones" },
+        { "id": "imported", "label": "Importado" },
+        { "id": "visual", "label": "Evidencia" },
+        { "id": "tests", "label": "Tests calendario" }
+      ],
+      "required": true
+    },
+    {
+      "id": "settings_module",
+      "prompt": "Modulo Configuracion: responde estas 6 decisiones. 1) Que ajustes del calendario/proyecto deben existir? 2) Que validaciones de rango/hora aplican? 3) Que debe persistir al recargar? 4) Que cambios recalculan cronograma? 5) Que evidencia visual/logs esperas? 6) Que pruebas bloquean regresiones?",
+      "description": "Configuracion del calendario y preferencias del proyecto.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Permitir dias laborales, horas, festivos y overrides; validar rangos y duplicados; persistir en project_data; recalcular vistas afectadas sin mutaciones inesperadas; cero overflow; evidencia nativa y tests de CalendarSettingsView/projectCalendar.",
+      "recommendedOptionIds": ["calendar-settings", "validation", "persistence", "recalculation", "visual", "tests"],
+      "options": [
+        { "id": "calendar-settings", "label": "Ajustes calendario" },
+        { "id": "validation", "label": "Validacion" },
+        { "id": "persistence", "label": "Persistencia" },
+        { "id": "recalculation", "label": "Recalculo" },
+        { "id": "visual", "label": "Evidencia" },
+        { "id": "tests", "label": "Tests config" }
+      ],
+      "required": true
+    },
+    {
+      "id": "evidence_outputs",
+      "prompt": "Evidencia final: responde estas 6 decisiones. 1) Donde debe quedar la evidencia? 2) Que capturas deben verse inline al final? 3) Que videos/traces/logs son obligatorios? 4) Como se revisan manualmente los hallazgos? 5) Que reporte debe generarse? 6) Que criterios permiten cerrar el goal?",
+      "description": "Define el paquete final de prueba y revision.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "Guardar evidencia en v2/test-results/e2e y v2/playwright-report; incluir en la respuesta final capturas nativas clave; conservar videos/traces/logs JSON por modulo; revisar manualmente screenshots con IDs/overflow/estados limpios; generar reporte HTML; cerrar solo con Jest, lint, build, Docker, E2E completo y browser nativo verificados.",
+      "recommendedOptionIds": ["paths", "inline-screens", "videos-traces", "manual-review", "html-report", "done-gate"],
+      "options": [
+        { "id": "paths", "label": "Rutas evidencia" },
+        { "id": "inline-screens", "label": "Capturas inline" },
+        { "id": "videos-traces", "label": "Videos/traces/logs" },
+        { "id": "manual-review", "label": "Revision manual" },
+        { "id": "html-report", "label": "Reporte HTML" },
+        { "id": "done-gate", "label": "Criterio cierre" }
+      ],
+      "required": true
+    },
+    {
+      "id": "out_of_scope",
+      "prompt": "Fuera de alcance: responde estas 6 decisiones. 1) Se permite borrar proyectos E2E? 2) Se toca produccion? 3) Se cambian comportamientos de IA/asistente? 4) Se redisenan estilos globales fuera de bugs? 5) Se agregan navegadores Firefox/WebKit? 6) Se aceptan refactors amplios?",
+      "description": "Sirve para evitar que el goal crezca sin control.",
+      "answerMode": "multi-custom",
+      "recommendedAnswer": "No borrar proyectos E2E locales; no tocar produccion; no persistir cambios inteligentes/IA sin confirmacion; no redisenar globalmente salvo overflow/accesibilidad; Chromium principal y browser nativo Codex, Firefox/WebKit fuera salvo nueva orden; evitar refactors amplios.",
+      "recommendedOptionIds": ["keep-projects", "no-production", "no-ai-mutation", "no-redesign", "chromium-only", "no-wide-refactor"],
+      "options": [
+        { "id": "keep-projects", "label": "Conservar E2E" },
+        { "id": "no-production", "label": "No produccion" },
+        { "id": "no-ai-mutation", "label": "No mutacion IA" },
+        { "id": "no-redesign", "label": "No rediseno amplio" },
+        { "id": "chromium-only", "label": "Chromium principal" },
+        { "id": "no-wide-refactor", "label": "Sin refactor amplio" }
+      ],
+      "required": true
+    }
+  ]
+}
