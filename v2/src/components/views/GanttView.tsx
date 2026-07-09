@@ -268,12 +268,21 @@ function GanttViewInner({
   const didMountSaveStateRef = useRef(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const commandInputRef = useRef<HTMLInputElement>(null);
+  const previousActiveViewRef = useRef<ViewType | null>(null);
 
   useEffect(() => {
     if (initialRoleViewPreset) {
       setScale(initialRoleViewPreset.scale);
     }
   }, [initialRoleViewPreset, setScale]);
+
+  useEffect(() => {
+    const previousActiveView = previousActiveViewRef.current;
+    previousActiveViewRef.current = activeView;
+    if (activeView === "lob" && previousActiveView !== "lob") {
+      setScale("day");
+    }
+  }, [activeView, setScale]);
 
   /* ── Baselines ── */
   const [baselines, setBaselines] = useState<Baseline[]>(initialBaselines);
@@ -1537,6 +1546,8 @@ function GanttViewInner({
               <LineOfBalance
                 activities={automaticLOB.activities}
                 units={automaticLOB.units}
+                scale={scale}
+                onScaleChange={setScale}
               />
             </div>
           )}

@@ -8,6 +8,78 @@ import LineOfBalance from "./LineOfBalance";
 import type { LOBActivity, LOBUnit } from "@/types/lob";
 
 describe("LineOfBalance", () => {
+  test("follows project toolbar scale and exposes matching scale controls", () => {
+    const activities: LOBActivity[] = [
+      {
+        id: "act-a",
+        name: "Estructura",
+        taskIds: [1, 2],
+        plannedRate: 1,
+        unitLabel: "Piso",
+        plannedStart: new Date("2026-01-05"),
+        plannedFinish: new Date("2026-02-05"),
+      },
+    ];
+    const units: LOBUnit[] = [
+      {
+        activityId: "act-a",
+        unitIndex: 0,
+        plannedDate: new Date("2026-01-05"),
+      },
+      {
+        activityId: "act-a",
+        unitIndex: 1,
+        plannedDate: new Date("2026-02-05"),
+      },
+    ];
+    const onScaleChange = jest.fn();
+
+    const { rerender } = render(
+      <LineOfBalance
+        activities={activities}
+        units={units}
+        scale="day"
+        onScaleChange={onScaleChange}
+      />,
+    );
+
+    const chart = screen.getByTestId("line-of-balance");
+    expect(chart).toHaveAttribute("data-scale", "day");
+    expect(screen.getByRole("button", { name: "Día" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen
+        .getAllByTestId("lob-x-tick-label")
+        .some((label) => label.textContent?.includes("5 ene")),
+    ).toBe(true);
+
+    fireEvent.click(screen.getByTestId("lob-scale-quarter"));
+
+    expect(onScaleChange).toHaveBeenCalledWith("quarter");
+
+    rerender(
+      <LineOfBalance
+        activities={activities}
+        units={units}
+        scale="quarter"
+        onScaleChange={onScaleChange}
+      />,
+    );
+
+    expect(chart).toHaveAttribute("data-scale", "quarter");
+    expect(screen.getByRole("button", { name: "Trimestre" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen
+        .getAllByTestId("lob-x-tick-label")
+        .some((label) => label.textContent?.includes("T1 2026")),
+    ).toBe(true);
+  });
+
   test("keeps the first month visible when data starts after month start", () => {
     const activities: LOBActivity[] = [
       {
@@ -34,6 +106,14 @@ describe("LineOfBalance", () => {
     ];
 
     render(<LineOfBalance activities={activities} units={units} />);
+
+    expect(screen.getByTestId("line-of-balance")).toHaveAttribute("data-scale", "day");
+    expect(screen.getByRole("button", { name: "Día" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    fireEvent.click(screen.getByTestId("lob-scale-month"));
 
     const monthLabels = screen
       .getAllByTestId("lob-x-tick-label")
@@ -88,6 +168,14 @@ describe("LineOfBalance", () => {
     render(<LineOfBalance activities={activities} units={units} />);
 
     const chart = screen.getByTestId("line-of-balance");
+    expect(chart).toHaveAttribute("data-scale", "day");
+    expect(screen.getByRole("button", { name: "Día" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    fireEvent.click(screen.getByTestId("lob-scale-month"));
+
     const monthLabels = screen
       .getAllByTestId("lob-x-tick-label")
       .map((label) => label.textContent ?? "");

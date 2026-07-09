@@ -14,6 +14,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
+import type { GanttScale } from "@/components/gantt/types";
 import type { LOBActivity, LOBUnit } from "@/types/lob";
 import {
   computeLOBLayout,
@@ -35,7 +36,14 @@ const PAN_VISIBLE_RATIO_STEP = 0.25;
 
 // ── Helper functions ──────────────────────────────────────────────
 
-type LOBScale = "week" | "month";
+type LOBScale = GanttScale;
+
+const LOB_SCALE_OPTIONS: Array<{ scale: LOBScale; label: string }> = [
+  { scale: "day", label: "Día" },
+  { scale: "week", label: "Semanas" },
+  { scale: "month", label: "Meses" },
+  { scale: "quarter", label: "Trimestre" },
+];
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -76,6 +84,12 @@ function startOfMonth(date: Date): Date {
   return result;
 }
 
+function startOfQuarter(date: Date): Date {
+  const result = startOfMonth(date);
+  result.setMonth(Math.floor(result.getMonth() / 3) * 3);
+  return result;
+}
+
 function getISOWeek(date: Date): number {
   const result = startOfDay(date);
   result.setDate(result.getDate() + 4 - (result.getDay() || 7));
@@ -87,9 +101,16 @@ function getScaledDateDomain(min: Date, max: Date, scale: LOBScale): { min: Date
   const minTime = min.getTime();
   const maxTime = max.getTime();
   const range = Math.max(maxTime - minTime, MS_PER_DAY);
-  const minimumPadding = scale === "month" ? MS_PER_DAY * 2 : MS_PER_DAY;
+  const minimumPadding = scale === "day" ? MS_PER_DAY : MS_PER_DAY * 2;
   const padding = Math.max(range * 0.08, minimumPadding);
-  const domainMin = scale === "month" ? startOfMonth(min) : startOfWeek(min);
+  const domainMin =
+    scale === "day"
+      ? startOfDay(min)
+      : scale === "week"
+        ? startOfWeek(min)
+        : scale === "month"
+          ? startOfMonth(min)
+          : startOfQuarter(min);
 
   return {
     min: domainMin,
@@ -186,11 +207,21 @@ function panZoomCenterRatio(
 }
 
 function formatTickLabel(date: Date, scale: LOBScale): string {
+  if (scale === "day") {
+    const day = date.getDate();
+    const month = date.toLocaleString("es-ES", { month: "short" });
+    return `${day} ${month}`;
+  }
+
   if (scale === "month") {
     return date.toLocaleString("es-ES", {
       month: "short",
       year: "numeric",
     });
+  }
+
+  if (scale === "quarter") {
+    return `T${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`;
   }
 
   const day = date.getDate();
@@ -200,28 +231,48 @@ function formatTickLabel(date: Date, scale: LOBScale): string {
 
 function generateDateTicks(min: Date, max: Date, scale: LOBScale): Date[] {
   const ticks: Date[] = [];
+  const dayRange = Math.max(
+    1,
+    Math.ceil((max.getTime() - min.getTime()) / MS_PER_DAY) + 1,
+  );
+  const dayStep = scale === "day" ? Math.max(1, Math.ceil(dayRange / 16)) : 1;
   const pushTick = (tick: Date) => {
     const previous = ticks.at(-1);
     if (!previous || previous.getTime() !== tick.getTime()) {
       ticks.push(new Date(tick));
     }
   };
-  const current = scale === "month" ? startOfMonth(min) : startOfWeek(min);
+  const current =
+    scale === "day"
+      ? startOfDay(min)
+      : scale === "week"
+        ? startOfWeek(min)
+        : scale === "month"
+          ? startOfMonth(min)
+          : startOfQuarter(min);
 
   while (current < min) {
-    if (scale === "month") {
+    if (scale === "day") {
+      current.setDate(current.getDate() + dayStep);
+    } else if (scale === "week") {
+      current.setDate(current.getDate() + 7);
+    } else if (scale === "month") {
       current.setMonth(current.getMonth() + 1);
     } else {
-      current.setDate(current.getDate() + 7);
+      current.setMonth(current.getMonth() + 3);
     }
   }
 
   while (current <= max) {
     pushTick(current);
-    if (scale === "month") {
+    if (scale === "day") {
+      current.setDate(current.getDate() + dayStep);
+    } else if (scale === "week") {
+      current.setDate(current.getDate() + 7);
+    } else if (scale === "month") {
       current.setMonth(current.getMonth() + 1);
     } else {
-      current.setDate(current.getDate() + 7);
+      current.setMonth(current.getMonth() + 3);
     }
   }
   if (ticks.length === 0) ticks.push(new Date(min));
@@ -271,11 +322,19 @@ function isBottleneckDiagnostic(diagnostic: LOBDiagnostic): boolean {
 interface LineOfBalanceProps {
   activities: LOBActivity[];
   units: LOBUnit[];
+  scale?: GanttScale;
+  onScaleChange?: (scale: GanttScale) => void;
 }
 
-export default function LineOfBalance({ activities, units }: LineOfBalanceProps) {
+export default function LineOfBalance({
+  activities,
+  units,
+  scale: controlledScale,
+  onScaleChange,
+}: LineOfBalanceProps) {
   const clipPathId = useId().replace(/:/g, "");
-  const [scale, setScale] = useState<LOBScale>("month");
+  const [localScale, setLocalScale] = useState<LOBScale>("day");
+  const scale = controlledScale ?? localScale;
   const [zoomLevel, setZoomLevel] = useState(ZOOM_MIN);
   const [zoomCenterRatio, setZoomCenterRatio] = useState(0.5);
   const [dragState, setDragState] = useState<{
@@ -452,6 +511,13 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
     }
   };
 
+  const handleScaleChange = (nextScale: GanttScale) => {
+    if (controlledScale === undefined) {
+      setLocalScale(nextScale);
+    }
+    onScaleChange?.(nextScale);
+  };
+
   const panChart = (direction: -1 | 1) => {
     setZoomCenterRatio((current) =>
       panZoomCenterRatio(
@@ -613,17 +679,17 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
             </span>
           </button>
           <div className="lob-scale-toggle">
-            {(["week", "month"] as const).map((option) => (
+            {LOB_SCALE_OPTIONS.map((option) => (
               <button
-                key={option}
+                key={option.scale}
                 type="button"
                 className="lob-scale-toggle__button"
-                data-active={scale === option}
-                data-testid={`lob-scale-${option}`}
-                aria-pressed={scale === option}
-                onClick={() => setScale(option)}
+                data-active={scale === option.scale}
+                data-testid={`lob-scale-${option.scale}`}
+                aria-pressed={scale === option.scale}
+                onClick={() => handleScaleChange(option.scale)}
               >
-                {option === "week" ? "Semanas" : "Meses"}
+                {option.label}
               </button>
             ))}
           </div>
