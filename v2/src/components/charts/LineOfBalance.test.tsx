@@ -3,7 +3,7 @@
  */
 
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import LineOfBalance from "./LineOfBalance";
 import type { LOBActivity, LOBUnit } from "@/types/lob";
 
@@ -44,5 +44,16 @@ describe("LineOfBalance", () => {
 
     expect(screen.getByTestId("lob-feedback")).toHaveTextContent("Estructura");
     expect(screen.getAllByTestId("lob-feedback-card").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Meses" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Semanas" }));
+
+    expect(screen.getByRole("button", { name: "Semanas" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 });

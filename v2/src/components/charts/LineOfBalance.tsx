@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { LOBActivity, LOBUnit } from "@/types/lob";
 import { computeLOBLayout, diagnoseLOB } from "@/lib/scheduling/lob";
 
@@ -33,16 +33,25 @@ function formatDate(d: Date): string {
   return `${day} ${month} ${year}`;
 }
 
-function generateDateTicks(min: Date, max: Date): Date[] {
+function generateDateTicks(min: Date, max: Date, scale: "week" | "month"): Date[] {
   const ticks: Date[] = [];
   const current = new Date(min);
-  current.setDate(1); // Start of month
-  if (current < min) {
-    current.setMonth(current.getMonth() + 1);
+  if (scale === "month") {
+    current.setDate(1);
+    if (current < min) {
+      current.setMonth(current.getMonth() + 1);
+    }
+  } else {
+    const day = current.getDay() || 7;
+    current.setDate(current.getDate() - day + 1);
   }
   while (current <= max) {
     ticks.push(new Date(current));
-    current.setMonth(current.getMonth() + 1);
+    if (scale === "month") {
+      current.setMonth(current.getMonth() + 1);
+    } else {
+      current.setDate(current.getDate() + 7);
+    }
   }
   return ticks;
 }
@@ -55,6 +64,7 @@ interface LineOfBalanceProps {
 }
 
 export default function LineOfBalance({ activities, units }: LineOfBalanceProps) {
+  const [scale, setScale] = useState<"week" | "month">("month");
   const layout = useMemo(
     () => computeLOBLayout(activities, units),
     [activities, units],
@@ -72,8 +82,8 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
   const chartHeight = height - MARGIN.top - MARGIN.bottom;
 
   const dateTicks = useMemo(
-    () => generateDateTicks(layout.xScale.min, layout.xScale.max),
-    [layout.xScale.min, layout.xScale.max],
+    () => generateDateTicks(layout.xScale.min, layout.xScale.max, scale),
+    [layout.xScale.min, layout.xScale.max, scale],
   );
 
   const unitLabels = useMemo(() => {
@@ -115,56 +125,51 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
     return items;
   }, [layout.lines]);
 
-  if (layout.lines.length === 0) {
-    return (
-      <div
-        data-testid="line-of-balance"
-        className="apple-module apple-empty-state h-full"
-      >
-        <p>
-          No hay actividades de Línea de Balance disponibles.
-          <br />
-          <span style={{ fontSize: "0.8rem", opacity: 0.7 }}>
-            Configura actividades desde la vista de Gantt.
-          </span>
-        </p>
-      </div>
-    );
-  }
+  const hasLines = layout.lines.length > 0;
 
   return (
     <div
       data-testid="line-of-balance"
-      className="apple-module flex flex-col h-full overflow-auto"
+      className="apple-module flex h-full min-w-0 flex-col overflow-hidden"
     >
-      {/* Header */}
-      <div
-        className="apple-module-header px-4 py-2"
-      >
-        <h2
-          style={{
-            fontFamily: "var(--font-heading)",
-            fontSize: "0.9rem",
-            fontWeight: 600,
-            color: "var(--color-text-strong)",
-            margin: 0,
-          }}
-        >
-          Línea de Balance — Producción por Unidad
-        </h2>
-        <p
-          style={{
-            fontFamily: "var(--font-body)",
-            fontSize: "0.7rem",
-            color: "var(--color-text-muted)",
-            margin: "2px 0 0",
-          }}
-        >
-          Eje X: Tiempo &middot; Eje Y: Unidades de Producción &middot; Líneas sólidas: Planificado &middot; Líneas punteadas: Real
-        </p>
+      <div className="apple-module-header flex flex-wrap items-center justify-between gap-3 px-4 py-2">
+        <div className="min-w-0">
+          <h2 className="lob-header__title">
+            Línea de Balance — Producción por Unidad
+          </h2>
+          <p className="lob-header__description">
+            Eje X: Tiempo &middot; Eje Y: Ubicación/nivel &middot; Líneas sólidas: Planificado &middot; Líneas punteadas: Real
+          </p>
+        </div>
+        <div className="lob-scale-toggle">
+          {(["week", "month"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              className="lob-scale-toggle__button"
+              data-active={scale === option}
+              aria-pressed={scale === option}
+              onClick={() => setScale(option)}
+            >
+              {option === "week" ? "Semanas" : "Meses"}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {diagnostics.length > 0 && (
+      {!hasLines ? (
+        <div className="apple-empty-state lob-empty-state flex-1">
+          <p>
+            No se detectaron actividades repetitivas suficientes para generar Línea de Balance.
+            <br />
+            <span className="lob-empty-state__hint">
+              Usa tareas con WBS/nombres por nivel, piso o unidad para construir flujo de producción.
+            </span>
+          </p>
+        </div>
+      ) : null}
+
+      {hasLines && diagnostics.length > 0 && (
         <section
           data-testid="lob-feedback"
           className="apple-module-header grid gap-2 px-4 py-3 md:grid-cols-3"
@@ -177,8 +182,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
             >
               <div className="flex items-center justify-between gap-2">
                 <span
-                  className="text-[0.6875rem] font-semibold uppercase text-[var(--color-text-muted)]"
-                  style={{ letterSpacing: 0 }}
+                  className="lob-feedback-card__severity text-[0.6875rem] font-semibold uppercase text-[var(--color-text-muted)]"
                 >
                   {diagnostic.severity === "high"
                     ? "Alta"
@@ -196,8 +200,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
                 {diagnostic.message}
               </p>
               <p
-                className="mt-1 overflow-hidden text-xs text-[var(--color-text-muted)]"
-                style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}
+                className="lob-feedback-card__recommendation mt-1 overflow-hidden text-xs text-[var(--color-text-muted)]"
               >
                 {diagnostic.recommendation}
               </p>
@@ -206,17 +209,15 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
         </section>
       )}
 
-      {/* Chart */}
-      <div className="flex-1 min-h-0 flex items-start justify-center p-4 overflow-auto">
-        <svg
-          width={width}
-          height={height}
-          viewBox={`0 0 ${width} ${height}`}
-          style={{
-            fontFamily: "var(--font-body)",
-            fontSize: "11px",
-          }}
-        >
+      {hasLines ? (
+        <div className="flex min-h-0 min-w-0 flex-1 items-start justify-center overflow-x-hidden overflow-y-auto p-4">
+          <svg
+            width={width}
+            height={height}
+            viewBox={`0 0 ${width} ${height}`}
+            preserveAspectRatio="xMinYMin meet"
+            className="lob-chart"
+          >
           {/* Background */}
           <rect
             x={MARGIN.left}
@@ -226,7 +227,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
             fill="var(--color-bg-elevated)"
             stroke="var(--color-hairline)"
             strokeWidth={1}
-            rx="8"
+            className="lob-chart__frame"
           />
 
           {/* Horizontal grid lines (units) */}
@@ -434,8 +435,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
                 x={x}
                 y={height - MARGIN.bottom + 18}
                 textAnchor="middle"
-                fill="var(--color-text-muted)"
-                fontSize={10}
+                className="lob-chart__tick-label"
               >
                 {formatDate(tick)}
               </text>
@@ -451,8 +451,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
                 x={MARGIN.left - 10}
                 y={y + 4}
                 textAnchor="end"
-                fill="var(--color-text-muted)"
-                fontSize={10}
+                className="lob-chart__tick-label"
               >
                 {ul.label}
               </text>
@@ -464,9 +463,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
             x={MARGIN.left + chartWidth / 2}
             y={height - 8}
             textAnchor="middle"
-            fill="var(--aia-corp-dark)"
-            fontSize={12}
-            fontWeight={600}
+            className="lob-chart__axis-label"
           >
             Tiempo
           </text>
@@ -474,9 +471,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
             x={12}
             y={MARGIN.top + chartHeight / 2}
             textAnchor="middle"
-            fill="var(--aia-corp-dark)"
-            fontSize={12}
-            fontWeight={600}
+            className="lob-chart__axis-label"
             transform={`rotate(-90, 12, ${MARGIN.top + chartHeight / 2})`}
           >
             Unidades de Producción
@@ -507,10 +502,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
             <text
               x={0}
               y={0}
-              fill="var(--aia-corp-dark)"
-              fontSize={11}
-              fontWeight={600}
-              fontFamily="var(--font-heading)"
+              className="lob-chart__legend-title"
             >
               Leyenda
             </text>
@@ -531,8 +523,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
                 <text
                   x={24}
                   y={4}
-                  fill="var(--gray-700)"
-                  fontSize={10}
+                  className="lob-chart__legend-label"
                 >
                   {item.name}
                 </text>
@@ -543,18 +534,14 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
               <text
                 x={0}
                 y={0}
-                fill="var(--color-text-muted)"
-                fontSize={9}
-                fontStyle="italic"
+                className="lob-chart__legend-style"
               >
                 ─── Planificado
               </text>
               <text
                 x={0}
                 y={14}
-                fill="var(--color-text-muted)"
-                fontSize={9}
-                fontStyle="italic"
+                className="lob-chart__legend-style"
               >
                 - - - Real
               </text>
@@ -562,6 +549,7 @@ export default function LineOfBalance({ activities, units }: LineOfBalanceProps)
           </g>
         </svg>
       </div>
+      ) : null}
     </div>
   );
 }

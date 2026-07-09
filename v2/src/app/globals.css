@@ -1918,6 +1918,98 @@ h6 {
   color: var(--color-text-on-primary);
 }
 
+.lob-empty-state__hint {
+  font-size: var(--gantt-column-selector-font-size-md);
+  opacity: var(--disabled-opacity);
+}
+
+.lob-header__title {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-family: var(--font-heading), system-ui, sans-serif;
+  font-size: var(--gantt-toolbar-title-size);
+  font-weight: 600;
+}
+
+.lob-header__description {
+  margin: var(--project-view-sidebar-item-gap) 0 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: var(--gantt-toolbar-meta-size);
+}
+
+.lob-scale-toggle {
+  display: inline-flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  border: var(--border-width-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  padding: var(--project-view-sidebar-item-gap);
+}
+
+.lob-scale-toggle__button {
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-transparent);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: var(--gantt-topbar-font-size);
+  font-weight: 600;
+  padding: var(--gantt-aux-panel-button-padding-block) var(--gantt-topbar-control-padding-inline);
+}
+
+.lob-scale-toggle__button[data-active="true"] {
+  background: var(--aia-corp-main);
+  color: var(--color-text-on-primary);
+}
+
+.lob-feedback-card__severity {
+  letter-spacing: 0;
+}
+
+.lob-feedback-card__recommendation {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.lob-chart {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: var(--gantt-toolbar-meta-size);
+}
+
+.lob-chart__frame {
+  rx: var(--radius-md);
+}
+
+.lob-chart__tick-label,
+.lob-chart__legend-label {
+  fill: var(--color-text-muted);
+  font-size: var(--gantt-column-selector-font-size-md);
+}
+
+.lob-chart__axis-label,
+.lob-chart__legend-title {
+  fill: var(--aia-corp-dark);
+  font-size: var(--gantt-toolbar-meta-size);
+  font-weight: 600;
+}
+
+.lob-chart__legend-title {
+  font-family: var(--font-heading), system-ui, sans-serif;
+}
+
+.lob-chart__legend-style {
+  fill: var(--color-text-muted);
+  font-size: var(--gantt-column-selector-font-size-xs);
+  font-style: italic;
+}
+
 .apple-page {
   min-height: 100vh;
   background:

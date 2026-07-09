@@ -441,8 +441,8 @@ function GanttViewInner({
   }, [calculatedTasks]);
 
   const automaticLOB = useMemo(
-    () => generateAutomaticLOBFromTasks(calculatedTasks),
-    [calculatedTasks],
+    () => generateAutomaticLOBFromTasks(calculatedTasks, syncedMatrixPlan),
+    [calculatedTasks, syncedMatrixPlan],
   );
   const bottlenecks = useMemo(
     () => detectBottlenecks({ tasks: calculatedTasks, resources: calculatedResources, assignments: calculatedAssignments }),
@@ -1533,22 +1533,11 @@ function GanttViewInner({
           )}
 
           {activeView === "lob" && (
-            <div className="flex-1 flex items-center justify-center text-gray-500 h-full">
-              {automaticLOB.activities.length > 0 ? (
-                <LineOfBalance
-                  activities={automaticLOB.activities}
-                  units={automaticLOB.units}
-                />
-              ) : (
-                <div className="apple-section max-w-xl px-6 py-8 text-center">
-                  <p className="text-sm font-semibold text-[var(--color-text-strong)]">
-                    No se detectaron actividades repetitivas suficientes para generar Línea de Balance.
-                  </p>
-                  <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-                    Usa tareas con WBS/nombres por nivel, piso o unidad para construir flujo de producción.
-                  </p>
-                </div>
-              )}
+            <div className="min-h-0 min-w-0 flex-1">
+              <LineOfBalance
+                activities={automaticLOB.activities}
+                units={automaticLOB.units}
+              />
             </div>
           )}
 

@@ -7,6 +7,7 @@
 
 import type { LOBActivity, LOBUnit } from "@/types/lob";
 import type { GanttTask } from "@/components/gantt/types";
+import type { MatrixPlan } from "@/types/matrix";
 
 // ── Layout types ──────────────────────────────────────────────────
 
@@ -64,6 +65,12 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function daysBetween(left: Date, right: Date): number {
   return Math.round((right.getTime() - left.getTime()) / MS_PER_DAY);
+}
+
+function addCalendarDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
 }
 
 // ── Core computation ──────────────────────────────────────────────
@@ -459,7 +466,50 @@ function getWbsKey(wbs: string | undefined, depth: number): string | null {
   return parts.slice(0, depth).join(".");
 }
 
-function generateTextLOBFromTasks(tasks: GanttTask[]): AutomaticLOBResult {
+function matrixRhythmDays(
+  group: Array<{ task: GanttTask }>,
+  matrixPlan: MatrixPlan | undefined,
+): number | undefined {
+  if (!matrixPlan) return undefined;
+  const recipeById = new Map(matrixPlan.recipes.map((recipe) => [recipe.id, recipe]));
+  for (const item of group) {
+    const recipeId = item.task.matrixSource?.recipeId;
+    if (!recipeId) continue;
+    const offsetDays = recipeById.get(recipeId)?.lineOfBalance?.offsetDays;
+    if (offsetDays != null && offsetDays > 0) return offsetDays;
+  }
+  return undefined;
+}
+
+function plannedDatesForTextGroup(
+  sorted: Array<{ task: GanttTask }>,
+  matrixPlan: MatrixPlan | undefined,
+): Date[] {
+  const taskStarts = sorted.map((item) => item.task.start);
+  if (taskStarts.length < 2) return taskStarts;
+
+  const minTime = Math.min(...taskStarts.map((date) => date.getTime()));
+  const maxTime = Math.max(...taskStarts.map((date) => date.getTime()));
+  if (minTime !== maxTime) return taskStarts;
+
+  const rhythmDays = matrixRhythmDays(sorted, matrixPlan);
+  if (!rhythmDays) return taskStarts;
+
+  const baseDate = new Date(minTime);
+  return sorted.map((_, index) => addCalendarDays(baseDate, index * rhythmDays));
+}
+
+function taskDurationDays(task: GanttTask): number {
+  if (typeof task.duration === "number" && Number.isFinite(task.duration)) {
+    return Math.max(1, task.duration);
+  }
+  return Math.max(1, daysBetween(task.start, task.finish) + 1);
+}
+
+function generateTextLOBFromTasks(
+  tasks: GanttTask[],
+  matrixPlan?: MatrixPlan,
+): AutomaticLOBResult {
   const candidates = tasks
     .filter((task) => !task.isSummary && !task.isMilestone)
     .map((task) => ({ task, unit: detectUnit(`${task.wbs ?? ""} ${task.name}`) }))
@@ -488,10 +538,13 @@ function generateTextLOBFromTasks(tasks: GanttTask[]): AutomaticLOBResult {
       if (a.unit.index !== b.unit.index) return a.unit.index - b.unit.index;
       return a.task.start.getTime() - b.task.start.getTime();
     });
+    const plannedDates = plannedDatesForTextGroup(sorted, matrixPlan);
 
     detectedUnitLabel = sorted[0].unit.label;
-    const starts = sorted.map((item) => item.task.start.getTime());
-    const finishes = sorted.map((item) => item.task.finish.getTime());
+    const starts = plannedDates.map((date) => date.getTime());
+    const finishes = sorted.map((item, index) =>
+      addCalendarDays(plannedDates[index], taskDurationDays(item.task) - 1).getTime(),
+    );
     const plannedStart = new Date(Math.min(...starts));
     const plannedFinish = new Date(Math.max(...finishes));
     const durationDays = Math.max(
@@ -514,7 +567,7 @@ function generateTextLOBFromTasks(tasks: GanttTask[]): AutomaticLOBResult {
       units.push({
         activityId,
         unitIndex,
-        plannedDate: item.task.start,
+        plannedDate: plannedDates[unitIndex],
       });
     });
   }
@@ -637,8 +690,11 @@ function generateWBSLOBFromTasks(tasks: GanttTask[]): AutomaticLOBResult {
   return { activities, units, detectedUnitLabel };
 }
 
-export function generateAutomaticLOBFromTasks(tasks: GanttTask[]): AutomaticLOBResult {
-  const textResult = generateTextLOBFromTasks(tasks);
+export function generateAutomaticLOBFromTasks(
+  tasks: GanttTask[],
+  matrixPlan?: MatrixPlan,
+): AutomaticLOBResult {
+  const textResult = generateTextLOBFromTasks(tasks, matrixPlan);
   if (textResult.activities.length > 0) return textResult;
   return generateWBSLOBFromTasks(tasks);
 }

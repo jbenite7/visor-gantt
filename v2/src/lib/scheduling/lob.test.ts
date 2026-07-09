@@ -6,6 +6,7 @@ import {
 } from "./lob";
 import type { LOBActivity, LOBUnit } from "@/types/lob";
 import type { GanttTask } from "@/components/gantt/types";
+import type { MatrixPlan } from "@/types/matrix";
 import type { ActivityMapping } from "./lob";
 
 // ---------------------------------------------------------------------------
@@ -453,6 +454,79 @@ describe("generateAutomaticLOBFromTasks", () => {
       "Cimbra Columnas",
     ]);
     expect(result.units).toHaveLength(4);
+  });
+
+  it("uses matrix line-of-balance rhythm when generated tasks have collapsed dates", () => {
+    const baseTask = {
+      duration: 2,
+      progress: 0,
+      isCritical: false,
+      isMilestone: false,
+      isSummary: false,
+      outlineLevel: 5,
+      dependencies: [],
+      start: new Date("2026-01-05"),
+      finish: new Date("2026-01-06"),
+      matrixSource: {
+        matrixPlanId: "matrix-1",
+        scopeId: "estructura",
+        areaId: "piso-1",
+        cellId: "cell-1",
+        recipeId: "estructura-concreto",
+        activityId: "formaleta",
+      },
+    } satisfies Partial<GanttTask>;
+    const tasks: GanttTask[] = [
+      {
+        ...baseTask,
+        id: "piso-1-formaleta",
+        name: "Estructura - Formaleta - Piso 01",
+        wbs: "1.1.1.1.1",
+      },
+      {
+        ...baseTask,
+        id: "piso-2-formaleta",
+        name: "Estructura - Formaleta - Piso 02",
+        wbs: "1.1.1.2.1",
+        matrixSource: { ...baseTask.matrixSource, areaId: "piso-2", cellId: "cell-2" },
+      },
+      {
+        ...baseTask,
+        id: "piso-3-formaleta",
+        name: "Estructura - Formaleta - Piso 03",
+        wbs: "1.1.1.3.1",
+        matrixSource: { ...baseTask.matrixSource, areaId: "piso-3", cellId: "cell-3" },
+      },
+    ];
+    const matrixPlan = {
+      id: "matrix-1",
+      name: "Vivienda",
+      startDate: "2026-01-05",
+      scopeTree: [],
+      areas: [],
+      recipes: [
+        {
+          id: "estructura-concreto",
+          name: "Estructura en concreto",
+          activities: [],
+          dependencies: [],
+          lineOfBalance: { scopeType: "Piso", offsetDays: 2 },
+        },
+      ],
+      cells: [],
+    } satisfies MatrixPlan;
+
+    const result = generateAutomaticLOBFromTasks(tasks, matrixPlan);
+    const formaletaUnits = result.units.filter((unit) => unit.activityId === "auto-lob-0");
+
+    expect(formaletaUnits.map((unit) => unit.plannedDate.toISOString().slice(0, 10))).toEqual([
+      "2026-01-05",
+      "2026-01-07",
+      "2026-01-09",
+    ]);
+    expect(
+      new Set(formaletaUnits.map((unit) => unit.plannedDate.getTime())).size,
+    ).toBe(3);
   });
 
   it("detects repetitive activities from WBS hierarchy when explicit units are absent", () => {
