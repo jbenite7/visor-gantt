@@ -1,7 +1,15 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { Check, Grid3X3, Plus, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
+import {
+  Check,
+  CornerDownRight,
+  Grid3X3,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import type { GanttTask } from "@/components/gantt/types";
 import type {
   ActivityRecipe,
@@ -53,6 +61,40 @@ const matrixInputClass =
 
 const matrixIconButtonClass =
   "inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)]";
+
+const scopeTypeOptions = [
+  "Capitulo",
+  "Subcapitulo",
+  "Disciplina",
+  "Partida",
+  "Actividad tipo",
+  "Sub-Alcance",
+  "Resumen MPP",
+  "Tarea MPP",
+];
+
+const areaTypeOptions = [
+  "Etapa",
+  "Torre",
+  "Nivel",
+  "Piso",
+  "Unidad",
+  "Ambiente",
+  "Sub-Ubicacion",
+  "Ubicacion",
+  "Apartamento",
+  "Habitacion",
+  "Zona",
+  "Local",
+  "Km",
+  "MPP",
+];
+
+function includeCurrentTypeOption(options: string[], currentValue?: string): string[] {
+  const current = currentValue?.trim();
+  if (!current || options.includes(current)) return options;
+  return [current, ...options];
+}
 
 function clonePlan(plan: MatrixPlan): MatrixPlan {
   return JSON.parse(JSON.stringify(plan)) as MatrixPlan;
@@ -606,14 +648,16 @@ export default function MatrixEditorView({
               <button
                 type="button"
                 aria-label={`Agregar hijo a ${node.name}`}
+                title={`Agregar hijo a ${node.name}`}
                 onClick={() => addScopeChild(node.id)}
                 className={matrixIconButtonClass}
               >
-                <Plus size={14} />
+                <CornerDownRight size={14} />
               </button>
               <button
                 type="button"
                 aria-label={`Agregar hermano de ${node.name}`}
+                title={`Agregar hermano de ${node.name}`}
                 onClick={() => addScopeSibling(node.id)}
                 className={matrixIconButtonClass}
               >
@@ -642,15 +686,20 @@ export default function MatrixEditorView({
               </label>
               <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                 Tipo
-                <input
+                <select
                   aria-label={`Tipo alcance ${node.name}`}
-                  list="matrix-scope-type-suggestions"
                   value={node.type}
                   onChange={(event) =>
                     updateScopeDetails(node.id, { type: event.target.value })
                   }
                   className={matrixInputClass}
-                />
+                >
+                  {includeCurrentTypeOption(scopeTypeOptions, node.type).map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                 Receta
@@ -697,14 +746,16 @@ export default function MatrixEditorView({
               <button
                 type="button"
                 aria-label={`Agregar hijo a ${node.name}`}
+                title={`Agregar hijo a ${node.name}`}
                 onClick={() => addAreaChild(node.id)}
                 className={matrixIconButtonClass}
               >
-                <Plus size={14} />
+                <CornerDownRight size={14} />
               </button>
               <button
                 type="button"
                 aria-label={`Agregar hermano de ${node.name}`}
+                title={`Agregar hermano de ${node.name}`}
                 onClick={() => addAreaSibling(node.id)}
                 className={matrixIconButtonClass}
               >
@@ -733,15 +784,21 @@ export default function MatrixEditorView({
               </label>
               <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                 Tipo
-                <input
+                <select
                   aria-label={`Tipo ubicacion ${node.name}`}
-                  list="matrix-area-type-suggestions"
                   value={node.type ?? ""}
                   onChange={(event) =>
-                    updateAreaDetails(node.id, { type: event.target.value })
+                    updateAreaDetails(node.id, { type: event.target.value || undefined })
                   }
                   className={matrixInputClass}
-                />
+                >
+                  <option value="">Sin tipo</option>
+                  {includeCurrentTypeOption(areaTypeOptions, node.type).map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
               </label>
             </div>
           </div>
@@ -823,22 +880,6 @@ export default function MatrixEditorView({
           </button>
         </div>
       </div>
-
-      <datalist id="matrix-scope-type-suggestions">
-        <option value="Capitulo" />
-        <option value="Subcapitulo" />
-        <option value="Disciplina" />
-        <option value="Partida" />
-        <option value="Actividad tipo" />
-      </datalist>
-      <datalist id="matrix-area-type-suggestions">
-        <option value="Etapa" />
-        <option value="Torre" />
-        <option value="Nivel" />
-        <option value="Piso" />
-        <option value="Unidad" />
-        <option value="Ambiente" />
-      </datalist>
 
       <div className="apple-module-header shrink-0 flex items-center gap-2 px-3 py-2">
         <div className="apple-segmented">
