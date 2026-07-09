@@ -47,13 +47,13 @@ export default async function Home() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="apple-panel inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
+            <span className="apple-panel inline-flex items-center gap-1.5 rounded-[var(--radius-lg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
               <Database size={13} aria-hidden />
               <span
-                className={`ml-1.5 inline-block w-2 h-2 rounded-full ${
+                className={`ml-1.5 inline-block h-2 w-2 rounded-[var(--radius-pill)] ${
                   dbStatus === "Conectado"
-                    ? "bg-emerald-500"
-                    : "bg-red-500"
+                    ? "bg-[var(--aia-corp-main)]"
+                    : "bg-[var(--aia-alert-main)]"
                 }`}
               />
               <span className="ml-1">{dbStatus}</span>
@@ -78,7 +78,7 @@ export default async function Home() {
             <form action="/project/new" method="get">
               <button
                 type="submit"
-                className="apple-button-primary inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors"
+                className="apple-button-primary inline-flex items-center gap-2 rounded-[var(--radius-lg)] px-4 py-2.5 text-sm font-semibold transition-colors"
               >
                 <Plus size={16} aria-hidden />
                 Nuevo Proyecto
@@ -90,8 +90,8 @@ export default async function Home() {
         {projects.length > 0 ? (
           <ProjectList projects={projects} />
         ) : (
-          <div className="apple-dropzone rounded-lg px-6 py-16 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] text-[var(--aia-corp-main)] shadow-sm">
+          <div className="apple-dropzone rounded-[var(--radius-lg)] px-6 py-16 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] text-[var(--aia-corp-main)] shadow-sm">
               <FolderKanban size={28} aria-hidden />
             </div>
             <p className="font-semibold text-[var(--color-text-strong)]">
@@ -107,7 +107,7 @@ export default async function Home() {
         <div className="mt-8 flex gap-4">
           <Link
             href="/gantt-demo"
-            className="apple-button-secondary inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
+            className="apple-button-secondary inline-flex items-center gap-2 rounded-[var(--radius-lg)] px-3 py-2 text-sm font-semibold transition-colors"
           >
             <UploadCloud size={15} aria-hidden />
             Ver Demo Gantt

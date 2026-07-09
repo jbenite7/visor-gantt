@@ -8,7 +8,7 @@ export default async function AuthMenu() {
 
   return (
     <form action={logoutAction} className="flex items-center gap-3">
-      <span className="apple-panel inline-flex max-w-56 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
+      <span className="apple-panel inline-flex max-w-56 items-center gap-1.5 rounded-[var(--radius-lg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)]">
         <UserCircle size={14} aria-hidden />
         <span className="truncate">
           {user.email}
@@ -16,7 +16,7 @@ export default async function AuthMenu() {
       </span>
       <button
         type="submit"
-        className="apple-button-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+        className="apple-button-secondary inline-flex items-center gap-1.5 rounded-[var(--radius-lg)] px-3 py-1.5 text-xs font-semibold"
       >
         <LogOut size={13} aria-hidden />
         Salir

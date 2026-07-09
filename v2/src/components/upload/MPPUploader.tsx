@@ -129,7 +129,7 @@ export default function MPPUploader({
         onDrop={handleDrop}
         onClick={handleClick}
         className={`
-          apple-dropzone relative rounded-lg p-12 text-center transition-all cursor-pointer
+          apple-dropzone relative rounded-[var(--radius-lg)] p-12 text-center transition-all cursor-pointer
           ${
             isDragging
               ? "scale-[1.01] border-[var(--aia-corp-main)]"
@@ -151,7 +151,7 @@ export default function MPPUploader({
         />
 
         <div className="space-y-4">
-          <div className="apple-card mx-auto w-16 h-16 rounded-full flex items-center justify-center">
+          <div className="apple-card mx-auto flex h-16 w-16 items-center justify-center rounded-[var(--radius-pill)]">
             {isProcessing ? (
               <Loader2 className="h-8 w-8 animate-spin text-[var(--aia-corp-main)]" />
             ) : (
@@ -192,7 +192,7 @@ export default function MPPUploader({
         onClick={handleClick}
         disabled={disabled || isProcessing}
         className={`
-          w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-colors
+          w-full rounded-[var(--radius-lg)] px-4 py-2.5 text-sm font-medium transition-colors
           ${
             disabled || isProcessing
               ? "apple-button-secondary text-[var(--color-text-muted)] cursor-not-allowed"
@@ -205,7 +205,7 @@ export default function MPPUploader({
 
       {/* Error Display */}
       {error && (
-        <div className="flex items-start gap-3 rounded-lg border border-[var(--aia-alert-main)] bg-[var(--aia-alert-xlight)] p-3 text-sm text-[var(--aia-alert-main)]">
+        <div className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-[var(--aia-alert-main)] bg-[var(--aia-alert-xlight)] p-3 text-sm text-[var(--aia-alert-main)]">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
           <span>{error}</span>
         </div>

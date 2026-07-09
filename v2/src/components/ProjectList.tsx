@@ -58,7 +58,7 @@ export default function ProjectList({ projects }: { projects: Project[] }) {
           className="apple-card flex items-center justify-between gap-4 px-5 py-4 transition-shadow hover:shadow-md"
         >
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-surface-secondary)] text-[var(--aia-corp-main)]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-bg-surface-secondary)] text-[var(--aia-corp-main)]">
               <FolderOpen size={19} aria-hidden />
             </div>
             <div className="min-w-0">
@@ -73,14 +73,14 @@ export default function ProjectList({ projects }: { projects: Project[] }) {
           <div className="ml-4 flex shrink-0 items-center gap-2">
             <Link
               href={`/project/${project.id}`}
-              className="apple-button-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors"
+              className="apple-button-secondary inline-flex items-center gap-1.5 rounded-[var(--radius-lg)] px-3 py-1.5 text-sm font-semibold transition-colors"
             >
               Abrir
             </Link>
             <button
               onClick={() => handleDelete(project.id, project.name)}
               disabled={deleting === project.id}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-transparent px-3 py-1.5 text-sm font-semibold text-[var(--aia-alert-main)] transition-colors hover:border-[var(--aia-alert-main)] hover:bg-[var(--aia-alert-xlight)] disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-[var(--radius-lg)] border border-transparent px-3 py-1.5 text-sm font-semibold text-[var(--aia-alert-main)] transition-colors hover:border-[var(--aia-alert-main)] hover:bg-[var(--aia-alert-xlight)] disabled:opacity-50"
             >
               <Trash2 size={14} aria-hidden />
               {deleting === project.id ? "..." : "Eliminar"}

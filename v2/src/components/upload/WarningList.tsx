@@ -9,7 +9,7 @@ export default function WarningList({ warnings, onDismiss }: WarningListProps) {
   if (warnings.length === 0) return null;
 
   return (
-    <div className="p-3 rounded-lg bg-amber-950/20 border border-amber-700/50 text-amber-400 text-sm">
+    <div className="rounded-[var(--radius-lg)] border border-[var(--aia-alert-main)] bg-[var(--aia-alert-xlight)] p-3 text-sm text-[var(--aia-alert-main)]">
       <div className="flex items-start gap-3">
         <svg
           className="w-5 h-5 shrink-0 mt-0.5"
@@ -28,7 +28,7 @@ export default function WarningList({ warnings, onDismiss }: WarningListProps) {
           <p className="font-medium mb-1">Advertencias:</p>
           <ul className="list-disc list-inside space-y-0.5">
             {warnings.map((warning, index) => (
-              <li key={index} className="text-amber-300/80">
+              <li key={index} className="text-[var(--aia-alert-main)] opacity-80">
                 {warning}
               </li>
             ))}
@@ -38,7 +38,7 @@ export default function WarningList({ warnings, onDismiss }: WarningListProps) {
           <button
             type="button"
             onClick={onDismiss}
-            className="shrink-0 p-0.5 rounded hover:bg-amber-900/30 transition-colors"
+            className="shrink-0 rounded-[var(--radius-sm)] p-0.5 transition-colors hover:bg-[var(--color-bg-elevated)]"
             aria-label="Cerrar advertencias"
           >
             <svg

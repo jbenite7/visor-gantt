@@ -65,13 +65,13 @@ export default function HomeMppUploadAction({
         type="button"
         disabled={isProcessing}
         onClick={() => inputRef.current?.click()}
-        className="apple-button-primary inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-60"
+        className="apple-button-primary inline-flex items-center gap-2 rounded-[var(--radius-lg)] px-5 py-2.5 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-60"
       >
         <Upload size={16} aria-hidden />
         {isProcessing ? "Importando..." : "Subir Archivo .mpp"}
       </button>
       {error && (
-        <p className="max-w-md rounded-lg border border-[var(--aia-alert-main)] bg-[var(--aia-alert-xlight)] px-3 py-2 text-sm text-[var(--aia-alert-main)]">
+        <p className="max-w-md rounded-[var(--radius-lg)] border border-[var(--aia-alert-main)] bg-[var(--aia-alert-xlight)] px-3 py-2 text-sm text-[var(--aia-alert-main)]">
           {error}
         </p>
       )}
