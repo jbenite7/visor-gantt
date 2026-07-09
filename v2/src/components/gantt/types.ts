@@ -1,3 +1,5 @@
+export type GanttScale = "day" | "week" | "month" | "quarter";
+
 export interface GanttTask {
   id: string | number;
   name: string;
@@ -95,7 +97,7 @@ export interface GanttDependency {
 export interface GanttViewport {
   startDate: Date;
   endDate: Date;
-  scale: "day" | "week" | "month";
+  scale: GanttScale;
   columnWidth: number; // pixels per day/week/month
 }
 

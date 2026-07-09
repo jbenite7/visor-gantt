@@ -28,12 +28,6 @@ function severityLabel(severity: PlanningRecommendation["severity"], locale: UIL
   return "Baja";
 }
 
-function severityColor(severity: PlanningRecommendation["severity"]): string {
-  if (severity === "high") return "var(--aia-alert-main)";
-  if (severity === "medium") return "var(--aia-warn-main)";
-  return "var(--aia-proj-main)";
-}
-
 export default function PlanningAssistantPanel({
   recommendations,
   locale,
@@ -52,20 +46,20 @@ export default function PlanningAssistantPanel({
   return (
     <section
       data-testid="planning-assistant-panel"
-      className="apple-module-header px-3 py-2"
+      className="apple-module-header gantt-aux-panel"
     >
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="gantt-aux-panel__content">
+        <div className="gantt-aux-panel__summary">
           {recommendations.length > 0 ? (
-            <Lightbulb size={16} color="var(--aia-corp-main)" />
+            <Lightbulb className="gantt-aux-panel__icon" aria-hidden />
           ) : (
-            <CheckCircle2 size={16} color="var(--aia-proj-main)" />
+            <CheckCircle2 className="gantt-aux-panel__icon gantt-aux-panel__icon--ok" aria-hidden />
           )}
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-[var(--color-text-strong)]">
+          <div className="gantt-aux-panel__copy">
+            <h3 className="gantt-aux-panel__title">
               {locale === "en" ? "Planning assistant" : "Asistente de planificacion"}
             </h3>
-            <p className="text-xs text-[var(--color-text-muted)]">
+            <p className="gantt-aux-panel__description">
               {recommendations.length > 0
                 ? locale === "en"
                   ? `${recommendations.length} recommendations · ${highCount} high · ${mediumCount} medium`
@@ -78,29 +72,30 @@ export default function PlanningAssistantPanel({
         </div>
 
         {visible.length > 0 && (
-          <div className="grid min-w-0 flex-1 gap-2 md:grid-cols-3">
+          <div className="gantt-aux-panel__cards">
             {visible.map((recommendation) => (
               <article
                 key={recommendation.id}
                 data-testid="planning-recommendation"
-                className="apple-section min-w-0 px-3 py-2"
+                className="apple-section gantt-aux-panel__card"
               >
-                <div className="flex items-center gap-2">
-                  <AlertTriangle size={14} color={severityColor(recommendation.severity)} />
+                <div className="gantt-aux-panel__card-header">
+                  <AlertTriangle
+                    className="gantt-aux-panel__severity-icon"
+                    data-severity={recommendation.severity}
+                    aria-hidden
+                  />
                   <span
-                    className="rounded-full border border-[var(--color-hairline)] bg-[var(--color-bg-surface-secondary)] px-2 py-0.5 text-[0.6875rem] font-semibold uppercase text-[var(--color-text-muted)]"
-                    style={{ letterSpacing: 0 }}
+                    className="gantt-aux-panel__severity"
+                    data-severity={recommendation.severity}
                   >
                     {severityLabel(recommendation.severity, locale)}
                   </span>
                 </div>
-                <p className="mt-1 truncate text-xs font-semibold text-[var(--color-text-strong)]">
+                <p className="gantt-aux-panel__card-title">
                   {recommendation.title}
                 </p>
-                <p
-                  className="mt-1 overflow-hidden text-xs text-[var(--color-text-muted)]"
-                  style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}
-                >
+                <p className="gantt-aux-panel__card-description">
                   {recommendation.action}
                 </p>
               </article>
@@ -111,13 +106,13 @@ export default function PlanningAssistantPanel({
         {canNormalizeStructure && onPreviewStructureNormalization && (
           <div
             data-testid="planning-structure-action"
-            className="apple-section flex w-full flex-wrap items-center justify-between gap-2 px-3 py-2"
+            className="apple-section gantt-aux-panel__structure-action"
           >
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-[var(--color-text-strong)]">
+            <div className="gantt-aux-panel__copy">
+              <p className="gantt-aux-panel__title">
                 {locale === "en" ? "Normalize WBS and hierarchy" : "Normalizar EDT y jerarquia"}
               </p>
-              <p className="text-xs text-[var(--color-text-muted)]">
+              <p className="gantt-aux-panel__description">
                 {structurePreview
                   ? locale === "en"
                     ? `${structurePreview.changedTaskCount} tasks will change · ${structurePreview.changedWbsCount} WBS codes · ${structurePreview.changedSummaryCount} summaries`
@@ -127,13 +122,13 @@ export default function PlanningAssistantPanel({
                     : "Revisa la actualizacion propuesta antes de aplicarla."}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="gantt-aux-panel__actions">
               {!structurePreview ? (
                 <button
                   type="button"
                   data-testid="planning-preview-structure"
                   onClick={onPreviewStructureNormalization}
-                  className="apple-button-secondary rounded-lg px-3 py-1 text-xs font-semibold"
+                  className="apple-button-secondary gantt-aux-panel__button"
                 >
                   {locale === "en" ? "Preview" : "Previsualizar"}
                 </button>
@@ -143,7 +138,7 @@ export default function PlanningAssistantPanel({
                     type="button"
                     data-testid="planning-cancel-structure"
                     onClick={onCancelStructurePreview}
-                    className="apple-button-secondary rounded-lg px-3 py-1 text-xs font-semibold"
+                    className="apple-button-secondary gantt-aux-panel__button"
                   >
                     {locale === "en" ? "Cancel" : "Cancelar"}
                   </button>
@@ -151,7 +146,7 @@ export default function PlanningAssistantPanel({
                     type="button"
                     data-testid="planning-apply-structure"
                     onClick={onApplyStructureNormalization}
-                    className="apple-button-primary rounded-lg px-3 py-1 text-xs font-semibold"
+                    className="apple-button-primary gantt-aux-panel__button"
                   >
                     {locale === "en" ? "Apply" : "Aplicar"}
                   </button>

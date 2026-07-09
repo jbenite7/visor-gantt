@@ -1,4 +1,4 @@
-import { GanttTask, GanttViewport } from "./types";
+import { GanttTask, GanttViewport, type GanttScale } from "./types";
 import type { DependencyType } from "./arrows/ArrowPath";
 import { formatProjectDate } from "@/lib/date/projectDate";
 import { GANTT_MILESTONE_SIZE } from "./layout";
@@ -17,9 +17,10 @@ export function getDatePosition(date: Date, viewport: GanttViewport): number {
     return daysSinceStart * viewport.columnWidth;
   } else if (viewport.scale === "week") {
     return (daysSinceStart / 7) * viewport.columnWidth;
-  } else {
-    // month
+  } else if (viewport.scale === "month") {
     return (daysSinceStart / 30) * viewport.columnWidth;
+  } else {
+    return (daysSinceStart / 91) * viewport.columnWidth;
   }
 }
 
@@ -46,9 +47,10 @@ export function getTaskWidth(
     pixelWidth = durationDays * viewport.columnWidth;
   } else if (viewport.scale === "week") {
     pixelWidth = (durationDays / 7) * viewport.columnWidth;
-  } else {
-    // month
+  } else if (viewport.scale === "month") {
     pixelWidth = (durationDays / 30) * viewport.columnWidth;
+  } else {
+    pixelWidth = (durationDays / 91) * viewport.columnWidth;
   }
 
   return Math.max(pixelWidth, 4); // Minimum 4px visible
@@ -68,8 +70,10 @@ export function generateTimelineColumns(viewport: GanttViewport): Date[] {
       current.setDate(current.getDate() + 1);
     } else if (viewport.scale === "week") {
       current.setDate(current.getDate() + 7);
-    } else {
+    } else if (viewport.scale === "month") {
       current.setMonth(current.getMonth() + 1);
+    } else {
+      current.setMonth(current.getMonth() + 3);
     }
   }
 
@@ -81,17 +85,19 @@ export function generateTimelineColumns(viewport: GanttViewport): Date[] {
  */
 export function formatTimelineDate(
   date: Date,
-  scale: "day" | "week" | "month",
+  scale: GanttScale,
 ): string {
   if (scale === "day") {
     return formatProjectDate(date, { day: "2-digit", month: "short" });
   } else if (scale === "week") {
     return `S${getWeekNumber(date)}`;
-  } else {
+  } else if (scale === "month") {
     return formatProjectDate(date, {
       month: "short",
       year: "2-digit",
     });
+  } else {
+    return `T${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`;
   }
 }
 
@@ -182,6 +188,40 @@ export function generateWeekGroups(
   return groups;
 }
 
+export function generateQuarterGroups(
+  columns: Date[],
+): { label: string; startCol: number; colCount: number }[] {
+  const groups: { label: string; startCol: number; colCount: number }[] = [];
+  if (columns.length === 0) return groups;
+
+  let currentQuarter = Math.floor(columns[0].getMonth() / 3) + 1;
+  let currentYear = columns[0].getFullYear();
+  let startCol = 0;
+
+  for (let i = 1; i < columns.length; i++) {
+    const quarter = Math.floor(columns[i].getMonth() / 3) + 1;
+    const year = columns[i].getFullYear();
+    if (quarter !== currentQuarter || year !== currentYear) {
+      groups.push({
+        label: `T${currentQuarter} ${currentYear}`,
+        startCol,
+        colCount: i - startCol,
+      });
+      currentQuarter = quarter;
+      currentYear = year;
+      startCol = i;
+    }
+  }
+
+  groups.push({
+    label: `T${currentQuarter} ${currentYear}`,
+    startCol,
+    colCount: columns.length - startCol,
+  });
+
+  return groups;
+}
+
 /**
  * Check if a date is a weekend (Sunday).
  * Project week = Mon–Sat; only Sunday is non-working.
@@ -217,7 +257,7 @@ function formatMonthLabel(date: Date): string {
  */
 export function calculateViewport(
   tasks: GanttTask[],
-  scale: "day" | "week" | "month" = "day",
+  scale: GanttScale = "day",
 ): GanttViewport {
   if (tasks.length === 0) {
     const today = new Date();
@@ -246,7 +286,7 @@ export function calculateViewport(
     startDate: minDate,
     endDate: maxDate,
     scale,
-    columnWidth: scale === "day" ? 40 : scale === "week" ? 60 : 80,
+    columnWidth: scale === "day" ? 40 : scale === "week" ? 60 : scale === "month" ? 80 : 120,
   };
 }
 

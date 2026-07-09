@@ -10,8 +10,10 @@ import {
   LineChart,
   Settings,
   AlertTriangle,
+  CalendarDays,
   Grid3X3,
   LayoutDashboard,
+  Layers3,
 } from "lucide-react";
 import type { ViewType } from "./ViewSwitcher";
 import type { UILocale } from "@/types/ui";
@@ -34,6 +36,9 @@ const VIEW_TABS: ViewTab[] = [
   { id: "matrix", labelEs: "Matriz", labelEn: "Matrix", icon: Grid3X3 },
   { id: "scurve", labelEs: "Curva S", labelEn: "S Curve", icon: LineChart },
   { id: "bottlenecks", labelEs: "Cuellos", labelEn: "Bottlenecks", icon: AlertTriangle },
+  { id: "conflictos", labelEs: "Conflictos", labelEn: "Conflicts", icon: AlertTriangle },
+  { id: "unidadTipica", labelEs: "Unidad Típica", labelEn: "Typical Unit", icon: Layers3 },
+  { id: "calendario", labelEs: "Calendario", labelEn: "Calendar", icon: CalendarDays },
   { id: "settings", labelEs: "Configuración", labelEn: "Settings", icon: Settings },
 ];
 

@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Command as CommandIcon, Search, SlidersHorizontal, X } from "lucide-react";
-import type { GanttTask } from "@/components/gantt/types";
+import { ChevronDown, Command as CommandIcon, Search, SlidersHorizontal, X } from "lucide-react";
+import type { GanttScale, GanttTask } from "@/components/gantt/types";
 import type { PlanningAuditEvent } from "@/types/audit";
 import SplitPane from "@/components/gantt/SplitPane";
 import GanttTable from "@/components/gantt/table/GanttTable";
@@ -21,7 +21,10 @@ import LineOfBalance from "@/components/charts/LineOfBalance";
 import SCurveView from "@/components/views/SCurveView";
 import CalendarSettingsView from "@/components/views/CalendarSettingsView";
 import BottlenecksView from "@/components/views/BottlenecksView";
+import CalendarView from "@/components/views/CalendarView";
+import ConflictsView from "@/components/views/ConflictsView";
 import MatrixEditorView from "@/components/views/MatrixEditorView";
+import TypicalUnitView from "@/components/views/TypicalUnitView";
 import ExecutivePlanningDashboard from "@/components/reports/ExecutivePlanningDashboard";
 import type { Resource, Assignment } from "@/types/resource";
 import type { BudgetItem, BudgetMapping as BudgetMappingType } from "@/types/budget";
@@ -80,6 +83,13 @@ import { buildExecutivePlanningSummary } from "@/lib/gantt/executiveDashboard";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 const AUTOSAVE_DELAY_MS = 750;
+
+function formatStableDate(date: Date): string {
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const year = date.getUTCFullYear();
+  return `${day}/${month}/${year}`;
+}
 
 interface CommandPaletteAction {
   id: string;
@@ -324,7 +334,7 @@ function GanttViewInner({
         mppResourceColumns: baseMppResourceColumns,
         mppAssignmentColumns: baseMppAssignmentColumns,
         customFieldDefinitions: initialCustomFieldDefinitions,
-        timephasedScale: scale,
+        timephasedScale: scale === "quarter" ? "month" : scale,
       });
     },
     [
@@ -385,15 +395,48 @@ function GanttViewInner({
   /* ── Project info derived from tasks ── */
   const projectInfo = useMemo(() => {
     if (calculatedTasks.length === 0) {
-      return { name: undefined, start: undefined, finish: undefined, count: 0 };
+      return {
+        name: undefined,
+        start: undefined,
+        finish: undefined,
+        count: 0,
+        durationDays: 0,
+        averageProgress: 0,
+        dependencyCount: 0,
+        maxOutlineLevel: 1,
+      };
     }
     const starts = calculatedTasks.map((t) => t.start.getTime());
     const finishes = calculatedTasks.map((t) => t.finish.getTime());
+    const start = new Date(Math.min(...starts));
+    const finish = new Date(Math.max(...finishes));
+    const durationDays = Math.max(
+      1,
+      Math.floor((finish.getTime() - start.getTime()) / 86400000) + 1,
+    );
+    const editableTasks = calculatedTasks.filter((task) => !task.isSummary);
+    const averageProgress =
+      editableTasks.length > 0
+        ? editableTasks.reduce(
+            (sum, task) => sum + (task.percentComplete ?? task.progress ?? 0),
+            0,
+          ) / editableTasks.length
+        : 0;
     return {
       name: undefined,
-      start: new Date(Math.min(...starts)),
-      finish: new Date(Math.max(...finishes)),
+      start,
+      finish,
       count: calculatedTasks.length,
+      durationDays,
+      averageProgress,
+      dependencyCount: calculatedTasks.reduce(
+        (sum, task) => sum + task.dependencies.length,
+        0,
+      ),
+      maxOutlineLevel: Math.max(
+        1,
+        ...calculatedTasks.map((task) => task.outlineLevel || 1),
+      ),
     };
   }, [calculatedTasks]);
 
@@ -518,7 +561,7 @@ function GanttViewInner({
       return {
         startDate: today,
         endDate: new Date(today.getTime() + 30 * 86400000),
-        scale: scale as "day" | "week" | "month",
+        scale: scale as GanttScale,
         columnWidth: 40,
       };
     }
@@ -531,8 +574,8 @@ function GanttViewInner({
     return {
       startDate: minDate,
       endDate: maxDate,
-      scale: scale as "day" | "week" | "month",
-      columnWidth: scale === "day" ? 40 : scale === "week" ? 280 : 800,
+      scale: scale as GanttScale,
+      columnWidth: scale === "day" ? 40 : scale === "week" ? 280 : scale === "month" ? 800 : 1200,
     };
   }, [calculatedTasks, scale]);
 
@@ -783,6 +826,24 @@ function GanttViewInner({
         keywords: "lob línea balance linea produccion ubicacion",
       },
       {
+        id: "view-conflictos",
+        label: locale === "en" ? "Open Conflicts" : "Abrir Conflictos",
+        hint: locale === "en" ? "Review dependency violations" : "Revisa violaciones de dependencias",
+        keywords: "conflicts conflictos violaciones dependencias",
+      },
+      {
+        id: "view-unidad-tipica",
+        label: locale === "en" ? "Open Typical Unit" : "Abrir Unidad Típica",
+        hint: locale === "en" ? "Review repetitive systems by level" : "Revisa sistemas repetidos por nivel",
+        keywords: "unidad tipica típica niveles productividad repetitivo",
+      },
+      {
+        id: "view-calendario",
+        label: locale === "en" ? "Open Calendar" : "Abrir Calendario",
+        hint: locale === "en" ? "Review working days and task overlay" : "Revisa días laborales y tareas",
+        keywords: "calendar calendario festivos laboral tareas",
+      },
+      {
         id: "zoom-day",
         label: locale === "en" ? "Zoom by day" : "Zoom por día",
         hint: locale === "en" ? "Set timeline scale to days" : "Cambia la escala a días",
@@ -799,6 +860,12 @@ function GanttViewInner({
         label: locale === "en" ? "Zoom by month" : "Zoom por mes",
         hint: locale === "en" ? "Set timeline scale to months" : "Cambia la escala a meses",
         keywords: "zoom month mes escala",
+      },
+      {
+        id: "zoom-quarter",
+        label: locale === "en" ? "Zoom by quarter" : "Zoom por trimestre",
+        hint: locale === "en" ? "Set timeline scale to quarters" : "Cambia la escala a trimestres",
+        keywords: "zoom quarter trimestre escala",
       },
     ],
     [canRedo, canUndo, locale],
@@ -847,6 +914,15 @@ function GanttViewInner({
       case "view-lob":
         setActiveView("lob");
         break;
+      case "view-conflictos":
+        setActiveView("conflictos");
+        break;
+      case "view-unidad-tipica":
+        setActiveView("unidadTipica");
+        break;
+      case "view-calendario":
+        setActiveView("calendario");
+        break;
       case "zoom-day":
         setScale("day");
         break;
@@ -855,6 +931,9 @@ function GanttViewInner({
         break;
       case "zoom-month":
         setScale("month");
+        break;
+      case "zoom-quarter":
+        setScale("quarter");
         break;
     }
 
@@ -950,8 +1029,8 @@ function GanttViewInner({
   );
 
   return (
-    <div data-testid="gantt-view" className="app-shell flex flex-col h-screen">
-      <div className="flex items-center shrink-0">
+    <div data-testid="gantt-view" className="app-shell flex h-full min-w-0 flex-col overflow-hidden">
+      <div className="gantt-topbar flex min-w-0 shrink-0 items-center gap-[var(--gantt-topbar-gap)] overflow-hidden">
         <ProjectToolbar
           activeView={activeView}
           onViewChange={setActiveView}
@@ -965,6 +1044,9 @@ function GanttViewInner({
           projectStart={projectInfo.start}
           projectFinish={projectInfo.finish}
           taskCount={projectInfo.count}
+          durationDays={projectInfo.durationDays}
+          averageProgress={projectInfo.averageProgress}
+          dependencyCount={projectInfo.dependencyCount}
           onAddTask={handleAddTask}
           onDeleteTask={handleDeleteTask}
           hasSelection={selectedTaskIds.length > 0}
@@ -975,11 +1057,9 @@ function GanttViewInner({
           locale={locale}
         />
         {saveStatus !== "idle" && (
-          <span className="apple-card mr-4 shrink-0 px-2 py-1 text-xs font-medium"
-            style={{
-              color: saveStatus === "saving" ? "var(--aia-warn-dark)" : saveStatus === "saved" ? "var(--aia-corp-dark)" : "var(--aia-alert-main)",
-              background: saveStatus === "saving" ? "var(--aia-warn-xlight)" : saveStatus === "saved" ? "var(--aia-corp-xlight)" : "var(--aia-alert-xlight)",
-            }}
+          <span
+            className="gantt-save-status"
+            data-status={saveStatus}
           >
             {saveStatus === "saving" && "Guardando..."}
             {saveStatus === "saved" && "Guardado"}
@@ -987,14 +1067,14 @@ function GanttViewInner({
           </span>
         )}
         <label
-          className="apple-button-secondary mr-2 inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+          className="apple-button-secondary gantt-role-view inline-flex h-[var(--gantt-topbar-control-height)] shrink-0 items-center gap-[var(--gantt-topbar-gap)] rounded-[var(--radius-lg)] px-[var(--gantt-topbar-control-padding-inline)] text-[length:var(--gantt-topbar-font-size)] font-semibold"
           title={
             locale === "en"
               ? "Apply a role-based saved view preset"
               : "Aplicar una vista guardada por rol"
           }
         >
-          <SlidersHorizontal size={14} aria-hidden />
+          <SlidersHorizontal className="gantt-topbar__icon" aria-hidden />
           <span>{locale === "en" ? "Role view" : "Vista rol"}</span>
           <select
             data-testid="role-view-preset-select"
@@ -1002,7 +1082,7 @@ function GanttViewInner({
             onChange={(event) =>
               handleRoleViewPresetChange(event.target.value as NonNullable<UISettings["roleViewPreset"]>)
             }
-            className="max-w-28 bg-transparent text-xs font-semibold outline-none"
+            className="gantt-role-view__select max-w-[var(--gantt-toolbar-info-width)] border-0 bg-[var(--color-transparent)] text-[length:var(--gantt-topbar-font-size)] font-semibold outline-none"
             aria-label={locale === "en" ? "Role view preset" : "Preset de vista por rol"}
           >
             {ROLE_VIEW_PRESETS.map((preset) => (
@@ -1017,7 +1097,7 @@ function GanttViewInner({
           </select>
         </label>
         <div
-          className="apple-button-secondary mr-2 inline-flex shrink-0 items-center gap-1 rounded-lg p-1 text-xs font-semibold"
+          className="apple-button-secondary gantt-mode-toggle inline-flex h-[var(--gantt-topbar-control-height)] shrink-0 items-center gap-[var(--project-view-sidebar-item-gap)] rounded-[var(--radius-lg)] p-[var(--project-view-sidebar-item-gap)] text-[length:var(--gantt-topbar-font-size)] font-semibold"
           data-testid="interaction-mode-toggle"
           title={
             locale === "en"
@@ -1032,11 +1112,13 @@ function GanttViewInner({
                 key={mode}
                 type="button"
                 data-testid={`interaction-mode-${mode}`}
-                className="rounded-md px-2 py-1 transition"
-                style={{
-                  background: active ? "var(--aia-corp-main)" : "transparent",
-                  color: active ? "#ffffff" : "var(--color-text-muted)",
-                }}
+                className={`gantt-mode-toggle__button h-[calc(var(--gantt-topbar-control-height)-(var(--project-view-sidebar-item-gap)*2))] rounded-[var(--radius-md)] border-0 px-[var(--gantt-topbar-control-padding-inline)] ${
+                  active
+                    ? "bg-[var(--aia-corp-main)] text-[var(--color-text-on-primary)]"
+                    : "bg-[var(--color-transparent)] text-[var(--color-text-muted)]"
+                }`}
+                data-active={active}
+                aria-pressed={active}
                 onClick={() => handleInteractionModeChange(mode)}
               >
                 {mode === "simple"
@@ -1049,13 +1131,63 @@ function GanttViewInner({
         <button
           type="button"
           data-testid="command-palette-open"
-          className="apple-button-secondary mr-4 inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+          className="apple-button-secondary gantt-command-button inline-flex h-[var(--gantt-topbar-control-height)] shrink-0 items-center gap-[var(--gantt-topbar-gap)] rounded-[var(--radius-lg)] px-[var(--gantt-topbar-control-padding-inline)] text-[length:var(--gantt-topbar-font-size)] font-semibold"
           onClick={() => setCommandPaletteOpen(true)}
           title={locale === "en" ? "Command palette" : "Paleta de comandos"}
         >
-          <CommandIcon size={14} aria-hidden />
+          <CommandIcon className="gantt-topbar__icon" aria-hidden />
           {locale === "en" ? "Commands" : "Comandos"}
         </button>
+      </div>
+
+      <div className="gantt-project-meta-strip shrink-0 border-b border-[var(--color-hairline)] bg-[var(--color-bg-surface-secondary)] px-[var(--gantt-meta-strip-padding-inline)] py-[var(--gantt-meta-strip-padding-block)]">
+        <div className="gantt-project-meta-strip__content flex flex-wrap items-center gap-x-[var(--gantt-meta-strip-gap-inline)] gap-y-[var(--gantt-meta-strip-gap-block)] text-[length:var(--gantt-meta-strip-font-size)] text-[var(--color-text-muted)]">
+          <span className="gantt-project-meta-strip__name">{projectName}</span>
+          <span className="gantt-project-meta-strip__summary">
+            Inicio: {projectInfo.start ? formatStableDate(projectInfo.start) : "s/d"} · Fin:{" "}
+            {projectInfo.finish ? formatStableDate(projectInfo.finish) : "s/d"} ·{" "}
+            {projectInfo.durationDays}d · Avance: {Math.round(projectInfo.averageProgress)}% ·{" "}
+            {projectInfo.count} tareas · {projectInfo.dependencyCount} dep.
+          </span>
+          {activeView === "gantt" && isAdvancedMode && (
+            <details
+              className="gantt-planning-dropdown"
+              data-testid="gantt-planning-dropdown"
+            >
+              <summary
+                className="gantt-planning-dropdown__summary"
+                data-testid="gantt-planning-dropdown-summary"
+              >
+                <SlidersHorizontal className="gantt-planning-dropdown__icon" aria-hidden />
+                <span>
+                  {locale === "en" ? "Planning" : "Planificación"}
+                </span>
+                <ChevronDown className="gantt-planning-dropdown__chevron" aria-hidden />
+              </summary>
+              <div className="gantt-planning-dropdown__menu">
+                <PlanningAssistantPanel
+                  recommendations={planningRecommendations}
+                  locale={locale}
+                  structurePreview={structurePreviewSummary}
+                  onPreviewStructureNormalization={() => setShowStructurePreview(true)}
+                  onCancelStructurePreview={() => setShowStructurePreview(false)}
+                  onApplyStructureNormalization={() => {
+                    normalizeStructure();
+                    setShowStructurePreview(false);
+                  }}
+                />
+                <WhatIfScenarioPanel
+                  tasks={calculatedTasks}
+                  selectedTaskId={selectedTaskIds[0]}
+                  locale={locale}
+                  onApplyDuration={(taskId, duration) =>
+                    updateTask(taskId, "duration", duration)
+                  }
+                />
+              </div>
+            </details>
+          )}
+        </div>
       </div>
 
       {commandPaletteOpen && (
@@ -1136,40 +1268,22 @@ function GanttViewInner({
         </div>
       )}
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         {/* Sidebar de navegación de vistas */}
         <ViewSidebar activeView={activeView} onViewChange={setActiveView} locale={locale} />
 
         {/* Contenido de la vista activa */}
-        <div className="flex-1 min-h-0 min-w-0">
+        <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
           {activeView === "gantt" && (
-            <div className="flex h-full min-h-0 flex-col">
-              {isAdvancedMode && (
-                <>
-                  <PlanningAssistantPanel
-                    recommendations={planningRecommendations}
-                    locale={locale}
-                    structurePreview={structurePreviewSummary}
-                    onPreviewStructureNormalization={() => setShowStructurePreview(true)}
-                    onCancelStructurePreview={() => setShowStructurePreview(false)}
-                    onApplyStructureNormalization={() => {
-                      normalizeStructure();
-                      setShowStructurePreview(false);
-                    }}
-                  />
-                  <WhatIfScenarioPanel
-                    tasks={calculatedTasks}
-                    selectedTaskId={selectedTaskIds[0]}
-                    locale={locale}
-                    onApplyDuration={(taskId, duration) =>
-                      updateTask(taskId, "duration", duration)
-                    }
-                  />
-                </>
-              )}
-              <div className="min-h-0 flex-1">
+            <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+              <div
+                id="gantt-table-ribbon-host"
+                data-testid="gantt-table-ribbon-slot"
+                className="gantt-table-ribbon-slot"
+              />
+              <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
                 <SplitPane
-                  defaultSplit={35}
+                  defaultSplit={44}
                   left={
                     <GanttTable
                       tasks={calculatedTasks}
@@ -1426,9 +1540,14 @@ function GanttViewInner({
                   units={automaticLOB.units}
                 />
               ) : (
-                <p className="text-lg opacity-60">
-                  No se detectaron actividades repetitivas suficientes para generar Línea de Balance.
-                </p>
+                <div className="apple-section max-w-xl px-6 py-8 text-center">
+                  <p className="text-sm font-semibold text-[var(--color-text-strong)]">
+                    No se detectaron actividades repetitivas suficientes para generar Línea de Balance.
+                  </p>
+                  <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+                    Usa tareas con WBS/nombres por nivel, piso o unidad para construir flujo de producción.
+                  </p>
+                </div>
               )}
             </div>
           )}
@@ -1456,6 +1575,18 @@ function GanttViewInner({
               issues={scheduleIssues}
               bottlenecks={bottlenecks}
             />
+          )}
+
+          {activeView === "conflictos" && (
+            <ConflictsView tasks={calculatedTasks} />
+          )}
+
+          {activeView === "unidadTipica" && (
+            <TypicalUnitView tasks={calculatedTasks} />
+          )}
+
+          {activeView === "calendario" && (
+            <CalendarView tasks={calculatedTasks} calendar={calendar} />
           )}
 
           {activeView === "settings" && (

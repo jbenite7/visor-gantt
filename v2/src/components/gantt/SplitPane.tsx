@@ -109,7 +109,7 @@ const SplitPane = forwardRef<SplitPaneRef, SplitPaneProps>(function SplitPane(
       <div
         ref={leftScrollRef}
         onScroll={handleLeftScroll}
-        className="overflow-y-auto overflow-x-auto shrink-0"
+        className="overflow-y-auto overflow-x-hidden shrink-0"
         style={{ width: `${splitRatio}%` }}
       >
         {left}
@@ -140,7 +140,7 @@ const SplitPane = forwardRef<SplitPaneRef, SplitPaneProps>(function SplitPane(
       <div
         ref={rightScrollRef}
         onScroll={handleRightScroll}
-        className="overflow-auto flex-1 min-w-0"
+        className="overflow-y-auto overflow-x-hidden flex-1 min-w-0"
       >
         {right}
       </div>

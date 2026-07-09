@@ -11,12 +11,11 @@ import {
   ChevronDown,
 } from "lucide-react";
 import type { ViewType } from "./ViewSwitcher";
+import type { GanttScale } from "@/components/gantt/types";
 import type { UILocale } from "@/types/ui";
 import { t } from "@/lib/i18n";
 
 /* ── Types ── */
-
-type ZoomScale = "day" | "week" | "month";
 
 interface Baseline {
   id: string;
@@ -24,7 +23,7 @@ interface Baseline {
 }
 
 interface ZoomButton {
-  scale: ZoomScale;
+  scale: GanttScale;
   label: string;
 }
 
@@ -32,6 +31,7 @@ const ZOOM_BUTTONS: ZoomButton[] = [
   { scale: "day", label: "Día" },
   { scale: "week", label: "Semana" },
   { scale: "month", label: "Mes" },
+  { scale: "quarter", label: "Trimestre" },
 ];
 
 interface ProjectToolbarProps {
@@ -39,8 +39,8 @@ interface ProjectToolbarProps {
   activeView: ViewType;
   onViewChange: (view: ViewType) => void;
   /* ── Zoom ── */
-  scale: ZoomScale;
-  onScaleChange: (scale: ZoomScale) => void;
+  scale: GanttScale;
+  onScaleChange: (scale: GanttScale) => void;
   /* ── Undo / Redo ── */
   canUndo: boolean;
   canRedo: boolean;
@@ -51,6 +51,9 @@ interface ProjectToolbarProps {
   projectStart?: Date;
   projectFinish?: Date;
   taskCount: number;
+  durationDays?: number;
+  averageProgress?: number;
+  dependencyCount?: number;
   /* ── Editing Tools ── */
   onAddTask?: () => void;
   onDeleteTask?: () => void;
@@ -63,47 +66,12 @@ interface ProjectToolbarProps {
   locale?: UILocale;
 }
 
-/* ── Shared toolbar button style ── */
-
-const toolbarBtnStyle = (active = false, disabled = false): React.CSSProperties => ({
-  background: active ? "var(--aia-corp-main)" : "rgb(255 255 255 / 0.54)",
-  color: active ? "#ffffff" : "var(--aia-corp-dark)",
-  opacity: disabled ? 0.4 : 1,
-  border: "1px solid var(--color-hairline)",
-  borderRadius: "var(--radius-sm)",
-  cursor: disabled ? "not-allowed" : "pointer",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "6px",
-  transition: "background 150ms",
-});
-
-const toolbarBtnEnter = (e: React.MouseEvent<HTMLButtonElement>, disabled: boolean) => {
-  if (!disabled) {
-    e.currentTarget.style.background = "var(--aia-corp-xlight)";
-  }
-};
-
-const toolbarBtnLeave = (e: React.MouseEvent<HTMLButtonElement>, active: boolean) => {
-  e.currentTarget.style.background = active ? "var(--aia-corp-main)" : "rgb(255 255 255 / 0.54)";
-};
-
-const sectionDivider: React.CSSProperties = {
-  width: 1,
-  height: 24,
-  background: "var(--color-hairline)",
-  margin: "0 8px",
-  flexShrink: 0,
-};
-
 /* ── Format date for toolbar display ── */
 function formatDateShort(date: Date): string {
-  return date.toLocaleDateString("es-CO", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const year = date.getUTCFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 /* ───────────────────── Component ───────────────────── */
@@ -119,6 +87,9 @@ export default function ProjectToolbar({
   projectStart,
   projectFinish,
   taskCount,
+  durationDays,
+  averageProgress,
+  dependencyCount = 0,
   onAddTask,
   onDeleteTask,
   hasSelection,
@@ -149,188 +120,118 @@ export default function ProjectToolbar({
   return (
     <div
       data-testid="project-toolbar"
-      className="apple-toolbar flex items-center shrink-0 w-full overflow-x-auto"
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 50,
-        minHeight: 48,
-      }}
+      className="apple-toolbar gantt-project-toolbar"
     >
       {/* ─── 1. Project Info (left) ─── */}
-      <div
-        className="flex items-center gap-2 pl-4 pr-3"
-        style={{ minWidth: 0, maxWidth: 280 }}
-      >
+      <div className="gantt-project-toolbar__info">
         <FolderKanban
-          size={18}
-          style={{ color: "var(--aia-corp-main)", flexShrink: 0 }}
+          className="gantt-project-toolbar__project-icon"
+          aria-hidden
         />
-        <div className="flex flex-col" style={{ minWidth: 0 }}>
-          <span
-            className="truncate"
-            style={{
-              fontFamily: "var(--font-montserrat)",
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--aia-corp-dark)",
-              lineHeight: 1.2,
-            }}
-          >
+        <div className="gantt-project-toolbar__project-copy">
+          <span className="gantt-project-toolbar__project-title">
             {projectName || t(locale, "unnamedProject")}
           </span>
-          <span
-            className="truncate"
-            style={{
-              fontFamily: "var(--font-inter)",
-              fontSize: 11,
-              color: "var(--gray-500)",
-              lineHeight: 1.3,
-            }}
-          >
+          <span className="gantt-project-toolbar__project-meta">
             {projectStart && projectFinish
               ? `${formatDateShort(projectStart)} — ${formatDateShort(projectFinish)}`
               : t(locale, "noDates")}{" "}
             · {taskCount} {taskCount === 1 ? t(locale, "task") : t(locale, "tasks")}
+            {durationDays !== undefined ? ` · ${durationDays}d` : ""}
+            {averageProgress !== undefined ? ` · ${Math.round(averageProgress)}%` : ""}
+            {dependencyCount > 0 ? ` · ${dependencyCount} dep.` : ""}
           </span>
         </div>
       </div>
 
-      <div style={sectionDivider} />
+      <div className="gantt-project-toolbar__divider" />
 
       {/* ─── 2. Zoom Controls (center-left) ─── */}
-      <div className="flex items-center gap-1.5 px-3">
-        <span
-          className="text-xs mr-1 opacity-70"
-          style={{
-            color: "var(--gray-500)",
-            fontFamily: "var(--font-inter)",
-          }}
-        >
+      <div className="gantt-project-toolbar__group">
+        <span className="gantt-project-toolbar__label">
           {t(locale, "zoom")}:
         </span>
         {ZOOM_BUTTONS.map((btn) => (
           <button
             key={btn.scale}
+            type="button"
             onClick={() => onScaleChange(btn.scale)}
-            className="px-3 py-1 rounded text-sm font-medium transition-colors"
-            style={{
-              background:
-                scale === btn.scale
-                  ? "var(--aia-corp-main)"
-                  : "rgb(255 255 255 / 0.58)",
-              color: scale === btn.scale ? "#ffffff" : "var(--aia-corp-dark)",
-              border: "1px solid var(--color-hairline)",
-              fontFamily: "var(--font-montserrat)",
-              fontSize: 12,
-              fontWeight: 600,
-            }}
-            onMouseEnter={(e) => {
-              if (scale !== btn.scale) {
-                e.currentTarget.style.background = "var(--aia-corp-xlight)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (scale !== btn.scale) {
-                e.currentTarget.style.background = "rgb(255 255 255 / 0.58)";
-              }
-            }}
+            className="gantt-project-toolbar__button gantt-project-toolbar__button--text"
+            data-active={scale === btn.scale}
+            aria-pressed={scale === btn.scale}
           >
             {btn.label}
           </button>
         ))}
       </div>
 
-      <div style={sectionDivider} />
+      <div className="gantt-project-toolbar__divider" />
 
       {/* ─── 4. Editing Tools (center-right) ─── */}
-      <div className="flex items-center gap-1 px-2">
+      <div className="gantt-project-toolbar__group">
         {/* Add Task */}
         <button
+          type="button"
           onClick={onAddTask}
           disabled={!onAddTask}
           title={t(locale, "addTask")}
-          style={toolbarBtnStyle(false, !onAddTask)}
-          onMouseEnter={(e) => toolbarBtnEnter(e, !onAddTask)}
-          onMouseLeave={(e) => toolbarBtnLeave(e, false)}
+          className="gantt-project-toolbar__button gantt-project-toolbar__button--icon"
         >
-          <Plus size={16} />
+          <Plus className="gantt-project-toolbar__icon" aria-hidden />
         </button>
 
         {/* Delete Task */}
         <button
+          type="button"
           onClick={onDeleteTask}
           disabled={!hasSelection}
           title={t(locale, "deleteSelectedTasks")}
-          style={toolbarBtnStyle(false, !hasSelection)}
-          onMouseEnter={(e) => toolbarBtnEnter(e, !hasSelection)}
-          onMouseLeave={(e) => toolbarBtnLeave(e, false)}
+          className="gantt-project-toolbar__button gantt-project-toolbar__button--icon"
         >
-          <Trash2 size={16} />
+          <Trash2 className="gantt-project-toolbar__icon" aria-hidden />
         </button>
 
-        {/* Divider */}
-        <div
-          style={{
-            width: 1,
-            height: 18,
-            background: "rgba(255,255,255,0.15)",
-            margin: "0 4px",
-          }}
-        />
+        {(canUndo || canRedo) && (
+          <>
+            <div className="gantt-project-toolbar__mini-divider" />
 
-        {/* Undo */}
-        <button
-          onClick={onUndo}
-          disabled={!canUndo}
-          title={`${t(locale, "undo")} (Ctrl+Z)`}
-          style={toolbarBtnStyle(false, !canUndo)}
-          onMouseEnter={(e) => toolbarBtnEnter(e, !canUndo)}
-          onMouseLeave={(e) => toolbarBtnLeave(e, false)}
-        >
-          <Undo2 size={16} />
-        </button>
+            <button
+              type="button"
+              onClick={onUndo}
+              disabled={!canUndo}
+              title={`${t(locale, "undo")} (Ctrl+Z)`}
+              className="gantt-project-toolbar__button gantt-project-toolbar__button--icon"
+            >
+              <Undo2 className="gantt-project-toolbar__icon" aria-hidden />
+            </button>
 
-        {/* Redo */}
-        <button
-          onClick={onRedo}
-          disabled={!canRedo}
-          title={`${t(locale, "redo")} (Ctrl+Shift+Z)`}
-          style={toolbarBtnStyle(false, !canRedo)}
-          onMouseEnter={(e) => toolbarBtnEnter(e, !canRedo)}
-          onMouseLeave={(e) => toolbarBtnLeave(e, false)}
-        >
-          <Redo2 size={16} />
-        </button>
+            <button
+              type="button"
+              onClick={onRedo}
+              disabled={!canRedo}
+              title={`${t(locale, "redo")} (Ctrl+Shift+Z)`}
+              className="gantt-project-toolbar__button gantt-project-toolbar__button--icon"
+            >
+              <Redo2 className="gantt-project-toolbar__icon" aria-hidden />
+            </button>
+          </>
+        )}
       </div>
 
-      <div style={sectionDivider} />
+      <div className="gantt-project-toolbar__divider" />
 
       {/* ─── 5. Baseline Tools (right) ─── */}
-      <div className="flex items-center gap-1.5 pl-2 pr-4 ml-auto">
+      <div className="gantt-project-toolbar__group gantt-project-toolbar__baseline-group">
         {/* Save Baseline */}
         <button
+          type="button"
           onClick={onSaveBaseline}
           disabled={!onSaveBaseline}
           title={t(locale, "saveBaseline")}
-          style={{
-            ...toolbarBtnStyle(false, !onSaveBaseline),
-            gap: 4,
-            padding: "5px 10px",
-          }}
-          onMouseEnter={(e) => toolbarBtnEnter(e, !onSaveBaseline)}
-          onMouseLeave={(e) => toolbarBtnLeave(e, false)}
+          className="gantt-project-toolbar__button gantt-project-toolbar__button--text"
         >
-          <Save size={14} />
-          <span
-            style={{
-              fontFamily: "var(--font-montserrat)",
-              fontSize: 11,
-              fontWeight: 600,
-              color: "#ffffff",
-              whiteSpace: "nowrap",
-            }}
-          >
+          <Save className="gantt-project-toolbar__small-icon" aria-hidden />
+          <span>
             {locale === "en" ? "Baseline" : "Línea base"}
           </span>
         </button>
@@ -339,92 +240,35 @@ export default function ProjectToolbar({
         {baselines.length > 0 && (
           <div ref={dropdownRef} className="relative">
             <button
+              type="button"
               onClick={() => setBaselineDropdownOpen((prev) => !prev)}
               title={t(locale, "selectBaseline")}
-              style={{
-                background: activeBaselineId ? "var(--aia-corp-main)" : "transparent",
-                color: "#ffffff",
-                border: "1px solid rgba(255,255,255,0.2)",
-                borderRadius: "var(--radius-sm)",
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "4px 8px",
-                fontFamily: "var(--font-inter)",
-                fontSize: 11,
-                maxWidth: 140,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.4)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
-              }}
+              className="gantt-project-toolbar__button gantt-project-toolbar__button--text gantt-project-toolbar__baseline-select"
+              data-active={Boolean(activeBaselineId)}
+              aria-expanded={baselineDropdownOpen}
             >
               <span className="truncate">
                 {activeBaselineName ?? "Baseline"}
               </span>
-              <ChevronDown size={12} style={{ flexShrink: 0 }} />
+              <ChevronDown className="gantt-project-toolbar__chevron" aria-hidden />
             </button>
 
             {baselineDropdownOpen && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "100%",
-                  right: 0,
-                  marginTop: 4,
-                  minWidth: 160,
-                  background: "var(--color-bg-elevated)",
-                  border: "1px solid var(--gray-200)",
-                  borderRadius: "var(--radius-md)",
-                  boxShadow: "var(--shadow-lg)",
-                  zIndex: 100,
-                  overflow: "hidden",
-                }}
-              >
+              <div className="gantt-project-toolbar__baseline-menu">
                 {baselines.map((bl) => (
                   <button
                     key={bl.id}
+                    type="button"
                     onClick={() => {
                       onSelectBaseline?.(bl.id);
                       setBaselineDropdownOpen(false);
                     }}
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      textAlign: "left",
-                      padding: "8px 12px",
-                      border: "none",
-                      background: bl.id === activeBaselineId ? "var(--aia-corp-xlight)" : "transparent",
-                      color: "var(--gray-800)",
-                      fontFamily: "var(--font-inter)",
-                      fontSize: 12,
-                      cursor: "pointer",
-                      transition: "background 100ms",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (bl.id !== activeBaselineId) {
-                        e.currentTarget.style.background = "var(--gray-100)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (bl.id !== activeBaselineId) {
-                        e.currentTarget.style.background = "transparent";
-                      }
-                    }}
+                    className="gantt-project-toolbar__baseline-option"
+                    data-active={bl.id === activeBaselineId}
                   >
                     {bl.name}
                     {bl.id === activeBaselineId && (
-                      <span
-                        style={{
-                          marginLeft: 6,
-                          color: "var(--aia-corp-main)",
-                          fontWeight: 600,
-                          fontSize: 10,
-                        }}
-                      >
+                      <span className="gantt-project-toolbar__baseline-current">
                         ●
                       </span>
                     )}

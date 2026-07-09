@@ -1,8 +1,7 @@
 import type { TaskColumnSettings } from "@/types/mppColumns";
 import type { RoleViewPresetId, TaskFilterSettings, UILocale, UISettings } from "@/types/ui";
 import type { ViewType } from "@/components/gantt/toolbar/ViewSwitcher";
-
-type GanttScale = "day" | "week" | "month";
+import type { GanttScale } from "@/components/gantt/types";
 
 export interface RoleViewPreset {
   id: RoleViewPresetId;

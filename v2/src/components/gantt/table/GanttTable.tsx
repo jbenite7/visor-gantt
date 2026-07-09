@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowDown,
   ArrowUp,
@@ -110,6 +111,36 @@ export const DEFAULT_COLUMNS: ColumnConfig[] = [
 const DEFAULT_WIDTHS: Record<string, number> = Object.fromEntries(
   DEFAULT_COLUMNS.map((c) => [c.key, c.width])
 );
+const HORIZONTAL_HIERARCHY_DRAG_THRESHOLD = 36;
+const COMPACT_GANTT_COLUMNS = new Set([
+  "id",
+  "uniqueId",
+  "wbs",
+  "name",
+  "duration",
+  "progress",
+]);
+const BALANCED_GANTT_COLUMNS = new Set([
+  "id",
+  "uniqueId",
+  "wbs",
+  "name",
+  "duration",
+  "predecessors",
+  "progress",
+  "critical",
+]);
+const COMPACT_COLUMN_LABELS: Record<string, { en: string; es: string }> = {
+  id: { en: "ID", es: "ID" },
+  uniqueId: { en: "UID", es: "UID" },
+  wbs: { en: "WBS", es: "EDT" },
+  name: { en: "Activity", es: "Actividad" },
+  duration: { en: "Dur.", es: "Dur." },
+  predecessors: { en: "Pred.", es: "Pred." },
+  progress: { en: "%", es: "%" },
+  critical: { en: "Crit.", es: "Crit." },
+};
+const GANTT_TABLE_RIBBON_HOST_ID = "gantt-table-ribbon-host";
 
 function getVisibleTasks(
   tasks: GanttTask[],
@@ -155,13 +186,6 @@ function expandToLevel(
   return collapsed;
 }
 
-const LEVEL_BUTTONS: Array<{ label: string; labelEs: string; level: number }> = [
-  { label: "L1", labelEs: "L1", level: 2 },
-  { label: "L2", labelEs: "L2", level: 3 },
-  { label: "L3", labelEs: "L3", level: 4 },
-  { label: "All", labelEs: "Todo", level: 1 },
-];
-
 const TASK_FILTER_OPTIONS: Array<{
   value: TaskFilterType;
   labelKey: "allTasks" | "critical" | "nonCritical" | "milestones" | "summaries";
@@ -172,34 +196,6 @@ const TASK_FILTER_OPTIONS: Array<{
   { value: "milestones", labelKey: "milestones" },
   { value: "summaries", labelKey: "summaries" },
 ];
-
-const toolbarBtnStyle: React.CSSProperties = {
-  padding: "2px 8px",
-  fontSize: "0.6875rem",
-  fontFamily: "var(--font-inter), system-ui, sans-serif",
-  fontWeight: 500,
-  border: "1px solid var(--gray-200)",
-  borderRadius: "4px",
-  background: "var(--aia-corp-xlight)",
-  color: "var(--aia-corp-dark)",
-  cursor: "pointer",
-  lineHeight: "1.4",
-  whiteSpace: "nowrap",
-};
-
-const hierarchyBtnStyle = (disabled = false): React.CSSProperties => ({
-  width: "26px",
-  height: "26px",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  border: "1px solid var(--gray-200)",
-  borderRadius: "4px",
-  background: "var(--aia-corp-xlight)",
-  color: "var(--aia-corp-dark)",
-  cursor: disabled ? "not-allowed" : "pointer",
-  opacity: disabled ? 0.45 : 1,
-});
 
 /**
  * GanttEntryTable — left-side table mirroring MS Project's Entry table.
@@ -261,6 +257,9 @@ export default function GanttTable({
     () => ({ ...DEFAULT_WIDTHS, ...normalizedSettings.widths }),
     [normalizedSettings.widths],
   );
+  const tableRootRef = useRef<HTMLDivElement | null>(null);
+  const [tablePanelWidth, setTablePanelWidth] = useState(0);
+  const [ribbonHost, setRibbonHost] = useState<HTMLElement | null>(null);
 
   const allColumns = useMemo<ColumnConfig[]>(
     () => [
@@ -319,18 +318,33 @@ export default function GanttTable({
     return inspections;
   }, [customFieldDefinitions, effectiveLocale, mppTaskColumns, tasks]);
 
-  // Filter columns to only those that are visible
-  const displayColumns = useMemo(
-    () => allColumns.filter((col) => visibleColumns.includes(col.key)),
-    [allColumns, visibleColumns]
-  );
+  const responsiveVisibleColumns = useMemo(() => {
+    const preferredKeys =
+      tablePanelWidth > 0 && tablePanelWidth < 360
+        ? COMPACT_GANTT_COLUMNS
+        : tablePanelWidth > 0 && tablePanelWidth < 560
+          ? BALANCED_GANTT_COLUMNS
+          : undefined;
 
-  // Total width of visible columns — table uses this as minWidth so it
-  // expands beyond the pane instead of compressing columns to fit 100%.
-  const tableMinWidth = useMemo(
-    () => displayColumns.reduce((sum, col) => sum + (columnWidths[col.key] ?? col.width), 0),
-    [displayColumns, columnWidths],
+    if (!preferredKeys) return visibleColumns;
+
+    const compactVisible = visibleColumns.filter((key) => preferredKeys.has(key));
+    return compactVisible.length > 0 ? compactVisible : visibleColumns;
+  }, [tablePanelWidth, visibleColumns]);
+
+  const displayColumns = useMemo(
+    () => allColumns.filter((col) => responsiveVisibleColumns.includes(col.key)),
+    [allColumns, responsiveVisibleColumns]
   );
+  const displayColumnTotalWidth = useMemo(
+    () =>
+      displayColumns.reduce(
+        (total, column) => total + (columnWidths[column.key] ?? column.width),
+        0,
+      ),
+    [columnWidths, displayColumns],
+  );
+  const useCompactColumnLabels = tablePanelWidth > 0 && tablePanelWidth < 560;
 
   const applySettings = useCallback(
     (next: TaskColumnSettings) => {
@@ -400,6 +414,35 @@ export default function GanttTable({
     taskId: string | number;
     position: "before" | "after" | "child";
   } | undefined>();
+  const rowDragStartXRef = useRef<number | undefined>(undefined);
+  const rowMouseDragRef = useRef<{
+    taskId: string | number;
+    startX: number;
+    startY: number;
+  } | undefined>(undefined);
+
+  useEffect(() => {
+    const root = tableRootRef.current;
+    if (!root) return;
+
+    const updateWidth = () => {
+      setTablePanelWidth(root.getBoundingClientRect().width);
+    };
+
+    updateWidth();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateWidth);
+      return () => window.removeEventListener("resize", updateWidth);
+    }
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    setRibbonHost(document.getElementById(GANTT_TABLE_RIBBON_HOST_ID));
+  }, []);
 
   const handleToggleExpand = useCallback((taskId: string | number) => {
     setCollapsedTaskIds((prev) => {
@@ -419,6 +462,12 @@ export default function GanttTable({
     },
     [tasks],
   );
+  const handleExpandAll = useCallback(() => {
+    setCollapsedTaskIds(new Set());
+  }, []);
+  const handleCollapseAll = useCallback(() => {
+    setCollapsedTaskIds(new Set(tasks.filter((task) => task.isSummary).map((task) => task.id)));
+  }, [tasks]);
 
   const filteredTasks = useMemo(
     () => filterTasks(tasks, taskFilter),
@@ -428,6 +477,13 @@ export default function GanttTable({
     () => getVisibleTasks(filteredTasks, collapsedTaskIds),
     [filteredTasks, collapsedTaskIds],
   );
+  const levelButtons = useMemo(() => {
+    const maxLevel = Math.max(1, ...tasks.map((task) => task.outlineLevel || 1));
+    return Array.from({ length: maxLevel }, (_, index) => ({
+      label: `L${index + 1}`,
+      level: index + 2,
+    }));
+  }, [tasks]);
   const normalizedTaskFilter = useMemo(
     () => normalizeTaskFilter(taskFilter),
     [taskFilter],
@@ -515,13 +571,59 @@ export default function GanttTable({
 
   const handleRowDragStart = useCallback(
     (taskId: string | number, event: React.DragEvent<HTMLTableRowElement>) => {
-      if (!onReorderTask) return;
+      if (!onReorderTask && !onIndentTask && !onOutdentTask) return;
       setDraggedTaskId(taskId);
+      rowDragStartXRef.current = event.clientX;
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData("text/plain", String(taskId));
     },
-    [onReorderTask],
+    [onIndentTask, onOutdentTask, onReorderTask],
   );
+
+  const applyHorizontalHierarchyDrag = useCallback(
+    (taskId: string | number, deltaX: number): boolean => {
+      if (deltaX >= HORIZONTAL_HIERARCHY_DRAG_THRESHOLD && onIndentTask) {
+        onIndentTask(taskId);
+        return true;
+      }
+      if (deltaX <= -HORIZONTAL_HIERARCHY_DRAG_THRESHOLD && onOutdentTask) {
+        onOutdentTask(taskId);
+        return true;
+      }
+      return false;
+    },
+    [onIndentTask, onOutdentTask],
+  );
+
+  const handleRowMouseDown = useCallback(
+    (taskId: string | number, event: React.MouseEvent<HTMLTableRowElement>) => {
+      if (!onIndentTask && !onOutdentTask) return;
+      if (event.button !== 0) return;
+      rowMouseDragRef.current = {
+        taskId,
+        startX: event.clientX,
+        startY: event.clientY,
+      };
+    },
+    [onIndentTask, onOutdentTask],
+  );
+
+  useEffect(() => {
+    const handleWindowMouseUp = (event: MouseEvent) => {
+      const current = rowMouseDragRef.current;
+      if (!current) return;
+      rowMouseDragRef.current = undefined;
+
+      const deltaX = event.clientX - current.startX;
+      const deltaY = event.clientY - current.startY;
+      if (Math.abs(deltaX) < HORIZONTAL_HIERARCHY_DRAG_THRESHOLD) return;
+      if (Math.abs(deltaX) < Math.abs(deltaY)) return;
+      applyHorizontalHierarchyDrag(current.taskId, deltaX);
+    };
+
+    window.addEventListener("mouseup", handleWindowMouseUp);
+    return () => window.removeEventListener("mouseup", handleWindowMouseUp);
+  }, [applyHorizontalHierarchyDrag]);
 
   const getDropPosition = useCallback(
     (event: React.DragEvent<HTMLTableRowElement>): "before" | "after" | "child" => {
@@ -546,7 +648,19 @@ export default function GanttTable({
 
   const handleRowDrop = useCallback(
     (taskId: string | number, event: React.DragEvent<HTMLTableRowElement>) => {
-      if (!onReorderTask || draggedTaskId === undefined || draggedTaskId === taskId) return;
+      if (draggedTaskId === undefined) return;
+      const dragDeltaX = rowDragStartXRef.current === undefined
+        ? 0
+        : event.clientX - rowDragStartXRef.current;
+      if (applyHorizontalHierarchyDrag(draggedTaskId, dragDeltaX)) {
+        event.preventDefault();
+        setDraggedTaskId(undefined);
+        setDropTarget(undefined);
+        rowDragStartXRef.current = undefined;
+        rowMouseDragRef.current = undefined;
+        return;
+      }
+      if (!onReorderTask || draggedTaskId === taskId) return;
       event.preventDefault();
       const position = dropTarget?.taskId === taskId
         ? dropTarget.position
@@ -554,13 +668,17 @@ export default function GanttTable({
       onReorderTask(draggedTaskId, taskId, position);
       setDraggedTaskId(undefined);
       setDropTarget(undefined);
+      rowDragStartXRef.current = undefined;
+      rowMouseDragRef.current = undefined;
     },
-    [draggedTaskId, dropTarget, getDropPosition, onReorderTask],
+    [applyHorizontalHierarchyDrag, draggedTaskId, dropTarget, getDropPosition, onReorderTask],
   );
 
   const handleRowDragEnd = useCallback(() => {
     setDraggedTaskId(undefined);
     setDropTarget(undefined);
+    rowDragStartXRef.current = undefined;
+    rowMouseDragRef.current = undefined;
   }, []);
 
   const budgetData = useMemo(() => {
@@ -599,37 +717,312 @@ export default function GanttTable({
     return map;
   }, [budgetMappings, budgetItems]);
 
+  const toolsRibbon = (
+    <div
+      className="gantt-table-ribbon"
+      data-testid="gantt-table-tools-ribbon"
+      role="toolbar"
+      aria-label={effectiveLocale === "en" ? "Table tools" : "Herramientas de tabla"}
+    >
+      <div className="gantt-table-ribbon__group gantt-table-ribbon__group--expand">
+        <span className="gantt-table-ribbon__label">{t(effectiveLocale, "expand")}</span>
+        {levelButtons.length <= 2 ? (
+          levelButtons.map((btn) => (
+            <button
+              key={btn.label}
+              type="button"
+              data-testid="expand-level-button"
+              className="gantt-table-tools__text-button gantt-table-ribbon__text-button"
+              onClick={() => handleExpandToLevel(btn.level)}
+            >
+              {btn.label}
+            </button>
+          ))
+        ) : (
+          <select
+            data-testid="expand-level-select"
+            className="gantt-table-ribbon__select"
+            value=""
+            aria-label={effectiveLocale === "en" ? "Expand to level" : "Expandir a nivel"}
+            onChange={(event) => {
+              const level = Number.parseInt(event.target.value, 10);
+              if (Number.isFinite(level)) {
+                handleExpandToLevel(level);
+              }
+            }}
+          >
+            <option value="" disabled>
+              {effectiveLocale === "en" ? "Level" : "Nivel"}
+            </option>
+            {levelButtons.map((btn) => (
+              <option key={btn.label} value={btn.level}>
+                {btn.label}
+              </option>
+            ))}
+          </select>
+        )}
+        <button
+          type="button"
+          data-testid="expand-all-button"
+          className="gantt-table-tools__text-button gantt-table-ribbon__text-button"
+          onClick={handleExpandAll}
+        >
+          {effectiveLocale === "en" ? "All" : "Todo"}
+        </button>
+        <button
+          type="button"
+          data-testid="collapse-all-button"
+          className="gantt-table-tools__text-button gantt-table-ribbon__text-button"
+          onClick={handleCollapseAll}
+        >
+          {effectiveLocale === "en" ? "Collapse" : "Colapsar"}
+        </button>
+      </div>
+      <span className="gantt-table-ribbon__divider" aria-hidden />
+      <div className="gantt-table-ribbon__group">
+        <span className="gantt-table-ribbon__label">
+          {effectiveLocale === "en" ? "Hierarchy" : "Jerarquía"}
+        </span>
+        <button
+          type="button"
+          data-testid="hierarchy-move-up"
+          title={effectiveLocale === "en" ? "Move task up" : "Mover tarea arriba"}
+          aria-label={effectiveLocale === "en" ? "Move task up" : "Mover tarea arriba"}
+          disabled={!hasSelection || !onMoveTaskUp}
+          className="gantt-table-toolbar__icon-button"
+          onClick={() => selectedTaskId !== undefined && onMoveTaskUp?.(selectedTaskId)}
+        >
+          <ArrowUp className="gantt-table-toolbar__icon" aria-hidden />
+        </button>
+        <button
+          type="button"
+          data-testid="hierarchy-move-down"
+          title={effectiveLocale === "en" ? "Move task down" : "Mover tarea abajo"}
+          aria-label={effectiveLocale === "en" ? "Move task down" : "Mover tarea abajo"}
+          disabled={!hasSelection || !onMoveTaskDown}
+          className="gantt-table-toolbar__icon-button"
+          onClick={() => selectedTaskId !== undefined && onMoveTaskDown?.(selectedTaskId)}
+        >
+          <ArrowDown className="gantt-table-toolbar__icon" aria-hidden />
+        </button>
+        <button
+          type="button"
+          data-testid="hierarchy-outdent"
+          title={effectiveLocale === "en" ? "Outdent task" : "Bajar nivel de jerarquia"}
+          aria-label={effectiveLocale === "en" ? "Outdent task" : "Bajar nivel de jerarquia"}
+          disabled={!hasSelection || !onOutdentTask}
+          className="gantt-table-toolbar__icon-button"
+          onClick={() => selectedTaskId !== undefined && onOutdentTask?.(selectedTaskId)}
+        >
+          <IndentDecrease className="gantt-table-toolbar__icon" aria-hidden />
+        </button>
+        <button
+          type="button"
+          data-testid="hierarchy-indent"
+          title={effectiveLocale === "en" ? "Indent task" : "Subir nivel de jerarquia"}
+          aria-label={effectiveLocale === "en" ? "Indent task" : "Subir nivel de jerarquia"}
+          disabled={!hasSelection || !onIndentTask}
+          className="gantt-table-toolbar__icon-button"
+          onClick={() => selectedTaskId !== undefined && onIndentTask?.(selectedTaskId)}
+        >
+          <IndentIncrease className="gantt-table-toolbar__icon" aria-hidden />
+        </button>
+      </div>
+      <span className="gantt-table-ribbon__divider" aria-hidden />
+      <div className="gantt-table-ribbon__group">
+        <span className="gantt-table-ribbon__label">
+          {effectiveLocale === "en" ? "Create" : "Crear"}
+        </span>
+        <button
+          type="button"
+          data-testid="hierarchy-add-chapter"
+          title={effectiveLocale === "en" ? "Add chapter" : "Crear capitulo"}
+          aria-label={effectiveLocale === "en" ? "Add chapter" : "Crear capitulo"}
+          disabled={!onInsertTask}
+          className="gantt-table-toolbar__icon-button"
+          onClick={() => handleInsertTask("summary")}
+        >
+          <FolderPlus className="gantt-table-toolbar__icon" aria-hidden />
+        </button>
+        <button
+          type="button"
+          data-testid="hierarchy-add-subchapter"
+          title={effectiveLocale === "en" ? "Add subchapter" : "Crear subcapitulo"}
+          aria-label={effectiveLocale === "en" ? "Add subchapter" : "Crear subcapitulo"}
+          disabled={!hasSelection || !onInsertTask}
+          className="gantt-table-toolbar__icon-button"
+          onClick={() => selectedTaskId !== undefined && handleInsertTask("summary", selectedTaskId)}
+        >
+          <CornerDownRight className="gantt-table-toolbar__icon" aria-hidden />
+        </button>
+        <button
+          type="button"
+          data-testid="hierarchy-add-task"
+          title={effectiveLocale === "en" ? "Add task" : "Crear tarea"}
+          aria-label={effectiveLocale === "en" ? "Add task" : "Crear tarea"}
+          disabled={!onInsertTask}
+          className="gantt-table-toolbar__icon-button"
+          onClick={() => handleInsertTask("task")}
+        >
+          <ListPlus className="gantt-table-toolbar__icon" aria-hidden />
+        </button>
+        <button
+          type="button"
+          data-testid="hierarchy-apply-template"
+          title={effectiveLocale === "en" ? "Apply construction template" : "Aplicar plantilla constructiva"}
+          aria-label={effectiveLocale === "en" ? "Apply construction template" : "Aplicar plantilla constructiva"}
+          disabled={!onApplyStructureTemplate}
+          className="gantt-table-toolbar__icon-button"
+          onClick={() =>
+            onApplyStructureTemplate?.("obra-gris-basica", {
+              afterTaskId: selectedTaskId,
+            })
+          }
+        >
+          <Blocks className="gantt-table-toolbar__icon" aria-hidden />
+        </button>
+      </div>
+      <span className="gantt-table-ribbon__divider" aria-hidden />
+      <div className="gantt-table-ribbon__group gantt-table-ribbon__group--data">
+        <span className="gantt-table-ribbon__label">
+          {effectiveLocale === "en" ? "Data" : "Datos"}
+        </span>
+        <button
+          type="button"
+          data-testid="smart-paste-open"
+          title={effectiveLocale === "en" ? "Smart paste from Excel" : "Pegar desde Excel"}
+          aria-label={effectiveLocale === "en" ? "Smart paste from Excel" : "Pegar desde Excel"}
+          disabled={!onSmartPasteTasks}
+          className="gantt-table-toolbar__icon-button"
+          onClick={() => setSmartPasteOpen((open) => !open)}
+        >
+          <ClipboardPaste className="gantt-table-toolbar__icon" aria-hidden />
+        </button>
+        <button
+          type="button"
+          data-testid="bulk-progress-open"
+          title={effectiveLocale === "en" ? "Bulk update % complete" : "Actualizar % completado en lote"}
+          aria-label={effectiveLocale === "en" ? "Bulk update % complete" : "Actualizar % completado en lote"}
+          disabled={!canBulkEditProgress}
+          className="gantt-table-toolbar__icon-button"
+          onClick={() => setBulkProgressOpen((open) => !open)}
+        >
+          <Percent className="gantt-table-toolbar__icon" aria-hidden />
+        </button>
+        <button
+          type="button"
+          data-testid="excel-copy-export"
+          title={effectiveLocale === "en" ? "Copy visible schedule for Excel" : "Copiar cronograma visible para Excel"}
+          aria-label={effectiveLocale === "en" ? "Copy visible schedule for Excel" : "Copiar cronograma visible para Excel"}
+          disabled={visibleTasks.length === 0}
+          className="gantt-table-toolbar__icon-button"
+          onClick={() => void handleCopyExport()}
+        >
+          <ClipboardCopy className="gantt-table-toolbar__icon" aria-hidden />
+        </button>
+        <button
+          type="button"
+          data-testid="excel-download-export"
+          title={effectiveLocale === "en" ? "Download visible schedule as TSV" : "Descargar cronograma visible como TSV"}
+          aria-label={effectiveLocale === "en" ? "Download visible schedule as TSV" : "Descargar cronograma visible como TSV"}
+          disabled={visibleTasks.length === 0}
+          className="gantt-table-toolbar__icon-button"
+          onClick={handleDownloadExport}
+        >
+          <Download className="gantt-table-toolbar__icon" aria-hidden />
+        </button>
+        <button
+          type="button"
+          data-testid="dependency-panel-open"
+          title={effectiveLocale === "en" ? "Open dependency panel" : "Abrir panel de dependencias"}
+          aria-label={effectiveLocale === "en" ? "Open dependency panel" : "Abrir panel de dependencias"}
+          disabled={!selectedTask || !onUpdateTask}
+          className="gantt-table-toolbar__icon-button"
+          onClick={() => selectedTask && setDependencyPanelTaskId(selectedTask.id)}
+        >
+          <Network className="gantt-table-toolbar__icon" aria-hidden />
+        </button>
+        {exportStatus !== "idle" && (
+          <span
+            data-testid="excel-export-status"
+            className="gantt-table-ribbon__status"
+            data-status={exportStatus}
+          >
+            {exportStatus === "copied"
+              ? effectiveLocale === "en" ? "Copied" : "Copiado"
+              : exportStatus === "downloaded"
+                ? effectiveLocale === "en" ? "Downloaded" : "Descargado"
+                : effectiveLocale === "en" ? "Clipboard unavailable" : "Portapapeles no disponible"}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div
       data-testid="gantt-table"
-      style={{
-        background: "var(--color-bg-surface)",
-        borderRight: "1px solid var(--gray-200)",
-        position: "relative",
-        minWidth: 0,
-      }}
+      ref={tableRootRef}
+      className="gantt-table-shell"
     >
-      {/* Toolbar: Column Selector remains visible in the table panel even with horizontal scroll. */}
+      {ribbonHost ? (
+        createPortal(toolsRibbon, ribbonHost)
+      ) : (
+        <div className="gantt-table-ribbon-local">{toolsRibbon}</div>
+      )}
       <div
-        style={{
-          position: "sticky",
-          top: 0,
-          left: 0,
-          right: 0,
-          width: "100%",
-          zIndex: 10,
-          height: "40px",
-          padding: "6px 10px",
-          borderBottom: "1px solid var(--gray-200)",
-          background: "var(--aia-alabaster)",
-          boxSizing: "border-box",
-          pointerEvents: "none",
-          display: "flex",
-          justifyContent: "flex-end",
-          alignItems: "center",
-        }}
+        data-testid="expand-level-toolbar"
+        className="gantt-table-toolbar"
       >
-        <div style={{ pointerEvents: "auto" }}>
+        {onTaskFilterChange && showTaskFilterControls && (
+          <>
+            <div
+              data-testid="gantt-task-filter"
+              className="gantt-table-toolbar__filter"
+            >
+              <Search className="gantt-table-toolbar__filter-icon" aria-hidden />
+              <input
+                data-testid="gantt-task-filter-input"
+                type="search"
+                value={normalizedTaskFilter.text}
+                placeholder={t(effectiveLocale, "filterByName")}
+                onChange={(event) => updateTaskFilter({ text: event.target.value })}
+                className="gantt-table-toolbar__filter-input"
+              />
+              <select
+                data-testid="gantt-task-filter-type"
+                value={normalizedTaskFilter.type}
+                onChange={(event) =>
+                  updateTaskFilter({ type: event.target.value as TaskFilterType })
+                }
+                className="gantt-table-toolbar__filter-type"
+              >
+                {TASK_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {t(effectiveLocale, option.labelKey)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <span
+              data-testid="gantt-task-filter-count"
+              className="gantt-table-toolbar__count"
+            >
+              {visibleTasks.length} / {tasks.length}
+            </span>
+            {hasActiveTaskFilter && (
+              <button
+                type="button"
+                data-testid="gantt-task-filter-clear"
+                className="gantt-table-toolbar__text-button"
+                onClick={clearTaskFilter}
+              >
+                {effectiveLocale === "en" ? "Clear" : "Limpiar"}
+              </button>
+            )}
+          </>
+        )}
+        <div className="gantt-table-toolbar__column-selector">
           <ColumnSelector
             columns={allColumns}
             visibleColumns={visibleColumns}
@@ -642,324 +1035,10 @@ export default function GanttTable({
         </div>
       </div>
 
-      <div
-        data-testid="expand-level-toolbar"
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 9,
-          display: "flex",
-          alignItems: "center",
-          gap: "4px",
-          padding: "4px 10px",
-          borderBottom: "1px solid var(--gray-200)",
-          background: "var(--color-bg-surface)",
-          minWidth: tableMinWidth,
-        }}
-      >
-        {onTaskFilterChange && showTaskFilterControls && (
-          <>
-            <div
-              data-testid="gantt-task-filter"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                minWidth: 280,
-                maxWidth: 460,
-                flex: "1 1 320px",
-                padding: "2px 8px",
-                border: "1px solid var(--gray-200)",
-                borderRadius: "999px",
-                background: "var(--aia-alabaster)",
-              }}
-            >
-              <Search size={13} color="var(--gray-500)" />
-              <input
-                data-testid="gantt-task-filter-input"
-                type="search"
-                value={normalizedTaskFilter.text}
-                placeholder={t(effectiveLocale, "filterByName")}
-                onChange={(event) => updateTaskFilter({ text: event.target.value })}
-                style={{
-                  flex: 1,
-                  minWidth: 100,
-                  border: 0,
-                  outline: "none",
-                  background: "transparent",
-                  color: "var(--gray-900)",
-                  fontFamily: "var(--font-inter), system-ui, sans-serif",
-                  fontSize: "0.75rem",
-                }}
-              />
-              <select
-                data-testid="gantt-task-filter-type"
-                value={normalizedTaskFilter.type}
-                onChange={(event) =>
-                  updateTaskFilter({ type: event.target.value as TaskFilterType })
-                }
-                style={{
-                  border: 0,
-                  outline: "none",
-                  background: "transparent",
-                  color: "var(--gray-700)",
-                  fontFamily: "var(--font-inter), system-ui, sans-serif",
-                  fontSize: "0.75rem",
-                  cursor: "pointer",
-                }}
-              >
-                {TASK_FILTER_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {t(effectiveLocale, option.labelKey)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <span
-              data-testid="gantt-task-filter-count"
-              style={{
-                fontSize: "0.6875rem",
-                color: "var(--gray-500)",
-                fontFamily: "var(--font-inter), system-ui, sans-serif",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {visibleTasks.length} / {tasks.length} {t(effectiveLocale, "tasks")}
-            </span>
-            {hasActiveTaskFilter && (
-              <button
-                type="button"
-                data-testid="gantt-task-filter-clear"
-                style={toolbarBtnStyle}
-                onClick={clearTaskFilter}
-              >
-                {effectiveLocale === "en" ? "Clear" : "Limpiar"}
-              </button>
-            )}
-            <span
-              style={{
-                width: 1,
-                height: 18,
-                background: "var(--gray-200)",
-                margin: "0 4px",
-              }}
-            />
-          </>
-        )}
-        <span
-          style={{
-            fontSize: "0.6875rem",
-            fontFamily: "var(--font-inter), system-ui, sans-serif",
-            color: "var(--gray-500)",
-            marginRight: "2px",
-          }}
-        >
-          {t(effectiveLocale, "expand")}:
-        </span>
-        {LEVEL_BUTTONS.map((btn) => (
-          <button
-            key={btn.label}
-            data-testid="expand-level-button"
-            style={toolbarBtnStyle}
-            onClick={() => handleExpandToLevel(btn.level)}
-          >
-            {effectiveLocale === "en" ? btn.label : btn.labelEs ?? btn.label}
-          </button>
-        ))}
-        <span
-          style={{
-            width: 1,
-            height: 18,
-            background: "var(--gray-200)",
-            margin: "0 4px",
-          }}
-        />
-        <button
-          type="button"
-          data-testid="hierarchy-move-up"
-          title={effectiveLocale === "en" ? "Move task up" : "Mover tarea arriba"}
-          aria-label={effectiveLocale === "en" ? "Move task up" : "Mover tarea arriba"}
-          disabled={!hasSelection || !onMoveTaskUp}
-          style={hierarchyBtnStyle(!hasSelection || !onMoveTaskUp)}
-          onClick={() => selectedTaskId !== undefined && onMoveTaskUp?.(selectedTaskId)}
-        >
-          <ArrowUp size={14} />
-        </button>
-        <button
-          type="button"
-          data-testid="hierarchy-move-down"
-          title={effectiveLocale === "en" ? "Move task down" : "Mover tarea abajo"}
-          aria-label={effectiveLocale === "en" ? "Move task down" : "Mover tarea abajo"}
-          disabled={!hasSelection || !onMoveTaskDown}
-          style={hierarchyBtnStyle(!hasSelection || !onMoveTaskDown)}
-          onClick={() => selectedTaskId !== undefined && onMoveTaskDown?.(selectedTaskId)}
-        >
-          <ArrowDown size={14} />
-        </button>
-        <button
-          type="button"
-          data-testid="hierarchy-outdent"
-          title={effectiveLocale === "en" ? "Outdent task" : "Bajar nivel de jerarquia"}
-          aria-label={effectiveLocale === "en" ? "Outdent task" : "Bajar nivel de jerarquia"}
-          disabled={!hasSelection || !onOutdentTask}
-          style={hierarchyBtnStyle(!hasSelection || !onOutdentTask)}
-          onClick={() => selectedTaskId !== undefined && onOutdentTask?.(selectedTaskId)}
-        >
-          <IndentDecrease size={14} />
-        </button>
-        <button
-          type="button"
-          data-testid="hierarchy-indent"
-          title={effectiveLocale === "en" ? "Indent task" : "Subir nivel de jerarquia"}
-          aria-label={effectiveLocale === "en" ? "Indent task" : "Subir nivel de jerarquia"}
-          disabled={!hasSelection || !onIndentTask}
-          style={hierarchyBtnStyle(!hasSelection || !onIndentTask)}
-          onClick={() => selectedTaskId !== undefined && onIndentTask?.(selectedTaskId)}
-        >
-          <IndentIncrease size={14} />
-        </button>
-        <span
-          style={{
-            width: 1,
-            height: 18,
-            background: "var(--gray-200)",
-            margin: "0 4px",
-          }}
-        />
-        <button
-          type="button"
-          data-testid="hierarchy-add-chapter"
-          title={effectiveLocale === "en" ? "Add chapter" : "Crear capitulo"}
-          aria-label={effectiveLocale === "en" ? "Add chapter" : "Crear capitulo"}
-          disabled={!onInsertTask}
-          style={hierarchyBtnStyle(!onInsertTask)}
-          onClick={() => handleInsertTask("summary")}
-        >
-          <FolderPlus size={14} />
-        </button>
-        <button
-          type="button"
-          data-testid="hierarchy-add-subchapter"
-          title={effectiveLocale === "en" ? "Add subchapter" : "Crear subcapitulo"}
-          aria-label={effectiveLocale === "en" ? "Add subchapter" : "Crear subcapitulo"}
-          disabled={!hasSelection || !onInsertTask}
-          style={hierarchyBtnStyle(!hasSelection || !onInsertTask)}
-          onClick={() => selectedTaskId !== undefined && handleInsertTask("summary", selectedTaskId)}
-        >
-          <CornerDownRight size={14} />
-        </button>
-        <button
-          type="button"
-          data-testid="hierarchy-add-task"
-          title={effectiveLocale === "en" ? "Add task" : "Crear tarea"}
-          aria-label={effectiveLocale === "en" ? "Add task" : "Crear tarea"}
-          disabled={!onInsertTask}
-          style={hierarchyBtnStyle(!onInsertTask)}
-          onClick={() => handleInsertTask("task")}
-        >
-          <ListPlus size={14} />
-        </button>
-        <button
-          type="button"
-          data-testid="hierarchy-apply-template"
-          title={effectiveLocale === "en" ? "Apply construction template" : "Aplicar plantilla constructiva"}
-          aria-label={effectiveLocale === "en" ? "Apply construction template" : "Aplicar plantilla constructiva"}
-          disabled={!onApplyStructureTemplate}
-          style={hierarchyBtnStyle(!onApplyStructureTemplate)}
-          onClick={() =>
-            onApplyStructureTemplate?.("obra-gris-basica", {
-              afterTaskId: selectedTaskId,
-            })
-          }
-        >
-          <Blocks size={14} />
-        </button>
-        <button
-          type="button"
-          data-testid="smart-paste-open"
-          title={effectiveLocale === "en" ? "Smart paste from Excel" : "Pegar desde Excel"}
-          aria-label={effectiveLocale === "en" ? "Smart paste from Excel" : "Pegar desde Excel"}
-          disabled={!onSmartPasteTasks}
-          style={hierarchyBtnStyle(!onSmartPasteTasks)}
-          onClick={() => setSmartPasteOpen((open) => !open)}
-        >
-          <ClipboardPaste size={14} />
-        </button>
-        <button
-          type="button"
-          data-testid="bulk-progress-open"
-          title={effectiveLocale === "en" ? "Bulk update % complete" : "Actualizar % completado en lote"}
-          aria-label={effectiveLocale === "en" ? "Bulk update % complete" : "Actualizar % completado en lote"}
-          disabled={!canBulkEditProgress}
-          style={hierarchyBtnStyle(!canBulkEditProgress)}
-          onClick={() => setBulkProgressOpen((open) => !open)}
-        >
-          <Percent size={14} />
-        </button>
-        <button
-          type="button"
-          data-testid="excel-copy-export"
-          title={effectiveLocale === "en" ? "Copy visible schedule for Excel" : "Copiar cronograma visible para Excel"}
-          aria-label={effectiveLocale === "en" ? "Copy visible schedule for Excel" : "Copiar cronograma visible para Excel"}
-          disabled={visibleTasks.length === 0}
-          style={hierarchyBtnStyle(visibleTasks.length === 0)}
-          onClick={() => void handleCopyExport()}
-        >
-          <ClipboardCopy size={14} />
-        </button>
-        <button
-          type="button"
-          data-testid="excel-download-export"
-          title={effectiveLocale === "en" ? "Download visible schedule as TSV" : "Descargar cronograma visible como TSV"}
-          aria-label={effectiveLocale === "en" ? "Download visible schedule as TSV" : "Descargar cronograma visible como TSV"}
-          disabled={visibleTasks.length === 0}
-          style={hierarchyBtnStyle(visibleTasks.length === 0)}
-          onClick={handleDownloadExport}
-        >
-          <Download size={14} />
-        </button>
-        {exportStatus !== "idle" && (
-          <span
-            data-testid="excel-export-status"
-            style={{
-              fontSize: "0.6875rem",
-              color: exportStatus === "error" ? "var(--aia-alert-main)" : "var(--color-text-secondary)",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {exportStatus === "copied"
-              ? effectiveLocale === "en" ? "Copied" : "Copiado"
-              : exportStatus === "downloaded"
-                ? effectiveLocale === "en" ? "Downloaded" : "Descargado"
-                : effectiveLocale === "en" ? "Clipboard unavailable" : "Portapapeles no disponible"}
-          </span>
-        )}
-        <span
-          style={{
-            width: 1,
-            height: 18,
-            background: "var(--gray-200)",
-            margin: "0 4px",
-          }}
-        />
-        <button
-          type="button"
-          data-testid="dependency-panel-open"
-          title={effectiveLocale === "en" ? "Open dependency panel" : "Abrir panel de dependencias"}
-          aria-label={effectiveLocale === "en" ? "Open dependency panel" : "Abrir panel de dependencias"}
-          disabled={!selectedTask || !onUpdateTask}
-          style={hierarchyBtnStyle(!selectedTask || !onUpdateTask)}
-          onClick={() => selectedTask && setDependencyPanelTaskId(selectedTask.id)}
-        >
-          <Network size={14} />
-        </button>
-      </div>
-
       {smartPasteOpen && (
         <div
           data-testid="smart-paste-panel"
           className="apple-section m-2 p-3"
-          style={{ minWidth: tableMinWidth - 16 }}
         >
           <label className="block text-xs font-semibold text-[var(--color-text-strong)]">
             {effectiveLocale === "en"
@@ -1005,7 +1084,6 @@ export default function GanttTable({
         <div
           data-testid="bulk-progress-panel"
           className="apple-section m-2 p-3"
-          style={{ minWidth: tableMinWidth - 16 }}
         >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -1071,26 +1149,38 @@ export default function GanttTable({
       )}
 
       <table
-        style={{
-          minWidth: tableMinWidth,
-          borderCollapse: "collapse",
-          tableLayout: "fixed",
-        }}
+        className="gantt-task-table"
       >
+        <colgroup>
+          {displayColumns.map((column) => (
+            <col
+              key={column.key}
+              width={`${((columnWidths[column.key] ?? column.width) / displayColumnTotalWidth) * 100}%`}
+            />
+          ))}
+        </colgroup>
         {/* ── Sticky Header ── */}
-        <thead style={{ position: "sticky", top: 0, zIndex: 8, background: "var(--color-bg-surface)" }}>
+        <thead className="gantt-task-table__head">
           <tr>
-            {displayColumns.map((col) => (
-              <ColumnHeader
-                key={col.key}
-                label={effectiveLocale === "en" ? col.labelEn ?? col.label : col.labelEs ?? col.label}
-                locale={effectiveLocale}
-                width={columnWidths[col.key] ?? col.width}
-                align={col.align}
-                calculationSpec={col.calculationSpec}
-                onResize={(newWidth) => handleResize(col.key, newWidth)}
-              />
-            ))}
+            {displayColumns.map((col) => {
+              const label =
+                useCompactColumnLabels && COMPACT_COLUMN_LABELS[col.key]
+                  ? COMPACT_COLUMN_LABELS[col.key][effectiveLocale]
+                  : effectiveLocale === "en"
+                    ? col.labelEn ?? col.label
+                    : col.labelEs ?? col.label;
+              return (
+                <ColumnHeader
+                  key={col.key}
+                  label={label}
+                  locale={effectiveLocale}
+                  width={columnWidths[col.key] ?? col.width}
+                  align={col.align}
+                  calculationSpec={col.calculationSpec}
+                  onResize={(newWidth) => handleResize(col.key, newWidth)}
+                />
+              );
+            })}
           </tr>
         </thead>
 
@@ -1115,13 +1205,14 @@ export default function GanttTable({
                 actualCost={taskBudget?.actualCost}
                 variance={taskBudget?.variance}
                 allTasks={tasks}
-                draggable={!!onReorderTask}
+                draggable={!!onReorderTask || !!onIndentTask || !!onOutdentTask}
                 isDragging={draggedTaskId === task.id}
                 dropPosition={dropTarget?.taskId === task.id ? dropTarget.position : undefined}
                 onDragStart={(event) => handleRowDragStart(task.id, event)}
                 onDragOver={(event) => handleRowDragOver(task.id, event)}
                 onDrop={(event) => handleRowDrop(task.id, event)}
                 onDragEnd={handleRowDragEnd}
+                onMouseDown={(event) => handleRowMouseDown(task.id, event)}
               />
             );
           })}

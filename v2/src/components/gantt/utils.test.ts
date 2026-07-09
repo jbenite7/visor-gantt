@@ -46,6 +46,9 @@ describe("getDatePosition", () => {
 
     const monthPos = getDatePosition(date, makeViewport({ scale: "month", columnWidth: 80 }));
     expect(monthPos).toBeCloseTo((7 / 30) * 80, 1);
+
+    const quarterPos = getDatePosition(date, makeViewport({ scale: "quarter", columnWidth: 120 }));
+    expect(quarterPos).toBeCloseTo((7 / 91) * 120, 1);
   });
 });
 
@@ -89,6 +92,13 @@ describe("getTaskWidth", () => {
     const finish = new Date("2023-01-31T00:00:00"); // 30 inclusive days
     const viewport = makeViewport({ scale: "month", columnWidth: 80 });
     expect(getTaskWidth(start, finish, viewport)).toBe((30 / 30) * 80); // 80
+  });
+
+  test("quarter scale → width = (days/91) * columnWidth", () => {
+    const start = new Date("2023-01-01T00:00:00");
+    const finish = new Date("2023-04-01T00:00:00"); // 91 inclusive days
+    const viewport = makeViewport({ scale: "quarter", columnWidth: 120 });
+    expect(getTaskWidth(start, finish, viewport)).toBe((91 / 91) * 120);
   });
 });
 
@@ -155,6 +165,24 @@ describe("generateTimelineColumns", () => {
 
     // Jan 2, Feb 2, Mar 2, Apr 2 = 4 columns
     expect(columns).toHaveLength(4);
+  });
+
+  test("quarter scale generates quarterly columns", () => {
+    const viewport: GanttViewport = {
+      startDate: new Date("2023-01-02T00:00:00"),
+      endDate: new Date("2023-10-02T00:00:00"),
+      scale: "quarter",
+      columnWidth: 120,
+    };
+
+    const columns = generateTimelineColumns(viewport);
+
+    expect(columns.map((column) => column.toISOString().split("T")[0])).toEqual([
+      "2023-01-02",
+      "2023-04-02",
+      "2023-07-02",
+      "2023-10-02",
+    ]);
   });
 });
 
@@ -241,6 +269,7 @@ describe("calculateViewport", () => {
     expect(calculateViewport(tasks, "day").columnWidth).toBe(40);
     expect(calculateViewport(tasks, "week").columnWidth).toBe(60);
     expect(calculateViewport(tasks, "month").columnWidth).toBe(80);
+    expect(calculateViewport(tasks, "quarter").columnWidth).toBe(120);
   });
 });
 

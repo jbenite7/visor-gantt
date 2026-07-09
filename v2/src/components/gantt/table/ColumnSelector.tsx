@@ -254,43 +254,18 @@ export default function ColumnSelector({
   };
 
   return (
-    <div style={{ position: "relative", display: "inline-block" }}>
+    <div className="gantt-column-selector">
       {/* Toggle Button */}
       <button
         ref={buttonRef}
         data-testid="column-selector"
+        className="gantt-column-selector__trigger"
+        data-open={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label={t(locale, "toggleColumns")}
         aria-expanded={isOpen}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: "32px",
-          height: "32px",
-          border: "1px solid var(--aia-corp-mid)",
-          borderRadius: "6px",
-          background: isOpen ? "var(--aia-corp-xlight)" : "transparent",
-          color: isOpen ? "var(--aia-corp-dark)" : "var(--aia-corp-mid)",
-          cursor: "pointer",
-          transition: "all 150ms ease",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "var(--aia-corp-xlight)";
-          e.currentTarget.style.color = "var(--aia-corp-dark)";
-          e.currentTarget.style.borderColor = "var(--aia-corp-main)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = isOpen
-            ? "var(--aia-corp-xlight)"
-            : "transparent";
-          e.currentTarget.style.color = isOpen
-            ? "var(--aia-corp-dark)"
-            : "var(--aia-corp-mid)";
-          e.currentTarget.style.borderColor = "var(--aia-corp-mid)";
-        }}
       >
-        <Columns size={16} />
+        <Columns className="gantt-column-selector__trigger-icon" aria-hidden />
       </button>
 
       {/* Dropdown Panel */}
@@ -299,79 +274,27 @@ export default function ColumnSelector({
           ref={panelRef}
           data-testid="column-selector-panel"
           role="menu"
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            right: 0,
-            zIndex: 50,
-            minWidth: "220px",
-            maxHeight: "min(70vh, 620px)",
-            overflowY: "auto",
-            background: "var(--aia-alabaster)",
-            border: "1px solid var(--aia-corp-mid)",
-            borderRadius: "8px",
-            boxShadow: "0 8px 24px rgba(26, 60, 42, 0.15)",
-            padding: "8px 0",
-            fontFamily: "var(--font-inter), system-ui, sans-serif",
-          }}
+          className="gantt-column-selector__panel"
         >
           {/* Header */}
-          <div
-            style={{
-              padding: "6px 14px 8px",
-              borderBottom: "1px solid var(--aia-corp-mid)",
-              marginBottom: "4px",
-            }}
-          >
-            <span
-              style={{
-                fontSize: "0.6875rem",
-                fontWeight: 600,
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-                color: "var(--aia-corp-mid)",
-              }}
-            >
+          <div className="gantt-column-selector__header">
+            <span className="gantt-column-selector__eyebrow">
               {t(locale, "columns")}
             </span>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "8px",
-              padding: "4px 14px 8px",
-              borderBottom: "1px solid rgba(74, 124, 100, 0.15)",
-              marginBottom: "4px",
-            }}
-          >
-            <span
-              style={{
-                fontSize: "0.6875rem",
-                fontWeight: 600,
-                color: "var(--aia-corp-mid)",
-              }}
-            >
+          <div className="gantt-column-selector__section gantt-column-selector__section--row">
+            <span className="gantt-column-selector__label">
               {t(locale, "language")}
             </span>
-            <div style={{ display: "inline-flex", gap: "2px" }}>
+            <div className="gantt-column-selector__segmented">
               {(["es", "en"] as const).map((option) => (
                 <button
                   key={option}
                   type="button"
+                  className="gantt-column-selector__segmented-button"
+                  data-active={locale === option}
                   onClick={() => onLocaleChange(option)}
-                  style={{
-                    padding: "3px 8px",
-                    border: "1px solid var(--aia-corp-mid)",
-                    borderRadius: "4px",
-                    background: locale === option ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
-                    color: locale === option ? "white" : "var(--color-text-strong)",
-                    cursor: "pointer",
-                    fontSize: "0.6875rem",
-                    fontWeight: 700,
-                  }}
                 >
                   {option.toUpperCase()}
                 </button>
@@ -380,48 +303,18 @@ export default function ColumnSelector({
           </div>
 
           {/* Select All / Deselect All */}
-          <div
-            style={{
-              display: "flex",
-              gap: "4px",
-              padding: "4px 14px 8px",
-              borderBottom: "1px solid rgba(74, 124, 100, 0.15)",
-              marginBottom: "4px",
-            }}
-          >
+          <div className="gantt-column-selector__section gantt-column-selector__actions">
             <button
               onClick={handleSelectAll}
               disabled={allVisible}
-              style={{
-                flex: 1,
-                fontSize: "0.6875rem",
-                fontWeight: 500,
-                padding: "4px 8px",
-                border: "1px solid var(--aia-corp-mid)",
-                borderRadius: "4px",
-                background: allVisible ? "transparent" : "var(--color-bg-elevated)",
-                color: allVisible ? "var(--gray-400)" : "var(--color-text-strong)",
-                cursor: allVisible ? "default" : "pointer",
-                opacity: allVisible ? 0.5 : 1,
-              }}
+              className="gantt-column-selector__action"
             >
               {t(locale, "all")}
             </button>
             <button
               onClick={handleDeselectAll}
               disabled={noneVisible}
-              style={{
-                flex: 1,
-                fontSize: "0.6875rem",
-                fontWeight: 500,
-                padding: "4px 8px",
-                border: "1px solid var(--aia-corp-mid)",
-                borderRadius: "4px",
-                background: noneVisible ? "transparent" : "var(--color-bg-elevated)",
-                color: noneVisible ? "var(--gray-400)" : "var(--color-text-strong)",
-                cursor: noneVisible ? "default" : "pointer",
-                opacity: noneVisible ? 0.5 : 1,
-              }}
+              className="gantt-column-selector__action"
             >
               {t(locale, "none")}
             </button>
@@ -434,55 +327,20 @@ export default function ColumnSelector({
               <div
                 key={col.key}
                 title={describeColumn(col)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "0 8px 0 14px",
-                  fontSize: "0.8125rem",
-                  color: "var(--aia-corp-dark)",
-                  transition: "background 100ms ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(74, 124, 100, 0.08)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                }}
+                className="gantt-column-selector__column-row"
               >
                 <label
                   role="menuitemcheckbox"
                   aria-checked={isVisible}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    flex: 1,
-                    minWidth: 0,
-                    padding: "6px 0",
-                    cursor: "pointer",
-                  }}
+                  className="gantt-column-selector__column-label"
                 >
                   <input
                     type="checkbox"
                     checked={isVisible}
                     onChange={() => onToggle(col.key)}
-                    style={{
-                      width: "14px",
-                      height: "14px",
-                      accentColor: "var(--aia-corp-main)",
-                      cursor: "pointer",
-                      margin: 0,
-                    }}
+                    className="gantt-column-selector__checkbox"
                   />
-                  <span
-                    style={{
-                      minWidth: 0,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
+                  <span className="gantt-column-selector__column-name">
                     {columnLabel(col)}
                   </span>
                 </label>
@@ -490,21 +348,10 @@ export default function ColumnSelector({
                   type="button"
                   aria-label={`${locale === "en" ? "Inspect column" : "Inspeccionar columna"} ${columnLabel(col)}`}
                   onClick={() => setSelectedColumnKey(col.key)}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: "24px",
-                    height: "24px",
-                    border: "1px solid transparent",
-                    borderRadius: "4px",
-                    background: selectedColumnKey === col.key ? "var(--aia-corp-xlight)" : "transparent",
-                    color: selectedColumnKey === col.key ? "var(--aia-corp-dark)" : "var(--aia-corp-mid)",
-                    cursor: "pointer",
-                    flex: "0 0 auto",
-                  }}
+                  className="gantt-column-selector__inspect-button"
+                  data-active={selectedColumnKey === col.key}
                 >
-                  <Info size={14} />
+                  <Info className="gantt-column-selector__inspect-icon" aria-hidden />
                 </button>
               </div>
             );
@@ -513,48 +360,18 @@ export default function ColumnSelector({
           {selectedColumn && (
             <div
               data-testid="field-inspector"
-              style={{
-                margin: "8px 10px 4px",
-                padding: "10px",
-                border: "1px solid rgba(74, 124, 100, 0.25)",
-                borderRadius: "6px",
-                background: "var(--color-bg-elevated)",
-              }}
+              className="gantt-column-selector__inspector"
             >
-              <div
-                style={{
-                  fontSize: "0.6875rem",
-                  fontWeight: 700,
-                  letterSpacing: "0.04em",
-                  textTransform: "uppercase",
-                  color: "var(--aia-corp-mid)",
-                  marginBottom: "6px",
-                }}
-              >
+              <div className="gantt-column-selector__inspector-title">
                 {locale === "en" ? "Field inspector" : "Inspector de campo"}
               </div>
-              <dl
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "minmax(84px, 0.45fr) minmax(0, 1fr)",
-                  gap: "5px 8px",
-                  margin: 0,
-                  fontSize: "0.75rem",
-                  lineHeight: 1.35,
-                }}
-              >
+              <dl className="gantt-column-selector__inspector-grid">
                 {(selectedInspection ? inspectionRows(selectedInspection) : metadataRows(selectedColumn)).map((row) => (
-                  <div key={`${row.label}-${row.value}`} style={{ display: "contents" }}>
-                    <dt style={{ color: "var(--aia-corp-mid)", fontWeight: 600 }}>
+                  <div key={`${row.label}-${row.value}`} className="gantt-column-selector__inspector-row">
+                    <dt className="gantt-column-selector__inspector-term">
                       {row.label}
                     </dt>
-                    <dd
-                      style={{
-                        margin: 0,
-                        color: "var(--color-text-strong)",
-                        overflowWrap: "anywhere",
-                      }}
-                    >
+                    <dd className="gantt-column-selector__inspector-definition">
                       {row.value}
                     </dd>
                   </div>
@@ -564,36 +381,13 @@ export default function ColumnSelector({
           )}
 
           {/* Reset Button */}
-          <div
-            style={{
-              padding: "8px 14px 4px",
-              borderTop: "1px solid rgba(74, 124, 100, 0.15)",
-              marginTop: "4px",
-            }}
-          >
+          <div className="gantt-column-selector__footer">
             <button
               onClick={() => {
                 onReset();
                 setIsOpen(false);
               }}
-              style={{
-                width: "100%",
-                fontSize: "0.75rem",
-                fontWeight: 500,
-                padding: "6px 10px",
-                border: "1px solid var(--aia-corp-mid)",
-                borderRadius: "4px",
-                background: "var(--color-bg-elevated)",
-                color: "var(--color-text-strong)",
-                cursor: "pointer",
-                transition: "background 120ms ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "var(--aia-corp-xlight)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "var(--color-bg-elevated)";
-              }}
+              className="gantt-column-selector__reset"
             >
               {t(locale, "reset")}
             </button>

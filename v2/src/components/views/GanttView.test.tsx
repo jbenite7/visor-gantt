@@ -267,7 +267,7 @@ describe("GanttView", () => {
     fireEvent.keyDown(input, { key: "Enter" });
 
     await waitFor(() => {
-      expect(screen.getByText(/08 de ene de 2026/)).toBeInTheDocument();
+      expect(screen.getAllByText(/08\/01\/2026/).length).toBeGreaterThan(0);
     });
   });
 
@@ -451,9 +451,8 @@ describe("GanttView", () => {
       />,
     );
 
-    expect(screen.getByTestId("interaction-mode-simple")).toHaveStyle({
-      background: "var(--aia-corp-main)",
-    });
+    expect(screen.getByTestId("interaction-mode-simple")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("interaction-mode-simple")).toHaveAttribute("data-active", "true");
     expect(screen.queryByTestId("planning-assistant-panel")).not.toBeInTheDocument();
     expect(screen.queryByTestId("what-if-scenario-panel")).not.toBeInTheDocument();
   });

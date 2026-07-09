@@ -25,20 +25,17 @@ export default function WBSExpand({
   level,
   isSummary,
 }: WBSExpandProps) {
-  const indent = (level - 1) * 20;
+  const cappedLevel = Math.max(1, Math.min(level, 12));
 
   if (!isSummary) {
     // Empty spacer for alignment — same width as the toggle
     return (
       <span
         data-testid="wbs-expand"
+        className="gantt-wbs-expand"
+        data-level={cappedLevel}
+        data-summary="false"
         aria-hidden="true"
-        style={{
-          display: "inline-block",
-          width: 16,
-          height: 16,
-          marginLeft: indent,
-        }}
       />
     );
   }
@@ -46,6 +43,10 @@ export default function WBSExpand({
   return (
     <span
       data-testid="wbs-expand"
+      className="gantt-wbs-expand"
+      data-level={cappedLevel}
+      data-summary="true"
+      data-expanded={isExpanded}
       role="button"
       tabIndex={0}
       aria-label={isExpanded ? "Collapse" : "Expand"}
@@ -60,23 +61,11 @@ export default function WBSExpand({
           onClick?.();
         }
       }}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 16,
-        height: 16,
-        marginLeft: indent,
-        cursor: "pointer",
-        color: "var(--aia-corp-dark)",
-        flexShrink: 0,
-        verticalAlign: "middle",
-      }}
     >
       {isExpanded ? (
-        <ChevronDown size={14} strokeWidth={2} />
+        <ChevronDown className="gantt-wbs-expand__icon" aria-hidden />
       ) : (
-        <ChevronRight size={14} strokeWidth={2} />
+        <ChevronRight className="gantt-wbs-expand__icon" aria-hidden />
       )}
     </span>
   );

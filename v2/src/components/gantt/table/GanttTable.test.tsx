@@ -33,10 +33,12 @@ function fireDragEvent(
   type: "dragStart" | "dragOver" | "drop",
   dataTransfer: Record<string, unknown>,
   clientY = 0,
+  clientX = 0,
 ) {
   const event = createEvent[type](element);
   Object.defineProperty(event, "dataTransfer", { value: dataTransfer });
   Object.defineProperty(event, "clientY", { value: clientY });
+  Object.defineProperty(event, "clientX", { value: clientX });
   fireEvent(element, event);
 }
 
@@ -115,10 +117,10 @@ describe("GanttTable", () => {
 
     const expandIcons = screen.getAllByTestId("wbs-expand");
 
-    // Level 1: marginLeft = (1-1) * 20 = 0
-    // Level 2: marginLeft = (2-1) * 20 = 20
-    expect(expandIcons[0]).toHaveStyle("margin-left: 0px");
-    expect(expandIcons[1]).toHaveStyle("margin-left: 20px");
+    expect(expandIcons[0]).toHaveAttribute("data-level", "1");
+    expect(expandIcons[1]).toHaveAttribute("data-level", "2");
+    expect(expandIcons[0]).toHaveClass("gantt-wbs-expand");
+    expect(expandIcons[1]).toHaveClass("gantt-wbs-expand");
   });
 
   test("applies bold font weight for summary rows", () => {
@@ -126,18 +128,17 @@ describe("GanttTable", () => {
 
     render(<GanttTable tasks={[summaryTask, child]} />);
 
-    // Summary rows have fontWeight: 600 in the name cell
     const rows = screen.getAllByTestId("gantt-row");
 
     // The first row (summary) should contain the summary name
     expect(rows[0]).toHaveTextContent("Phase 1");
+    expect(rows[0]).toHaveAttribute("data-summary", "true");
 
-    // The name cell with bold font weight is the td containing the task name
-    // Check that the summary row's name has the bold style
     const nameCells = rows[0].querySelectorAll("td");
     // Name is at index 3 (after ID, Unique ID and EDT)
     const nameCell = nameCells[3];
-    expect(nameCell).toHaveStyle("font-weight: 600");
+    expect(nameCell).toHaveClass("gantt-row-cell--name");
+    expect(nameCell).toHaveAttribute("data-summary", "true");
   });
 
   test("renders the default columns in the requested order", () => {
@@ -174,6 +175,23 @@ describe("GanttTable", () => {
     expect(cells[0]).toHaveTextContent("7");
     expect(cells[1]).toHaveTextContent("107");
     expect(cells[3]).toHaveTextContent("Design");
+  });
+
+  test("renders numeric ID fallbacks for matrix tasks with string internal ids", () => {
+    const task = makeTask({
+      id: "mx-summary-etapa-1",
+      name: "Etapa 1",
+      mppFields: undefined,
+    });
+
+    render(<GanttTable tasks={[task]} />);
+
+    const row = screen.getAllByTestId("gantt-row")[0];
+    const cells = row.querySelectorAll("td");
+    expect(cells[0]).toHaveTextContent("1");
+    expect(cells[0]).not.toHaveTextContent("mx-summary-etapa-1");
+    expect(cells[1]).toHaveTextContent("1");
+    expect(cells[1]).not.toHaveTextContent("mx-summary-etapa-1");
   });
 
   test("renders predecessors with row IDs when internal IDs are Unique IDs", () => {
@@ -653,6 +671,102 @@ describe("GanttTable", () => {
     fireDragEvent(rows[1], "drop", dataTransfer, 0);
 
     expect(onReorderTask).toHaveBeenCalledWith("t1", "t2", "child");
+  });
+
+  test("uses horizontal row drag to indent under the immediately previous activity", () => {
+    const onIndentTask = jest.fn();
+    const onReorderTask = jest.fn();
+    const first = makeTask({ id: "t1", name: "Design" });
+    const second = makeTask({ id: "t2", name: "Build" });
+
+    render(
+      <GanttTable
+        tasks={[first, second]}
+        onIndentTask={onIndentTask}
+        onReorderTask={onReorderTask}
+      />,
+    );
+
+    const rows = screen.getAllByTestId("gantt-row");
+    const dataTransfer = {
+      effectAllowed: "",
+      dropEffect: "",
+      setData: jest.fn(),
+      getData: jest.fn(),
+    };
+
+    fireDragEvent(rows[1], "dragStart", dataTransfer, 0, 120);
+    fireDragEvent(rows[1], "drop", dataTransfer, 0, 172);
+
+    expect(onIndentTask).toHaveBeenCalledWith("t2");
+    expect(onReorderTask).not.toHaveBeenCalled();
+  });
+
+  test("uses horizontal row drag to outdent a nested activity", () => {
+    const onOutdentTask = jest.fn();
+    const onReorderTask = jest.fn();
+    const parent = makeTask({ id: "parent", name: "Parent", isSummary: true, outlineLevel: 1 });
+    const child = makeTask({ id: "child", name: "Child", outlineLevel: 2 });
+
+    render(
+      <GanttTable
+        tasks={[parent, child]}
+        onOutdentTask={onOutdentTask}
+        onReorderTask={onReorderTask}
+      />,
+    );
+
+    const rows = screen.getAllByTestId("gantt-row");
+    const dataTransfer = {
+      effectAllowed: "",
+      dropEffect: "",
+      setData: jest.fn(),
+      getData: jest.fn(),
+    };
+
+    fireDragEvent(rows[1], "dragStart", dataTransfer, 0, 160);
+    fireDragEvent(rows[1], "drop", dataTransfer, 0, 108);
+
+    expect(onOutdentTask).toHaveBeenCalledWith("child");
+    expect(onReorderTask).not.toHaveBeenCalled();
+  });
+
+  test("uses mouse horizontal movement to indent under the previous group", () => {
+    const onIndentTask = jest.fn();
+    const first = makeTask({ id: "t1", name: "Design" });
+    const second = makeTask({ id: "t2", name: "Build" });
+
+    render(
+      <GanttTable
+        tasks={[first, second]}
+        onIndentTask={onIndentTask}
+      />,
+    );
+
+    const rows = screen.getAllByTestId("gantt-row");
+    fireEvent.mouseDown(rows[1], { button: 0, clientX: 120, clientY: 10 });
+    fireEvent.mouseUp(window, { button: 0, clientX: 176, clientY: 12 });
+
+    expect(onIndentTask).toHaveBeenCalledWith("t2");
+  });
+
+  test("uses mouse horizontal movement to outdent a nested activity", () => {
+    const onOutdentTask = jest.fn();
+    const parent = makeTask({ id: "parent", name: "Parent", isSummary: true, outlineLevel: 1 });
+    const child = makeTask({ id: "child", name: "Child", outlineLevel: 2 });
+
+    render(
+      <GanttTable
+        tasks={[parent, child]}
+        onOutdentTask={onOutdentTask}
+      />,
+    );
+
+    const rows = screen.getAllByTestId("gantt-row");
+    fireEvent.mouseDown(rows[1], { button: 0, clientX: 176, clientY: 10 });
+    fireEvent.mouseUp(window, { button: 0, clientX: 120, clientY: 12 });
+
+    expect(onOutdentTask).toHaveBeenCalledWith("child");
   });
 
   test("commits predecessors from the visual dependency popover", () => {

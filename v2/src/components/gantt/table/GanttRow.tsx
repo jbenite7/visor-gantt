@@ -1,7 +1,6 @@
 "use client";
 
 import type { GanttTask, GanttDependency } from "@/components/gantt/types";
-import { GANTT_ROW_HEIGHT } from "../layout";
 import WBSExpand from "./WBSExpand";
 import EditableCell from "./EditableCell";
 import DependencyPopover from "@/components/gantt/dependencies/DependencyPopover";
@@ -38,6 +37,7 @@ interface GanttRowProps {
   onDragOver?: (event: React.DragEvent<HTMLTableRowElement>) => void;
   onDrop?: (event: React.DragEvent<HTMLTableRowElement>) => void;
   onDragEnd?: (event: React.DragEvent<HTMLTableRowElement>) => void;
+  onMouseDown?: (event: React.MouseEvent<HTMLTableRowElement>) => void;
 }
 
 /** Format a Date to DD/MM/YYYY for Colombian locale. */
@@ -63,9 +63,17 @@ function formatDependencies(dependencies: GanttDependency[], tasks: GanttTask[])
     .join(", ");
 }
 
-function formatUniqueId(task: GanttTask): string | number {
+function numericRecordValue(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isInteger(value)) return value;
+  if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+    return Number(value);
+  }
+  return undefined;
+}
+
+function formatUniqueId(task: GanttTask, fallback: number): number {
   const value = getMppRecordValue(task, "UNIQUE_ID");
-  return typeof value === "string" || typeof value === "number" ? value : task.id;
+  return numericRecordValue(value) ?? fallback;
 }
 
 /**
@@ -101,19 +109,6 @@ function parsePredecessors(
 
   return result;
 }
-
-/** Shared cell style for consistent alignment and padding. */
-const cellStyle: React.CSSProperties = {
-  padding: "0 10px",
-  fontSize: "0.8125rem",
-  lineHeight: "1.4",
-  height: `${GANTT_ROW_HEIGHT}px`,
-  verticalAlign: "middle",
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  fontFamily: "var(--font-inter), system-ui, sans-serif",
-};
 
 const FORMAT_CURRENCY = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -190,6 +185,16 @@ function mppEditableCellType(dataType: string | undefined): "text" | "number" | 
   return "text";
 }
 
+function cellAttributes(
+  align: "left" | "right" | "center" = "left",
+  modifier?: string,
+) {
+  return {
+    className: modifier ? `gantt-row-cell ${modifier}` : "gantt-row-cell",
+    "data-align": align,
+  };
+}
+
 /**
  * Single row in the Gantt entry table.
  * Handles WBS indentation, summary/milestone styling, row striping, selection.
@@ -217,54 +222,10 @@ export default function GanttRow({
   onDragOver,
   onDrop,
   onDragEnd,
+  onMouseDown,
 }: GanttRowProps) {
-  // ── Row background resolution ──
-  // Priority: selected > summary > stripe
-  let rowBg: string;
-  if (isSelected) {
-    rowBg = "var(--aia-proj-xlight)";
-  } else if (task.isSummary) {
-    rowBg = "var(--aia-corp-xlight)";
-  } else {
-    rowBg = index % 2 === 0 ? "var(--aia-alabaster)" : "var(--aia-linen)";
-  }
-
-  const rowStyle: React.CSSProperties = {
-    background: rowBg,
-    borderLeft: isSelected
-      ? "3px solid var(--aia-proj-main)"
-      : "3px solid transparent",
-    borderTop: dropPosition === "before" ? "2px solid var(--aia-proj-main)" : undefined,
-    borderBottom: dropPosition === "after" ? "2px solid var(--aia-proj-main)" : undefined,
-    boxShadow: dropPosition === "child" ? "inset 0 0 0 2px var(--aia-proj-main)" : undefined,
-    cursor: draggable ? "grab" : "pointer",
-    opacity: isDragging ? 0.55 : 1,
-    transition: "background 120ms ease",
-    height: `${GANTT_ROW_HEIGHT}px`,
-  };
-
   // ── Name cell: milestone icon + critical color ──
   const namePrefix = task.isMilestone ? "◆ " : "";
-  const nameColor = task.isCritical
-    ? "var(--aia-alert-main)"
-    : task.isSummary
-      ? "var(--gray-900)"
-      : "inherit";
-
-  const nameCellStyle: React.CSSProperties = {
-    ...cellStyle,
-    paddingLeft: "10px",
-    fontWeight: task.isSummary ? 600 : 400,
-    color: nameColor,
-  };
-
-  // ── Critical badge ──
-  const criticalCellStyle: React.CSSProperties = {
-    ...cellStyle,
-    textAlign: "center",
-    color: task.isCritical ? "var(--aia-alert-main)" : "inherit",
-    fontWeight: task.isCritical ? 600 : 400,
-  };
 
   // ── Progress display ──
   const progress = task.percentComplete ?? task.progress;
@@ -275,13 +236,19 @@ export default function GanttRow({
   const renderCell = (column: ColumnConfig) => {
     switch (column.key) {
       case "id":
-        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>{taskRowId(task, rowNumber)}</td>;
+        return <td key={column.key} {...cellAttributes("right")}>{taskRowId(task, rowNumber)}</td>;
       case "uniqueId":
-        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>{formatUniqueId(task)}</td>;
+        return <td key={column.key} {...cellAttributes("right")}>{formatUniqueId(task, rowNumber)}</td>;
       case "wbs":
-        return <td key={column.key} style={cellStyle}>{task.wbs ?? ""}</td>;
+        return <td key={column.key} {...cellAttributes()}>{task.wbs ?? ""}</td>;
       case "name":
-        return <td key={column.key} style={nameCellStyle}>
+        return (
+          <td
+            key={column.key}
+            {...cellAttributes("left", "gantt-row-cell--name")}
+            data-summary={task.isSummary}
+            data-critical={task.isCritical}
+          >
         {canEdit ? (
           <EditableCell
             value={`${namePrefix}${task.name}`}
@@ -312,11 +279,20 @@ export default function GanttRow({
             </span>
           </>
         )}
-      </td>;
+      </td>
+        );
       case "summary":
-        return <td key={column.key} style={criticalCellStyle}>{task.isSummary ? t(locale, "yes") : ""}</td>;
+        return (
+          <td
+            key={column.key}
+            {...cellAttributes("center", "gantt-row-cell--critical")}
+            data-critical={task.isCritical}
+          >
+            {task.isSummary ? t(locale, "yes") : ""}
+          </td>
+        );
       case "duration":
-        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>
+        return <td key={column.key} {...cellAttributes("right")}>
         {canEdit ? (
           <EditableCell
             value={task.duration}
@@ -334,7 +310,7 @@ export default function GanttRow({
         )}
       </td>;
       case "start":
-        return <td key={column.key} style={cellStyle}>
+        return <td key={column.key} {...cellAttributes()}>
         {canEdit ? (
           <EditableCell
             value={toISODate(task.start)}
@@ -352,7 +328,7 @@ export default function GanttRow({
         )}
       </td>;
       case "finish":
-        return <td key={column.key} style={cellStyle}>
+        return <td key={column.key} {...cellAttributes()}>
         {canEdit ? (
           <EditableCell
             value={toISODate(task.finish)}
@@ -370,10 +346,10 @@ export default function GanttRow({
         )}
       </td>;
       case "predecessors":
-        return <td key={column.key} style={cellStyle}>
+        return <td key={column.key} {...cellAttributes()}>
         {canEdit ? (
-          <div style={{ display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="gantt-row-dependencies">
+            <div className="gantt-row-dependencies__editor">
               <EditableCell
                 value={formatDependencies(task.dependencies, allTasks)}
                 type="text"
@@ -396,7 +372,7 @@ export default function GanttRow({
         )}
       </td>;
       case "progress":
-        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>
+        return <td key={column.key} {...cellAttributes("right")}>
         {canEdit ? (
           <EditableCell
             value={progress}
@@ -416,15 +392,23 @@ export default function GanttRow({
         )}
       </td>;
       case "critical":
-        return <td key={column.key} style={criticalCellStyle}>{task.isCritical ? t(locale, "yes") : ""}</td>;
+        return (
+          <td
+            key={column.key}
+            {...cellAttributes("center", "gantt-row-cell--critical")}
+            data-critical={task.isCritical}
+          >
+            {task.isCritical ? t(locale, "yes") : ""}
+          </td>
+        );
       case "budgetedCost":
-        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>
+        return <td key={column.key} {...cellAttributes("right")}>
         {budgetedCost !== undefined && budgetedCost > 0
           ? FORMAT_CURRENCY.format(budgetedCost)
           : "\u2014"}
       </td>;
       case "actualCost":
-        return <td key={column.key} style={{ ...cellStyle, textAlign: "right" }}>
+        return <td key={column.key} {...cellAttributes("right")}>
         {actualCost !== undefined && actualCost > 0
           ? FORMAT_CURRENCY.format(actualCost)
           : "\u2014"}
@@ -432,17 +416,14 @@ export default function GanttRow({
       case "variance":
         return <td
         key={column.key}
-        style={{
-          ...cellStyle,
-          textAlign: "right",
-          color:
-            variance !== undefined && variance !== 0
-              ? variance > 0
-                ? "var(--aia-proj-main)"
-                : "var(--aia-alert-main)"
-              : undefined,
-          fontWeight: variance !== undefined && variance !== 0 ? 600 : 400,
-        }}
+        {...cellAttributes("right", "gantt-row-cell--variance")}
+        data-variance={
+          variance === undefined || variance === 0
+            ? "neutral"
+            : variance > 0
+              ? "positive"
+              : "negative"
+        }
       >
         {variance !== undefined ? FORMAT_CURRENCY.format(variance) : "\u2014"}
       </td>;
@@ -451,7 +432,7 @@ export default function GanttRow({
           const sourceKey = column.sourceKey ?? column.key.replace(/^mpp(?::task)?:/, "");
           const value = getMppCellValue(task, column);
           return (
-            <td key={column.key} style={{ ...cellStyle, textAlign: column.align }}>
+            <td key={column.key} {...cellAttributes(column.align)}>
               <EditableCell
                 value={getMppEditValue(value, column.dataType)}
                 type={mppEditableCellType(column.dataType)}
@@ -464,7 +445,7 @@ export default function GanttRow({
           );
         }
         return (
-          <td key={column.key} style={{ ...cellStyle, textAlign: column.align }}>
+          <td key={column.key} {...cellAttributes(column.align)}>
             {formatGenericValue(getMppCellValue(task, column), column.dataType, locale)}
           </td>
         );
@@ -475,25 +456,21 @@ export default function GanttRow({
     <tr
       data-testid="gantt-row"
       data-task-id={task.id}
+      className="gantt-row"
+      data-selected={isSelected}
+      data-summary={task.isSummary}
+      data-stripe={index % 2 === 0 ? "even" : "odd"}
+      data-draggable={draggable}
+      data-dragging={isDragging}
+      data-drop-position={dropPosition}
       draggable={draggable}
       aria-grabbed={isDragging || undefined}
-      style={rowStyle}
       onClick={(e) => onSelect?.(task.id, e.ctrlKey || e.metaKey)}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
-      onMouseEnter={(e) => {
-        if (!isSelected) {
-          (e.currentTarget as HTMLElement).style.background =
-            "var(--aia-corp-xlight)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) {
-          (e.currentTarget as HTMLElement).style.background = rowBg;
-        }
-      }}
+      onMouseDown={onMouseDown}
     >
       {columns.map(renderCell)}
     </tr>

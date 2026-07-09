@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { GanttTask, GanttConfig } from "./types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { GanttTask, GanttConfig, type GanttScale } from "./types";
 import { DEFAULT_PROJECT_CALENDAR, type ProjectCalendar } from "@/types/calendar";
 import { isProjectWorkingDay } from "@/lib/scheduling/projectCalendar";
 import {
@@ -29,7 +29,7 @@ interface GanttChartProps {
   tasks: GanttTask[];
   config?: Partial<GanttConfig>;
   calendar?: ProjectCalendar;
-  scale?: "day" | "week" | "month";
+  scale?: GanttScale;
   onTaskClick?: (task: GanttTask) => void;
   selectedTaskIds?: (string | number)[];
   onTaskSelect?: (taskId: string | number, ctrlKey: boolean) => void;
@@ -68,9 +68,14 @@ const LABEL_HEIGHT = 20;
 const LABEL_GAP = 6;
 const LABEL_PADDING_X = 6;
 const SUMMARY_LABEL_OFFSET_X = 4;
+const MIN_FITTED_COLUMN_WIDTH = 1;
 
 function labelWidth(estimatedWidth: number): number {
   return Math.max(estimatedWidth, 28);
+}
+
+function fitsWithinChart(x: number, width: number, chartWidth: number): boolean {
+  return x >= 0 && x + width <= chartWidth;
 }
 
 function isSameDay(a: Date, b: Date): boolean {
@@ -94,11 +99,12 @@ export default function GanttChart({
   resizeState,
   onResizeStart,
 }: GanttChartProps) {
-  const finalConfig = { ...DEFAULT_CONFIG, ...config };
-
   const { depState, onDepStart, onDepMove, onDepEnd } =
     useCreateDependency(onCreateDependency);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [clientToday, setClientToday] = useState<Date | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const finalConfig = { ...DEFAULT_CONFIG, ...config };
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -109,11 +115,35 @@ export default function GanttChart({
     return () => window.clearTimeout(timeout);
   }, []);
 
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const element = containerRef.current;
+    const updateWidth = () => {
+      setContainerWidth(Math.floor(element.getBoundingClientRect().width));
+    };
+    updateWidth();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateWidth);
+      return () => window.removeEventListener("resize", updateWidth);
+    }
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   const viewport = useMemo(
     () => calculateViewport(tasks, scale),
     [tasks, scale],
   );
   const columns = useMemo(() => generateTimelineColumns(viewport), [viewport]);
+  const fittedViewport = useMemo(() => {
+    if (containerWidth <= 0 || columns.length === 0) return viewport;
+    const fittedColumnWidth = Math.min(
+      viewport.columnWidth,
+      Math.max(MIN_FITTED_COLUMN_WIDTH, containerWidth / columns.length),
+    );
+    return { ...viewport, columnWidth: fittedColumnWidth };
+  }, [columns.length, containerWidth, viewport]);
   const taskIndexById = useMemo(() => {
     const index = new Map<string | number, number>();
     tasks.forEach((task, rowIndex) => index.set(task.id, rowIndex));
@@ -121,34 +151,35 @@ export default function GanttChart({
   }, [tasks]);
 
   const chartHeight = tasks.length * finalConfig.rowHeight;
-  const chartWidth = columns.length * viewport.columnWidth;
+  const chartWidth = columns.length * fittedViewport.columnWidth;
 
   const todayX = useMemo(() => {
     if (!clientToday) return null;
-    if (clientToday >= viewport.startDate && clientToday <= viewport.endDate) {
-      return getDatePosition(clientToday, viewport);
+    if (clientToday >= fittedViewport.startDate && clientToday <= fittedViewport.endDate) {
+      return getDatePosition(clientToday, fittedViewport);
     }
     return null;
-  }, [clientToday, viewport]);
+  }, [clientToday, fittedViewport]);
   const todayLabel = clientToday?.toLocaleDateString("es-CO", {
     day: "2-digit",
     month: "2-digit",
   });
 
   return (
-    <div className="gantt-chart">
+    <div ref={containerRef} className="gantt-chart">
       <div className="relative">
         <svg
           width={chartWidth}
           height={chartHeight + finalConfig.headerHeight}
           className="font-sans"
+          overflow="hidden"
           onMouseMove={depState.isCreating ? onDepMove : undefined}
         >
           {/* Timeline Header */}
           <TimescaleHeader
-            viewport={viewport}
+            viewport={fittedViewport}
             columns={columns}
-            columnWidth={viewport.columnWidth}
+            columnWidth={fittedViewport.columnWidth}
             headerHeight={finalConfig.headerHeight}
           />
 
@@ -158,9 +189,9 @@ export default function GanttChart({
               clientToday && isSameDay(date, clientToday) ? (
                 <rect
                   key={`today-col-${i}`}
-                  x={i * viewport.columnWidth}
+                  x={i * fittedViewport.columnWidth}
                   y={0}
-                  width={viewport.columnWidth}
+                  width={fittedViewport.columnWidth}
                   height={chartHeight + finalConfig.headerHeight}
                   fill="var(--aia-proj-xlight)"
                   opacity={0.3}
@@ -176,11 +207,11 @@ export default function GanttChart({
                 <rect
                   key={`weekend-${i}`}
                   data-non-working-date={date.toISOString().split("T")[0]}
-                  x={i * viewport.columnWidth}
+                  x={i * fittedViewport.columnWidth}
                   y={finalConfig.headerHeight}
-                  width={viewport.columnWidth}
+                  width={fittedViewport.columnWidth}
                   height={chartHeight}
-                  fill="rgba(0,0,0,0.08)"
+                  fill="var(--gantt-chart-nonworking-fill)"
                 />
               ) : null,
             )}
@@ -205,9 +236,9 @@ export default function GanttChart({
             {columns.map((_, i) => (
               <line
                 key={i}
-                x1={i * viewport.columnWidth}
+                x1={i * fittedViewport.columnWidth}
                 y1={finalConfig.headerHeight}
-                x2={i * viewport.columnWidth}
+                x2={i * fittedViewport.columnWidth}
                 y2={chartHeight + finalConfig.headerHeight}
                 stroke="var(--aia-corp-mid)"
                 strokeWidth={1}
@@ -237,8 +268,8 @@ export default function GanttChart({
           >
             {tasks.map((task, i) => {
               const y = i * finalConfig.rowHeight;
-              const x = getDatePosition(task.start, viewport);
-              const width = getTaskWidth(task.start, task.finish, viewport);
+              const x = getDatePosition(task.start, fittedViewport);
+              const width = getTaskWidth(task.start, task.finish, fittedViewport);
 
               let color = finalConfig.normalColor;
               if (task.isCritical) color = finalConfig.criticalColor;
@@ -295,7 +326,7 @@ export default function GanttChart({
                       isSelected={selectedTaskIds?.includes(task.id) ?? false}
                       onDepStart={onDepStart}
                       isDepHovered={depState.hoverTaskId === task.id}
-                      viewport={viewport}
+                      viewport={fittedViewport}
                       onDragStart={onDragStart}
                       dragState={dragState}
                       onResizeStart={onResizeStart}
@@ -325,7 +356,7 @@ export default function GanttChart({
                 const endpoints = getDependencyEndpoints(
                   predecessor,
                   tasks[succIndex],
-                  viewport,
+                  fittedViewport,
                   predIndex,
                   succIndex,
                   finalConfig.rowHeight,
@@ -360,9 +391,9 @@ export default function GanttChart({
               const fromTask = tasks[fromTaskIndex];
               const fromX =
                 depState.fromEdge === "right"
-                  ? getDatePosition(fromTask.start, viewport) +
-                    getTaskWidth(fromTask.start, fromTask.finish, viewport)
-                  : getDatePosition(fromTask.start, viewport);
+                  ? getDatePosition(fromTask.start, fittedViewport) +
+                    getTaskWidth(fromTask.start, fromTask.finish, fittedViewport)
+                  : getDatePosition(fromTask.start, fittedViewport);
               const fromY =
                 fromTaskIndex * finalConfig.rowHeight + finalConfig.rowHeight / 2;
               const toX = depState.mouseX;
@@ -417,13 +448,16 @@ export default function GanttChart({
               const y = i * finalConfig.rowHeight;
               const centerY = y + finalConfig.rowHeight / 2;
               const labelY = centerY - LABEL_HEIGHT / 2;
-              const x = getDatePosition(task.start, viewport);
-              const width = getTaskWidth(task.start, task.finish, viewport);
+              const x = getDatePosition(task.start, fittedViewport);
+              const width = getTaskWidth(task.start, task.finish, fittedViewport);
               const resolution = resolveTaskLabelPlacement(task, width, scale);
               const resolvedWidth = labelWidth(resolution.estimatedWidth);
 
               if (resolution.placement === "summary-chip") {
                 const chipX = x + SUMMARY_LABEL_OFFSET_X;
+                if (!fitsWithinChart(chipX, resolvedWidth, chartWidth)) {
+                  return <title key={`label-${task.id}`}>{task.name}</title>;
+                }
                 return (
                   <g
                     key={`label-${task.id}`}
@@ -461,6 +495,15 @@ export default function GanttChart({
 
               if (resolution.placement === "milestone-outside") {
                 const labelX = x + GANTT_MILESTONE_SIZE * 2 + LABEL_GAP + 2;
+                if (
+                  !fitsWithinChart(
+                    labelX - LABEL_PADDING_X,
+                    resolvedWidth,
+                    chartWidth,
+                  )
+                ) {
+                  return <title key={`label-${task.id}`}>{task.name}</title>;
+                }
                 return (
                   <g
                     key={`label-${task.id}`}
@@ -505,7 +548,7 @@ export default function GanttChart({
                     fontWeight={600}
                     dominantBaseline="middle"
                     paintOrder="stroke"
-                    stroke="rgba(0,0,0,0.24)"
+                    stroke="var(--gantt-chart-label-shadow-stroke)"
                     strokeWidth={2}
                   >
                     {task.name}
@@ -515,6 +558,15 @@ export default function GanttChart({
 
               if (resolution.placement === "outside-right") {
                 const labelX = x + width + LABEL_GAP;
+                if (
+                  !fitsWithinChart(
+                    labelX - LABEL_PADDING_X,
+                    resolvedWidth,
+                    chartWidth,
+                  )
+                ) {
+                  return <title key={`label-${task.id}`}>{task.name}</title>;
+                }
                 return (
                   <g
                     key={`label-${task.id}`}

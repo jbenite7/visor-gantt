@@ -24,7 +24,6 @@ const MIN_COLUMN_WIDTH = 50;
 export default function ColumnHeader({
   label,
   locale = "es",
-  width,
   align = "left",
   onResize,
   isResizable = true,
@@ -65,7 +64,6 @@ export default function ColumnHeader({
     [isResizable, onResize]
   );
 
-  const widthPx = width ? `${width}px` : "auto";
   const resizeLabel =
     locale === "en" ? `Resize column ${label}` : `Redimensionar columna ${label}`;
   const title = calculationSpec
@@ -96,26 +94,9 @@ export default function ColumnHeader({
     <th
       ref={thRef}
       data-testid="column-header"
+      className="gantt-column-header"
+      data-align={align}
       title={title}
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 10,
-        width: widthPx,
-        minWidth: widthPx,
-        textAlign: align,
-        padding: "8px 10px",
-        fontFamily: "var(--font-montserrat), system-ui, sans-serif",
-        fontWeight: 600,
-        fontSize: "0.75rem",
-        letterSpacing: "0.04em",
-        textTransform: "uppercase",
-        color: "#ffffff",
-        background: "var(--aia-corp-dark)",
-        borderBottom: "2px solid var(--aia-corp-main)",
-        whiteSpace: "nowrap",
-        userSelect: "none",
-      }}
     >
       {label}
 
@@ -124,24 +105,8 @@ export default function ColumnHeader({
         <div
           role="separator"
           aria-label={resizeLabel}
+          className="gantt-column-header__resize"
           onMouseDown={handleMouseDown}
-          style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            width: "6px",
-            height: "100%",
-            cursor: "col-resize",
-            background: "transparent",
-            transition: "background 150ms ease",
-            zIndex: 11,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "var(--aia-corp-main)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-          }}
         />
       )}
     </th>

@@ -60,16 +60,16 @@ export default function WhatIfScenarioPanel({
   return (
     <section
       data-testid="what-if-scenario-panel"
-      className="apple-module-header px-3 py-2"
+      className="apple-module-header gantt-aux-panel"
     >
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <GitCompareArrows size={16} color="var(--aia-corp-main)" />
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-[var(--color-text-strong)]">
+      <div className="gantt-aux-panel__content">
+        <div className="gantt-aux-panel__summary">
+          <GitCompareArrows className="gantt-aux-panel__icon" aria-hidden />
+          <div className="gantt-aux-panel__copy">
+            <h3 className="gantt-aux-panel__title">
               {locale === "en" ? "What-if scenario" : "Escenario what-if"}
             </h3>
-            <p className="truncate text-xs text-[var(--color-text-muted)]">
+            <p className="gantt-aux-panel__description">
               {selectedTask
                 ? `${selectedTask.id} - ${selectedTask.name}`
                 : locale === "en"
@@ -81,7 +81,7 @@ export default function WhatIfScenarioPanel({
 
         {selectedTask && (
           <>
-            <label className="flex items-center gap-2 text-xs font-semibold text-[var(--color-text-strong)]">
+            <label className="gantt-aux-panel__field">
               {locale === "en" ? "Delta" : "Delta"}
               <input
                 data-testid="what-if-duration-delta"
@@ -91,7 +91,7 @@ export default function WhatIfScenarioPanel({
                   setDurationDelta(event.target.value);
                   setIsPreviewing(false);
                 }}
-                className="w-20 rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] px-2 py-1 text-xs text-[var(--color-text-strong)]"
+                className="gantt-aux-panel__input"
               />
             </label>
 
@@ -100,17 +100,17 @@ export default function WhatIfScenarioPanel({
                 type="button"
                 data-testid="what-if-preview"
                 onClick={() => setIsPreviewing(true)}
-                className="apple-button-secondary rounded-lg px-3 py-1 text-xs font-semibold"
+                className="apple-button-secondary gantt-aux-panel__button"
               >
                 {locale === "en" ? "Compare" : "Comparar"}
               </button>
             ) : (
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="gantt-aux-panel__actions">
                 <button
                   type="button"
                   data-testid="what-if-discard"
                   onClick={() => setIsPreviewing(false)}
-                  className="apple-button-secondary rounded-lg px-3 py-1 text-xs font-semibold"
+                  className="apple-button-secondary gantt-aux-panel__button"
                 >
                   {locale === "en" ? "Discard" : "Descartar"}
                 </button>
@@ -122,7 +122,7 @@ export default function WhatIfScenarioPanel({
                     onApplyDuration(selectedTask.id, nextDuration);
                     setIsPreviewing(false);
                   }}
-                  className="apple-button-primary rounded-lg px-3 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                  className="apple-button-primary gantt-aux-panel__button disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {locale === "en" ? "Apply" : "Aplicar"}
                 </button>
@@ -134,7 +134,7 @@ export default function WhatIfScenarioPanel({
         {comparison && (
           <div
             data-testid="what-if-summary"
-            className="flex flex-wrap gap-3 text-xs text-[var(--color-text-muted)]"
+            className="gantt-aux-panel__metrics"
           >
             {comparison.issues.length > 0 ? (
               <strong className="text-[var(--aia-alert-main)]">

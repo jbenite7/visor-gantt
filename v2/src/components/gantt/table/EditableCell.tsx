@@ -22,20 +22,6 @@ interface EditableCellProps {
   readOnly?: boolean;
 }
 
-/** Shared style for the editable input. */
-const inputStyle: React.CSSProperties = {
-  border: "2px solid var(--aia-proj-main)",
-  background: "var(--aia-alabaster)",
-  padding: "2px 4px",
-  borderRadius: "3px",
-  fontFamily: "var(--font-inter), system-ui, sans-serif",
-  fontSize: "13px",
-  lineHeight: "1.4",
-  outline: "none",
-  width: "100%",
-  boxSizing: "border-box",
-};
-
 /**
  * Inline editable cell — double-click to edit, Enter/Escape/Blur to commit/cancel.
  *
@@ -104,16 +90,10 @@ export default function EditableCell({
 
     if (type === "slider") {
       return (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "4px",
-            minWidth: 0,
-          }}
-        >
+        <div className="gantt-editable-cell-slider">
           <input
             ref={inputRef as React.RefObject<HTMLInputElement>}
+            className="gantt-editable-cell-slider__input"
             type="range"
             min="0"
             max="100"
@@ -122,10 +102,9 @@ export default function EditableCell({
             onKeyDown={handleKeyDown}
             onBlur={(e) => commit(e.currentTarget.value)}
             autoFocus
-            style={{ flex: 1, minWidth: 0 }}
             data-testid="editable-cell"
           />
-          <span style={{ fontSize: "11px", color: "var(--gray-600)", minWidth: "28px", textAlign: "right" }}>
+          <span className="gantt-editable-cell-slider__value">
             {sliderDisplayValue ? sliderDisplayValue(editValue) : `${editValue}%`}
           </span>
         </div>
@@ -135,6 +114,8 @@ export default function EditableCell({
     return (
       <input
         ref={inputRef as React.RefObject<HTMLInputElement>}
+        className="gantt-editable-cell-input"
+        data-align={align}
         type={inputType}
         value={editValue}
         onChange={(e) => setEditValue(e.target.value)}
@@ -143,32 +124,22 @@ export default function EditableCell({
         autoFocus
         inputMode={inputMode}
         step={step}
-        style={{
-          ...inputStyle,
-          textAlign: align,
-        }}
         data-testid="editable-cell"
       />
     );
   }
 
-  // Read-only display
-  const displayStyle: React.CSSProperties = {
-    textAlign: align,
-    cursor: readOnly ? "default" : "text",
-    minWidth: 0,
-    width: "100%",
-  };
-
   return (
     <div
-      style={displayStyle}
+      className="gantt-editable-cell"
+      data-align={align}
+      data-read-only={readOnly}
       onDoubleClick={handleDoubleClick}
       title={readOnly ? undefined : "Double-click to edit"}
       data-testid="editable-cell"
     >
       {prefix}
-      {prefix ? <span>{displayValue ?? value}</span> : displayValue ?? value}
+      <span className="gantt-editable-cell__value">{displayValue ?? value}</span>
     </div>
   );
 }
