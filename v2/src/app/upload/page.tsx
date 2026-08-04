@@ -69,7 +69,7 @@ export default function UploadPage() {
     <div className="apple-page px-4 py-8 sm:px-8">
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="space-y-3 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] text-[var(--aia-corp-main)] shadow-sm">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] text-[var(--aia-corp-main)] shadow-sm">
             <UploadCloud size={28} aria-hidden />
           </div>
           <h1 className="text-4xl font-semibold text-[var(--color-text-strong)]">
@@ -80,7 +80,7 @@ export default function UploadPage() {
           </p>
         </div>
 
-        <section className="apple-dropzone rounded-lg p-8 text-center">
+        <section className="apple-dropzone rounded-[var(--radius-lg)] p-8 text-center">
           <p className="mb-3 text-sm font-semibold text-[var(--color-text-strong)]">
             Selecciona un .mpp para importarlo y abrirlo como proyecto guardado.
           </p>
@@ -101,7 +101,7 @@ export default function UploadPage() {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             className={`
-              apple-dropzone relative rounded-lg p-6 text-center transition-all
+              apple-dropzone relative rounded-[var(--radius-lg)] p-6 text-center transition-all
               ${
                 isDragging
                   ? "border-[var(--aia-corp-main)]"
@@ -142,7 +142,7 @@ export default function UploadPage() {
           {xmlResult && (
             <div
               className={`
-              mt-3 rounded-lg border p-3 text-sm
+              mt-3 rounded-[var(--radius-lg)] border p-3 text-sm
               ${
                 xmlResult.success
                   ? "border-[var(--aia-corp-main)] bg-[var(--aia-corp-xlight)] text-[var(--color-text-strong)]"
