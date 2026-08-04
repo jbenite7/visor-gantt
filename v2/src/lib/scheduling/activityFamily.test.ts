@@ -61,4 +61,39 @@ describe("classifyActivityFamily", () => {
     );
     expect(result.family).toBe("Redes MEP");
   });
+
+  test("'Gastos generales de obra' no es Redes MEP (falso positivo de 'gas')", () => {
+    const result = classifyActivityFamily(
+      task({ name: "Gastos generales de obra" }),
+    );
+    expect(result.family).toBeNull();
+  });
+
+  test("'Viaticos de personal' no es Urbanismo (falso positivo de 'via')", () => {
+    const result = classifyActivityFamily(task({ name: "Viaticos de personal" }));
+    expect(result.family).toBeNull();
+  });
+
+  test("'Instalacion electrica' sigue siendo Redes MEP", () => {
+    const result = classifyActivityFamily(task({ name: "Instalacion electrica" }));
+    expect(result.family).toBe("Redes MEP");
+  });
+
+  test("'Acabado de muros' sigue siendo Arquitectura", () => {
+    const result = classifyActivityFamily(task({ name: "Acabado de muros" }));
+    expect(result.family).toBe("Arquitectura");
+  });
+
+  test.each([
+    "Viaje de obra",
+    "Es viable el cronograma",
+  ])("%s no es Urbanismo por falso positivo de 'via'", (name) => {
+    const result = classifyActivityFamily(task({ name }));
+    expect(result.family).not.toBe("Urbanismo");
+  });
+
+  test("'Andenes peatonales' sigue siendo Urbanismo", () => {
+    const result = classifyActivityFamily(task({ name: "Andenes peatonales" }));
+    expect(result.family).toBe("Urbanismo");
+  });
 });

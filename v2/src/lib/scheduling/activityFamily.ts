@@ -22,11 +22,26 @@ export interface ActivityFamilyContext {
 }
 
 const FAMILY_RULES: Array<{ family: ActivityFamily; regex: RegExp }> = [
-  { family: "Estructura", regex: /\b(?:estructura|cimentaci|columna|viga|losa|placa|pantalla|concreto|acero)/i },
-  { family: "Arquitectura", regex: /\b(?:arquitectur|mamposter|acabado|enchape|pintura|carpinter|fachada|muro|piso ceramic)/i },
-  { family: "Redes MEP", regex: /\b(?:mep|hidraul|sanitar|electric|ventilaci|aire acondicionado|gas|red(?:es)? interior)/i },
-  { family: "Urbanismo", regex: /\b(?:urbanismo|via|vias|zona(?:s)? comun|exterior|paisajismo|andenes?)/i },
-  { family: "Preliminares", regex: /\b(?:preliminar|descapote|localizaci|campamento|cerramiento|demolici)/i },
+  {
+    family: "Estructura",
+    regex: /\b(?:estructura\w*|cimentaci\w*|columna\w*|viga\w*|losa\w*|placa\w*|pantalla\w*|concreto\w*|acero\w*)\b/i,
+  },
+  {
+    family: "Arquitectura",
+    regex: /\b(?:arquitectur\w*|mamposter\w*|acabado\w*|enchape\w*|pintura\w*|carpinter\w*|fachada\w*|muro\w*|piso ceramic\w*)\b/i,
+  },
+  {
+    family: "Redes MEP",
+    regex: /\b(?:mep|hidraul\w*|sanitar\w*|electric\w*|ventilaci\w*|aire acondicionado|gas|red(?:es)? interior\w*)\b/i,
+  },
+  {
+    family: "Urbanismo",
+    regex: /\b(?:urbanismo|urbanistic\w*|via|vias|zona(?:s)? comun\w*|exterior\w*|paisajismo|andenes?)\b/i,
+  },
+  {
+    family: "Preliminares",
+    regex: /\b(?:preliminar\w*|descapote\w*|localizaci\w*|campamento\w*|cerramiento\w*|demolici\w*)\b/i,
+  },
 ];
 
 const AMBIGUOUS_WORDS = /\b(?:piso|torre|staff|retiro|ejes?|zona)\b/i;
