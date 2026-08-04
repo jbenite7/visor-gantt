@@ -190,6 +190,38 @@ describe("computeLOBLayout", () => {
 
 describe("generateLOBFromTasks", () => {
   // ---------------------------------------------------------------------------
+  // 0. Family classification exposed per mapping
+  // ---------------------------------------------------------------------------
+  it("cada actividad del LOB expone su familia y procedencia", () => {
+    const baseTask = {
+      duration: 5,
+      progress: 0,
+      isCritical: false,
+      isMilestone: false,
+      isSummary: false,
+      outlineLevel: 2,
+      dependencies: [],
+    };
+    const tasks: GanttTask[] = [
+      { ...baseTask, id: 1, name: "Columnas piso 1", wbs: "1.1", start: new Date("2026-01-01"), finish: new Date("2026-01-05") },
+      { ...baseTask, id: 2, name: "Columnas piso 2", wbs: "1.2", start: new Date("2026-01-06"), finish: new Date("2026-01-10") },
+      { ...baseTask, id: 3, name: "Columnas piso 3", wbs: "1.3", start: new Date("2026-01-11"), finish: new Date("2026-01-15") },
+    ];
+
+    const activityMapping: ActivityMapping[] = [
+      { activityName: "Columnas", taskIds: [1, 2, 3], unitLabel: "Piso" },
+    ];
+
+    const result = generateLOBFromTasks(tasks, activityMapping);
+
+    const [first] = result.mappings;
+    expect(first.family.family).toBe("Estructura");
+    expect(first.family.matchedBy).toBeDefined();
+    expect(first.family.confidence).toBeGreaterThan(0);
+  });
+
+
+  // ---------------------------------------------------------------------------
   // 6. Generate LOBActivity from tasks
   // ---------------------------------------------------------------------------
   it("creates LOBActivity with correct plannedStart/Finish from task dates", () => {
@@ -241,17 +273,17 @@ describe("generateLOBFromTasks", () => {
 
     const result = generateLOBFromTasks(tasks, activityMapping);
 
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("lob-activity-0");
-    expect(result[0].name).toBe("Finishing");
-    expect(result[0].taskIds).toEqual(["T1", "T2", "T3"]);
-    expect(result[0].unitLabel).toBe("Floor");
+    expect(result.mappings).toHaveLength(1);
+    expect(result.mappings[0].id).toBe("lob-activity-0");
+    expect(result.mappings[0].name).toBe("Finishing");
+    expect(result.mappings[0].taskIds).toEqual(["T1", "T2", "T3"]);
+    expect(result.mappings[0].unitLabel).toBe("Floor");
     // Earliest start across all tasks
-    expect(result[0].plannedStart).toEqual(new Date("2026-01-01"));
+    expect(result.mappings[0].plannedStart).toEqual(new Date("2026-01-01"));
     // Latest finish across all tasks
-    expect(result[0].plannedFinish).toEqual(new Date("2026-01-15"));
+    expect(result.mappings[0].plannedFinish).toEqual(new Date("2026-01-15"));
     // Rate: 3 tasks / (14 days) = ~0.214
-    expect(result[0].plannedRate).toBeGreaterThan(0);
+    expect(result.mappings[0].plannedRate).toBeGreaterThan(0);
   });
 
   // ---------------------------------------------------------------------------
@@ -260,7 +292,7 @@ describe("generateLOBFromTasks", () => {
   it("returns empty array when activity mapping is empty", () => {
     const tasks: GanttTask[] = [];
     const result = generateLOBFromTasks(tasks, []);
-    expect(result).toEqual([]);
+    expect(result.mappings).toEqual([]);
   });
 
   // ---------------------------------------------------------------------------
@@ -289,11 +321,11 @@ describe("generateLOBFromTasks", () => {
 
     const result = generateLOBFromTasks(tasks, activityMapping);
 
-    expect(result).toHaveLength(1);
-    expect(result[0].name).toBe("Ghost");
-    expect(result[0].plannedRate).toBe(1);
+    expect(result.mappings).toHaveLength(1);
+    expect(result.mappings[0].name).toBe("Ghost");
+    expect(result.mappings[0].plannedRate).toBe(1);
     // Stub: plannedStart and plannedFinish should be the same (today)
-    expect(result[0].plannedStart).toEqual(result[0].plannedFinish);
+    expect(result.mappings[0].plannedStart).toEqual(result.mappings[0].plannedFinish);
   });
 });
 
@@ -568,5 +600,27 @@ describe("generateAutomaticLOBFromTasks", () => {
       "URBANISMO",
     ]);
     expect(architectureUnits.map((unit) => unit.unitIndex)).toEqual([0, 1, 2]);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Family classification via breadcrumb on the WBS-hierarchy path
+  // ---------------------------------------------------------------------------
+  it("classifies activities by family using the wbs breadcrumb (Piso 3 bajo Redes MEP)", () => {
+    const tasks: GanttTask[] = [
+      summaryTask("chapter", "Redes MEP", "1", 1, "2026-03-01", "2026-06-15"),
+      summaryTask("tower-a", "Torre A", "1.1", 2, "2026-03-01", "2026-04-15"),
+      summaryTask("tower-b", "Torre B", "1.2", 2, "2026-04-01", "2026-05-15"),
+      summaryTask("a-piso3", "Piso 3", "1.1.1", 3, "2026-03-01", "2026-03-10"),
+      summaryTask("b-piso3", "Piso 3", "1.2.1", 3, "2026-04-01", "2026-04-10"),
+    ];
+
+    const result = generateAutomaticLOBFromTasks(tasks);
+
+    expect(result.activities).toHaveLength(1);
+    const [activity] = result.activities;
+    expect(activity.name).toBe("Piso 3");
+    expect(activity.family?.family).toBe("Redes MEP");
+    expect(activity.family?.matchedBy).toBe("breadcrumb");
+    expect(activity.family?.confidence).toBeGreaterThan(0);
   });
 });

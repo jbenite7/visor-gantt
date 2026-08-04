@@ -2550,6 +2550,17 @@ h6 {
   font-style: italic;
 }
 
+.lob-chart__legend-family {
+  fill: var(--color-text-muted);
+  font-size: var(--gantt-column-selector-font-size-xs);
+}
+
+.lob-chart__legend-review {
+  fill: var(--aia-alert-main);
+  font-size: var(--gantt-column-selector-font-size-xs);
+  font-weight: 600;
+}
+
 .apple-page {
   min-height: 100vh;
   background:

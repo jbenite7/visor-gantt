@@ -418,21 +418,41 @@ export default function LineOfBalance({
   const plannedLines = layout.lines.filter((l) => !l.activityName.includes("(Real)"));
   const actualLines = layout.lines.filter((l) => l.activityName.includes("(Real)"));
 
+  // ── Map activityId → activity, to look up family classification per line ──
+  const activityById = useMemo(() => {
+    const map = new Map<string, LOBActivity>();
+    for (const activity of activities) {
+      map.set(activity.id, activity);
+    }
+    return map;
+  }, [activities]);
+
   // ── Unique activity names for legend (without plan/real suffix) ──
   const legendItems = useMemo(() => {
     const seen = new Set<string>();
-    const items: { name: string; color: string }[] = [];
+    const items: {
+      name: string;
+      color: string;
+      family: string | null;
+      reviewReason?: string;
+    }[] = [];
     for (const line of layout.lines) {
       const baseName = line.activityName
         .replace(" (Planificado)", "")
         .replace(" (Real)", "");
       if (!seen.has(baseName)) {
         seen.add(baseName);
-        items.push({ name: baseName, color: line.color });
+        const activity = activityById.get(line.activityId.replace("-actual", ""));
+        items.push({
+          name: baseName,
+          color: line.color,
+          family: activity?.family?.family ?? null,
+          reviewReason: activity?.family?.reviewReason,
+        });
       }
     }
     return items;
-  }, [layout.lines]);
+  }, [layout.lines, activityById]);
 
   const bottleneckMarkers = useMemo(() => {
     return diagnostics
@@ -1149,7 +1169,8 @@ export default function LineOfBalance({
             {legendItems.map((item, i) => (
               <g
                 key={item.name}
-                transform={`translate(0, ${20 + i * 22})`}
+                data-testid="lob-legend-item"
+                transform={`translate(0, ${20 + i * 34})`}
               >
                 <line
                   x1={0}
@@ -1167,10 +1188,35 @@ export default function LineOfBalance({
                 >
                   {item.name}
                 </text>
+                {item.family ? (
+                  <text
+                    x={24}
+                    y={18}
+                    data-testid="lob-legend-family"
+                    fill="var(--color-text-secondary)"
+                    className="lob-chart__legend-family"
+                  >
+                    {item.family}
+                  </text>
+                ) : null}
+                {item.reviewReason ? (
+                  <g transform="translate(24, 22)" data-testid="lob-legend-review">
+                    <circle cx={3} cy={0} r={3} fill="var(--aia-alert-main)" />
+                    <text
+                      x={10}
+                      y={4}
+                      fill="var(--aia-alert-main)"
+                      className="lob-chart__legend-review"
+                    >
+                      <title>{item.reviewReason}</title>
+                      Revisar clasificación
+                    </text>
+                  </g>
+                ) : null}
               </g>
             ))}
             {/* Legend for line styles */}
-            <g transform={`translate(0, ${20 + legendItems.length * 22 + 10})`}>
+            <g transform={`translate(0, ${20 + legendItems.length * 34 + 10})`}>
               <text
                 x={0}
                 y={0}

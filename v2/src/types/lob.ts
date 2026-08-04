@@ -5,6 +5,8 @@
  * planned vs. actual production rates per unit (e.g. per floor, per lot).
  */
 
+import type { ActivityFamilyResult } from "@/lib/scheduling/activityFamily";
+
 export interface LOBActivity {
   /** Unique activity identifier. */
   id: string;
@@ -22,6 +24,8 @@ export interface LOBActivity {
   plannedStart: Date;
   /** Planned finish date for the activity. */
   plannedFinish: Date;
+  /** Family classification for this activity, with matching procedence and confidence. */
+  family?: ActivityFamilyResult;
 }
 
 export interface LOBUnit {
