@@ -52,6 +52,28 @@ describe("HomeMppUploadAction", () => {
     expect(push).toHaveBeenCalledWith("/project/42");
   });
 
+  test("limpia el valor del input tras procesar la seleccion para permitir reintentar con el mismo archivo", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: "No se pudo guardar el proyecto importado" }),
+    }) as unknown as typeof fetch;
+
+    render(<HomeMppUploadAction />);
+    const input = screen.getByLabelText(
+      "Seleccionar archivo .mpp",
+    ) as HTMLInputElement;
+
+    const valueSetter = jest.spyOn(input, "value", "set");
+
+    selectFile("cronograma.mpp");
+    await screen.findByText("No se pudo guardar el proyecto importado");
+
+    expect(valueSetter).toHaveBeenCalledWith("");
+
+    valueSetter.mockRestore();
+  });
+
   test("rejects non-mpp files inline before submitting", async () => {
     global.fetch = jest.fn();
 

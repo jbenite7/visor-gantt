@@ -78,6 +78,7 @@ export default function HomeMppUploadAction({
         disabled={isProcessing}
         onChange={(event) => {
           const file = event.target.files?.[0];
+          event.target.value = "";
           if (file) handleFile(file);
         }}
       />
