@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createHash, randomBytes } from "crypto";
 import { Client } from "pg";
+import { e2eProjectName } from "./helpers/runId";
 
 const SESSION_COOKIE = "vg_session";
 const E2E_PROJECT_PREFIX = "E2E Planning Assistant";
@@ -165,13 +166,6 @@ async function authenticate(page: Page) {
   ]);
 }
 
-async function deleteE2EProjects() {
-  await withClient(async (client) => {
-    await ensureE2ESchema(client);
-    await client.query(`DELETE FROM projects WHERE name LIKE $1`, [`${E2E_PROJECT_PREFIX}%`]);
-  });
-}
-
 async function createProject(name: string): Promise<string> {
   return withClient(async (client) => {
     await ensureE2ESchema(client);
@@ -279,22 +273,18 @@ function planningFingerprint(data: { tasks?: PersistedTask[] } | undefined): str
 }
 
 test.beforeEach(async ({ page }) => {
-  await deleteE2EProjects();
   await authenticate(page);
-});
-
-test.afterEach(async () => {
-  await deleteE2EProjects();
 });
 
 test("muestra recomendaciones priorizadas del asistente sin mutar el proyecto", async ({ page }) => {
   test.setTimeout(75_000);
-  const projectName = `${E2E_PROJECT_PREFIX} ${Date.now()}`;
+  const projectName = e2eProjectName(E2E_PROJECT_PREFIX);
   const projectId = await createProject(projectName);
   const initialFingerprint = planningFingerprint(await loadProjectData(projectId));
 
   await page.goto(`/project/${projectId}`);
   await expect(page.getByTestId("gantt-view")).toBeVisible();
+  await page.getByTestId("gantt-planning-dropdown-summary").click();
   await expect(page.getByTestId("planning-assistant-panel")).toBeVisible();
 
   const assistant = page.getByTestId("planning-assistant-panel");
@@ -309,6 +299,7 @@ test("muestra recomendaciones priorizadas del asistente sin mutar el proyecto", 
 
   await page.reload();
   await expect(page.getByTestId("gantt-view")).toBeVisible();
+  await page.getByTestId("gantt-planning-dropdown-summary").click();
   await expect(page.getByTestId("planning-assistant-panel")).toContainText(
     "Entrega estructura supera su fecha limite",
   );

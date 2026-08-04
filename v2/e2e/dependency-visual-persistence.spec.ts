@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createHash, randomBytes } from "crypto";
 import { Client } from "pg";
+import { e2eProjectName } from "./helpers/runId";
 
 const SESSION_COOKIE = "vg_session";
 const E2E_PROJECT_PREFIX = "E2E Dependency Persistence";
@@ -150,13 +151,6 @@ async function authenticate(page: Page) {
   ]);
 }
 
-async function deleteE2EProjects() {
-  await withClient(async (client) => {
-    await ensureE2ESchema(client);
-    await client.query(`DELETE FROM projects WHERE name LIKE $1`, [`${E2E_PROJECT_PREFIX}%`]);
-  });
-}
-
 async function createProject(name: string): Promise<string> {
   return withClient(async (client) => {
     await ensureE2ESchema(client);
@@ -243,17 +237,12 @@ async function loadProjectData(projectId: string) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await deleteE2EProjects();
   await authenticate(page);
-});
-
-test.afterEach(async () => {
-  await deleteE2EProjects();
 });
 
 test("persiste dependencias creadas desde popover y panel lateral tras recargar", async ({ page }) => {
   test.setTimeout(75_000);
-  const projectName = `${E2E_PROJECT_PREFIX} ${Date.now()}`;
+  const projectName = e2eProjectName(E2E_PROJECT_PREFIX);
   const projectId = await createProject(projectName);
 
   await page.goto(`/project/${projectId}`);

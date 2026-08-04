@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createHash, randomBytes } from "crypto";
 import { Client } from "pg";
+import { e2eProjectName } from "./helpers/runId";
 
 const SESSION_COOKIE = "vg_session";
 const E2E_PROJECT_PREFIX = "E2E Hierarchy Persistence";
@@ -150,13 +151,6 @@ async function authenticate(page: Page) {
   ]);
 }
 
-async function deleteE2EProjects() {
-  await withClient(async (client) => {
-    await ensureE2ESchema(client);
-    await client.query(`DELETE FROM projects WHERE name LIKE $1`, [`${E2E_PROJECT_PREFIX}%`]);
-  });
-}
-
 async function createProject(name: string): Promise<string> {
   return withClient(async (client) => {
     await ensureE2ESchema(client);
@@ -232,6 +226,76 @@ async function createProject(name: string): Promise<string> {
   });
 }
 
+/**
+ * Simula el gesto de arrastre horizontal que el usuario real ejecuta sobre una fila
+ * `draggable` de la tabla (GanttTable.tsx: draggable={!!onReorderTask || !!onIndentTask || !!onOutdentTask}).
+ * El navegador secuestra el puntero en cuanto detecta movimiento sobre un elemento
+ * `draggable=true` e inicia un drag HTML5 nativo (dragstart -> dragover -> drop -> dragend),
+ * por lo que el `mouseup` sintético de `page.mouse.up()` nunca llega a `window` (ver
+ * hallazgo documentado en el reporte de la tarea: la ruta mousedown/window-mouseup de
+ * GanttTable.tsx queda muerta en la práctica). Esta función dispara directamente esa
+ * secuencia de eventos DragEvent con un DataTransfer real, que es la ruta que sí
+ * ejecuta `applyHorizontalHierarchyDrag` vía `handleRowDrop`.
+ */
+async function dragRowHorizontally(page: Page, rowSelector: string, deltaX: number) {
+  await page.evaluate(
+    async ({ rowSelector, deltaX }) => {
+      // Un tick por evento: React (setDraggedTaskId en onDragStart) necesita re-renderizar
+      // y reasignar el handler onDrop con el nuevo `draggedTaskId` en su closure antes de
+      // que el `drop` sea util (handleRowDrop retorna temprano si draggedTaskId === undefined).
+      const wait = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+      const row = document.querySelector(rowSelector);
+      if (!row) throw new Error(`No se encontro la fila: ${rowSelector}`);
+      const rect = row.getBoundingClientRect();
+      const startX = rect.x + rect.width / 2;
+      const startY = rect.y + rect.height / 2;
+      const endX = startX + deltaX;
+
+      const dataTransfer = new DataTransfer();
+      const dragStart = new DragEvent("dragstart", {
+        bubbles: true,
+        cancelable: true,
+        clientX: startX,
+        clientY: startY,
+        dataTransfer,
+      });
+      row.dispatchEvent(dragStart);
+      await wait();
+
+      const dragOver = new DragEvent("dragover", {
+        bubbles: true,
+        cancelable: true,
+        clientX: endX,
+        clientY: startY,
+        dataTransfer,
+      });
+      row.dispatchEvent(dragOver);
+      await wait();
+
+      const drop = new DragEvent("drop", {
+        bubbles: true,
+        cancelable: true,
+        clientX: endX,
+        clientY: startY,
+        dataTransfer,
+      });
+      row.dispatchEvent(drop);
+      await wait();
+
+      const dragEnd = new DragEvent("dragend", {
+        bubbles: true,
+        cancelable: true,
+        clientX: endX,
+        clientY: startY,
+        dataTransfer,
+      });
+      row.dispatchEvent(dragEnd);
+    },
+    { rowSelector, deltaX },
+  );
+}
+
 async function loadProjectData(projectId: string) {
   return withClient(async (client) => {
     const result = await client.query(
@@ -243,17 +307,16 @@ async function loadProjectData(projectId: string) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await deleteE2EProjects();
   await authenticate(page);
-});
-
-test.afterEach(async () => {
-  await deleteE2EProjects();
 });
 
 test("persiste jerarquia creada desde la toolbar tras recargar", async ({ page }) => {
   test.setTimeout(75_000);
-  const projectName = `${E2E_PROJECT_PREFIX} ${Date.now()}`;
+  // La tabla del Gantt oculta columnas (incl. "summary") cuando su panel es angosto
+  // (ver COMPACT/BALANCED/READABLE_GANTT_COLUMNS en GanttTable.tsx). Se amplia el
+  // viewport para que el panel de tabla supere el umbral y muestre todas las columnas.
+  await page.setViewportSize({ width: 2000, height: 900 });
+  const projectName = e2eProjectName(E2E_PROJECT_PREFIX);
   const projectId = await createProject(projectName);
 
   await page.goto(`/project/${projectId}`);
@@ -287,4 +350,79 @@ test("persiste jerarquia creada desde la toolbar tras recargar", async ({ page }
   await expect(page.locator('[data-testid="gantt-row"][data-task-id="2"]')).toContainText("1.1");
   await expect(page.locator('[data-testid="gantt-row"][data-task-id="2"]')).toContainText("Vaciado concreto");
   await expect(page.locator('[data-testid="gantt-row"][data-task-id="3"]')).toContainText("2");
+});
+
+test("persiste jerarquia creada con arrastre horizontal (HTML5 dragstart/drop) tras recargar", async ({ page }) => {
+  test.setTimeout(75_000);
+  // La tabla del Gantt oculta columnas (incl. "summary") cuando su panel es angosto
+  // (ver COMPACT/BALANCED/READABLE_GANTT_COLUMNS en GanttTable.tsx). Se amplia el
+  // viewport para que el panel de tabla supere el umbral y muestre todas las columnas.
+  await page.setViewportSize({ width: 2000, height: 900 });
+  const projectName = e2eProjectName(E2E_PROJECT_PREFIX);
+  const projectId = await createProject(projectName);
+
+  await page.goto(`/project/${projectId}`);
+  await expect(page.getByTestId("gantt-view")).toBeVisible();
+
+  const rowSelector = '[data-testid="gantt-row"][data-task-id="2"]';
+  await expect(page.locator(rowSelector)).toBeVisible();
+
+  // Umbral en GanttTable.tsx: HORIZONTAL_HIERARCHY_DRAG_THRESHOLD = 36px.
+  // El gesto real del usuario sobre una fila draggable dispara un drag HTML5 nativo
+  // (dragstart -> dragover -> drop), no mousedown/window-mouseup: el navegador
+  // captura el puntero en cuanto detecta movimiento sobre el elemento draggable
+  // (ver hallazgo en el reporte de la tarea). Se usa un margen holgado (80px, > 36px)
+  // hacia la derecha para indentar.
+  await dragRowHorizontally(page, rowSelector, 80);
+
+  await expect(page.getByText("Guardado")).toBeVisible({ timeout: 15_000 });
+  await expect
+    .poll(async () => {
+      const data = await loadProjectData(projectId);
+      const tasks = data?.tasks ?? [];
+      return tasks.map((task: { id: number; wbs?: string; outlineLevel: number; isSummary: boolean }) => ({
+        id: task.id,
+        wbs: task.wbs,
+        outlineLevel: task.outlineLevel,
+        isSummary: task.isSummary,
+      }));
+    }, { timeout: 15_000 })
+    .toEqual([
+      { id: 1, wbs: "1", outlineLevel: 1, isSummary: true },
+      { id: 2, wbs: "1.1", outlineLevel: 2, isSummary: false },
+      { id: 3, wbs: "2", outlineLevel: 1, isSummary: false },
+    ]);
+
+  await page.reload();
+  await expect(page.getByTestId("gantt-view")).toBeVisible();
+  await expect(page.locator('[data-testid="gantt-row"][data-task-id="1"]')).toContainText("Capitulo obra gris");
+  await expect(page.locator('[data-testid="gantt-row"][data-task-id="1"]')).toContainText("Sí");
+  await expect(page.locator('[data-testid="gantt-row"][data-task-id="2"]')).toContainText("1.1");
+  await expect(page.locator('[data-testid="gantt-row"][data-task-id="2"]')).toContainText("Vaciado concreto");
+  await expect(page.locator('[data-testid="gantt-row"][data-task-id="3"]')).toContainText("2");
+
+  // Sentido inverso: un drop a la izquierda superando el umbral debe desindentar.
+  await dragRowHorizontally(page, rowSelector, -80);
+
+  await expect
+    .poll(async () => {
+      const data = await loadProjectData(projectId);
+      const tasks = data?.tasks ?? [];
+      return tasks.map((task: { id: number; wbs?: string; outlineLevel: number; isSummary: boolean }) => ({
+        id: task.id,
+        wbs: task.wbs,
+        outlineLevel: task.outlineLevel,
+        isSummary: task.isSummary,
+      }));
+    }, { timeout: 15_000 })
+    .toEqual([
+      { id: 1, wbs: "1", outlineLevel: 1, isSummary: false },
+      { id: 2, wbs: "2", outlineLevel: 1, isSummary: false },
+      { id: 3, wbs: "3", outlineLevel: 1, isSummary: false },
+    ]);
+
+  await page.reload();
+  await expect(page.getByTestId("gantt-view")).toBeVisible();
+  await expect(page.locator('[data-testid="gantt-row"][data-task-id="2"]')).toContainText("2");
+  await expect(page.locator('[data-testid="gantt-row"][data-task-id="2"]')).toContainText("Vaciado concreto");
 });

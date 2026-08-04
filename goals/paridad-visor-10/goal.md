@@ -47,3 +47,17 @@ Lograr paridad funcional con la app destilada `project-viewer-501614.web.app` ad
 ## Cierre
 
 Completado el 2026-07-08. Verificado con pruebas unitarias completas, lint, build, Docker rebuild y navegador sobre Docker con importación `.mpp` real.
+
+## Revisión posterior — 2026-08-04
+
+La auditoría fact-by-fact (`goals/AUDITORIA-FACT-BY-FACT-2026-08-04.md`) verificó los 10 criterios contra el código
+real. Los 10 están implementados.
+
+Durante la auditoría se reportó erróneamente que el criterio 6 estaba incompleto por faltar el "banner informativo
+sutil entre toolbar y SplitPane" (fact 34). **Ese hallazgo fue un falso positivo**: se buscó la palabra "banner" en
+el código en lugar de la funcionalidad. El elemento existe con otro nombre, `gantt-project-meta-strip`
+(`v2/src/components/views/GanttView.tsx:1155`), está exactamente entre la barra de herramientas y el contenido, y
+muestra nombre del proyecto, inicio, fin, duración, avance, número de tareas y número de dependencias.
+
+Se llegó a implementar un componente `ProjectSummaryBanner` y **se revirtió** al detectar que duplicaba esa franja.
+El criterio 6 estaba cumplido desde el cierre original.

@@ -3,6 +3,7 @@ import { createHash, randomBytes } from "crypto";
 import fs from "fs";
 import path from "path";
 import { Client } from "pg";
+import { e2eProjectName } from "./helpers/runId";
 
 const SESSION_COOKIE = "vg_session";
 const IMPORTED_PROJECT_NAME = "20260312 DA PORTO TORRE 3";
@@ -152,13 +153,6 @@ async function authenticate(page: Page) {
   ]);
 }
 
-async function deleteImportedProjects() {
-  await withClient(async (client) => {
-    await ensureE2ESchema(client);
-    await client.query(`DELETE FROM projects WHERE name = $1`, [IMPORTED_PROJECT_NAME]);
-  });
-}
-
 async function loadProjectData(projectId: string) {
   return withClient(async (client) => {
     const result = await client.query(
@@ -169,13 +163,14 @@ async function loadProjectData(projectId: string) {
   });
 }
 
-test.beforeEach(async ({ page }) => {
-  await deleteImportedProjects();
-  await authenticate(page);
-});
+async function renameProjectForRun(projectId: string, name: string) {
+  await withClient(async (client) => {
+    await client.query(`UPDATE projects SET name = $1 WHERE id = $2`, [name, projectId]);
+  });
+}
 
-test.afterEach(async () => {
-  await deleteImportedProjects();
+test.beforeEach(async ({ page }) => {
+  await authenticate(page);
 });
 
 test("importa un MPP real y genera programacion matricial automatica con paridad", async ({ page }) => {
@@ -203,12 +198,15 @@ test("importa un MPP real y genera programacion matricial automatica con paridad
   const projectId = location?.match(/\/project\/(\d+)$/)?.[1];
   expect(projectId).toBeTruthy();
 
+  const runProjectName = e2eProjectName(IMPORTED_PROJECT_NAME);
+  await renameProjectForRun(projectId!, runProjectName);
+
   await page.goto(`/project/${projectId}`);
   await expect(page.getByTestId("gantt-view")).toBeVisible();
   await expect(page.getByRole("tab", { name: /Matriz/ })).toBeVisible();
 
   const row = await loadProjectData(projectId!);
-  expect(row.name).toBe(IMPORTED_PROJECT_NAME);
+  expect(row.name).toBe(runProjectName);
   const projectData = row.project_data;
   expect(projectData.matrixPlan).toEqual(
     expect.objectContaining({

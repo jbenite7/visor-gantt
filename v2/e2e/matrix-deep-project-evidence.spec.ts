@@ -1,6 +1,7 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { createHash, randomBytes } from "crypto";
 import { Client } from "pg";
+import { e2eProjectName } from "./helpers/runId";
 
 const SESSION_COOKIE = "vg_session";
 const E2E_PROJECT_PREFIX = "E2E Matriz 2 etapas 2 torres 20 pisos";
@@ -119,13 +120,6 @@ async function ensureE2ESchema(client: Client) {
   );
 }
 
-async function deleteE2EProjects() {
-  await withClient(async (client) => {
-    await ensureE2ESchema(client);
-    await client.query(`DELETE FROM projects WHERE name LIKE $1`, [`${E2E_PROJECT_PREFIX}%`]);
-  });
-}
-
 async function loadProjectData(projectId: string) {
   return withClient(async (client) => {
     const result = await client.query(
@@ -212,7 +206,8 @@ async function setInputByLabel(page: Page, label: string, value: string) {
 async function renameArea(page: Page, currentName: string, nextName: string, type: string) {
   await setInputByLabel(page, `Nombre ubicacion ${currentName}`, nextName);
   await expect(page.getByLabel(`Nombre ubicacion ${nextName}`).first()).toHaveValue(nextName);
-  await setInputByLabel(page, `Tipo ubicacion ${nextName}`, type);
+  // El campo "Tipo" es un <select>, no un <input>: se usa selectOption en vez de setInputByLabel.
+  await page.getByLabel(`Tipo ubicacion ${nextName}`).first().selectOption(type);
   await expect(page.getByLabel(`Tipo ubicacion ${nextName}`).first()).toHaveValue(type);
 }
 
@@ -232,17 +227,12 @@ async function createTowerWithFloors(page: Page, etapaName: string, towerName: s
 }
 
 test.beforeEach(async ({ page }) => {
-  await deleteE2EProjects();
   await authenticate(page);
-});
-
-test.afterEach(async () => {
-  await deleteE2EProjects();
 });
 
 test("crea evidencia profunda de Programacion Matricial con 2 etapas, 2 torres y 20 pisos", async ({ page }, testInfo) => {
   test.setTimeout(180_000);
-  const projectName = `${E2E_PROJECT_PREFIX} ${Date.now()}`;
+  const projectName = e2eProjectName(E2E_PROJECT_PREFIX);
   page.on("dialog", (dialog) => dialog.accept());
 
   await page.goto("/project/new");

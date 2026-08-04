@@ -8,6 +8,8 @@
 import type { LOBActivity, LOBUnit } from "@/types/lob";
 import type { GanttTask } from "@/components/gantt/types";
 import type { MatrixPlan } from "@/types/matrix";
+import { classifyActivityFamily, type ActivityFamilyResult } from "./activityFamily";
+import { UNIT_PATTERNS, buildWbsBreadcrumb } from "./unitPatterns";
 
 // ── Layout types ──────────────────────────────────────────────────
 
@@ -320,6 +322,10 @@ export interface ActivityMapping {
   unitLabel: string;
 }
 
+export interface GenerateLOBFromTasksResult {
+  mappings: Array<LOBActivity & { family: ActivityFamilyResult }>;
+}
+
 export interface AutomaticLOBResult {
   activities: LOBActivity[];
   units: LOBUnit[];
@@ -331,17 +337,19 @@ export interface AutomaticLOBResult {
  *
  * For each mapping entry, finds the matching tasks and derives the
  * activity's planned start/finish from the earliest start and latest finish.
+ * Each generated activity is also classified into a family, using the
+ * breadcrumb of ancestor summary tasks (derived from wbs) as context.
  */
 export function generateLOBFromTasks(
   tasks: GanttTask[],
   activityMapping: ActivityMapping[],
-): LOBActivity[] {
+): GenerateLOBFromTasksResult {
   const taskMap = new Map<string | number, GanttTask>();
   for (const task of tasks) {
     taskMap.set(task.id, task);
   }
 
-  return activityMapping.map((mapping, index) => {
+  const mappings = activityMapping.map((mapping, index) => {
     const matchedTasks = mapping.taskIds
       .map((id) => taskMap.get(id))
       .filter((t): t is GanttTask => t != null);
@@ -350,6 +358,19 @@ export function generateLOBFromTasks(
       // Return a stub activity with today's date
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const stubTask: GanttTask = {
+        id: `lob-activity-${index}`,
+        name: mapping.activityName,
+        start: today,
+        finish: today,
+        duration: 0,
+        progress: 0,
+        isCritical: false,
+        isMilestone: false,
+        isSummary: false,
+        outlineLevel: 1,
+        dependencies: [],
+      };
       return {
         id: `lob-activity-${index}`,
         name: mapping.activityName,
@@ -358,6 +379,7 @@ export function generateLOBFromTasks(
         unitLabel: mapping.unitLabel,
         plannedStart: today,
         plannedFinish: today,
+        family: classifyActivityFamily(stubTask),
       };
     }
 
@@ -373,6 +395,13 @@ export function generateLOBFromTasks(
     const plannedRate =
       durationDays > 0 ? matchedTasks.length / durationDays : 1;
 
+    const representativeTask = matchedTasks[0];
+    const breadcrumb = buildWbsBreadcrumb(representativeTask.wbs, tasks);
+    const family = classifyActivityFamily(
+      { ...representativeTask, name: mapping.activityName },
+      { breadcrumb },
+    );
+
     return {
       id: `lob-activity-${index}`,
       name: mapping.activityName,
@@ -381,17 +410,12 @@ export function generateLOBFromTasks(
       unitLabel: mapping.unitLabel,
       plannedStart,
       plannedFinish,
+      family,
     };
   });
-}
 
-const UNIT_PATTERNS: Array<{ label: string; regex: RegExp }> = [
-  { label: "Piso", regex: /\b(?:piso|nivel|n)\s*([a-z]?\d+)\b/i },
-  { label: "Zona", regex: /\b(?:zona|sector|area|área)\s*([a-z0-9]+)\b/i },
-  { label: "Lote", regex: /\b(?:lote|manzana)\s*([a-z0-9]+)\b/i },
-  { label: "Tramo", regex: /\b(?:tramo|frente)\s*([a-z0-9]+)\b/i },
-  { label: "Etapa", regex: /\b(?:etapa|fase)\s*([a-z0-9]+)\b/i },
-];
+  return { mappings };
+}
 
 function normalizeText(value: string): string {
   return value
@@ -552,15 +576,23 @@ function generateTextLOBFromTasks(
       (plannedFinish.getTime() - plannedStart.getTime()) / 86400000,
     );
     const activityId = `auto-lob-${activities.length}`;
+    const displayName = displayActivityName(activityKey);
+    const representativeTask = sorted[0].task;
+    const breadcrumb = buildWbsBreadcrumb(representativeTask.wbs, tasks);
+    const family = classifyActivityFamily(
+      { ...representativeTask, name: displayName },
+      { breadcrumb },
+    );
 
     activities.push({
       id: activityId,
-      name: displayActivityName(activityKey),
+      name: displayName,
       taskIds: sorted.map((item) => item.task.id),
       plannedRate: sorted.length / durationDays,
       unitLabel: detectedUnitLabel,
       plannedStart,
       plannedFinish,
+      family,
     });
 
     sorted.forEach((item, unitIndex) => {
@@ -665,6 +697,12 @@ function generateWBSLOBFromTasks(tasks: GanttTask[]): AutomaticLOBResult {
       (plannedFinish.getTime() - plannedStart.getTime()) / 86400000,
     );
     const activityId = `wbs-lob-${activities.length}`;
+    const representativeTask = sorted[0].task;
+    const breadcrumb = buildWbsBreadcrumb(representativeTask.wbs, tasks);
+    const family = classifyActivityFamily(
+      { ...representativeTask, name: group.displayName },
+      { breadcrumb },
+    );
 
     activities.push({
       id: activityId,
@@ -674,6 +712,7 @@ function generateWBSLOBFromTasks(tasks: GanttTask[]): AutomaticLOBResult {
       unitLabel: detectedUnitLabel,
       plannedStart,
       plannedFinish,
+      family,
     });
 
     sorted.forEach((item) => {

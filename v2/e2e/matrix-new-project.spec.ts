@@ -1,6 +1,7 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { createHash, randomBytes } from "crypto";
 import { Client } from "pg";
+import { e2eProjectName } from "./helpers/runId";
 
 const SESSION_COOKIE = "vg_session";
 const E2E_PROJECT_PREFIX = "E2E Matrix Edificio 10 pisos";
@@ -113,13 +114,6 @@ async function ensureE2ESchema(client: Client) {
   );
 }
 
-async function deleteE2EProjects() {
-  await withClient(async (client) => {
-    await ensureE2ESchema(client);
-    await client.query(`DELETE FROM projects WHERE name LIKE $1`, [`${E2E_PROJECT_PREFIX}%`]);
-  });
-}
-
 async function loadProjectData(projectId: string) {
   return withClient(async (client) => {
     const result = await client.query(
@@ -182,17 +176,12 @@ async function attachVisualEvidence(page: Page, testInfo: TestInfo, name: string
 }
 
 test.beforeEach(async ({ page }) => {
-  await deleteE2EProjects();
   await authenticate(page);
-});
-
-test.afterEach(async () => {
-  await deleteE2EProjects();
 });
 
 test("crea un edificio de 10 pisos desde Programacion Matricial", async ({ page }, testInfo) => {
   test.setTimeout(90_000);
-  const projectName = `${E2E_PROJECT_PREFIX} ${Date.now()}`;
+  const projectName = e2eProjectName(E2E_PROJECT_PREFIX);
 
   await page.goto("/project/new");
   await expect(page.getByRole("heading", { name: "Crear cronograma" })).toBeVisible();
