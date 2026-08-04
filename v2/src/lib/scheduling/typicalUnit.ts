@@ -1,6 +1,6 @@
 import type { GanttTask } from "@/components/gantt/types";
 import { classifyActivityFamily, type ActivityFamilyResult } from "./activityFamily";
-import { extractUnitLabel, buildWbsBreadcrumb } from "./unitPatterns";
+import { extractUnitLabel, buildWbsBreadcrumb, UNIT_PATTERNS } from "./unitPatterns";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -48,12 +48,16 @@ function extractLevel(task: GanttTask): string | null {
 }
 
 function systemName(task: GanttTask): string {
-  return task.name
-    .replace(/\b(?:nivel|piso|planta|torre|apartamento|apto|unidad)\s*[-#:]?\s*[a-z0-9]+\b/gi, "")
-    .replace(/\b(?:n|p)\s*[-#:]?\s*\d+\b/gi, "")
-    .replace(/\s{2,}/g, " ")
-    .trim()
-    .toLowerCase() || "actividad";
+  let stripped = task.name;
+  for (const pattern of UNIT_PATTERNS) {
+    stripped = stripped.replace(new RegExp(pattern.regex.source, "gi"), "");
+  }
+  return (
+    stripped
+      .replace(/\s{2,}/g, " ")
+      .trim()
+      .toLowerCase() || "actividad"
+  );
 }
 
 export function analyzeTypicalUnits(tasks: GanttTask[]): TypicalUnitAnalysis {
