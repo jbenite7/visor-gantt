@@ -1,11 +1,19 @@
 {
   "slug": "paridad-visor-10",
   "title": "Paridad funcional con Visor de Cronogramas (.mpp) — 10 features",
-  "status": "active",
+  "status": "completed",
   "created": "2026-07-08T12:00:00-05:00",
   "estimatedEffort": "38h",
   "tasks": 10,
   "acceptedFacts": 24,
+  "completed": "2026-07-08T15:55:00-05:00",
+  "verification": [
+    "npm test -- --runInBand",
+    "npm run lint",
+    "npm run build",
+    "docker compose up -d --build",
+    "Playwright Docker browser check: login, import .mpp, open project, confirm Conflictos/Unidad Tipica/Calendario/Trimestre"
+  ],
   "artifacts": [
     "interview.json",
     "interview-result.json",

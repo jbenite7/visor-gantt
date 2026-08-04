@@ -1,7 +1,7 @@
 # Goal: Paridad funcional con Visor de Cronogramas (.mpp)
 
 **Slug:** `paridad-visor-10`
-**Status:** `active`
+**Status:** `completed`
 **Creado:** 2026-07-08
 **Estimado:** ~38h
 
@@ -43,3 +43,7 @@ Lograr paridad funcional con la app destilada `project-viewer-501614.web.app` ad
 - CSS Grid, SVG
 - Algoritmos de scheduling / CPM
 - Algoritmos de fechas (festivos móviles)
+
+## Cierre
+
+Completado el 2026-07-08. Verificado con pruebas unitarias completas, lint, build, Docker rebuild y navegador sobre Docker con importación `.mpp` real.
