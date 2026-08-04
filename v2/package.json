@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "backfill:mpp-calculation": "npx --yes tsx scripts/backfill-mpp-calculation-state.ts --batch-size=200",
+    "clean:e2e": "npx --yes tsx scripts/clean-e2e-projects.ts",
     "benchmark:gantt": "BENCHMARK_SYNTHETIC=1 npx --yes tsx scripts/benchmark-gantt-recalculation.ts",
     "build": "next build --webpack",
     "lint": "eslint",
