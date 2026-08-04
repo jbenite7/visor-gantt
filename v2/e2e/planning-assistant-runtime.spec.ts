@@ -284,6 +284,7 @@ test("muestra recomendaciones priorizadas del asistente sin mutar el proyecto", 
 
   await page.goto(`/project/${projectId}`);
   await expect(page.getByTestId("gantt-view")).toBeVisible();
+  await page.getByTestId("gantt-planning-dropdown-summary").click();
   await expect(page.getByTestId("planning-assistant-panel")).toBeVisible();
 
   const assistant = page.getByTestId("planning-assistant-panel");
@@ -298,6 +299,7 @@ test("muestra recomendaciones priorizadas del asistente sin mutar el proyecto", 
 
   await page.reload();
   await expect(page.getByTestId("gantt-view")).toBeVisible();
+  await page.getByTestId("gantt-planning-dropdown-summary").click();
   await expect(page.getByTestId("planning-assistant-panel")).toContainText(
     "Entrega estructura supera su fecha limite",
   );

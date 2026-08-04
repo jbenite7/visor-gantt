@@ -248,6 +248,7 @@ test("previsualiza what-if sin mutar y persiste solo al aplicar tras recargar", 
 
   await page.goto(`/project/${projectId}`);
   await expect(page.getByTestId("gantt-view")).toBeVisible();
+  await page.getByTestId("gantt-planning-dropdown-summary").click();
   await expect(page.getByTestId("what-if-scenario-panel")).toBeVisible();
 
   await page.locator('[data-testid="gantt-row"][data-task-id="1"]').click();

@@ -206,7 +206,8 @@ async function setInputByLabel(page: Page, label: string, value: string) {
 async function renameArea(page: Page, currentName: string, nextName: string, type: string) {
   await setInputByLabel(page, `Nombre ubicacion ${currentName}`, nextName);
   await expect(page.getByLabel(`Nombre ubicacion ${nextName}`).first()).toHaveValue(nextName);
-  await setInputByLabel(page, `Tipo ubicacion ${nextName}`, type);
+  // El campo "Tipo" es un <select>, no un <input>: se usa selectOption en vez de setInputByLabel.
+  await page.getByLabel(`Tipo ubicacion ${nextName}`).first().selectOption(type);
   await expect(page.getByLabel(`Tipo ubicacion ${nextName}`).first()).toHaveValue(type);
 }
 

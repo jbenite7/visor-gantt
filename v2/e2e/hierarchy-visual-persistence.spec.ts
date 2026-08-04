@@ -242,6 +242,10 @@ test.beforeEach(async ({ page }) => {
 
 test("persiste jerarquia creada desde la toolbar tras recargar", async ({ page }) => {
   test.setTimeout(75_000);
+  // La tabla del Gantt oculta columnas (incl. "summary") cuando su panel es angosto
+  // (ver COMPACT/BALANCED/READABLE_GANTT_COLUMNS en GanttTable.tsx). Se amplia el
+  // viewport para que el panel de tabla supere el umbral y muestre todas las columnas.
+  await page.setViewportSize({ width: 2000, height: 900 });
   const projectName = e2eProjectName(E2E_PROJECT_PREFIX);
   const projectId = await createProject(projectName);
 

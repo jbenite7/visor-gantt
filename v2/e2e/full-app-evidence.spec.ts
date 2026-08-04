@@ -5,6 +5,8 @@ import {
   expect,
   test,
   type ConsoleMessage,
+  type FileChooser,
+  type Locator,
   type Page,
   type Request,
   type Response,
@@ -318,6 +320,42 @@ async function exerciseProjectModuleTools(page: Page, projectModule: ProjectModu
   }
 }
 
+/**
+ * El botón "Subir Archivo .mpp" llega habilitado en el HTML que sirve el servidor
+ * (disabled={isProcessing} arranca en false), así que toBeEnabled() no detecta
+ * hidratación. El onClick real (que hace inputRef.current.click() y abre el selector
+ * de archivos) solo existe una vez que React hidrató el componente: un clic disparado
+ * antes de ese momento es inerte y no puede "esperarse" después, porque ya ocurrió.
+ * Por eso la señal de interactividad es reintentar el clic hasta que efectivamente
+ * abra el selector nativo ("filechooser"), en vez de adivinar cuánto tardará la
+ * hidratación con un timeout fijo o con networkidle.
+ */
+async function clickUntilFileChooserOpens(
+  page: Page,
+  button: Locator,
+  options: { attempts?: number; perAttemptTimeoutMs?: number } = {},
+): Promise<FileChooser> {
+  const attempts = options.attempts ?? 20;
+  const perAttemptTimeoutMs = options.perAttemptTimeoutMs ?? 750;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const [fileChooser] = await Promise.all([
+        page.waitForEvent("filechooser", { timeout: perAttemptTimeoutMs }),
+        button.click(),
+      ]);
+      return fileChooser;
+    } catch {
+      // Reintenta: el clic anterior probablemente ocurrió antes de que React
+      // hidratara el botón, así que no tuvo ningún efecto.
+    }
+  }
+  throw new Error(
+    `El botón "Subir Archivo .mpp" nunca abrió el selector de archivos tras ${attempts} intentos ` +
+      `(~${attempts * perAttemptTimeoutMs}ms). La app no llegó a hidratarse a tiempo, o el onClick ` +
+      `dejó de invocar inputRef.current.click().`,
+  );
+}
+
 async function importMppThroughUi(page: Page, testInfo: TestInfo): Promise<string> {
   const mppPath = resolveMppPath();
   testInfo.attach("mpp-source", {
@@ -326,10 +364,24 @@ async function importMppThroughUi(page: Page, testInfo: TestInfo): Promise<strin
   });
 
   await page.goto("/upload", { waitUntil: "domcontentloaded" });
+
+  const uploadButton = page.getByRole("button", { name: /subir archivo \.mpp/i });
+  await expect(uploadButton).toBeVisible();
+  const fileChooser = await clickUntilFileChooserOpens(page, uploadButton);
+
+  // Con la interactividad confirmada, se selecciona el archivo y se verifica que la
+  // petición de importación realmente salga antes de esperar la navegación final:
+  // así, si algo se rompe aquí, el error es "nunca se disparó la petición" en vez de
+  // agotar 180s en un waitForURL sin pistas.
   await Promise.all([
-    page.waitForURL(/\/project\/\d+/, { timeout: 180_000 }),
-    page.getByLabel(/seleccionar archivo \.mpp/i).setInputFiles(mppPath),
+    page.waitForRequest(
+      (request) => request.url().includes("/api/import-mpp") && request.method() === "POST",
+      { timeout: 15_000 },
+    ),
+    fileChooser.setFiles(mppPath),
   ]);
+
+  await page.waitForURL(/\/project\/\d+/, { timeout: 180_000 });
 
   const projectId = projectIdFromUrl(page.url());
   await expect(page.getByTestId("gantt-view")).toBeVisible({ timeout: 60_000 });
@@ -685,7 +737,9 @@ function assertNoCriticalLogs(entries: BrowserLogEntry[]) {
       (entry.url?.includes("_rsc=") ||
         entry.url?.endsWith("/project/new") ||
         entry.url?.endsWith("/login") ||
-        /\/project\/\d+$/.test(entry.url ?? ""))
+        /\/project\/\d+$/.test(entry.url ?? "") ||
+        // Ruido de Fast Refresh del servidor de desarrollo (next dev); no existe en producción.
+        entry.url?.endsWith(".hot-update.json"))
     ) {
       return false;
     }
@@ -697,13 +751,23 @@ function assertNoCriticalLogs(entries: BrowserLogEntry[]) {
 }
 
 function resolveMppPath(): string {
+  const envPath = process.env.E2E_MPP_PATH;
+  if (envPath && fs.existsSync(envPath)) return envPath;
+
   if (fs.existsSync(EXACT_MPP_PATH)) return EXACT_MPP_PATH;
-  const downloads = "/Users/juanfelipebenitezramos/Downloads";
-  const match = fs
-    .readdirSync(downloads)
-    .find((file) => file.startsWith("20260303_Cronograma preconstrucci") && file.endsWith(".mpp"));
-  if (match) return path.join(downloads, match);
-  throw new Error(`No existe el archivo MPP requerido: ${EXACT_MPP_PATH}`);
+
+  const repoFixturePath = path.resolve(
+    __dirname,
+    "../../aia-ms-project/20260312 DA PORTO TORRE 3.mpp",
+  );
+  if (fs.existsSync(repoFixturePath)) return repoFixturePath;
+
+  throw new Error(
+    `No existe el archivo MPP requerido. Se buscaron estas opciones en orden: ` +
+      `1) $E2E_MPP_PATH=${envPath ?? "(no definida)"}; ` +
+      `2) ruta fija del autor original: ${EXACT_MPP_PATH}; ` +
+      `3) fixture del repo: ${repoFixturePath}.`,
+  );
 }
 
 function projectIdFromUrl(url: string): string {
