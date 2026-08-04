@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { createHash, randomBytes } from "crypto";
 import { mkdirSync } from "fs";
 import { Client } from "pg";
+import { e2eProjectName } from "./helpers/runId";
 
 const SESSION_COOKIE = "vg_session";
 const E2E_PROJECT_PREFIX = "E2E Visual Audit";
@@ -152,13 +153,6 @@ async function authenticate(page: Page) {
       sameSite: "Lax",
     },
   ]);
-}
-
-async function deleteE2EProjects() {
-  await withClient(async (client) => {
-    await ensureE2ESchema(client);
-    await client.query(`DELETE FROM projects WHERE name LIKE $1`, [`${E2E_PROJECT_PREFIX}%`]);
-  });
 }
 
 async function createProject(name: string): Promise<string> {
@@ -413,17 +407,12 @@ test.beforeAll(() => {
 });
 
 test.beforeEach(async ({ page }) => {
-  await deleteE2EProjects();
   await authenticate(page);
-});
-
-test.afterEach(async () => {
-  await deleteE2EProjects();
 });
 
 test("captura auditoria visual final desktop y mobile", async ({ page }) => {
   test.setTimeout(300_000);
-  const projectId = await createProject(`${E2E_PROJECT_PREFIX} ${Date.now()}`);
+  const projectId = await createProject(e2eProjectName(E2E_PROJECT_PREFIX));
 
   for (const viewport of ["desktop", "mobile"] as const) {
     await setAuditViewport(page, viewport);
