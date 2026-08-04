@@ -1,10 +1,8 @@
 import type { GanttTask } from "@/components/gantt/types";
+import { classifyActivityFamily, type ActivityFamilyResult } from "./activityFamily";
+import { extractUnitLabel, buildWbsBreadcrumb } from "./unitPatterns";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const UNIT_PATTERNS = [
-  /(?:nivel|piso|planta|torre|apartamento|apto|unidad)\s*[-#:]?\s*([a-z0-9]+)/i,
-  /(?:n|p)\s*[-#:]?\s*(\d+)/i,
-];
 
 export interface TypicalUnitActivity {
   taskId: string | number;
@@ -24,6 +22,7 @@ export interface TypicalUnitGroup {
   averageDurationDays: number;
   averageProductivity: number;
   activities: TypicalUnitActivity[];
+  family: ActivityFamilyResult;
 }
 
 export interface TypicalUnitAnalysis {
@@ -41,10 +40,8 @@ function durationDays(task: GanttTask): number {
 
 function extractLevel(task: GanttTask): string | null {
   const source = `${task.wbs ?? ""} ${task.name}`;
-  for (const pattern of UNIT_PATTERNS) {
-    const match = source.match(pattern);
-    if (match?.[1]) return match[1].toUpperCase();
-  }
+  const match = extractUnitLabel(source);
+  if (match) return match.value;
   const parts = task.wbs?.split(".");
   if (parts && parts.length >= 3) return parts[parts.length - 2];
   return null;
@@ -60,6 +57,11 @@ function systemName(task: GanttTask): string {
 }
 
 export function analyzeTypicalUnits(tasks: GanttTask[]): TypicalUnitAnalysis {
+  const taskById = new Map<string | number, GanttTask>();
+  for (const task of tasks) {
+    taskById.set(task.id, task);
+  }
+
   const activities = tasks
     .filter((task) => !task.isSummary && !task.isMilestone)
     .map((task): TypicalUnitActivity | null => {
@@ -91,6 +93,25 @@ export function analyzeTypicalUnits(tasks: GanttTask[]): TypicalUnitAnalysis {
       const levels = new Set(items.map((item) => item.level));
       const totalDuration = items.reduce((sum, item) => sum + item.durationDays, 0);
       const totalProductivity = items.reduce((sum, item) => sum + item.productivity, 0);
+      const representativeTask = taskById.get(items[0].taskId);
+      const family = classifyActivityFamily(
+        representativeTask ?? {
+          id: items[0].taskId,
+          name: items[0].name,
+          start: items[0].start,
+          finish: items[0].finish,
+          duration: items[0].durationDays,
+          progress: 0,
+          isCritical: false,
+          isMilestone: false,
+          isSummary: false,
+          outlineLevel: 1,
+          dependencies: [],
+        },
+        representativeTask
+          ? { breadcrumb: buildWbsBreadcrumb(representativeTask.wbs, tasks) }
+          : undefined,
+      );
       return {
         system,
         levelCount: levels.size,
@@ -98,6 +119,7 @@ export function analyzeTypicalUnits(tasks: GanttTask[]): TypicalUnitAnalysis {
         averageDurationDays: totalDuration / items.length,
         averageProductivity: totalProductivity / items.length,
         activities: items.sort((a, b) => a.level.localeCompare(b.level, "es", { numeric: true })),
+        family,
       };
     })
     .filter((group) => group.levelCount >= 3)

@@ -36,6 +36,16 @@ describe("analyzeTypicalUnits", () => {
     ]);
   });
 
+  test("cada grupo de unidad tipica expone la familia de sus actividades", () => {
+    const analysis = analyzeTypicalUnits([
+      task({ id: 1, name: "Instalacion hidraulica piso 1", wbs: "1.1" }),
+      task({ id: 2, name: "Instalacion hidraulica piso 2", wbs: "1.2" }),
+      task({ id: 3, name: "Instalacion hidraulica piso 3", wbs: "1.3" }),
+    ]);
+
+    expect(analysis.groups[0].family.family).toBe("Redes MEP");
+  });
+
   test("degrades with an informative reason when data is insufficient", () => {
     const analysis = analyzeTypicalUnits([
       task({ id: 1, name: "Actividad sin unidad", wbs: "1" }),

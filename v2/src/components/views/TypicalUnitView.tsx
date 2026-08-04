@@ -84,10 +84,25 @@ export default function TypicalUnitView({ tasks }: TypicalUnitViewProps) {
             {analysis.groups.map((group) => (
               <section key={group.system} className="apple-section overflow-hidden">
                 <div className="border-b border-[var(--color-hairline)] px-4 py-3">
-                  <h3 className="text-sm font-semibold capitalize text-[var(--color-text-strong)]">{group.system}</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm font-semibold capitalize text-[var(--color-text-strong)]">{group.system}</h3>
+                    {group.family.family && (
+                      <span
+                        data-testid="typical-unit-family-badge"
+                        className="rounded-full bg-[var(--color-bg-surface-secondary)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-text-muted)]"
+                      >
+                        {group.family.family}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-[var(--color-text-muted)]">
                     {group.levelCount} niveles · {formatNumber(group.averageProductivity)} unidades/día
                   </p>
+                  {group.family.reviewReason && (
+                    <p className="mt-1 text-xs text-[var(--color-warning,#b45309)]">
+                      {group.family.reviewReason}
+                    </p>
+                  )}
                 </div>
                 <div className="divide-y divide-[var(--color-hairline)]">
                   {group.activities.map((activity) => (

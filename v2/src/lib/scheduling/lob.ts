@@ -9,6 +9,7 @@ import type { LOBActivity, LOBUnit } from "@/types/lob";
 import type { GanttTask } from "@/components/gantt/types";
 import type { MatrixPlan } from "@/types/matrix";
 import { classifyActivityFamily, type ActivityFamilyResult } from "./activityFamily";
+import { UNIT_PATTERNS, buildWbsBreadcrumb } from "./unitPatterns";
 
 // ── Layout types ──────────────────────────────────────────────────
 
@@ -332,28 +333,6 @@ export interface AutomaticLOBResult {
 }
 
 /**
- * Build the breadcrumb of ancestor summary task names for a given wbs,
- * derived from prefixes of its dotted wbs path (root → leaf).
- */
-function buildWbsBreadcrumb(wbs: string | undefined, tasks: GanttTask[]): string[] {
-  const parts = wbs?.split(".").map((part) => part.trim()).filter(Boolean) ?? [];
-  if (parts.length <= 1) return [];
-
-  const nameByWbs = new Map<string, string>();
-  for (const task of tasks) {
-    if (task.wbs) nameByWbs.set(task.wbs, task.name);
-  }
-
-  const breadcrumb: string[] = [];
-  for (let depth = 1; depth < parts.length; depth += 1) {
-    const ancestorWbs = parts.slice(0, depth).join(".");
-    const name = nameByWbs.get(ancestorWbs);
-    if (name) breadcrumb.push(name);
-  }
-  return breadcrumb;
-}
-
-/**
  * Generate LOBActivity objects from GanttTasks using an activity mapping.
  *
  * For each mapping entry, finds the matching tasks and derives the
@@ -437,14 +416,6 @@ export function generateLOBFromTasks(
 
   return { mappings };
 }
-
-const UNIT_PATTERNS: Array<{ label: string; regex: RegExp }> = [
-  { label: "Piso", regex: /\b(?:piso|nivel|n)\s*([a-z]?\d+)\b/i },
-  { label: "Zona", regex: /\b(?:zona|sector|area|área)\s*([a-z0-9]+)\b/i },
-  { label: "Lote", regex: /\b(?:lote|manzana)\s*([a-z0-9]+)\b/i },
-  { label: "Tramo", regex: /\b(?:tramo|frente)\s*([a-z0-9]+)\b/i },
-  { label: "Etapa", regex: /\b(?:etapa|fase)\s*([a-z0-9]+)\b/i },
-];
 
 function normalizeText(value: string): string {
   return value
