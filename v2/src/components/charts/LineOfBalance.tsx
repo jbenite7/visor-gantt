@@ -1193,7 +1193,6 @@ export default function LineOfBalance({
                     x={24}
                     y={18}
                     data-testid="lob-legend-family"
-                    fill="var(--color-text-secondary)"
                     className="lob-chart__legend-family"
                   >
                     {item.family}
