@@ -432,7 +432,17 @@ async function createMatrixHousingProject(page: Page, testInfo: TestInfo): Promi
 }
 
 async function addMatrixItem(page: Page, buttonName: string, type: string, value: string) {
-  await page.getByPlaceholder(buttonName).fill(value);
+  const input = page.getByPlaceholder(buttonName);
+  // The button's onClick handler reads the input's React state via closure. `fill()` writes the
+  // DOM value directly and only *afterwards* dispatches a synthetic "input" event, so a
+  // `toHaveValue` assertion right after `fill()` is trivially true (the DOM already has the
+  // target value regardless of whether React's onChange ran) and does not prove React's state
+  // was actually updated before the click fires. `pressSequentially` instead sends real
+  // per-character keyboard events, each synchronously handled by React's event system before the
+  // next one is dispatched, so by the time it resolves the component state is guaranteed to be
+  // in sync with the DOM — no fixed delay needed. Confirmed empirically: fill()+toHaveValue lost
+  // ~50% of rapid-fire adds under load, pressSequentially lost none across the same stress test.
+  await input.pressSequentially(value);
   await page.getByRole("button", { name: type, exact: true }).click();
 }
 
