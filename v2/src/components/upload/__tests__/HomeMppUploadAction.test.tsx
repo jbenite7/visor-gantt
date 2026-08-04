@@ -29,8 +29,7 @@ describe("HomeMppUploadAction", () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      type: "opaqueredirect",
-      url: "",
+      url: "/project/42",
       json: async () => ({}),
     }) as unknown as typeof fetch;
 
@@ -48,9 +47,9 @@ describe("HomeMppUploadAction", () => {
 
     expect(global.fetch).toHaveBeenCalledWith(
       "/api/import-mpp",
-      expect.objectContaining({ method: "POST", redirect: "manual" }),
+      expect.objectContaining({ method: "POST" }),
     );
-    expect(push).toHaveBeenCalledWith("/");
+    expect(push).toHaveBeenCalledWith("/project/42");
   });
 
   test("rejects non-mpp files inline before submitting", async () => {

@@ -46,10 +46,9 @@ export default function HomeMppUploadAction({
       const response = await fetch("/api/import-mpp", {
         method: "POST",
         body,
-        redirect: "manual",
       });
 
-      if (response.ok || response.type === "opaqueredirect") {
+      if (response.ok) {
         router.push(response.url || "/");
         return;
       }
