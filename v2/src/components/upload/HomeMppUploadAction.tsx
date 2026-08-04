@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
 
 const MAX_FILE_SIZE_MB = 50;
@@ -27,8 +28,9 @@ export default function HomeMppUploadAction({
   const inputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     const validationError = validateMppFile(file);
     if (validationError) {
       setError(validationError);
@@ -37,15 +39,34 @@ export default function HomeMppUploadAction({
 
     setIsProcessing(true);
     setError(null);
-    formRef.current?.requestSubmit();
+
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const response = await fetch("/api/import-mpp", {
+        method: "POST",
+        body,
+        redirect: "manual",
+      });
+
+      if (response.ok || response.type === "opaqueredirect") {
+        router.push(response.url || "/");
+        return;
+      }
+
+      const payload = await response.json().catch(() => null);
+      setError(payload?.error ?? "No se pudo importar el archivo .mpp");
+    } catch {
+      setError("No se pudo conectar con el servidor de importacion");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
     <form
       ref={formRef}
-      action="/api/import-mpp"
-      method="post"
-      encType="multipart/form-data"
+      onSubmit={(event) => event.preventDefault()}
       className={className}
     >
       <input
