@@ -37,5 +37,6 @@ estrechos, y un campo de tipo pasó a ser `<select>`. Reparados. Además, el fix
 máquina, lo que hacía el spec inejecutable fuera de ella; ahora resuelve por variable de entorno, ruta original o
 fixture del repositorio.
 
-Estado actual: 13 passed, 1 failed, 36 sin ejecutar. El fallo restante (`matrix-housing-full-flow`) es preexistente
-y arrastra los 36 por el modo `serial`.
+Estado final: **50 passed, 1 skipped, 0 failed**. El único saltado es `production-gantt-benchmark`, que exige
+`PRODUCTION_SSH_HOST` por diseño del spec. Tras la corrida completa la base conserva 87 proyectos, prueba directa de
+los facts 8 y 111.

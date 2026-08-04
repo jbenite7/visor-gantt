@@ -13,10 +13,21 @@ Salida real de comandos, no autoreporte.
 | `npm test -- --runInBand` | **79 suites, 586 tests, todos pasan** |
 | `npm run lint` | limpio, sin hallazgos |
 | `npm run build` | compila y genera todas las rutas |
-| `npx playwright test --project=chromium` | **13 passed, 1 failed, 1 skipped, 36 did not run** |
+| `npx playwright test --project=chromium` | **50 passed, 1 skipped, 0 failed** |
+
+El único test saltado es `production-gantt-benchmark`, que requiere `PRODUCTION_SSH_HOST` por diseño del propio spec.
 
 Punto de partida al abrir la sesión: 75 suites / 543 tests, y una suite E2E con **5 fallos** que ninguna acta previa
-registraba. La suite unitaria creció en 4 suites y 43 tests; la E2E pasó de 5 fallos a 1.
+registraba. La suite unitaria creció en 4 suites y 43 tests; la E2E pasó de 5 fallos y 37 tests sin ejecutar a
+**50 en verde**.
+
+### Evolución de la suite E2E durante la sesión
+
+| Momento | Resultado |
+| --- | --- |
+| Estado preexistente | 5 failed, 7 passed, 37 did not run |
+| Tras reparar los specs desactualizados | 1 failed, 13 passed, 36 did not run |
+| Estado final | **50 passed, 1 skipped** |
 
 ## Facts cerrados con evidencia
 
@@ -25,9 +36,9 @@ registraba. La suite unitaria creció en 4 suites y 43 tests; la E2E pasó de 5 
 Contradicción resuelta. Antes, 9 de 12 specs ejecutaban `DELETE FROM projects` pese a que los facts exigen conservar
 los proyectos. Ahora ninguno lo hace: el aislamiento viene de un identificador de corrida (`e2e/helpers/runId.ts`).
 
-Prueba: tras la corrida completa, `select count(*) from projects` devuelve **35 proyectos**, con nombres como
-`E2E What If Persistence run-msf2srrr` y `E2E Matriz 2 etapas 2 torres 20 pisos run-msf2y5xz`, conviviendo corridas
-distintas sin colisión.
+Prueba: tras la corrida completa en verde, `select count(*) from projects` devuelve **87 proyectos**, con nombres
+como `E2E What If Persistence run-msf2srrr` y `E2E Matriz 2 etapas 2 torres 20 pisos run-msf2y5xz`, conviviendo
+corridas distintas sin colisión. El conteo creció de 35 a 87 al ejecutar la suite entera, sin perder ninguno.
 
 El caso difícil — un proyecto importado cuyo nombre viene del propio `.mpp` — se resolvió renombrando la fila con el
 id obtenido del redirect, sin tocar el motor de importación.
@@ -79,11 +90,15 @@ cumplido; el error fue buscar una palabra en lugar de la funcionalidad.
 4. **Carrera de hidratación en la subida**: el test subía el archivo antes de que React estuviera escuchando. Ahora
    espera a que el navegador emita `filechooser` y envuelve la subida en `waitForRequest`.
 
+5. **Tipo de ubicación inexistente en el test**: el flujo matricial intentaba asignar el tipo "Urbanismo", que no
+   está en `areaTypeOptions` porque es el nombre de una ubicación, no una categoría estructural. Se corrigió el test
+   usando "Zona"; **no** se añadió la opción a la aplicación, que habría sido modificar el producto para acomodar un
+   test mal escrito.
+6. **Aborto del chunk de `/login`**: la navegación del server action cancelaba la petición del chunk aún en vuelo.
+   Resuelto esperando la carga antes de interactuar con el formulario.
+
 ## Deuda registrada
 
-- `matrix-housing-full-flow` sigue fallando y, por el modo `serial`, arrastra 36 tests. Diagnóstico acumulado en
-  `task-5b-report.md`, `task-5c-report.md` e `investigacion-draft-report.md`. **Es preexistente**: se verificó que
-  falla igual antes de los cambios de esta rama.
 - La ruta `mousedown` + `mouseup` en ventana de `GanttTable.tsx:640,653-668` es código muerto: el atributo
   `draggable` de la fila secuestra el gesto antes. No afecta al usuario, porque `handleRowDrop:691-717` aplica la
   indentación por la ruta nativa.
