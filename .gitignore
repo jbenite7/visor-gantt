@@ -24,3 +24,4 @@ __pycache__/
 *.mpp
 test_project_complete.xml
 aia-ms-project/
+.codex/

@@ -1,90 +1,43 @@
-# PROJECT KNOWLEDGE BASE
+# Visor Gantt — guía local del repositorio
 
-**Actualizado:** 2026-07-06
-**Branch:** main
+## Autoridad y alcance
 
-## OVERVIEW
+- Este archivo complementa las instrucciones globales. Dentro de `v2/`, aplica además `v2/AGENTS.md` como override técnico más cercano.
+- `v2/` es la aplicación activa. No inventes rutas legacy ni mantengas implementaciones paralelas fuera de ella.
+- Si la tarea nombra un goal, lee primero su `goal.md`, `facts.md`, `plan.md` y artefactos de validación disponibles. Ese paquete define alcance y done condition; no mezcles otros goals sin autorización.
+- Inspecciona el estado de Git antes de editar. Conserva cambios locales ajenos y no uses metadatos históricos como fecha o rama predeterminada para decidir el trabajo actual.
 
-Visor Gantt (visor-mpp) — Editor operativo de planificación sobre archivos de Microsoft Project (`.mpp`). Importa `.mpp` → parsea → Gantt/CPM interactivo con ruta crítica, dependencias (FS/SS/FF/SF + lags), WBS/rollups, y **programación matricial en paridad simétrica 100%** con el CPM/Gantt.
+## Runtime y mapa de responsabilidades
 
-Stack único, totalmente dockerizado:
+- Docker Compose es la fuente de verdad del runtime integrado: `frontend` (Next.js en `v2/`), `mpp-parser` (FastAPI + MPXJ), `db` (PostgreSQL) y `pgadmin` opcional.
+- El parseo binario `.mpp` pertenece a `services/mpp-parser/`; la transformación al modelo de la aplicación vive en `v2/src/lib/import/mpp-project.ts` y la persistencia en `v2/src/lib/db.ts` y acciones server-side.
+- El motor de calendario/CPM vive en `v2/src/lib/scheduling/`; la programación matricial en `v2/src/lib/matrix/`; el estado editable y su historial en `v2/src/lib/state/ProjectContext.tsx`.
+- Usa `docker-compose.yml`, el código actual y la aplicación servida para confirmar comportamiento. Si Docker sirve una imagen desactualizada, reconstruye o reinicia el servicio pertinente antes de aceptar evidencia.
 
-- `frontend` — Next.js 16 + TypeScript + React 19 (App Router). Es el **código activo** del repo, vive en `v2/`.
-- `mpp-parser` — Microservicio Python (FastAPI + MPXJ) que convierte `.mpp` binario a JSON.
-- `db` — PostgreSQL. Cada proyecto se persiste como JSON en la columna `project_data`.
-- `pgadmin` — Administración opcional de la base de datos.
+## Contratos de dominio no negociables
 
-> El backend PHP legacy (DDD) fue **erradicado** el 2026-07-06. No existe ninguna ruta de ejecución fuera de Docker + `v2/`.
+- Conserva durante importación las fechas y los datos originales del MPP. Los valores derivados o recalculados deben mantener procedencia explícita y no sobrescribir silenciosamente la fuente.
+- Mantén las relaciones FS, SS, FF y SF, sus lags, calendarios, restricciones, jerarquía/WBS, rollups, holgura total/libre y ruta crítica. El recálculo debe ser determinista y no crear un segundo modelo de scheduling.
+- Ante ciclos, autodependencias, referencias huérfanas o calendarios inválidos, muestra issues accionables y conserva el último cronograma válido; no persistas un recálculo parcial o corrupto.
+- Distingue identidad interna y visible: `Unique ID` identifica establemente la entidad importada; el `Row ID` consecutivo es el contrato visible/editable para predecesoras y sucesoras. Traduce entre ambos en los límites correctos y prueba importación, edición, guardado y recálculo.
+- Mantén simetría Matriz ↔ Gantt. Un cambio en generación, sincronización o aplicación debe preservar `matrixPlan`, dependencias, jerarquía y `matrixSource` en ambas direcciones; evita sincronización unilateral o pérdida de ediciones más recientes.
+- El proyecto persistido vive principalmente en `projects.project_data` (`JSONB`). Todo cambio de estado persistente debe sobrevivir guardar, recargar la página y reabrir el proyecto; incluye calendario, matriz, baselines, columnas y ajustes afectados.
+- El asistente, recomendaciones y escenarios what-if son análisis o preview. No alteran ni persisten el cronograma base hasta que el usuario aplique explícitamente el cambio.
+- La importación debe respetar autenticación y permisos, guardar el agregado completo de forma atómica y devolver errores claros. Un archivo inválido, parser caído o fallo de DB no debe crear proyectos parciales.
 
-## STRUCTURE
+## Routing y seguridad
 
-```
-/
-├── v2/                    # Next.js 16 TypeScript — código ACTIVO (App Router)
-│   ├── src/
-│   │   ├── app/           # Rutas, actions, api/, globals.css (design system)
-│   │   ├── components/    # gantt/GanttChart.tsx, matriz, UI
-│   │   └── lib/           # parser/, scheduling/, matrix/, import/, auth/, db.ts
-│   └── scripts/           # init-schema.sql
-├── services/
-│   └── mpp-parser/        # Microservicio Python (FastAPI + MPXJ) — parse .mpp → JSON
-├── test_data/             # manual-de-marca-aia.json (identidad de marca, usado por globals.css)
-├── docs/                  # Despliegue Hetzner, campos calculados MS Project
-└── docker-compose.yml     # Stack: frontend + mpp-parser + db + pgadmin
-```
+- Para auditorías de MPP, CPM, calendarios, identidad, Matriz–Gantt o persistencia, usa `visor_schedule_contract_guardian` en read-only si el runtime permite seleccionar agentes tipados. Si no, delega el mismo contrato a un agente genérico read-only y declara el fallback.
+- Para auditorías de Docker, parser, Server/Client boundaries, hidratación, rendimiento o evidencia E2E, usa `visor_runtime_evidence_guardian` bajo la misma regla. Los guardianes auditan y recomiendan; no implementan ni cambian datos, Docker o Git.
+- No expongas credenciales, recovery codes ni contenido de proyectos reales. Usa variables de entorno y datos mínimos; no copies secretos a instrucciones, logs o evidencia.
+- Trata cambios de schema, migraciones, backfills, borrados y operaciones sobre volúmenes como persistentes y de riesgo. Exige plan, respaldo verificable, ruta de restauración y aprobación. Nunca elimines volúmenes como operación rutinaria.
+- `v2/scripts/init-schema.sql` inicializa volúmenes nuevos; editarlo no migra una base ya existente. Para una base viva diseña y valida una migración explícita.
 
-## WHERE TO LOOK
+## Verificación proporcional
 
-| Tarea | Ubicación | Notas |
-|------|-----------|-------|
-| Parse .mpp binario → JSON | `services/mpp-parser/` | Python FastAPI + MPXJ (Java) |
-| Cliente parser desde v2 | `MPP_PARSER_URL` / `NEXT_PUBLIC_MPP_PARSER_URL` | Servicio Docker `mpp-parser:8000` |
-| Import .mpp → project_data + matriz | `v2/src/lib/import/mpp-project.ts` | `buildProjectDataFromMpp`, `buildImportedMatrix` |
-| Parser XML MSPDI (v2) | `v2/src/lib/parser/mpp-parser.ts` | `fast-xml-parser` |
-| Motor CPM / scheduling | `v2/src/lib/scheduling/cpm.ts` | Forward/Backward pass, float, ruta crítica |
-| Programación matricial (paridad) | `v2/src/lib/matrix/matrixFromGantt.ts` | `buildMatrixPlanFromGantt`, `generateScheduleFromMatrix`, `matrixSync` |
-| Render Gantt | `v2/src/components/gantt/GanttChart.tsx` | Componente React |
-| Persistencia | `v2/src/lib/db.ts` | Pool `pg`; columna `project_data` JSON |
-| Auth / sesión + seed admin | `v2/src/lib/auth/session.ts` | `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` |
-| Design system Apple-like | `v2/src/app/globals.css` | OKLCH, glass/backdrop-blur, dark mode, `--aia-*` |
-| Identidad de marca AIA | `test_data/manual-de-marca-aia.json` | Colores/tipografía; consumido por `globals.css` |
-| Esquema DB inicial | `v2/scripts/init-schema.sql` | Montado como init de PostgreSQL |
-| Despliegue producción | `docs/deploy-production-hetzner.md` | Hetzner |
-
-## CONVENTIONS
-
-- **Mobile First CSS**: estilos para pantallas pequeñas primero, escalar con `@media (min-width: ...)`.
-- **Design system Apple-like 2026**: tokens OKLCH, superficies glass (`backdrop-filter` con prefijo `-webkit-` para Safari), modo oscuro. Único punto de verdad: `v2/src/app/globals.css`.
-- **Paridad simétrica matriz ↔ CPM/Gantt (100%)**: `buildMatrixPlanFromGantt` (Gantt→Matriz) y `generateScheduleFromMatrix` (Matriz→Gantt) se mantienen en sync. El import `.mpp` genera `matrixPlan` en **ambas ramas** (con y sin recálculo de campos).
-- **Persistencia JSON**: el estado del proyecto vive en la columna `project_data` (JSON), no en tablas normalizadas por entidad.
-- **Separación de responsabilidades**: el parseo binario de `.mpp` es responsabilidad del microservicio Python; el frontend consume JSON.
-
-## ANTI-PATTERNS (THIS PROJECT)
-
-- **NO modificar el cronograma con acciones inteligentes/IA sin confirmación explícita del usuario.** El asistente preventivo y el what-if operan en runtime/preview; solo persisten cuando el usuario aplica.
-- **NO romper la paridad matriz↔Gantt**: si tocas una dirección, actualiza la otra o fallan los tests `matrixSync` / `matrixFromGantt` / `matrixGenerator`.
-- **NO asumir un flujo fuera de Docker**: el frontend depende de `mpp-parser` y `db` por nombre de servicio.
-- **NO sobrescribir las fechas originales del XML con fechas recalculadas por CPM durante el import.**
-
-## COMMANDS
-
-```bash
-# Stack Docker (entrypoint primario)
-docker compose up -d --build
-docker compose down            # -v para borrar el volumen de datos
-
-# Verificación (desde v2/)
-npm run lint
-npx jest --runInBand           # unit
-npm run build                  # next build --webpack
-npm run test:e2e -- --project=chromium --workers=1
-BENCHMARK_SYNTHETIC_FLOORS=60 BENCHMARK_RUNS=20 npm run benchmark:gantt
-```
-
-## NOTES
-
-- Seed admin en un despliegue limpio: `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` (consumido en `v2/src/lib/auth/session.ts`).
-- v2 usa nombres de servicio Docker para conectividad: `mpp-parser` y `db`.
-- Alias de path `@/*` → `./src/*`.
-- Los `.mpp` son binarios (gitignored).
-- `docs/recovery-codes.txt` es sensible: no exponer.
+- Primero ejecuta tests enfocados del dominio tocado; después lint y build cuando aplique. Para cambios visuales o interactivos añade navegador real y Playwright sobre la app servida.
+- Scheduling/importación: cubre campos originales, cuatro tipos de dependencia con lags, calendarios, ciclos/errores, CPM, float y ruta crítica.
+- Matriz: cubre `matrixFromGantt`, `matrixGenerator` y `matrixSync`, incluidas paridad bidireccional, procedencia e identidad.
+- Persistencia: prueba guardar → recargar → reabrir y contrasta `project_data`; no aceptes solo estado de React o un test unitario.
+- Runtime: confirma servicios con `docker compose config --services`, salud del parser, conectividad a PostgreSQL y ausencia de errores críticos en consola/red. Para rendimiento usa corridas comparables y documenta fixture, entorno, repeticiones y umbrales.
+- Antes de cerrar, reporta comandos ejecutados, evidencia, limitaciones y cualquier paso manual. No hagas commit, push ni deploy salvo petición explícita.
