@@ -22,7 +22,7 @@ Journey `improve-app` iniciado 2026-08-05 a partir de la destilación del visor 
 | 3 | design-everyday-things | done | 16 hallazgos (#26-41) con verificación en vivo en `/gantt-demo`; 16 experimentos E23-E38. Norman 4/10 |
 | 4 | refactoring-ui | done | Tokens auditados (sólidos); grayscale test 5/10 → hallazgos #42-46 (E39-E42); barra de vistas legible shipped. Sin color nuevo |
 | 5 | microinteractions | done | Inventario 7 interacciones (5/10); momento firma = badge de observaciones (E43, pasa removal test); E44 nuevo |
-| 6 | made-to-stick | pending | Portar el tono de «Ayuda de esta pestaña» del visor 1.0 |
+| 6 | made-to-stick | done | POSITIONING.md creado; 9 superficies reescritas y shipped (jerga de infraestructura fuera); ayuda por vista (E8) queda en backlog |
 | 7 | influence-psychology | skipped: sin superficies de upsell | — |
 | 8 | high-perf-browser | pending | Parseo ~36 s de un .mpp de 11 MB sin progreso; INP en tabla de 300+ tareas |
 | 9 | steve-jobs-design-review | pending | Candidatas a corte: vistas de las 14 que nadie usa |
@@ -36,6 +36,6 @@ Journey `improve-app` iniciado 2026-08-05 a partir de la destilación del visor 
 
 ## Next Actions
 
-1. Fase 6 (made-to-stick): copy in-app — portar el tono de «Ayuda de esta pestaña», crear POSITIONING.md.
-2. E43 (momento firma) es funcional, no solo pulido: decidir cuándo construir el loop de observaciones.
+1. Fase 7 está `skipped` (sin superficies de venta) → siguiente es Fase 8 (high-perf-browser): INP/LCP/CLS y el parseo de 36 s.
+2. E8 (ayuda por vista con el tono del visor 1.0) es el mayor hueco de copy que queda.
 3. Pendientes de fases previas: E24 parcial, E12/E13 (feedback de undo/autosave), E4 (progreso de importación).

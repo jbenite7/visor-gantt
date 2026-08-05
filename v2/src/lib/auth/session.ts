@@ -70,7 +70,7 @@ export async function loginWithPassword(
   await ensureAuthTables();
   const email = normalizeEmail(emailInput);
   if (!email || !password) {
-    return { success: false, error: "Ingresa correo y contraseña" };
+    return { success: false, error: "Escribe tu correo y tu contraseña." };
   }
 
   const existingUsers = await userCount();
@@ -82,7 +82,7 @@ export async function loginWithPassword(
       ) {
         return {
           success: false,
-          error: "Usa las credenciales iniciales configuradas en .env",
+          error: "No encontramos ninguna cuenta con ese correo. Pide acceso a quien administra el proyecto.",
         };
       }
     }
@@ -104,7 +104,7 @@ export async function loginWithPassword(
   );
   const user = result.rows[0] as { id: string; password_hash: string | null } | undefined;
   if (!user || !verifyPassword(password, user.password_hash)) {
-    return { success: false, error: "Correo o contraseña inválidos" };
+    return { success: false, error: "El correo o la contraseña no coinciden." };
   }
 
   await createSessionForUser(user.id);

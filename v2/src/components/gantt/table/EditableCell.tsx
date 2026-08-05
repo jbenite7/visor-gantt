@@ -146,7 +146,7 @@ export default function EditableCell({
       data-align={align}
       data-read-only={readOnly}
       onDoubleClick={handleDoubleClick}
-      title={readOnly ? undefined : "Double-click to edit"}
+      title={readOnly ? undefined : "Doble clic para editar"}
       data-testid="editable-cell"
     >
       {prefix}

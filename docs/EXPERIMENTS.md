@@ -33,6 +33,12 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | E21 | Normalizar tildes y unificar cadenas duplicadas entre capas | #23 | 1 | 3 | 9 | 9 | **7,0** | 0 cadenas de UI sin tildes | backlog |
 | E22 | «Nuevo Proyecto» como `<Link>`; roles ARIA de la barra de vistas | #24, #25 | 1 | 3 | 9 | 9 | **7,0** | Auditoría de accesibilidad sin errores de rol en esa barra | backlog |
 
+### Añadidos en Fase 6 (made-to-stick)
+
+| # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
+|---|---|---|---|---|---|---|---|---|---|
+| E45 | Reescritura de 9 superficies: fuera la jerga de infraestructura (`.env`, «Conectado», «heredada», tooltip en inglés) | #7, #22, #40 | 2-3 | 7 | 9 | 9 | **8,3** | 0 menciones de infraestructura o inglés en pantallas de usuario | **shipped 2026-08-05** |
+
 ### Añadidos en Fase 5 (microinteractions)
 
 | # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |

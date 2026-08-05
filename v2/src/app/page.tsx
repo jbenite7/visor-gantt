@@ -24,7 +24,7 @@ export default async function Home() {
     redirect("/login");
   }
 
-  let dbStatus = "Desconectado";
+  let dbStatus = "Sin conexión";
   let projects: { id: string; name: string; updatedAt: Date }[] = [];
   // Sin esto, un fallo de datos deja `projects` vacío y se ve igual que no tener
   // ninguno: el usuario cree que perdió sus cronogramas.
@@ -34,14 +34,14 @@ export default async function Home() {
     const client = await pool.connect();
     try {
       await client.query("SELECT 1 FROM projects LIMIT 1");
-      dbStatus = "Conectado";
+      dbStatus = "Cronogramas al día";
     } finally {
       client.release();
     }
 
     projects = await listProjects();
   } catch (err) {
-    dbStatus = "Error";
+    dbStatus = "Sin conexión";
     loadFailed = true;
     console.error("Home page DB error:", (err as Error).message);
   }
@@ -63,7 +63,7 @@ export default async function Home() {
               <Database size={13} aria-hidden />
               <span
                 className={`ml-1.5 inline-block h-2 w-2 rounded-[var(--radius-pill)] ${
-                  dbStatus === "Conectado"
+                  dbStatus === "Cronogramas al día"
                     ? "bg-[var(--aia-corp-main)]"
                     : "bg-[var(--aia-alert-main)]"
                 }`}

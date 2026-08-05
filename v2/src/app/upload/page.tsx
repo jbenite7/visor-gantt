@@ -92,7 +92,7 @@ export default function UploadPage() {
             <FileCode2 size={16} aria-hidden />
             ¿Tienes un archivo XML?{" "}
             <span className="font-semibold text-[var(--color-text-strong)]">
-              Usa la opción heredada
+              Si tienes el cronograma exportado como XML, usa esta opción
             </span>
           </div>
 

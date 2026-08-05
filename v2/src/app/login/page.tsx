@@ -97,12 +97,13 @@ export default async function LoginPage({
           </Link>
         ) : (
           <div className="apple-panel block w-full rounded-lg px-4 py-2.5 text-center text-sm font-semibold text-[var(--color-text-muted)]">
-            Microsoft 365 no está configurado
+            Entrar con Microsoft 365 no está disponible todavía
           </div>
         )}
 
         <p className="mt-5 rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-surface-secondary)] px-3 py-2 text-xs text-[var(--color-text-muted)]">
-          En una base limpia, el primer correo que entra se crea como administrador.
+          ¿Primera vez en este servidor? La primera persona que entra queda como
+          administradora del equipo.
         </p>
       </section>
     </main>
