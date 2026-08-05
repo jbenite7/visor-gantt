@@ -12,6 +12,56 @@ Visor Gantt es una app de planificación de obra: importa cronogramas de MS Proj
 los recalcula con un motor CPM propio, los presenta como Gantt/matriz/línea de balance y los
 persiste completos en PostgreSQL.
 
+## Diagrama
+
+```mermaid
+flowchart TB
+    U([Usuario])
+
+    subgraph FE["frontend · Next.js 16 (v2/)"]
+        direction TB
+        subgraph UI["UI · src/components/"]
+            UP["upload/<br/>MPPUploader"]
+            VIS["views/<br/>Gantt · Matriz · Red · LOB"]
+            AUTHUI["auth/<br/>AuthMenu · login"]
+        end
+        subgraph ENTRADA["Entrada · src/app/"]
+            RH["Route Handlers (api/)<br/>import-mpp · parse-mpp<br/>auth/microsoft · last-planner"]
+            SA["Server Actions (actions/)<br/>upload · project · auth"]
+        end
+        subgraph DOM["Dominio · src/lib/"]
+            IMP["import/<br/>normalización"]
+            CALC["mpp/<br/>campos calculados"]
+            SCHED["scheduling/<br/>CPM · calendarios · LOB"]
+            GNT["gantt/<br/>edición · escenarios · reportes"]
+            MTX["matrix/<br/>derivación · sync"]
+            EST["state/<br/>ProjectContext + historial"]
+            AUTHL["auth/<br/>sesión · RBAC"]
+            DB["db.ts<br/>helpers server-only"]
+        end
+    end
+
+    PARSER["mpp-parser<br/>FastAPI + MPXJ"]
+    PG[("db · PostgreSQL 15<br/>projects.project_data JSONB<br/>matrix_templates")]
+
+    U --> UP & VIS & AUTHUI
+    UP --> RH
+    VIS --> SA
+    AUTHUI --> SA
+    RH -->|.mpp| PARSER
+    PARSER -->|JSON crudo| IMP
+    IMP --> CALC --> EST
+    RH --> AUTHL
+    SA --> AUTHL
+    SA --> DB
+    EST <-->|edición ⇄ recálculo| SCHED
+    EST <--> GNT
+    GNT <-->|matrixSync| MTX
+    DB --> PG
+```
+
+Cada flecha corresponde a un flujo documentado en `memoria/flujos/` (tabla más abajo).
+
 ## Servicios (Docker Compose)
 
 | Servicio | Qué es | Página |
