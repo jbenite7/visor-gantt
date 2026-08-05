@@ -52,3 +52,9 @@ goal afectado recibe su acta de cierre con la salida real de `npm test`, `npm ru
 
 Benchmark de producción (requiere `PRODUCTION_SSH_HOST`), rediseño visual de LOB o Unidad Típica
 más allá de mostrar familia y procedencia, y los facts de visión de `top5`.
+
+## Archivos de este goal
+
+- [[goals/cierre-auditoria-goals/cierre|cierre]] — el cierre verificado
+
+Estado de todos los goals: [[estado|Estado de los goals]].

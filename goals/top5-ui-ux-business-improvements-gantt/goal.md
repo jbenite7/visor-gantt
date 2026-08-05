@@ -94,3 +94,16 @@ El objetivo está listo cuando las fases definidas en `plan.md` se implementen i
 - Verificado con `npm test -- --runInBand src/lib/gantt/planningRecommendations.test.ts`, `npm run lint` y `npm run build`.
 - 2026-07-02: Asistente de planificación conectado con línea base activa/importada: detecta tareas cuyo fin calculado supera `baselineFinish`, calcula desviación en días, eleva severidad en ruta crítica y recomienda recuperación, reasignación o re-baseline formal antes de reportar avance.
 - Verificado con `npm test -- --runInBand src/lib/gantt/planningRecommendations.test.ts`, `npm run lint` y `npm run build`.
+
+## Archivos de este goal
+
+- [[goals/top5-ui-ux-business-improvements-gantt/facts|facts]] — la comprensión compartida
+- [[goals/top5-ui-ux-business-improvements-gantt/facts-round-2|facts-round-2]] — segunda ronda de facts
+- [[goals/top5-ui-ux-business-improvements-gantt/plan|plan]] — el plan de ejecución aprobado
+- [[goals/top5-ui-ux-business-improvements-gantt/plan-round-2|plan-round-2]] — segunda ronda del plan
+- [[goals/top5-ui-ux-business-improvements-gantt/completion-audit-2026-07-03|completion-audit-2026-07-03]] — auditoría de cierre parcial
+- [[goals/top5-ui-ux-business-improvements-gantt/visual-audit-2026-07-04|visual-audit-2026-07-04]] — auditoría visual
+- [[goals/top5-ui-ux-business-improvements-gantt/benchmark-synthetic-2026-07-02|benchmark-synthetic-2026-07-02]] — benchmark sintético
+- [[goals/top5-ui-ux-business-improvements-gantt/benchmark-local-summary|benchmark-local-summary]] — resumen del benchmark local
+
+Estado de todos los goals: [[estado|Estado de los goals]].

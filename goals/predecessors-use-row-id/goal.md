@@ -7,3 +7,11 @@ La comprension compartida esta en `goals/predecessors-use-row-id/facts.md`.
 El plan de ejecucion aprobado esta en `goals/predecessors-use-row-id/plan.md`.
 
 Done condition: todas las facts aceptadas estan implementadas y verificadas con pruebas enfocadas, lint/build cuando aplique, y un chequeo en navegador sobre la app servida por Docker.
+
+## Archivos de este goal
+
+- [[goals/predecessors-use-row-id/facts|facts]] — la comprensión compartida
+- [[goals/predecessors-use-row-id/plan|plan]] — el plan de ejecución aprobado
+- [[goals/predecessors-use-row-id/cierre|cierre]] — el cierre verificado
+
+Estado de todos los goals: [[estado|Estado de los goals]].

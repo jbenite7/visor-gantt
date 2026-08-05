@@ -61,3 +61,10 @@ muestra nombre del proyecto, inicio, fin, duración, avance, número de tareas y
 
 Se llegó a implementar un componente `ProjectSummaryBanner` y **se revirtió** al detectar que duplicaba esa franja.
 El criterio 6 estaba cumplido desde el cierre original.
+
+## Archivos de este goal
+
+- [[goals/paridad-visor-10/facts|facts]] — la comprensión compartida
+- [[goals/paridad-visor-10/plan-review|plan-review]] — la revisión del plan
+
+Estado de todos los goals: [[estado|Estado de los goals]].

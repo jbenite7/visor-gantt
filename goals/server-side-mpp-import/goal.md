@@ -7,3 +7,10 @@ La comprension compartida esta en `goals/server-side-mpp-import/facts.md`.
 El plan de ejecucion esta en `goals/server-side-mpp-import/plan.md`.
 
 Done cuando local y produccion importen un `.mpp` real desde la UI, creen el proyecto en base de datos, abran `/project/<id>`, y los logs confirmen que no aparece `Body exceeded ... limit` ni `POST / 500`.
+
+## Archivos de este goal
+
+- [[goals/server-side-mpp-import/facts|facts]] — la comprensión compartida
+- [[goals/server-side-mpp-import/plan|plan]] — el plan de ejecución aprobado
+
+Estado de todos los goals: [[estado|Estado de los goals]].

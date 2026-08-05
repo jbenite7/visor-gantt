@@ -40,3 +40,11 @@ fixture del repositorio.
 Estado final: **50 passed, 1 skipped, 0 failed**. El único saltado es `production-gantt-benchmark`, que exige
 `PRODUCTION_SSH_HOST` por diseño del spec. Tras la corrida completa la base conserva 87 proyectos, prueba directa de
 los facts 8 y 111.
+
+## Archivos de este goal
+
+- [[goals/correcciones-gantt-matriz-evidencia/facts|facts]] — la comprensión compartida
+- [[goals/correcciones-gantt-matriz-evidencia/plan|plan]] — el plan de ejecución aprobado
+- [[goals/correcciones-gantt-matriz-evidencia/evidence-audit|evidence-audit]] — la revisión visual por módulo
+
+Estado de todos los goals: [[estado|Estado de los goals]].
