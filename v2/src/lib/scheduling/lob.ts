@@ -333,6 +333,26 @@ export interface AutomaticLOBResult {
 }
 
 /**
+ * Classify a LOB activity into a family, using the breadcrumb of ancestor
+ * summary tasks as context.
+ *
+ * The three LOB generators share this: each one groups tasks differently, but
+ * all classify the group by its representative task under the activity's
+ * display name, so the family reflects the activity as shown, not the raw
+ * task name.
+ */
+function classifyLOBActivity(
+  representativeTask: GanttTask,
+  displayName: string,
+  tasks: GanttTask[],
+): ActivityFamilyResult {
+  return classifyActivityFamily(
+    { ...representativeTask, name: displayName },
+    { breadcrumb: buildWbsBreadcrumb(representativeTask.wbs, tasks) },
+  );
+}
+
+/**
  * Generate LOBActivity objects from GanttTasks using an activity mapping.
  *
  * For each mapping entry, finds the matching tasks and derives the
@@ -395,12 +415,7 @@ export function generateLOBFromTasks(
     const plannedRate =
       durationDays > 0 ? matchedTasks.length / durationDays : 1;
 
-    const representativeTask = matchedTasks[0];
-    const breadcrumb = buildWbsBreadcrumb(representativeTask.wbs, tasks);
-    const family = classifyActivityFamily(
-      { ...representativeTask, name: mapping.activityName },
-      { breadcrumb },
-    );
+    const family = classifyLOBActivity(matchedTasks[0], mapping.activityName, tasks);
 
     return {
       id: `lob-activity-${index}`,
@@ -577,12 +592,7 @@ function generateTextLOBFromTasks(
     );
     const activityId = `auto-lob-${activities.length}`;
     const displayName = displayActivityName(activityKey);
-    const representativeTask = sorted[0].task;
-    const breadcrumb = buildWbsBreadcrumb(representativeTask.wbs, tasks);
-    const family = classifyActivityFamily(
-      { ...representativeTask, name: displayName },
-      { breadcrumb },
-    );
+    const family = classifyLOBActivity(sorted[0].task, displayName, tasks);
 
     activities.push({
       id: activityId,
@@ -697,12 +707,7 @@ function generateWBSLOBFromTasks(tasks: GanttTask[]): AutomaticLOBResult {
       (plannedFinish.getTime() - plannedStart.getTime()) / 86400000,
     );
     const activityId = `wbs-lob-${activities.length}`;
-    const representativeTask = sorted[0].task;
-    const breadcrumb = buildWbsBreadcrumb(representativeTask.wbs, tasks);
-    const family = classifyActivityFamily(
-      { ...representativeTask, name: group.displayName },
-      { breadcrumb },
-    );
+    const family = classifyLOBActivity(sorted[0].task, group.displayName, tasks);
 
     activities.push({
       id: activityId,
