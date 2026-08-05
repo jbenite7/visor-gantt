@@ -37,10 +37,10 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 
 | # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
 |---|---|---|---|---|---|---|---|---|---|
-| E23 | Mostrar el issue donde ocurre la edición (toast + inline), no solo en la pestaña «Cuellos» | #26 | 4 | 10 | 10 | 7 | **9,0** | 0 ediciones rechazadas sin mensaje; test que verifica el aviso al rechazar | backlog |
+| E23 | Mostrar el issue donde ocurre la edición (toast + inline), no solo en la pestaña «Cuellos» | #26 | 4 | 10 | 10 | 7 | **9,0** | 0 ediciones rechazadas sin mensaje | **shipped 2026-08-05** |
 | E24 | Llevar al historial (o al aviso «Deshacer») recursos, presupuesto, mapeos y plan matricial | #27 | 4 | 9 | 9 | 5 | **7,7** | Toda acción destructiva es deshacible o confirmada; inventario sin huecos | backlog |
-| E25 | Renderizar `calendarIssues` junto al editor de calendario | #28 | 4 | 8 | 10 | 8 | **8,7** | Un calendario inválido muestra el motivo; hoy no muestra nada | backlog |
-| E26 | Restringir la entrada: `min=1`, `step=1`, validar `finish >= start`, unificar duración mínima | #30 | 3 | 9 | 10 | 9 | **9,3** | Imposible introducir duración negativa o fin anterior al inicio | backlog |
+| E25 | Renderizar `calendarIssues` junto al editor de calendario | #28 | 4 | 8 | 10 | 8 | **8,7** | Un calendario inválido muestra el motivo | **shipped 2026-08-05** |
+| E26 | Restringir la entrada: `min=1`, `step=1`, validar `finish >= start`, unificar duración mínima | #30 | 3 | 9 | 10 | 9 | **9,3** | Imposible introducir duración negativa o fin anterior al inicio | **shipped 2026-08-05** |
 | E27 | Marcar en solo lectura lo que calcula el motor (`finish`, filas resumen) usando el `readOnly` existente | #31 | 3 | 8 | 9 | 8 | **8,3** | 0 celdas derivadas editables | backlog |
 | E28 | Validar en el campo y explicar el rechazo; no convertir texto en `0` ni borrar dependencias en silencio | #29 | 3 | 9 | 9 | 6 | **8,0** | 0 descartes mudos en los 6 campos editables | backlog |
 | E29 | Handles de resize visibles y pista permanente de conexión de dependencias | #32 | 3 | 8 | 8 | 7 | **7,7** | Usuarios nuevos descubren arrastre y enlace sin ayuda (prueba con 5) | backlog |
@@ -54,10 +54,35 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | E37 | Significante visual de celda editable + entrada en edición por teclado (Enter/F2), sin tooltip en inglés | #40 | 2 | 6 | 9 | 8 | **7,7** | La tabla es editable con teclado; 0 textos en inglés en UI española | backlog |
 | E38 | Etiquetas completas en la barra de vistas y encabezados de tabla | #41 | 2 | 6 | 9 | 8 | **7,7** | 0 etiquetas truncadas a 1280 px de ancho | backlog |
 
-**Orden recomendado de ejecución:** E1, E2, E3 (severidad 4) → **E23, E25, E26** (severidad 4 y alto ICE) →
+**Orden recomendado de ejecución:** ~~E1, E2, E3~~ → ~~E23, E25, E26~~ (hechos) →
 E5, E6, E7, E11, E34 (alto ICE, baratos) → E24, E27, E28, E30, E32 → el resto.
 
 ## Experiment Cards
+
+### E23 + E25 + E26 · El usuario ya sabe por qué no se aplicó su cambio — shipped 2026-08-05
+
+**Hipótesis:** el rechazo mudo era el peor resultado posible — el usuario no distinguía «lo hice mal» de
+«la app está rota». Dar un motivo en la misma pantalla convierte un misterio en una corrección.
+
+**Qué cambió:**
+- Nuevo `src/lib/gantt/editValidation.ts`: funciones puras que devuelven `{ok:false, reason}` con el motivo
+  en lenguaje de usuario. Unifica la duración mínima en **un solo sitio** (`MIN_TASK_DURATION = 1`), que
+  antes valía 0 en la tabla y 1 en el redimensionado.
+- El contexto publica `lastRejection` y `reportInvalidEdit`; los tres `return` mudos (`setTasks`,
+  `commitTaskChange`, `updateCalendar`) ahora explican el rechazo.
+- Nuevo `RejectionToast` (`role="alert"`) montado en el Gantt, y los `calendarIssues` se renderizan por fin
+  junto al editor de calendario — no tenían **ningún** consumidor en toda la app.
+- Duración, inicio, fin y avance validan de verdad: `min=1 step=1`, y el fin ya no puede ser anterior al inicio.
+
+**Evidencia:** 623 tests (22 nuevos), lint limpio, `next build` correcto, y **verificado en el navegador**:
+repetir la prueba que antes fallaba en silencio (duración −10) ahora muestra «El cambio no se aplicó — La
+duración mínima es 1 día. Marca la tarea como hito si dura cero.»
+
+**Hallazgo de paso:** `parseDateInput` con `new Date("2026-03-10")` leía la fecha como UTC y en Colombia
+(GMT-5) caía en el día anterior; se corrigió usando `createProjectDate`. También quedó documentado que
+`normalizeProjectCalendar` rellena en silencio un `workDays` vacío con los días por defecto.
+
+**Pendiente:** el resto de campos MPP sigue usando el parseo antiguo que convierte texto en `0` (E28).
 
 ### E1 · Alta y baja de tareas deshacibles — shipped 2026-08-05
 

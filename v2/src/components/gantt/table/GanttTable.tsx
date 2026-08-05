@@ -54,6 +54,8 @@ interface GanttTableProps {
     field: string,
     value: unknown
   ) => void;
+  /** Motivo por el que una edición se rechazó, para anunciarlo al usuario. */
+  onInvalidEdit?: (reason: string) => void;
   budgetMappings?: BudgetMapping[];
   budgetItems?: BudgetItem[];
   mppTaskColumns?: MppTaskColumn[];
@@ -234,6 +236,7 @@ export default function GanttTable({
   selectedTaskIds,
   onTaskSelect,
   onUpdateTask,
+  onInvalidEdit,
   budgetMappings,
   budgetItems,
   mppTaskColumns = [],
@@ -1203,6 +1206,7 @@ export default function GanttTable({
                 isExpanded={!collapsedTaskIds.has(task.id)}
                 onToggleExpand={() => handleToggleExpand(task.id)}
                 onUpdateTask={onUpdateTask}
+                onInvalidEdit={onInvalidEdit}
                 columns={displayColumns}
                 locale={effectiveLocale}
                 budgetedCost={taskBudget?.budgetedCost}

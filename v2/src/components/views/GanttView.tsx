@@ -6,6 +6,7 @@ import type { GanttScale, GanttTask } from "@/components/gantt/types";
 import type { PlanningAuditEvent } from "@/types/audit";
 import SplitPane from "@/components/gantt/SplitPane";
 import UndoToast from "@/components/gantt/UndoToast";
+import RejectionToast from "@/components/gantt/RejectionToast";
 import GanttTable from "@/components/gantt/table/GanttTable";
 import GanttChart from "@/components/gantt/GanttChart";
 import PlanningAssistantPanel from "@/components/gantt/assistant/PlanningAssistantPanel";
@@ -191,12 +192,15 @@ function GanttViewInner({
     addTask,
     deleteTasks,
     lastAction,
+    lastRejection,
+    reportInvalidEdit,
     undo,
     redo,
     canUndo,
     canRedo,
     scheduleIssues,
     calendar,
+    calendarIssues,
     updateCalendar,
   } = useProject();
 
@@ -1254,6 +1258,7 @@ function GanttViewInner({
       )}
 
       <UndoToast action={lastAction} onUndo={undo} locale={locale} />
+      <RejectionToast rejection={lastRejection} locale={locale} />
 
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         {/* Sidebar de navegación de vistas */}
@@ -1277,6 +1282,7 @@ function GanttViewInner({
                       selectedTaskIds={selectedTaskIds}
                       onTaskSelect={handleTaskSelect}
                       onUpdateTask={updateTask}
+                      onInvalidEdit={reportInvalidEdit}
                       mppTaskColumns={mppTaskColumns}
                       customFieldDefinitions={calculatedMpp.customFieldDefinitions}
                       columnSettings={taskColumnSettings}
@@ -1571,6 +1577,7 @@ function GanttViewInner({
             <CalendarSettingsView
               calendar={calendar}
               onChange={updateCalendar}
+              issues={calendarIssues}
             />
           )}
         </div>

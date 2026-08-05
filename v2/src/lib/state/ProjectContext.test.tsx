@@ -280,3 +280,67 @@ describe("task creation and deletion go through history (E1)", () => {
     expect(ctx!.tasks).toHaveLength(1);
   });
 });
+
+describe("las ediciones rechazadas se anuncian (E23)", () => {
+  test("una dependencia circular expone el motivo en lastRejection", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider
+        initialTasks={[
+          task({ id: 1 }),
+          task({ id: 2, dependencies: [{ from: 1, to: 2, type: "FS" }] }),
+        ]}
+      >
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    // Cerrar el ciclo: 2 -> 1, cuando ya existe 1 -> 2.
+    act(() => ctx!.createDependency(2, 1, "FS"));
+
+    expect(ctx!.scheduleIssues.length).toBeGreaterThan(0);
+    expect(ctx!.lastRejection).toEqual(
+      expect.objectContaining({ reason: expect.any(String) }),
+    );
+    expect(ctx!.lastRejection!.reason.length).toBeGreaterThan(0);
+  });
+
+  test("una edición válida no deja rechazo pendiente", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.updateTask(1, "duration", 3));
+
+    expect(ctx!.lastRejection).toBeNull();
+  });
+
+  test("un calendario inválido expone el motivo en vez de rechazarse en silencio (E25)", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    // Jornada imposible: empieza después de terminar.
+    // (Nota: `workDays: []` no sirve como caso inválido — `normalizeProjectCalendar`
+    // lo rellena con los días por defecto antes de validar.)
+    act(() =>
+      ctx!.updateCalendar({
+        ...ctx!.calendar,
+        startHour: "18:00",
+        endHour: "08:00",
+      }),
+    );
+
+    expect(ctx!.calendarIssues.length).toBeGreaterThan(0);
+    expect(ctx!.lastRejection?.reason).toBeTruthy();
+  });
+});

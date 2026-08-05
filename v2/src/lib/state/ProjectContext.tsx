@@ -199,6 +199,9 @@ export interface ProjectContextValue {
   addTask: () => void;
   deleteTasks: (taskIds: (string | number)[]) => void;
   lastAction: LastAction | null;
+  lastRejection: LastRejection | null;
+  /** Anuncia el motivo por el que una entrada del usuario no se aceptó. */
+  reportInvalidEdit: (reason: string) => void;
   // Undo / Redo
   undo: () => void;
   redo: () => void;
@@ -214,6 +217,16 @@ export interface LastAction {
   kind: "add" | "delete";
   count: number;
   description: string;
+  token: number;
+}
+
+/**
+ * Motivo por el que la última edición no se aplicó. Antes estos rechazos eran
+ * un `return` mudo: la barra volvía a su sitio y el usuario no sabía por qué.
+ */
+export interface LastRejection {
+  reason: string;
+  detail?: string;
   token: number;
 }
 
@@ -267,13 +280,35 @@ export function ProjectProvider({
     [],
   );
   const [scale, setScale] = useState<GanttScale>("day");
+  const [lastRejection, setLastRejection] = useState<LastRejection | null>(null);
   const history = useHistory(50);
+
+  const reportInvalidEdit = useCallback((reason: string) => {
+    setLastRejection({ reason, token: nextActionToken() });
+  }, []);
+
+  /** Publica el motivo del rechazo para que la UI pueda mostrarlo donde el usuario está mirando. */
+  const rejectWith = useCallback(
+    (issues: { message?: string }[], fallback: string) => {
+      const first = issues.find((issue) => issue.message)?.message;
+      setLastRejection({
+        reason: first ?? fallback,
+        detail:
+          issues.length > 1 ? `y ${issues.length - 1} conflicto(s) más` : undefined,
+        token: nextActionToken(),
+      });
+    },
+    [],
+  );
 
   const setTasks = useCallback(
     (updater: (prev: GanttTask[]) => GanttTask[]) => {
       const result = recalculateSchedule(updater(tasks), { calendar });
       setScheduleIssues(result.issues);
-      if (result.issues.length === 0) {
+      if (result.issues.length > 0) {
+        rejectWith(result.issues, "El cambio deja el cronograma en conflicto.");
+      } else {
+        setLastRejection(null);
         setTasksState(result.tasks);
         setPlanningAuditEvents((prev) =>
           appendAuditEvent(prev, {
@@ -286,7 +321,7 @@ export function ProjectProvider({
         );
       }
     },
-    [calendar, tasks],
+    [calendar, rejectWith, tasks],
   );
 
   const commitTaskChange = useCallback(
@@ -299,9 +334,11 @@ export function ProjectProvider({
 
       if (result.issues.length > 0) {
         setScheduleIssues(result.issues);
+        rejectWith(result.issues, `No se pudo aplicar: ${description}`);
         return;
       }
 
+      setLastRejection(null);
       const next = result.tasks;
       const auditEvent: PlanningAuditEvent = {
         id: auditEventId(),
@@ -327,7 +364,7 @@ export function ProjectProvider({
 
       history.push(command);
     },
-    [calendar, history, tasks],
+    [calendar, history, rejectWith, tasks],
   );
 
   const updateCalendar = useCallback(
@@ -336,6 +373,7 @@ export function ProjectProvider({
       const issues = validateProjectCalendar(normalized);
       if (issues.length > 0) {
         setCalendarIssues(issues);
+        rejectWith(issues, "El calendario no es válido.");
         return;
       }
 
@@ -345,8 +383,14 @@ export function ProjectProvider({
 
       if (result.issues.length > 0) {
         setScheduleIssues(result.issues);
+        rejectWith(
+          result.issues,
+          "Con ese calendario el cronograma no se puede recalcular.",
+        );
         return;
       }
+
+      setLastRejection(null);
 
       const command: Command = {
         description: "Update project calendar",
@@ -375,7 +419,7 @@ export function ProjectProvider({
 
       history.push(command);
     },
-    [calendar, history, tasks],
+    [calendar, history, rejectWith, tasks],
   );
 
   const bottlenecks = useMemo(
@@ -724,6 +768,8 @@ export function ProjectProvider({
       addTask,
       deleteTasks,
       lastAction,
+      lastRejection,
+      reportInvalidEdit,
       undo: history.undo,
       redo: history.redo,
       canUndo: history.canUndo,
@@ -756,6 +802,8 @@ export function ProjectProvider({
       addTask,
       deleteTasks,
       lastAction,
+      lastRejection,
+      reportInvalidEdit,
       history,
     ],
   );

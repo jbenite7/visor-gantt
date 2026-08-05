@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { ProjectCalendar, CalendarException } from "@/types/calendar";
 import {
+  type CalendarIssue,
   normalizeProjectCalendar,
   validateProjectCalendar,
 } from "@/lib/scheduling/projectCalendar";
@@ -10,6 +11,11 @@ import {
 interface CalendarSettingsViewProps {
   calendar: ProjectCalendar;
   onChange: (calendar: ProjectCalendar) => void;
+  /**
+   * Issues que el proyecto rechazó. Sin esto, un calendario que pasa la
+   * validación local pero rompe el recálculo se descartaba en silencio.
+   */
+  issues?: CalendarIssue[];
 }
 
 const DAYS = [
@@ -28,6 +34,7 @@ const inputClass =
 export default function CalendarSettingsView({
   calendar,
   onChange,
+  issues = [],
 }: CalendarSettingsViewProps) {
   const [holidayDate, setHolidayDate] = useState("");
   const [holidayName, setHolidayName] = useState("");
@@ -97,6 +104,23 @@ export default function CalendarSettingsView({
             Calendario laboral
           </h2>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">{summary}</p>
+
+          {issues.length > 0 && (
+            <div
+              role="alert"
+              data-testid="calendar-issues"
+              className="mt-4 rounded-lg border border-[var(--aia-alert-main)] bg-[var(--aia-alert-xlight)] px-3 py-2"
+            >
+              <p className="text-sm font-semibold text-[var(--aia-alert-main)]">
+                Este calendario no se pudo aplicar
+              </p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-[var(--aia-alert-main)]">
+                {issues.map((issue, index) => (
+                  <li key={`${issue.kind}-${index}`}>{issue.message}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <label className="block">

@@ -20,6 +20,9 @@ interface EditableCellProps {
   prefix?: React.ReactNode;
   /** Whether the cell is non-editable (e.g. summary rows). */
   readOnly?: boolean;
+  /** Restricciones nativas del input numérico o de fecha. */
+  min?: string | number;
+  step?: string | number;
 }
 
 /**
@@ -37,6 +40,8 @@ export default function EditableCell({
   sliderDisplayValue,
   prefix,
   readOnly = false,
+  min,
+  step: stepOverride,
 }: EditableCellProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(String(value));
@@ -81,6 +86,11 @@ export default function EditableCell({
     if (type === "number") {
       inputMode = "decimal";
       step = "any";
+      if (min !== undefined) {
+        // El teclado numérico ya impide bajar del mínimo; la validación de
+        // `editValidation` cubre el caso de escribirlo a mano.
+        inputMode = "numeric";
+      }
     } else if (type === "date") {
       inputType = "date";
     } else if (type === "slider") {
@@ -123,7 +133,8 @@ export default function EditableCell({
         onBlur={(e) => commit(e.currentTarget.value)}
         autoFocus
         inputMode={inputMode}
-        step={step}
+        min={min}
+        step={stepOverride ?? step}
         data-testid="editable-cell"
       />
     );

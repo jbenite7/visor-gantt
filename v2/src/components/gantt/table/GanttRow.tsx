@@ -5,6 +5,12 @@ import WBSExpand from "./WBSExpand";
 import EditableCell from "./EditableCell";
 import DependencyPopover from "@/components/gantt/dependencies/DependencyPopover";
 import { createProjectDate, formatProjectDate, toDateInputValue } from "@/lib/date/projectDate";
+import {
+  MIN_TASK_DURATION,
+  parseDateInput,
+  parseDurationInput,
+  parseProgressInput,
+} from "@/lib/gantt/editValidation";
 import type { ColumnConfig } from "./ColumnSelector";
 import type { UILocale } from "@/types/ui";
 import { t } from "@/lib/i18n";
@@ -25,6 +31,8 @@ interface GanttRowProps {
     field: string,
     value: unknown
   ) => void;
+  /** Se llama cuando la entrada del usuario se rechaza, con el motivo a mostrar. */
+  onInvalidEdit?: (reason: string) => void;
   columns: ColumnConfig[];
   locale: UILocale;
   budgetedCost?: number;
@@ -59,11 +67,6 @@ function formatCompactDate(date: Date): string {
 /** Convert a Date to yyyy-mm-dd string for <input type="date">. */
 function toISODate(date: Date): string {
   return toDateInputValue(date);
-}
-
-/** Convert yyyy-mm-dd string back to a Date (local time, no timezone shift). */
-function fromISODate(iso: string): Date {
-  return createProjectDate(iso);
 }
 
 /** Format dependencies array into compact string like "1FS,2SS+5d". */
@@ -241,6 +244,7 @@ export default function GanttRow({
   isExpanded = true,
   onToggleExpand,
   onUpdateTask,
+  onInvalidEdit,
   columns,
   locale,
   budgetedCost,
@@ -330,10 +334,16 @@ export default function GanttRow({
             value={task.duration}
             type="number"
             align="right"
+            min={task.isMilestone ? 0 : MIN_TASK_DURATION}
+            step={1}
             onCommit={(val) => {
-              const num = parseFloat(val);
-              if (!isNaN(num) && num >= 0) {
-                onUpdateTask!(task.id, "duration", num);
+              const parsed = parseDurationInput(val, {
+                allowZero: task.isMilestone,
+              });
+              if (parsed.ok) {
+                onUpdateTask!(task.id, "duration", parsed.value);
+              } else {
+                onInvalidEdit?.(parsed.reason);
               }
             }}
           />
@@ -350,9 +360,11 @@ export default function GanttRow({
             type="date"
             align="left"
             onCommit={(val) => {
-              const d = fromISODate(val);
-              if (!isNaN(d.getTime())) {
-                onUpdateTask!(task.id, "start", d);
+              const parsed = parseDateInput(val);
+              if (parsed.ok) {
+                onUpdateTask!(task.id, "start", parsed.value);
+              } else {
+                onInvalidEdit?.(parsed.reason);
               }
             }}
           />
@@ -369,9 +381,14 @@ export default function GanttRow({
             type="date"
             align="left"
             onCommit={(val) => {
-              const d = fromISODate(val);
-              if (!isNaN(d.getTime())) {
-                onUpdateTask!(task.id, "finish", d);
+              const parsed = parseDateInput(val, {
+                notBefore: task.start,
+                notBeforeLabel: "el inicio de la tarea",
+              });
+              if (parsed.ok) {
+                onUpdateTask!(task.id, "finish", parsed.value);
+              } else {
+                onInvalidEdit?.(parsed.reason);
               }
             }}
           />
@@ -418,9 +435,11 @@ export default function GanttRow({
             align="right"
             sliderDisplayValue={formatProgressValue}
             onCommit={(val) => {
-              const num = parseFloat(val);
-              if (!isNaN(num) && num >= 0 && num <= 100) {
-                onUpdateTask!(task.id, "progress", num);
+              const parsed = parseProgressInput(val);
+              if (parsed.ok) {
+                onUpdateTask!(task.id, "progress", parsed.value);
+              } else {
+                onInvalidEdit?.(parsed.reason);
               }
             }}
           />

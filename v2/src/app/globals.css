@@ -701,6 +701,41 @@ h6 {
   background: var(--aia-corp-light, var(--aia-corp-xlight));
 }
 
+/* Aviso de rechazo: mismo anclaje que el de deshacer, pero en tono de alerta. */
+.gantt-rejection-toast {
+  position: fixed;
+  bottom: var(--space-6, 1.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 61;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-3, 0.75rem);
+  max-width: min(34rem, calc(100vw - 2rem));
+  border-radius: var(--radius-lg);
+  border: var(--border-width-hairline) solid var(--aia-alert-main);
+  background: var(--aia-alert-xlight);
+  box-shadow: var(--shadow-lg, 0 10px 30px rgb(0 0 0 / 18%));
+  padding: 0.75rem 0.75rem 0.75rem 1rem;
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: var(--gantt-topbar-font-size);
+  color: var(--aia-alert-main);
+}
+
+.gantt-rejection-toast__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  text-align: left;
+}
+
+.gantt-rejection-toast__dismiss {
+  color: var(--aia-alert-main);
+  font-size: 1.125rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+}
+
 .gantt-undo-toast-dismiss {
   color: var(--color-text-muted);
   font-size: 1.125rem;
