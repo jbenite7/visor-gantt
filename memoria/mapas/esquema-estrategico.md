@@ -41,6 +41,25 @@ mantiene sincronizadas entre sí.
 3. **Last Planner** — la planificación semanal colaborativa con el equipo de campo: la app traduce
    el plan general a la vista semanal para comprometer trabajo real.
 
+```mermaid
+flowchart TB
+    PLAN[("🎯 EL PLAN<br/>una sola fuente de verdad<br/>(cronograma CPM)")]
+
+    CPM["🧭 Ruta crítica<br/>qué no puede atrasarse"]
+    LOB["🏗️ Matriz y línea de balance<br/>ritmo en obra repetitiva"]
+    LP["🤝 Last Planner<br/>compromiso semanal en campo"]
+    SIM["🔮 Escenarios y asistente<br/>simulación: no tocan el plan<br/>hasta aplicarse"]
+
+    PLAN === CPM
+    PLAN --- LOB
+    PLAN --- LP
+    SIM -.->|solo al aplicar| PLAN
+
+    PROG(["👷 Programador de obra"]) --> CPM
+    CAMPO(["🦺 Equipo de campo"]) --> LOB & LP
+    GER(["📈 Gerencia"]) --> PLAN
+```
+
 **Principio rector:** una sola fuente de verdad. El cronograma CPM manda; matriz, línea de balance,
 reportes y Last Planner son vistas del mismo plan, siempre sincronizadas. Lo que se analiza (
 escenarios "¿qué pasa si…?", recomendaciones del asistente) es simulación: **nada cambia el plan
