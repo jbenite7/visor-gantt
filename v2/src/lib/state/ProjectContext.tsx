@@ -38,6 +38,12 @@ import {
 } from "@/lib/gantt/taskStructure";
 import { insertTasksFromSmartPaste } from "@/lib/gantt/smartPaste";
 import {
+  createObservation,
+  toggleObservationStatus,
+  type Observation,
+} from "@/lib/observations/observations";
+import { insertAt, removeWhere } from "@/lib/state/undoableCollections";
+import {
   applyStructureTemplate as applyStructureTemplateModel,
   type StructureTemplateId,
 } from "@/lib/gantt/structureTemplates";
@@ -204,6 +210,11 @@ export interface ProjectContextValue {
    * cómo revertirla; aquí se registra en el mismo historial que las tareas.
    */
   runUndoable: (action: UndoableAction) => void;
+  // Observaciones de obra
+  observations: Observation[];
+  addObservation: (taskId: string | number, text: string) => void;
+  toggleObservation: (id: string) => void;
+  deleteObservation: (id: string) => void;
   lastAction: LastAction | null;
   lastRejection: LastRejection | null;
   /** Anuncia el motivo por el que una entrada del usuario no se aceptó. */
@@ -255,6 +266,7 @@ const ProjectContext = createContext<ProjectContextValue | null>(null);
 
 interface ProjectProviderProps {
   initialTasks: GanttTask[];
+  initialObservations?: Observation[];
   initialCalendar?: ProjectCalendar;
   initialPlanningAuditEvents?: PlanningAuditEvent[];
   children: ReactNode;
@@ -262,6 +274,7 @@ interface ProjectProviderProps {
 
 export function ProjectProvider({
   initialTasks,
+  initialObservations = [],
   initialCalendar,
   initialPlanningAuditEvents = [],
   children,
@@ -694,6 +707,45 @@ export function ProjectProvider({
     [history],
   );
 
+  const [observations, setObservations] = useState<Observation[]>(initialObservations);
+
+  const addObservation = useCallback(
+    (taskId: string | number, text: string) => {
+      const task = tasks.find((t) => t.id === taskId);
+      const created = createObservation({
+        id: `obs-${nextActionToken()}-${taskId}`,
+        taskId,
+        taskName: task?.name ?? String(taskId),
+        wbs: task?.wbs,
+        text,
+        createdAt: new Date().toISOString(),
+      });
+      if (!created) return;
+
+      setObservations((prev) => [...prev, created]);
+    },
+    [tasks],
+  );
+
+  const toggleObservation = useCallback((id: string) => {
+    setObservations((prev) => toggleObservationStatus(prev, id));
+  }, []);
+
+  const deleteObservation = useCallback(
+    (id: string) => {
+      const index = observations.findIndex((o) => o.id === id);
+      if (index === -1) return;
+      const removed = observations[index];
+
+      runUndoable({
+        description: "Observación eliminada",
+        execute: () => setObservations((prev) => removeWhere(prev, (o) => o.id === id)),
+        undo: () => setObservations((prev) => insertAt(prev, index, removed)),
+      });
+    },
+    [observations, runUndoable],
+  );
+
   const deleteTasks = useCallback(
     (taskIds: (string | number)[]) => {
       if (taskIds.length === 0) return;
@@ -794,6 +846,10 @@ export function ProjectProvider({
       addTask,
       deleteTasks,
       runUndoable,
+      observations,
+      addObservation,
+      toggleObservation,
+      deleteObservation,
       lastAction,
       lastRejection,
       reportInvalidEdit,
@@ -829,6 +885,10 @@ export function ProjectProvider({
       addTask,
       deleteTasks,
       runUndoable,
+      observations,
+      addObservation,
+      toggleObservation,
+      deleteObservation,
       lastAction,
       lastRejection,
       reportInvalidEdit,

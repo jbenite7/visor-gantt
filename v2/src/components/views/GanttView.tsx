@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Command as CommandIcon, Search, SlidersHorizontal, X } from "lucide-react";
 import type { GanttScale, GanttTask } from "@/components/gantt/types";
 import type { PlanningAuditEvent } from "@/types/audit";
+import type { Observation } from "@/lib/observations/observations";
 import SplitPane from "@/components/gantt/SplitPane";
 import UndoToast from "@/components/gantt/UndoToast";
 import RejectionToast from "@/components/gantt/RejectionToast";
+import ObservationPanel from "@/components/gantt/observations/ObservationPanel";
 import GanttTable from "@/components/gantt/table/GanttTable";
 import GanttChart from "@/components/gantt/GanttChart";
 import PlanningAssistantPanel from "@/components/gantt/assistant/PlanningAssistantPanel";
@@ -125,6 +127,7 @@ interface GanttViewProps {
   assignmentColumnSettings?: AssignmentColumnSettings;
   uiSettings?: UISettings;
   planningAuditEvents?: PlanningAuditEvent[];
+  observations?: Observation[];
   onTaskClick?: (task: GanttTask) => void;
 }
 
@@ -196,6 +199,10 @@ function GanttViewInner({
     lastRejection,
     reportInvalidEdit,
     runUndoable,
+    observations,
+    addObservation,
+    toggleObservation,
+    deleteObservation,
     undo,
     redo,
     canUndo,
@@ -217,6 +224,10 @@ function GanttViewInner({
     initialRoleViewPreset?.view ?? "gantt",
   );
   const [resources, setResources] = useState<Resource[]>(initialResources);
+  // Tarea cuyo panel de observaciones está abierto (null = cerrado).
+  const [observationPanelTaskId, setObservationPanelTaskId] = useState<
+    string | number | null
+  >(null);
   const [assignments] = useState<Assignment[]>(initialAssignments);
   const [resourceSubView, setResourceSubView] = useState<"sheet" | "assignments" | "usage" | "budget" | "mapping">("sheet");
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>(initialBudgetItems);
@@ -497,6 +508,14 @@ function GanttViewInner({
           })
         : "no-matrix",
     [matrixPlan, syncedMatrixPlan],
+  );
+
+  const observationPanelTask = useMemo(
+    () =>
+      observationPanelTaskId === null
+        ? null
+        : calculatedTasks.find((t) => t.id === observationPanelTaskId) ?? null,
+    [calculatedTasks, observationPanelTaskId],
   );
 
   /* ── Add / Delete Task handlers (pasan por el historial: son deshacibles) ── */
@@ -781,6 +800,7 @@ function GanttViewInner({
         assignmentColumnSettings,
         uiSettings,
         planningAuditEvents,
+        observations,
       };
       const result = await saveProject(data);
       if (result.success) {
@@ -795,7 +815,7 @@ function GanttViewInner({
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 3000);
     }
-  }, [projectId, projectName, initialStatusDate, calculatedTasks, calculatedResources, calculatedAssignments, budgetItems, budgetMappings, baselines, calendar, syncedMatrixPlan, mppTaskColumns, mppResourceColumns, mppAssignmentColumns, calculatedMpp.customFieldDefinitions, calculatedMpp.engineVersion, calculatedMpp.calculatedAt, taskColumnSettings, resourceColumnSettings, assignmentColumnSettings, uiSettings, planningAuditEvents]);
+  }, [projectId, projectName, initialStatusDate, calculatedTasks, calculatedResources, calculatedAssignments, budgetItems, budgetMappings, baselines, calendar, syncedMatrixPlan, mppTaskColumns, mppResourceColumns, mppAssignmentColumns, calculatedMpp.customFieldDefinitions, calculatedMpp.engineVersion, calculatedMpp.calculatedAt, taskColumnSettings, resourceColumnSettings, assignmentColumnSettings, uiSettings, planningAuditEvents, observations]);
 
   // Use a ref to avoid the interval effect depending on doSave's reference
   const doSaveRef = useRef(doSave);
@@ -1123,6 +1143,12 @@ function GanttViewInner({
           onAddTask={handleAddTask}
           onDeleteTask={handleDeleteTask}
           hasSelection={selectedTaskIds.length > 0}
+          onOpenObservations={() =>
+            setObservationPanelTaskId(selectedTaskIds[0] ?? null)
+          }
+          pendingObservationCount={
+            observations.filter((o) => o.status === "pending").length
+          }
           baselines={baselines}
           activeBaselineId={activeBaselineId}
           onSaveBaseline={handleSaveBaseline}
@@ -1344,6 +1370,18 @@ function GanttViewInner({
       <UndoToast action={lastAction} onUndo={undo} locale={locale} />
       <RejectionToast rejection={lastRejection} locale={locale} />
 
+      {observationPanelTask && (
+        <ObservationPanel
+          taskId={observationPanelTask.id}
+          taskName={observationPanelTask.name}
+          observations={observations}
+          onAdd={(text) => addObservation(observationPanelTask.id, text)}
+          onToggle={toggleObservation}
+          onDelete={deleteObservation}
+          onClose={() => setObservationPanelTaskId(null)}
+        />
+      )}
+
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         {/* Sidebar de navegación de vistas */}
         <ViewSidebar activeView={activeView} onViewChange={setActiveView} locale={locale} />
@@ -1395,6 +1433,7 @@ function GanttViewInner({
                   right={
                     <GanttChart
                       tasks={calculatedTasks}
+                      observations={observations}
                       calendar={calendar}
                       scale={scale}
                       selectedTaskIds={selectedTaskIds}
@@ -1692,6 +1731,7 @@ export default function GanttView({
   assignmentColumnSettings,
   uiSettings = DEFAULT_UI_SETTINGS,
   planningAuditEvents = [],
+  observations = [],
   onTaskClick,
 }: GanttViewProps) {
   const initialTasksKey = tasks
@@ -1705,6 +1745,7 @@ export default function GanttView({
       initialTasks={tasks}
       initialCalendar={calendar}
       initialPlanningAuditEvents={planningAuditEvents}
+      initialObservations={observations}
     >
       <GanttViewInner
         initialProjectId={projectId}

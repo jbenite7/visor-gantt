@@ -5,9 +5,13 @@ import type { DragState } from "../interaction/useDragBar";
 import type { ResizeState } from "../interaction/useResizeBar";
 import type { DepEdge } from "../interaction/useCreateDependency";
 import { CRITICAL_HATCH_ID } from "./CriticalHatchDefs";
+import ObservationBadge from "./ObservationBadge";
+import type { ObservationBadge as ObservationBadgeState } from "@/lib/observations/observations";
 
 interface TaskBarProps {
   task: GanttTask;
+  /** Estado de las observaciones de esta tarea, si tiene alguna. */
+  observationBadge?: ObservationBadgeState | null;
   x: number;
   y: number;
   width: number;
@@ -48,6 +52,7 @@ export default function TaskBar({
   width,
   height,
   color,
+  observationBadge,
   onClick,
   isSelected,
   viewport,
@@ -166,6 +171,16 @@ export default function TaskBar({
         >
           {task.name}
         </text>
+      )}
+
+      {/* Momento firma: el estado del trabajo de campo, encima del plan */}
+      {observationBadge && (
+        <ObservationBadge
+          badge={observationBadge}
+          x={x + width}
+          y={y}
+          height={height}
+        />
       )}
 
       {/* Left resize handle (invisible hit area) */}

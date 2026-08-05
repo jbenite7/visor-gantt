@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { userHasPermission } from "@/lib/auth/rbac";
 import type { GanttTask } from "@/components/gantt/types";
 import type { PlanningAuditEvent } from "@/types/audit";
+import type { Observation } from "@/lib/observations/observations";
 import type { Resource, Assignment } from "@/types/resource";
 import type { BudgetItem, BudgetMapping } from "@/types/budget";
 import type { Baseline } from "@/types/baseline";
@@ -60,6 +61,7 @@ export interface ProjectData {
   assignmentColumnSettings?: AssignmentColumnSettings;
   uiSettings?: UISettings;
   planningAuditEvents?: PlanningAuditEvent[];
+  observations?: Observation[];
 }
 
 /* ── Serialization helpers ── */
@@ -198,6 +200,7 @@ interface SerializedProjectData {
   assignmentColumnSettings?: AssignmentColumnSettings;
   uiSettings?: UISettings;
   planningAuditEvents?: PlanningAuditEvent[];
+  observations?: Observation[];
 }
 
 function serializeProjectData(data: ProjectData): SerializedProjectData {
@@ -223,6 +226,7 @@ function serializeProjectData(data: ProjectData): SerializedProjectData {
     assignmentColumnSettings: data.assignmentColumnSettings,
     uiSettings: data.uiSettings ?? DEFAULT_UI_SETTINGS,
     planningAuditEvents: data.planningAuditEvents ?? [],
+    observations: data.observations ?? [],
   };
 }
 
@@ -254,6 +258,7 @@ function deserializeProjectData(
     assignmentColumnSettings: pd.assignmentColumnSettings,
     uiSettings: pd.uiSettings ?? DEFAULT_UI_SETTINGS,
     planningAuditEvents: pd.planningAuditEvents ?? [],
+    observations: pd.observations ?? [],
   };
 }
 

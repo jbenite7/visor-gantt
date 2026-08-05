@@ -37,7 +37,7 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 
 | # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
 |---|---|---|---|---|---|---|---|---|---|
-| E43 | **Momento firma**: loop de observaciones con badge sobre la barra (`!` pendiente / ✓ atendida) + registro + export CSV/LPS | CUSTOMER.md, DESTILACION §2 | 3 | 10 | 8 | 4 | **7,3** | Nº de observaciones creadas/atendidas por semana (métrica del job); pasa el removal test | backlog |
+| E43 | **Momento firma**: loop de observaciones con badge sobre la barra (`!` pendiente / ✓ atendida) + registro + export CSV/LPS | CUSTOMER.md, DESTILACION §2 | 3 | 10 | 8 | 4 | **7,3** | Nº de observaciones creadas/atendidas por semana | **shipped 2026-08-05** |
 | E44 | Micro-confirmación al aplicar una edición válida (flash sutil en la celda/barra afectada) | inventario F5 | 2 | 6 | 8 | 8 | **7,3** | Toda edición aceptada tiene feedback <100 ms sobre el elemento tocado | backlog |
 
 ### Añadidos en Fase 4 (refactoring-ui)
@@ -75,6 +75,30 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 E5, E6, E7, E11, E34 (alto ICE, baratos) → E24, E27, E28, E30, E32 → el resto.
 
 ## Experiment Cards
+
+### E43 · Momento firma: el estado de la obra, encima del plan — shipped 2026-08-05
+
+**Hipótesis:** lo que hacía volver a diario al visor 1.0 no era una vista, era el loop de anotar sobre la
+barra y despachar pendientes. Traerlo convierte el cronograma en el tablero de seguimiento de la obra.
+
+**Qué se construyó** (feature completa, no pulido visual):
+- Modelo puro en `src/lib/observations/observations.ts`: crear (rechaza texto vacío), alternar
+  Pendiente/Atendida, estado del badge y export a CSV y **CSV Last Planner**. 12 tests.
+- `ObservationBadge`: círculo ámbar `!` mientras quede algo pendiente, verde ✓ cuando todo está atendido,
+  anclado al extremo de la barra en el Gantt y en Seguimiento. **Una sola pendiente manda** sobre el resto.
+- `ObservationPanel`: anotar sin salir del cronograma, lista con estado, borrar (deshacible), y export
+  CSV/LPS junto a la lista — el registro existe para compartirse.
+- Botón **«Observaciones»** en la toolbar **con etiqueta de texto** y contador de pendientes (de paso,
+  rompe la racha de botones solo-icono del grupo).
+- Persistencia: `observations` viaja en `ProjectData` y en el autosave, igual que `planningAuditEvents`.
+
+**Evidencia — loop completo verificado en navegador:** seleccionar tarea → anotar «Falta acero de refuerzo
+en el eje 3» → aparece badge `pending` sobre la barra y contador «1» en la toolbar → marcar Atendida →
+el badge pasa a `done` (✓ verde) y el contador desaparece. 649 tests en verde (16 nuevos), lint limpio,
+`next build` correcto.
+
+**Pendiente:** el click directo sobre la barra aún no abre el panel (hoy se abre desde la toolbar con la
+tarea seleccionada); y la vista «Observaciones» como pestaña central del proyecto no existe todavía.
 
 ### E24 · Lo destructivo que vivía fuera del historial ya se puede deshacer — shipped 2026-08-05
 

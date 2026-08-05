@@ -158,5 +158,6 @@ Rules = una tarea con observaciones pendientes muestra `!`; todas atendidas → 
 Feedback = el badge aparece al guardar (<100 ms, sobre el elemento tocado, no un toast aparte — regla de
 Saffer). Loops = el badge es persistente hasta atender; el registro exporta CSV/LPS.
 
-**Nota de alcance:** v2 aún no tiene el modelo de observaciones; E43 depende de portar ese loop
-(hallazgo funcional de CUSTOMER.md, no solo microinteracción).
+**Estado: shipped 2026-08-05.** Construido con modelo propio (`lib/observations`), badge en barra, panel de
+anotación, export CSV/LPS y persistencia. Verificado el loop entero en navegador. Pendiente: abrir el panel
+con click directo en la barra y una pestaña «Observaciones» a nivel de proyecto.

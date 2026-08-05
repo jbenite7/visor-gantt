@@ -9,6 +9,7 @@ import {
   Save,
   FolderKanban,
   ChevronDown,
+  MessageSquare,
 } from "lucide-react";
 import type { ViewType } from "./ViewSwitcher";
 import type { GanttScale } from "@/components/gantt/types";
@@ -58,6 +59,10 @@ interface ProjectToolbarProps {
   onAddTask?: () => void;
   onDeleteTask?: () => void;
   hasSelection: boolean;
+  /** Abre las observaciones de la tarea seleccionada. */
+  onOpenObservations?: () => void;
+  /** Nº de observaciones pendientes en todo el proyecto, para el contador. */
+  pendingObservationCount?: number;
   /* ── Baseline Tools ── */
   baselines?: Baseline[];
   activeBaselineId?: string;
@@ -93,6 +98,8 @@ export default function ProjectToolbar({
   onAddTask,
   onDeleteTask,
   hasSelection,
+  onOpenObservations,
+  pendingObservationCount = 0,
   baselines = [],
   activeBaselineId,
   onSaveBaseline,
@@ -190,6 +197,28 @@ export default function ProjectToolbar({
         >
           <Trash2 className="gantt-project-toolbar__icon" aria-hidden />
         </button>
+
+        {onOpenObservations && (
+          <>
+            <div className="gantt-project-toolbar__mini-divider" />
+            <button
+              type="button"
+              onClick={onOpenObservations}
+              disabled={!hasSelection}
+              title="Observaciones de la actividad seleccionada"
+              data-testid="open-observations"
+              className="gantt-project-toolbar__button gantt-observations-button"
+            >
+              <MessageSquare className="gantt-project-toolbar__icon" aria-hidden />
+              Observaciones
+              {pendingObservationCount > 0 && (
+                <span className="gantt-observations-button__count">
+                  {pendingObservationCount}
+                </span>
+              )}
+            </button>
+          </>
+        )}
 
         {(canUndo || canRedo) && (
           <>

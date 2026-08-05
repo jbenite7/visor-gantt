@@ -407,3 +407,76 @@ describe("runUndoable: acciones deshacibles fuera del contexto (E24)", () => {
     expect(value).toBe(20);
   });
 });
+
+describe("observaciones de obra (E43)", () => {
+  test("añadir una observación la deja pendiente y visible para la tarea", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1, name: "Excavación" })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.addObservation(1, "Falta acero de refuerzo"));
+
+    expect(ctx!.observations).toHaveLength(1);
+    expect(ctx!.observations[0]).toEqual(
+      expect.objectContaining({
+        taskId: 1,
+        taskName: "Excavación",
+        text: "Falta acero de refuerzo",
+        status: "pending",
+      }),
+    );
+  });
+
+  test("un texto vacío no crea observación", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.addObservation(1, "   "));
+
+    expect(ctx!.observations).toHaveLength(0);
+  });
+
+  test("atender una observación cambia su estado", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.addObservation(1, "Revisar nivel"));
+    const id = ctx!.observations[0].id;
+    act(() => ctx!.toggleObservation(id));
+
+    expect(ctx!.observations[0].status).toBe("done");
+  });
+
+  test("borrar una observación es deshacible", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.addObservation(1, "Revisar nivel"));
+    const id = ctx!.observations[0].id;
+
+    act(() => ctx!.deleteObservation(id));
+    expect(ctx!.observations).toHaveLength(0);
+
+    act(() => ctx!.undo());
+    expect(ctx!.observations).toHaveLength(1);
+  });
+});

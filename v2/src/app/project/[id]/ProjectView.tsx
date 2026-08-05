@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import GanttView from "@/components/views/GanttView";
 import type { GanttTask } from "@/components/gantt/types";
 import type { PlanningAuditEvent } from "@/types/audit";
+import type { Observation } from "@/lib/observations/observations";
 import Link from "next/link";
 import { createProjectDate } from "@/lib/date/projectDate";
 import type { ProjectCalendar } from "@/types/calendar";
@@ -99,6 +100,7 @@ export default function ProjectView({
   assignmentColumnSettings,
   uiSettings,
   planningAuditEvents,
+  observations,
 }: {
   projectId?: string;
   tasks: SerializedTask[];
@@ -121,6 +123,7 @@ export default function ProjectView({
   assignmentColumnSettings?: AssignmentColumnSettings;
   uiSettings?: UISettings;
   planningAuditEvents?: PlanningAuditEvent[];
+  observations?: Observation[];
 }) {
   const [isMounted, setIsMounted] = useState(false);
 
@@ -211,6 +214,7 @@ export default function ProjectView({
             assignmentColumnSettings={assignmentColumnSettings}
             uiSettings={uiSettings}
             planningAuditEvents={planningAuditEvents}
+            observations={observations}
             onTaskClick={(task) => console.log("Clicked:", task.name)}
           />
         ) : (

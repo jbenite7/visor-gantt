@@ -12,6 +12,10 @@ import {
   getDependencyEndpoints,
 } from "./utils";
 import { TaskBar, MilestoneBar, SummaryBar, CriticalHatchDefs } from "./bars";
+import {
+  observationBadgeFor,
+  type Observation,
+} from "@/lib/observations/observations";
 import TimescaleHeader from "./timescale/TimescaleHeader";
 import DependencyArrow from "./arrows/DependencyArrow";
 import { calculateArrowPath, getArrowDirection } from "./arrows/ArrowPath";
@@ -27,6 +31,8 @@ import { resolveTaskLabelPlacement } from "./labelPolicy";
 
 interface GanttChartProps {
   tasks: GanttTask[];
+  /** Observaciones de obra, para pintar el distintivo sobre cada barra. */
+  observations?: Observation[];
   config?: Partial<GanttConfig>;
   calendar?: ProjectCalendar;
   scale?: GanttScale;
@@ -88,6 +94,7 @@ function isSameDay(a: Date, b: Date): boolean {
 
 export default function GanttChart({
   tasks,
+  observations,
   config,
   calendar = DEFAULT_PROJECT_CALENDAR,
   scale = "day",
@@ -318,6 +325,11 @@ export default function GanttChart({
                     />
                   ) : (
                     <TaskBar
+                      observationBadge={
+                        observations
+                          ? observationBadgeFor(observations, task.id)
+                          : null
+                      }
                       task={task}
                       x={x}
                       y={y}
