@@ -29,3 +29,6 @@ aia-ms-project/
 # Obsidian: la configuracion del vault se versiona; el estado local de paneles no
 .obsidian/workspace.json
 .obsidian/workspace-mobile.json
+
+# Secretos: nunca versionar codigos de recuperacion
+docs/recovery-codes.txt
