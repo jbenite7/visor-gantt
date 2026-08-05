@@ -33,6 +33,13 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | E21 | Normalizar tildes y unificar cadenas duplicadas entre capas | #23 | 1 | 3 | 9 | 9 | **7,0** | 0 cadenas de UI sin tildes | backlog |
 | E22 | «Nuevo Proyecto» como `<Link>`; roles ARIA de la barra de vistas | #24, #25 | 1 | 3 | 9 | 9 | **7,0** | Auditoría de accesibilidad sin errores de rol en esa barra | backlog |
 
+### Añadidos en Fase 5 (microinteractions)
+
+| # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
+|---|---|---|---|---|---|---|---|---|---|
+| E43 | **Momento firma**: loop de observaciones con badge sobre la barra (`!` pendiente / ✓ atendida) + registro + export CSV/LPS | CUSTOMER.md, DESTILACION §2 | 3 | 10 | 8 | 4 | **7,3** | Nº de observaciones creadas/atendidas por semana (métrica del job); pasa el removal test | backlog |
+| E44 | Micro-confirmación al aplicar una edición válida (flash sutil en la celda/barra afectada) | inventario F5 | 2 | 6 | 8 | 8 | **7,3** | Toda edición aceptada tiene feedback <100 ms sobre el elemento tocado | backlog |
+
 ### Añadidos en Fase 4 (refactoring-ui)
 
 | # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |

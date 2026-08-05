@@ -127,4 +127,36 @@ peso, tamaño y espaciado dentro de los tokens existentes.
 
 ## Microinteraction Inventory
 
-_Pendiente — Fase 5 (microinteractions)._
+Fase 5 (2026-08-05), marco Saffer: Trigger / Rules / Feedback / Loops. Auditadas las 7 interacciones más
+usadas; los números #N remiten a `## UX Audit Findings`. **Puntuación: 5/10** — fallan feedback proporcional
+(autosave invisible en reposo), triggers descubribles (celda editable, handles) y loops (nada evoluciona
+con el uso; no hay long loops).
+
+| Interacción | Trigger | Rules | Feedback | Loops/Modos | Fix | Estado |
+|---|---|---|---|---|---|---|
+| Editar celda | ⚠️ Doble click sin significante (tooltip en inglés, #40) | ✅ Validación con motivo (E26) | ✅ `RejectionToast` al rechazar (E23); ⚠️ sin confirmación visible al aceptar | Sin loop de aprendizaje | Significante visual + entrada por teclado (E37); micro-flash en la celda al aplicar | open |
+| Arrastrar/redimensionar barra | ⚠️ Handles invisibles (#32) | ⚠️ Clamp silencioso a duración 1 (#33) | ⚠️ El fantasma no snapea y no dice fecha destino (#33) | — | E29 + E30 | open |
+| Guardar (autosave) | Sistema (debounce 750 ms) | ✅ | ⚠️ **Invisible en reposo** (#20): el usuario no sabe que existe hasta que dispara; «Error al guardar» sin reintento | Loop abierto correcto | E13: indicador permanente con hora del último guardado | open |
+| Deshacer | ✅ Ctrl+Z + botones | ✅ Historial 50 | ⚠️ `UndoToast` solo en alta/baja/`runUndoable`; editar/arrastrar entran al historial **sin aviso** (#11); tope de 50 silencioso | — | E12: anunciar «Deshecho: <acción>» usando la `description` que ya existe | open |
+| Borrar | ✅ Botón (aunque solo-icono, #38) | ✅ Por historial (E1/E24) | ✅ `UndoToast` con «Deshacer» | — | E34 (separación/etiqueta) | parcial |
+| Importar .mpp | ✅ Botón | ⚠️ Sin timeout (#4) | ⚠️ Solo «Importando…» (#4); sin resumen final (#36) | Primera vez = igual que la centésima | E4 + E32 | open |
+| Cambiar de vista | ✅ Barra lateral, activo visible (aria-selected + fondo corp), transición 140 ms | ✅ | ✅ 🔬 verificado | Sin long loop (los `hint` de cada vista nunca se muestran fuera de Cmd+K → E8) | — | ok |
+
+### Momento firma — badge de observaciones en la barra (E43)
+
+**Qué es** (destilado del visor 1.0): anotar una observación desde la propia barra del Gantt deja un
+distintivo visible sobre la barra — `!` ámbar mientras está *Pendiente*, ✓ verde al marcarla *Atendida* —
+y el registro central permite exportarla al equipo (CSV/LPS). El cronograma se convierte en el tablero de
+seguimiento de la obra: el estado del trabajo de campo se ve **encima del plan**.
+
+**Removal test: pasa.** Sin el badge, las observaciones viven solo en una pestaña aparte y el Gantt vuelve a
+ser un dibujo estático — se pierde la razón por la que los usuarios del visor 1.0 revisaban el cronograma a
+diario. No es decoración: es el loop de trabajo (anotar → ver pendiente → atender → exportar) hecho visible.
+
+**Cuatro partes:** Trigger = click en barra → panel con campo de observación (ya existe el patrón en v1).
+Rules = una tarea con observaciones pendientes muestra `!`; todas atendidas → ✓; sin observaciones → nada.
+Feedback = el badge aparece al guardar (<100 ms, sobre el elemento tocado, no un toast aparte — regla de
+Saffer). Loops = el badge es persistente hasta atender; el registro exporta CSV/LPS.
+
+**Nota de alcance:** v2 aún no tiene el modelo de observaciones; E43 depende de portar ese loop
+(hallazgo funcional de CUSTOMER.md, no solo microinteracción).

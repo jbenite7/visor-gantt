@@ -21,7 +21,7 @@ Journey `improve-app` iniciado 2026-08-05 a partir de la destilación del visor 
 | 2 | ux-heuristics | done | 25 hallazgos (3 sev-4, 10 sev-3) en DESIGN.md; 22 experimentos en EXPERIMENTS.md. Verificación visual en navegador pendiente → Fase 4 |
 | 3 | design-everyday-things | done | 16 hallazgos (#26-41) con verificación en vivo en `/gantt-demo`; 16 experimentos E23-E38. Norman 4/10 |
 | 4 | refactoring-ui | done | Tokens auditados (sólidos); grayscale test 5/10 → hallazgos #42-46 (E39-E42); barra de vistas legible shipped. Sin color nuevo |
-| 5 | microinteractions | pending | Candidato a momento firma: badge de observaciones en la barra |
+| 5 | microinteractions | done | Inventario 7 interacciones (5/10); momento firma = badge de observaciones (E43, pasa removal test); E44 nuevo |
 | 6 | made-to-stick | pending | Portar el tono de «Ayuda de esta pestaña» del visor 1.0 |
 | 7 | influence-psychology | skipped: sin superficies de upsell | — |
 | 8 | high-perf-browser | pending | Parseo ~36 s de un .mpp de 11 MB sin progreso; INP en tabla de 300+ tareas |
@@ -36,6 +36,6 @@ Journey `improve-app` iniciado 2026-08-05 a partir de la destilación del visor 
 
 ## Next Actions
 
-1. Fase 5 (microinteractions): candidato a momento firma = badge de observaciones en barra (traído del visor 1.0); auditar save/undo/drag ya mejorados.
-2. E39 (ruta crítica sin depender del color) es el fix visual de más impacto pendiente.
-3. E24 parcial: siguen fuera del historial editar recurso/partida, sync matriz y reset de columnas.
+1. Fase 6 (made-to-stick): copy in-app — portar el tono de «Ayuda de esta pestaña», crear POSITIONING.md.
+2. E43 (momento firma) es funcional, no solo pulido: decidir cuándo construir el loop de observaciones.
+3. Pendientes de fases previas: E24 parcial, E12/E13 (feedback de undo/autosave), E4 (progreso de importación).
