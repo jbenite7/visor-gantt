@@ -46,6 +46,7 @@ resumen: "Qué documentos mandan en QA, entorno, Docker y despliegue, y qué tra
 - [[fixture-mpp-no-portable-entre-maquinas]]
 - [[e2e-borraba-los-proyectos-que-debia-conservar]]
 - [[carrera-de-hidratacion-en-subida-e2e]]
+- [[checkout-de-produccion-no-esta-en-root]]
 
 **Conceptos**
 - Aún no hay conceptos registrados para esta área.
@@ -53,3 +54,4 @@ resumen: "Qué documentos mandan en QA, entorno, Docker y despliegue, y qué tra
 **Referencias**
 - [[auditoria-fact-by-fact-2026-08-04]]
 - [[evidence-audit-correcciones-gantt-matriz]]
+- [[runbook-deploy-produccion-hetzner]]
