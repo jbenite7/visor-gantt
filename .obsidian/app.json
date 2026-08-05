@@ -1,0 +1,28 @@
+{
+  "alwaysUpdateLinks": true,
+  "newLinkFormat": "absolute",
+  "useMarkdownLinks": false,
+  "attachmentFolderPath": "memoria/adjuntos",
+  "showUnsupportedFiles": false,
+  "userIgnoreFilters": [
+    "node_modules/",
+    "v2/node_modules/",
+    "v2/.next/",
+    "v2/test-results/",
+    "v2/playwright-report/",
+    "v2/tmp/",
+    "v2/e2e/",
+    "v2/public/",
+    "test_data/",
+    "v2/test_data/",
+    ".omo/",
+    ".claude/",
+    ".superpowers/",
+    ".github/",
+    ".codex/",
+    ".vscode/",
+    ".playwright-mcp/",
+    ".pytest_cache/",
+    "services/mpp-parser/__pycache__/"
+  ]
+}

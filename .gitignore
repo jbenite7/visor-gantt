@@ -25,3 +25,7 @@ __pycache__/
 test_project_complete.xml
 aia-ms-project/
 .codex/
+
+# Obsidian: la configuracion del vault se versiona; el estado local de paneles no
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
