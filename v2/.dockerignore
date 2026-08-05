@@ -8,3 +8,9 @@ node_modules
 .vscode
 .idea
 .DS_Store
+
+tsconfig.tsbuildinfo
+test-results
+playwright-report
+tmp
+e2e

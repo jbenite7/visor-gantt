@@ -196,11 +196,31 @@ export interface ProjectContextValue {
     options?: { afterTaskId?: string | number },
   ) => void;
   normalizeStructure: () => void;
+  addTask: () => void;
+  deleteTasks: (taskIds: (string | number)[]) => void;
+  lastAction: LastAction | null;
   // Undo / Redo
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+}
+
+/**
+ * Última acción deshacible, para que la UI pueda anunciarla junto a "Deshacer".
+ * `token` cambia en cada acción aunque se repita la misma, para que el aviso vuelva a mostrarse.
+ */
+export interface LastAction {
+  kind: "add" | "delete";
+  count: number;
+  description: string;
+  token: number;
+}
+
+let actionToken = 0;
+function nextActionToken(): number {
+  actionToken += 1;
+  return actionToken;
 }
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
@@ -564,6 +584,85 @@ export function ProjectProvider({
     );
   }, [commitTaskChange]);
 
+  const [lastAction, setLastAction] = useState<LastAction | null>(null);
+
+  const addTask = useCallback(() => {
+    const start = new Date();
+    start.setHours(8, 0, 0, 0);
+    const finish = new Date(start);
+    finish.setDate(finish.getDate() + 1);
+
+    commitTaskChange("Add task", (prev) => {
+      const maxId = prev.reduce((max, t) => {
+        const num = typeof t.id === "number" ? t.id : parseInt(String(t.id), 10);
+        return Number.isFinite(num) && num > max ? num : max;
+      }, 0);
+
+      return [
+        ...prev,
+        {
+          id: maxId + 1,
+          name: "Nueva tarea",
+          start,
+          finish,
+          duration: 1,
+          progress: 0,
+          isCritical: false,
+          isMilestone: false,
+          isSummary: false,
+          outlineLevel: 1,
+          dependencies: [],
+        },
+      ];
+    });
+
+    setLastAction({
+      kind: "add",
+      count: 1,
+      description: "Tarea agregada",
+      token: nextActionToken(),
+    });
+  }, [commitTaskChange]);
+
+  const deleteTasks = useCallback(
+    (taskIds: (string | number)[]) => {
+      if (taskIds.length === 0) return;
+
+      const doomed = new Set(taskIds);
+      const removed = tasks.filter((t) => doomed.has(t.id)).length;
+      if (removed === 0) return;
+
+      commitTaskChange(
+        removed === 1 ? "Delete task" : `Delete ${removed} tasks`,
+        (prev) =>
+          prev
+            .filter((t) => !doomed.has(t.id))
+            // Las dependencias que apuntaban a una tarea borrada dejarían el
+            // cronograma con enlaces colgantes: se retiran junto con ella.
+            .map((t) =>
+              t.dependencies?.some((d) => doomed.has(d.from) || doomed.has(d.to))
+                ? {
+                    ...t,
+                    dependencies: t.dependencies.filter(
+                      (d) => !doomed.has(d.from) && !doomed.has(d.to),
+                    ),
+                  }
+                : t,
+            ),
+      );
+      setSelectedTaskIds([]);
+
+      setLastAction({
+        kind: "delete",
+        count: removed,
+        description:
+          removed === 1 ? "1 tarea eliminada" : `${removed} tareas eliminadas`,
+        token: nextActionToken(),
+      });
+    },
+    [commitTaskChange, tasks],
+  );
+
   /* ── Keyboard shortcuts: Ctrl+Z / Ctrl+Shift+Z ── */
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -622,6 +721,9 @@ export function ProjectProvider({
       applyStructureTemplate,
       smartPasteTasks,
       normalizeStructure,
+      addTask,
+      deleteTasks,
+      lastAction,
       undo: history.undo,
       redo: history.redo,
       canUndo: history.canUndo,
@@ -651,6 +753,9 @@ export function ProjectProvider({
       applyStructureTemplate,
       smartPasteTasks,
       normalizeStructure,
+      addTask,
+      deleteTasks,
+      lastAction,
       history,
     ],
   );

@@ -208,3 +208,75 @@ describe("ProjectContext schedule recalculation", () => {
     expect(isoDate(ctx!.tasks.find((t) => t.id === 2)!.start)).toBe("2026-01-12");
   });
 });
+
+describe("task creation and deletion go through history (E1)", () => {
+  test("deleting tasks is undoable and restores them", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider
+        initialTasks={[task({ id: 1 }), task({ id: 2 }), task({ id: 3 })]}
+      >
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.deleteTasks([2, 3]));
+
+    expect(ctx!.tasks.map((t) => t.id)).toEqual([1]);
+    expect(ctx!.canUndo).toBe(true);
+
+    act(() => ctx!.undo());
+
+    expect(ctx!.tasks.map((t) => t.id)).toEqual([1, 2, 3]);
+  });
+
+  test("adding a task is undoable", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.addTask());
+
+    expect(ctx!.tasks).toHaveLength(2);
+
+    act(() => ctx!.undo());
+
+    expect(ctx!.tasks).toHaveLength(1);
+  });
+
+  test("deleting reports what happened so the UI can announce it", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1 }), task({ id: 2 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.deleteTasks([2]));
+
+    expect(ctx!.lastAction).toEqual(
+      expect.objectContaining({ kind: "delete", count: 1 }),
+    );
+  });
+
+  test("deleting nothing does not touch history", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.deleteTasks([]));
+
+    expect(ctx!.canUndo).toBe(false);
+    expect(ctx!.tasks).toHaveLength(1);
+  });
+});

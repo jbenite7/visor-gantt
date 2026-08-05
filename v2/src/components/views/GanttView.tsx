@@ -5,6 +5,7 @@ import { ChevronDown, Command as CommandIcon, Search, SlidersHorizontal, X } fro
 import type { GanttScale, GanttTask } from "@/components/gantt/types";
 import type { PlanningAuditEvent } from "@/types/audit";
 import SplitPane from "@/components/gantt/SplitPane";
+import UndoToast from "@/components/gantt/UndoToast";
 import GanttTable from "@/components/gantt/table/GanttTable";
 import GanttChart from "@/components/gantt/GanttChart";
 import PlanningAssistantPanel from "@/components/gantt/assistant/PlanningAssistantPanel";
@@ -187,6 +188,9 @@ function GanttViewInner({
     applyStructureTemplate,
     smartPasteTasks,
     normalizeStructure,
+    addTask,
+    deleteTasks,
+    lastAction,
     undo,
     redo,
     canUndo,
@@ -489,42 +493,14 @@ function GanttViewInner({
     [matrixPlan, syncedMatrixPlan],
   );
 
-  /* ── Add Task handler ── */
+  /* ── Add / Delete Task handlers (pasan por el historial: son deshacibles) ── */
   const handleAddTask = useCallback(() => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const nextDay = new Date(now);
-    nextDay.setDate(nextDay.getDate() + 1);
+    addTask();
+  }, [addTask]);
 
-    const maxId = tasks.reduce((max, t) => {
-      const num = typeof t.id === "number" ? t.id : parseInt(String(t.id), 10);
-      return Number.isFinite(num) && num > max ? num : max;
-    }, 0);
-
-    const newTask: GanttTask = {
-      id: maxId + 1,
-      name: `Nueva tarea`,
-      start: now,
-      finish: nextDay,
-      duration: 1,
-      progress: 0,
-      isCritical: false,
-      isMilestone: false,
-      isSummary: false,
-      outlineLevel: 1,
-      dependencies: [],
-    };
-
-    setTasks((prev) => [...prev, newTask]);
-  }, [tasks, setTasks]);
-
-  /* ── Delete Task handler ── */
   const handleDeleteTask = useCallback(() => {
-    if (selectedTaskIds.length === 0) return;
-    const idsToDelete = new Set(selectedTaskIds);
-    setTasks((prev) => prev.filter((t) => !idsToDelete.has(t.id)));
-    setSelectedTaskIds([]);
-  }, [selectedTaskIds, setTasks, setSelectedTaskIds]);
+    deleteTasks(selectedTaskIds);
+  }, [deleteTasks, selectedTaskIds]);
 
   /* ── Save Baseline handler ── */
   const handleSaveBaseline = useCallback(() => {
@@ -1276,6 +1252,8 @@ function GanttViewInner({
           </div>
         </div>
       )}
+
+      <UndoToast action={lastAction} onUndo={undo} locale={locale} />
 
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         {/* Sidebar de navegación de vistas */}

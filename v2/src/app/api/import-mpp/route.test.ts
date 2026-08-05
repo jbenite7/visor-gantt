@@ -1,11 +1,27 @@
 import { NextRequest } from "next/server";
 import { POST } from "./route";
 import { saveProject } from "@/app/actions/project";
+import { getCurrentUser } from "@/lib/auth/session";
 import type { ProjectData as ParsedMppProject } from "@/lib/parser/mpp-parser";
 
 jest.mock("@/app/actions/project", () => ({
   saveProject: jest.fn(),
 }));
+
+jest.mock("@/lib/auth/session", () => ({
+  getCurrentUser: jest.fn(),
+}));
+
+const mockedGetCurrentUser = getCurrentUser as jest.MockedFunction<
+  typeof getCurrentUser
+>;
+
+function signedIn() {
+  mockedGetCurrentUser.mockResolvedValue({
+    id: "user-1",
+    email: "planner@example.com",
+  } as Awaited<ReturnType<typeof getCurrentUser>>);
+}
 
 const parsedProject: ParsedMppProject = {
   name: "Contrato MPP",
@@ -101,6 +117,7 @@ function importRequest(fileName = "contrato.mpp"): NextRequest {
 describe("/api/import-mpp", () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    signedIn();
     global.fetch = jest.fn(async () =>
       Response.json(parsedProject),
     ) as jest.Mock;
@@ -108,6 +125,19 @@ describe("/api/import-mpp", () => {
       success: true,
       id: "project-123",
     });
+  });
+
+  test("sin sesión responde 401 antes de leer el archivo o llamar al parser (E3)", async () => {
+    mockedGetCurrentUser.mockResolvedValue(null);
+
+    const response = await POST(importRequest());
+    const payload = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(payload.loginUrl).toBe("/login?next=/upload");
+    expect(payload.error).toContain("sesión");
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(saveProject).not.toHaveBeenCalled();
   });
 
   test("builds and saves imported project with automatic matrix parity", async () => {

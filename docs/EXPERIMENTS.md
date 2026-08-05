@@ -10,9 +10,9 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 
 | # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
 |---|---|---|---|---|---|---|---|---|---|
-| E1 | Alta y baja de tareas pasan por el historial + aviso «N tareas eliminadas · Deshacer» | #2 | 4 | 10 | 10 | 7 | **9,0** | 0 reportes de pérdida de trabajo; `Ctrl+Z` recupera un borrado en test E2E | backlog |
-| E2 | Estado de error propio en la home, distinto del vacío, con reintento | #3 | 4 | 9 | 10 | 8 | **9,0** | Un fallo de DB simulado muestra el estado de error, no «No hay proyectos guardados» (test E2E) | backlog |
-| E3 | Resolver `/upload`: sesión exigida antes de aceptar el archivo, o modo demo real de solo lectura | #1 | 4 | 10 | 9 | 5 | **8,0** | 0 importaciones que terminan en «No autenticado» tras el parseo | backlog |
+| E1 | Alta y baja de tareas pasan por el historial + aviso «N tareas eliminadas · Deshacer» | #2 | 4 | 10 | 10 | 7 | **9,0** | 0 reportes de pérdida de trabajo; `Ctrl+Z` recupera un borrado | **shipped 2026-08-05** |
+| E2 | Estado de error propio en la home, distinto del vacío, con reintento | #3 | 4 | 9 | 10 | 8 | **9,0** | Un fallo de DB muestra el estado de error, no «No hay proyectos guardados» | **shipped 2026-08-05** |
+| E3 | Resolver `/upload`: sesión exigida antes de aceptar el archivo | #1 | 4 | 10 | 9 | 5 | **8,0** | 0 importaciones que terminan en «No autenticado» tras el parseo | **shipped 2026-08-05** |
 | E4 | Progreso por fases en la importación (subiendo → analizando → guardando) + timeout + cancelar | #4 | 3 | 9 | 8 | 5 | **7,3** | % de importaciones abandonadas durante la espera; tiempo percibido en prueba con 5 usuarios | backlog |
 | E5 | Mapear errores del parser a mensajes qué/por qué/cómo; detalle técnico solo a logs | #5, #23 | 3 | 8 | 9 | 7 | **8,0** | 0 stack traces visibles en la UI; los 6 errores del flujo pasan el checklist qué/por qué/cómo | backlog |
 | E6 | Estados vacíos en tabla y Gantt con acción de salida | #9 | 3 | 8 | 9 | 8 | **8,3** | 0 pantallas en blanco: proyecto vacío y filtro sin resultados muestran mensaje + acción | backlog |
@@ -38,4 +38,44 @@ E4, E9, E12 → el resto.
 
 ## Experiment Cards
 
-_Se abren al empezar a ejecutar cada cambio: hipótesis, métrica, resultado._
+### E1 · Alta y baja de tareas deshacibles — shipped 2026-08-05
+
+**Hipótesis:** borrar sin red de seguridad es la causa de pérdida de trabajo silenciosa; enrutar la acción
+por el historial y anunciarla con «Deshacer» la elimina sin añadir una confirmación que nadie lee.
+
+**Qué cambió:** `addTask` y `deleteTasks` viven ahora en `ProjectContext` y pasan por `commitTaskChange`
+(historial), retirando de paso las dependencias que apuntaban a una tarea borrada para no dejar enlaces
+colgantes. `GanttView` los consume en lugar de `setTasks`. Nuevo `UndoToast` (`role="status"`,
+`aria-live="polite"`) anuncia la acción y ofrece deshacer durante 8 s.
+
+**Evidencia:** 9 tests nuevos (4 en `ProjectContext.test.tsx`, 5 en `UndoToast.test.tsx`); suite completa
+601/601 en verde, lint limpio y `next build` correcto.
+
+**Pendiente de medir:** confirmación en uso real de que no vuelven reportes de pérdida de trabajo.
+
+### E2 · Error de carga distinto del estado vacío — shipped 2026-08-05
+
+**Hipótesis:** mostrar «No hay proyectos guardados» ante un fallo de datos hace creer al usuario que perdió
+su trabajo; separar los dos estados elimina el susto y da una salida.
+
+**Qué cambió:** `src/app/page.tsx` distingue `loadFailed` del vacío real. El error muestra «No pudimos
+cargar tus cronogramas», aclara que los proyectos siguen guardados y ofrece «Reintentar». El estado vacío
+se reescribió a «Todavía no tienes cronogramas».
+
+**Límite conocido:** si el usuario carece del permiso `project:read`, `listProjects` sigue devolviendo `[]`
+en silencio y se ve el estado vacío. Queda como hallazgo abierto (#3 en DESIGN.md).
+
+### E3 · La importación exige sesión antes de aceptar el archivo — shipped 2026-08-05
+
+**Hipótesis:** hacer esperar toda la subida y el parseo para devolver «No autenticado» es la peor variante
+posible; comprobar la sesión primero convierte un error tardío e incomprensible en un desvío inmediato.
+
+**Qué cambió:** nuevo `src/app/upload/layout.tsx` con guard que redirige a `/login?next=/upload`.
+`POST /api/import-mpp` comprueba la sesión **antes de leer el cuerpo** y responde 401 con
+`loginUrl`; el cliente redirige en vez de pintar el error. El login respeta `?next=` mediante
+`safeNextPath`, que rechaza destinos externos para no convertirlo en un redirector abierto.
+
+**Decisión de producto pendiente:** se eligió *exigir sesión* en lugar de construir un modo demo real sin
+cuenta. El modo demo —que es lo que hace fuerte al visor 1.0— queda como decisión para la Fase 9.
+
+**Evidencia:** test de ruta que verifica 401 sin llamar al parser ni guardar, y 3 tests de `safeNextPath`.

@@ -1,16 +1,18 @@
 import Link from "next/link";
 import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { loginAction } from "@/app/actions/auth";
+import { safeNextPath } from "@/lib/auth/nextPath";
 
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string }>;
+  searchParams?: Promise<{ error?: string; next?: string }>;
 }) {
   const params = await searchParams;
   const error = params?.error;
+  const next = safeNextPath(params?.next);
   const microsoftConfigured = Boolean(
     process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET,
   );
@@ -42,6 +44,7 @@ export default async function LoginPage({
         )}
 
         <form action={loginAction} className="space-y-4">
+          <input type="hidden" name="next" value={next} />
           <label className="block">
             <span className="flex items-center gap-1.5 text-sm font-semibold text-[var(--color-text-strong)]">
               <Mail size={15} aria-hidden />

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveProject } from "@/app/actions/project";
+import { getCurrentUser } from "@/lib/auth/session";
 import { buildProjectDataFromMpp } from "@/lib/import/mpp-project";
 import type { ProjectData as ParsedMppProject } from "@/lib/parser/mpp-parser";
 
@@ -25,6 +26,20 @@ function parserEndpoint(): string {
 }
 
 export async function POST(request: NextRequest) {
+  // Se comprueba antes de leer el cuerpo: si falta sesión, el usuario lo sabe de
+  // inmediato en vez de esperar la subida y el parseo para recibir "No autenticado".
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json(
+      {
+        error:
+          "Tu sesión expiró. Vuelve a entrar y sube el archivo de nuevo.",
+        loginUrl: "/login?next=/upload",
+      },
+      { status: 401 },
+    );
+  }
+
   const formData = await request.formData();
   const file = formData.get("file");
 

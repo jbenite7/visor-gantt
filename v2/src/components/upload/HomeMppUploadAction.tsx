@@ -54,6 +54,12 @@ export default function HomeMppUploadAction({
       }
 
       const payload = await response.json().catch(() => null);
+
+      if (response.status === 401 && payload?.loginUrl) {
+        router.push(payload.loginUrl);
+        return;
+      }
+
       setError(payload?.error ?? "No se pudo importar el archivo .mpp");
     } catch {
       setError("No se pudo conectar con el servidor de importacion");
