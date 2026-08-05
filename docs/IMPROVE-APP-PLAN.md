@@ -18,7 +18,7 @@ Journey `improve-app` iniciado 2026-08-05 a partir de la destilación del visor 
 | Fase | Skill | Estado | Nota |
 |---|---|---|---|
 | 1 | jobs-to-be-done | done (GATE) | Job confirmado; CUSTOMER.md creado 2026-08-05 |
-| 2 | ux-heuristics | pending | Foco: flujo upload→primera vista y navegación de 14 vistas |
+| 2 | ux-heuristics | done | 25 hallazgos (3 sev-4, 10 sev-3) en DESIGN.md; 22 experimentos en EXPERIMENTS.md. Verificación visual en navegador pendiente → Fase 4 |
 | 3 | design-everyday-things | pending | Errores de importación, feedback de «Procesando», undo vs confirmaciones |
 | 4 | refactoring-ui | pending | Jerarquía visual de toolbar/tabla; tokens |
 | 5 | microinteractions | pending | Candidato a momento firma: badge de observaciones en la barra |
@@ -35,5 +35,6 @@ Journey `improve-app` iniciado 2026-08-05 a partir de la destilación del visor 
 
 ## Next Actions
 
-1. Fase 2 (ux-heuristics): evaluación heurística con severidad 0-4 sobre los dos flujos — upload→primera vista (Big Hire) y navegación de 14 vistas (Little Hire) — creando DESIGN.md y EXPERIMENTS.md.
-2. Backlog semilla desde la destilación (DESTILACION-VISOR-V1.md §Las mejores características).
+1. Decidir con el usuario qué severidad-4 se arregla ya (E1, E2, E3 en EXPERIMENTS.md) y quién es el dueño.
+2. Fase 3 (design-everyday-things) sobre los flujos núcleo: importación, acción primaria y acciones destructivas.
+3. Al abrir la Fase 4, completar la verificación visual en navegador que quedó pendiente (el build de Docker no terminó a tiempo en la Fase 2).
