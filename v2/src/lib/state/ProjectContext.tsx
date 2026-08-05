@@ -198,6 +198,12 @@ export interface ProjectContextValue {
   normalizeStructure: () => void;
   addTask: () => void;
   deleteTasks: (taskIds: (string | number)[]) => void;
+  /**
+   * Hace deshacible una acción cuyo estado vive fuera de este contexto
+   * (recursos, presupuesto, matriz…). El llamador aporta cómo aplicarla y
+   * cómo revertirla; aquí se registra en el mismo historial que las tareas.
+   */
+  runUndoable: (action: UndoableAction) => void;
   lastAction: LastAction | null;
   lastRejection: LastRejection | null;
   /** Anuncia el motivo por el que una entrada del usuario no se aceptó. */
@@ -214,10 +220,17 @@ export interface ProjectContextValue {
  * `token` cambia en cada acción aunque se repita la misma, para que el aviso vuelva a mostrarse.
  */
 export interface LastAction {
-  kind: "add" | "delete";
+  kind: "add" | "delete" | "other";
   count: number;
   description: string;
   token: number;
+}
+
+export interface UndoableAction {
+  /** Texto que verá el usuario en el aviso, p. ej. "1 recurso eliminado". */
+  description: string;
+  execute: () => void;
+  undo: () => void;
 }
 
 /**
@@ -668,6 +681,19 @@ export function ProjectProvider({
     });
   }, [commitTaskChange]);
 
+  const runUndoable = useCallback(
+    ({ description, execute, undo }: UndoableAction) => {
+      history.push({ description, execute, undo });
+      setLastAction({
+        kind: "other",
+        count: 1,
+        description,
+        token: nextActionToken(),
+      });
+    },
+    [history],
+  );
+
   const deleteTasks = useCallback(
     (taskIds: (string | number)[]) => {
       if (taskIds.length === 0) return;
@@ -767,6 +793,7 @@ export function ProjectProvider({
       normalizeStructure,
       addTask,
       deleteTasks,
+      runUndoable,
       lastAction,
       lastRejection,
       reportInvalidEdit,
@@ -801,6 +828,7 @@ export function ProjectProvider({
       normalizeStructure,
       addTask,
       deleteTasks,
+      runUndoable,
       lastAction,
       lastRejection,
       reportInvalidEdit,

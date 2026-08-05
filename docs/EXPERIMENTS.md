@@ -38,7 +38,7 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
 |---|---|---|---|---|---|---|---|---|---|
 | E23 | Mostrar el issue donde ocurre la edición (toast + inline), no solo en la pestaña «Cuellos» | #26 | 4 | 10 | 10 | 7 | **9,0** | 0 ediciones rechazadas sin mensaje | **shipped 2026-08-05** |
-| E24 | Llevar al historial (o al aviso «Deshacer») recursos, presupuesto, mapeos y plan matricial | #27 | 4 | 9 | 9 | 5 | **7,7** | Toda acción destructiva es deshacible o confirmada; inventario sin huecos | backlog |
+| E24 | Llevar al historial (o al aviso «Deshacer») recursos, presupuesto, mapeos y plan matricial | #27 | 4 | 9 | 9 | 5 | **7,7** | Toda acción destructiva es deshacible o confirmada | **shipped 2026-08-05** (parcial: quedan sobrescrituras, ver ficha) |
 | E25 | Renderizar `calendarIssues` junto al editor de calendario | #28 | 4 | 8 | 10 | 8 | **8,7** | Un calendario inválido muestra el motivo | **shipped 2026-08-05** |
 | E26 | Restringir la entrada: `min=1`, `step=1`, validar `finish >= start`, unificar duración mínima | #30 | 3 | 9 | 10 | 9 | **9,3** | Imposible introducir duración negativa o fin anterior al inicio | **shipped 2026-08-05** |
 | E27 | Marcar en solo lectura lo que calcula el motor (`finish`, filas resumen) usando el `readOnly` existente | #31 | 3 | 8 | 9 | 8 | **8,3** | 0 celdas derivadas editables | backlog |
@@ -58,6 +58,30 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 E5, E6, E7, E11, E34 (alto ICE, baratos) → E24, E27, E28, E30, E32 → el resto.
 
 ## Experiment Cards
+
+### E24 · Lo destructivo que vivía fuera del historial ya se puede deshacer — shipped 2026-08-05
+
+**Hipótesis:** el arreglo de E1 solo cubrió las tareas; borrar un recurso o una partida seguía siendo
+irreversible. Una primitiva genérica evita tener que mudar todo el estado al contexto.
+
+**Qué cambió:** nueva primitiva `runUndoable({description, execute, undo})` en `ProjectContext`, que registra
+en el **mismo historial** que las tareas cualquier acción cuyo estado viva fuera. Ahora son deshacibles y
+anuncian «Deshacer»: borrar recurso, borrar partida de presupuesto (con sus vínculos), importar CSV de
+presupuesto, quitar un vínculo presupuesto↔tarea y **aplicar el plan matricial**.
+
+**Bug encontrado en la propia implementación y corregido antes de cerrar:** la primera versión revertía
+restaurando un *snapshot* completo de la lista. Eso rompe el flujo «borro uno, agrego otro, deshago»: al
+deshacer, la foto vieja **borraba en silencio lo recién agregado**, porque agregar y editar no pasan por el
+historial. Se reescribió con operaciones inversas quirúrgicas (`insertAt`/`removeWhere` en
+`src/lib/state/undoableCollections.ts`), que respetan los cambios intermedios. Hay un test que reproduce
+exactamente ese escenario.
+
+**Evidencia:** 630 tests (5 nuevos de los helpers + 2 de la primitiva), lint limpio, `next build` correcto.
+
+**Cobertura declarada — lo que NO cubre (queda abierto):** editar un recurso o una partida (sobrescriben sin
+copia de seguridad), `handleSyncMatrixFromGantt`, el reset de columnas en las tres tablas, los borrados de
+`MatrixEditorView` (piden confirmación pero no son deshacibles) y el borrado de proyecto (permanente en
+servidor). Por eso el hallazgo #27 queda como **parcial**, no resuelto.
 
 ### E23 + E25 + E26 · El usuario ya sabe por qué no se aplicó su cambio — shipped 2026-08-05
 

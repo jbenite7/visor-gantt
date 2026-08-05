@@ -344,3 +344,66 @@ describe("las ediciones rechazadas se anuncian (E23)", () => {
     expect(ctx!.lastRejection?.reason).toBeTruthy();
   });
 });
+
+describe("runUndoable: acciones deshacibles fuera del contexto (E24)", () => {
+  test("ejecuta la acción, la registra en el historial y la revierte", () => {
+    let ctx: ProjectContextValue | undefined;
+    const store: string[] = ["a", "b"];
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() =>
+      ctx!.runUndoable({
+        description: "1 recurso eliminado",
+        execute: () => {
+          store.length = 0;
+          store.push("a");
+        },
+        undo: () => {
+          store.length = 0;
+          store.push("a", "b");
+        },
+      }),
+    );
+
+    expect(store).toEqual(["a"]);
+    expect(ctx!.canUndo).toBe(true);
+    expect(ctx!.lastAction?.description).toBe("1 recurso eliminado");
+
+    act(() => ctx!.undo());
+
+    expect(store).toEqual(["a", "b"]);
+  });
+
+  test("rehacer vuelve a aplicar la acción", () => {
+    let ctx: ProjectContextValue | undefined;
+    let value = 10;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1 })]}>
+        <Harness onValue={(value_) => (ctx = value_)} />
+      </ProjectProvider>,
+    );
+
+    act(() =>
+      ctx!.runUndoable({
+        description: "Cambio",
+        execute: () => {
+          value = 20;
+        },
+        undo: () => {
+          value = 10;
+        },
+      }),
+    );
+    act(() => ctx!.undo());
+    expect(value).toBe(10);
+
+    act(() => ctx!.redo());
+    expect(value).toBe(20);
+  });
+});

@@ -58,6 +58,7 @@ import {
 } from "@/lib/mpp/taskColumns";
 import { calculateMppFields } from "@/lib/mpp/mppCalculationEngine";
 import { ProjectProvider, useProject } from "@/lib/state/ProjectContext";
+import { insertAt, removeWhere } from "@/lib/state/undoableCollections";
 import { useDragBar } from "@/components/gantt/interaction/useDragBar";
 import { useResizeBar } from "@/components/gantt/interaction/useResizeBar";
 import {
@@ -194,6 +195,7 @@ function GanttViewInner({
     lastAction,
     lastRejection,
     reportInvalidEdit,
+    runUndoable,
     undo,
     redo,
     canUndo,
@@ -585,9 +587,21 @@ function GanttViewInner({
     setResources((prev) => prev.map((r) => (r.uid === resource.uid ? resource : r)));
   }, []);
 
-  const handleDeleteResource = useCallback((uid: number) => {
-    setResources((prev) => prev.filter((r) => r.uid !== uid));
-  }, []);
+  const handleDeleteResource = useCallback(
+    (uid: number) => {
+      const index = resources.findIndex((r) => r.uid === uid);
+      if (index === -1) return;
+      const removed = resources[index];
+
+      runUndoable({
+        description: `Recurso «${removed.name ?? uid}» eliminado`,
+        execute: () =>
+          setResources((prev) => removeWhere(prev, (r) => r.uid === uid)),
+        undo: () => setResources((prev) => insertAt(prev, index, removed)),
+      });
+    },
+    [resources, runUndoable],
+  );
 
   /* ── Budget handlers ── */
   const handleAddBudgetItem = useCallback((item: BudgetItem) => {
@@ -598,14 +612,45 @@ function GanttViewInner({
     setBudgetItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
   }, []);
 
-  const handleDeleteBudgetItem = useCallback((id: string) => {
-    setBudgetItems((prev) => prev.filter((i) => i.id !== id));
-    setBudgetMappings((prev) => prev.filter((m) => m.budgetItemId !== id));
-  }, []);
+  const handleDeleteBudgetItem = useCallback(
+    (id: string) => {
+      const index = budgetItems.findIndex((i) => i.id === id);
+      if (index === -1) return;
+      const removed = budgetItems[index];
+      const removedMappings = budgetMappings.filter((m) => m.budgetItemId === id);
 
-  const handleImportBudgetCSV = useCallback((items: BudgetItem[]) => {
-    setBudgetItems((prev) => [...prev, ...items]);
-  }, []);
+      runUndoable({
+        description: `Partida «${removed.subcategory ?? removed.category}» eliminada`,
+        execute: () => {
+          setBudgetItems((prev) => removeWhere(prev, (i) => i.id === id));
+          setBudgetMappings((prev) =>
+            removeWhere(prev, (m) => m.budgetItemId === id),
+          );
+        },
+        undo: () => {
+          setBudgetItems((prev) => insertAt(prev, index, removed));
+          setBudgetMappings((prev) => [...prev, ...removedMappings]);
+        },
+      });
+    },
+    [budgetItems, budgetMappings, runUndoable],
+  );
+
+  const handleImportBudgetCSV = useCallback(
+    (items: BudgetItem[]) => {
+      const importedIds = new Set(items.map((item) => item.id));
+      runUndoable({
+        description:
+          items.length === 1
+            ? "1 partida importada"
+            : `${items.length} partidas importadas`,
+        execute: () => setBudgetItems((prev) => [...prev, ...items]),
+        undo: () =>
+          setBudgetItems((prev) => removeWhere(prev, (i) => importedIds.has(i.id))),
+      });
+    },
+    [runUndoable],
+  );
 
   const handleAddBudgetMapping = useCallback((mapping: BudgetMappingType) => {
     setBudgetMappings((prev) => [...prev, mapping]);
@@ -623,30 +668,57 @@ function GanttViewInner({
     );
   }, []);
 
-  const handleRemoveBudgetMapping = useCallback((mapping: BudgetMappingType) => {
-    setBudgetMappings((prev) =>
-      prev.filter(
+
+  const handleRemoveBudgetMapping = useCallback(
+    (mapping: BudgetMappingType) => {
+      const index = budgetMappings.findIndex(
         (m) =>
-          !(m.budgetItemId === mapping.budgetItemId && m.taskId === mapping.taskId),
-      ),
-    );
-    setBudgetItems((prev) =>
-      prev.map((item) => {
-        if (item.id !== mapping.budgetItemId) return item;
-        const stillMapped = budgetMappings.some(
-          (m) =>
-            m.budgetItemId === mapping.budgetItemId &&
-            m.taskId === mapping.taskId &&
-            !(m.budgetItemId === mapping.budgetItemId && m.taskId === mapping.taskId),
-        );
-        if (stillMapped) return item;
-        return {
-          ...item,
-          mappedTaskIds: item.mappedTaskIds.filter((id) => id !== mapping.taskId),
-        };
-      }),
-    );
-  }, [budgetMappings]);
+          m.budgetItemId === mapping.budgetItemId && m.taskId === mapping.taskId,
+      );
+      if (index === -1) return;
+
+      runUndoable({
+        description: "Vínculo de presupuesto eliminado",
+        execute: () => {
+          setBudgetMappings((prev) =>
+            removeWhere(
+              prev,
+              (m) =>
+                m.budgetItemId === mapping.budgetItemId &&
+                m.taskId === mapping.taskId,
+            ),
+          );
+          setBudgetItems((prev) =>
+            prev.map((item) =>
+              item.id === mapping.budgetItemId
+                ? {
+                    ...item,
+                    mappedTaskIds: item.mappedTaskIds.filter(
+                      (id) => id !== mapping.taskId,
+                    ),
+                  }
+                : item,
+            ),
+          );
+        },
+        undo: () => {
+          setBudgetMappings((prev) => insertAt(prev, index, mapping));
+          setBudgetItems((prev) =>
+            prev.map((item) =>
+              item.id === mapping.budgetItemId &&
+              !item.mappedTaskIds.includes(mapping.taskId)
+                ? {
+                    ...item,
+                    mappedTaskIds: [...item.mappedTaskIds, mapping.taskId],
+                  }
+                : item,
+            ),
+          );
+        },
+      });
+    },
+    [budgetMappings, runUndoable],
+  );
 
   const handleApplyMatrixPlan = useCallback(
     (nextPlan: MatrixPlan) => {
@@ -656,10 +728,22 @@ function GanttViewInner({
         nextPlan,
       });
 
-      setMatrixPlan(result.matrixPlan);
-      setTasks(() => result.tasks);
+      const previousPlan = matrixPlan;
+      const previousTasks = tasks;
+
+      runUndoable({
+        description: "Plan matricial aplicado al cronograma",
+        execute: () => {
+          setMatrixPlan(result.matrixPlan);
+          setTasks(() => result.tasks);
+        },
+        undo: () => {
+          setMatrixPlan(previousPlan);
+          setTasks(() => previousTasks);
+        },
+      });
     },
-    [setTasks, syncedMatrixPlan, tasks],
+    [matrixPlan, runUndoable, setTasks, syncedMatrixPlan, tasks],
   );
 
   const handleSyncMatrixFromGantt = useCallback(() => {
