@@ -3,14 +3,16 @@ FROM node:20-alpine AS base
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci && npm install -D @types/pg
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci && npm install -D @types/pg
 
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache \
+    npm run build
 
 FROM base AS runner
 WORKDIR /app
