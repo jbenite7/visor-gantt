@@ -46,4 +46,11 @@ resumen: "Qué documentos mandan en Gantt, UI y reportes, y qué trampas hay pue
 
 ## Trampas y decisiones del área
 
-Se llena en la pasada de ingest.
+**Decisiones**
+- Aún no hay decisiones registradas para esta área.
+
+**Trampas**
+- [[banner-falso-positivo-por-buscar-la-palabra]]
+
+**Conceptos**
+- Aún no hay conceptos registrados para esta área.

@@ -38,4 +38,11 @@ resumen: "Qué documentos mandan en importación y qué trampas hay puestas"
 
 ## Trampas y decisiones del área
 
-Se llena en la pasada de ingest.
+**Decisiones**
+- [[errores-de-importacion-visibles-en-la-app]]
+
+**Trampas**
+- [[json-crudo-en-errores-de-importacion]]
+
+**Conceptos**
+- [[capas-del-motor-de-calculo-mpp]]

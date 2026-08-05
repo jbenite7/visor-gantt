@@ -42,4 +42,13 @@ resumen: "Qué documentos mandan en scheduling y qué trampas hay puestas"
 
 ## Trampas y decisiones del área
 
-Se llena en la pasada de ingest.
+**Decisiones**
+- [[row-id-en-predecesoras-y-sucesoras]]
+- [[clasificacion-semiautomatica-de-familia]]
+
+**Trampas**
+- Aún no hay trampas registradas para esta área.
+
+**Conceptos**
+- [[unique-id-vs-row-id-en-codigo]]
+- [[matchedby-confidence-breadcrumb-en-clasificacion-de-familia]]

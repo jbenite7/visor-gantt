@@ -38,4 +38,11 @@ resumen: "Qué documentos mandan en datos, persistencia y autenticación, y qué
 
 ## Trampas y decisiones del área
 
-Se llena en la pasada de ingest.
+**Decisiones**
+- Aún no hay decisiones registradas para esta área.
+
+**Trampas**
+- Aún no hay trampas registradas para esta área.
+
+**Conceptos**
+- Aún no hay conceptos registrados para esta área.

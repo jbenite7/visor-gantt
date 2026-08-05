@@ -38,4 +38,18 @@ resumen: "Qué documentos mandan en QA, entorno, Docker y despliegue, y qué tra
 
 ## Trampas y decisiones del área
 
-Se llena en la pasada de ingest.
+**Decisiones**
+- [[conservacion-de-proyectos-e2e-por-runid]]
+- [[playwright-chromium-unico-worker-permanente]]
+
+**Trampas**
+- [[fixture-mpp-no-portable-entre-maquinas]]
+- [[e2e-borraba-los-proyectos-que-debia-conservar]]
+- [[carrera-de-hidratacion-en-subida-e2e]]
+
+**Conceptos**
+- Aún no hay conceptos registrados para esta área.
+
+**Referencias**
+- [[auditoria-fact-by-fact-2026-08-04]]
+- [[evidence-audit-correcciones-gantt-matriz]]
