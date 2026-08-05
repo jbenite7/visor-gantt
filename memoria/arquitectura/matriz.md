@@ -8,14 +8,16 @@ resumen: "Genera y sincroniza la vista de matriz (unidad × actividad) a partir 
 ---
 # matriz
 
-**Qué hace.** Deriva una matriz de unidad × actividad a partir de las tareas del Gantt (usando la
-familia de actividad calculada por [[memoria/arquitectura/scheduling-modulo|scheduling]]), la mantiene sincronizada con ediciones del
-Gantt, y aplica templates de matriz guardados.
+**Qué hace.** Deriva una matriz de unidad × actividad a partir de las tareas del Gantt, la mantiene
+sincronizada con ediciones del Gantt, y aplica templates de matriz guardados.
 
 **Dónde vive.** `v2/src/lib/matrix/matrixGenerator.ts`, `matrixFromGantt.ts`, `matrixSync.ts`,
 `tree.ts` (estructura jerárquica de la matriz), `templates.ts`.
 
-**Qué consume.** El proyecto y la clasificación de familia de actividad del módulo [[memoria/arquitectura/scheduling-modulo|scheduling]].
+**Qué consume.** Los tipos `GanttTask`/`GanttDependency` del módulo [[gantt]] (`matrixGenerator.ts`
+y `matrixFromGantt.ts` los importan directamente); no importa nada de `scheduling` — la
+clasificación de familia de actividad la consume el componente `TypicalUnitView.tsx`, no este
+módulo.
 
 **Quién lo consume.** Las vistas de matriz en `v2/src/components/views/` y la tabla de plantillas
 persistida en Postgres (`matrix_templates`, ver [[persistencia]]).

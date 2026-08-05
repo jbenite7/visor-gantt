@@ -20,9 +20,11 @@ por familia para agrupar unidades típicas (Line of Balance).
 **Qué consume.** El proyecto normalizado por el módulo [[memoria/arquitectura/importacion-modulo|importacion]] (tareas, dependencias,
 calendarios) y, para la curva S, los datos de presupuesto (`v2/src/lib/budget/`).
 
-**Quién lo consume.** `v2/src/lib/gantt/` (recomendaciones de planificación, dashboard ejecutivo),
-`v2/src/lib/matrix/` (la matriz usa la clasificación de familia para agrupar filas), y las vistas
-en `v2/src/components/views/` (`GanttView.tsx`, `SCurveView.tsx`).
+**Quién lo consume.** `v2/src/lib/gantt/` (`planningValidation.ts`, `executiveDashboard.ts`,
+`scenarios.ts`) y directamente los componentes de vista `v2/src/components/views/GanttView.tsx`
+(LOB automático, bottlenecks), `v2/src/components/views/TypicalUnitView.tsx` (`typicalUnit.ts`) y
+`v2/src/components/charts/LineOfBalance.tsx` (`lob.ts`). El módulo [[matriz]] **no** lo consume:
+`v2/src/lib/matrix/` no importa nada de `scheduling/`.
 
 **Invariantes.** La clasificación de familia de actividad se implementó completa, no como stub —
 ver [[clasificacion-semiautomatica-de-familia]]. El resultado de clasificar trae metadatos de
