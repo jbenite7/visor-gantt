@@ -6,7 +6,7 @@ Estado: aprobado
 ## Problema
 
 El conocimiento del proyecto existe pero no es navegable ni recuperable. Hoy está repartido
-entre `goals/` (9 carpetas, 35 `.md`), `docs/`, los `.md` de la raíz (`README`, `ROADMAP`,
+entre `goals/` (8 carpetas, 35 `.md`), `docs/`, los `.md` de la raíz (`README`, `ROADMAP`,
 `CHANGELOG`, `AGENTS`, `SCAFFOLDING`) y el propio código. Cuatro dolores concretos:
 
 1. **No se encuentra.** La información existe, pero no hay índice ni mapa.
@@ -60,7 +60,7 @@ memoria/
   index.md              puerta de entrada: qué es, cómo se opera, catálogo
   wiki-operacion.md     el esquema: estructura y las cuatro operaciones
   log.md                bitácora cronológica de ingest y verificación
-  estado.md             estado de los 9 goals (abierto / cerrado / absorbido)
+  estado.md             estado de los 8 goals (abierto / cerrado / absorbido)
   mapas/                un mapa por área
   decisiones/           el porqué de cada decisión
   conceptos/            vocabulario y modelos mentales del dominio
@@ -133,14 +133,15 @@ Salida: informe legible y código de salida distinto de cero si algo falla. No e
 
 ### Excepción a «no tocar las fuentes»
 
-Cada `goals/<slug>/goal.md` (son 9) recibe al pie una sección «Archivos de este goal» que enlaza
+Cada `goals/<slug>/goal.md` (son 8 carpetas; `goals/AUDITORIA-FACT-BY-FACT-2026-08-04.md` es un
+archivo suelto y se enlaza desde `estado.md`) recibe al pie una sección «Archivos de este goal» que enlaza
 a sus hermanos (`plan.md`, `facts.md`, `cierre.md`, …) y a `memoria/estado.md`. Es navegación
 añadida al final, no contenido modificado. Es lo único que evita que los 35 archivos de `goals/`
 aparezcan como islas en el grafo. **`docs/` queda intacto.**
 
 ### Semilla: pasada real de ingest
 
-El andamiaje no se entrega vacío. Primera pasada de *ingest* leyendo `goals/` (los 9), `docs/`,
+El andamiaje no se entrega vacío. Primera pasada de *ingest* leyendo `goals/` (las 8 carpetas), `docs/`,
 `ROADMAP.md`, `CHANGELOG.md`, `SCAFFOLDING.md` y `goals/AUDITORIA-FACT-BY-FACT-2026-08-04.md`,
 para escribir de entrada las decisiones, trampas y conceptos que hoy están enterrados ahí.
 
@@ -162,7 +163,7 @@ visor-gantt ya usa `AGENTS.md` como contrato autoritativo y `GEMINI.md` para Gem
   y código divergen, es un bug de uno de los dos) es un proyecto propio, no parte de montar el
   vault.
 - **Reorganizar `goals/` o `docs/`.** No se mueve ni se renombra nada. La única escritura sobre
-  fuentes es la sección al pie de los 9 `goal.md`.
+  fuentes es la sección al pie de los 8 `goal.md`.
 
 ## Condición de hecho
 
@@ -171,7 +172,7 @@ visor-gantt ya usa `AGENTS.md` como contrato autoritativo y `GEMINI.md` para Gem
    y las carpetas por tipo.
 3. La pasada de ingest dejó escritas las decisiones, trampas y conceptos extraídos de las
    fuentes, y `log.md` la registra.
-4. Los 9 `goals/<slug>/goal.md` tienen su sección «Archivos de este goal».
+4. Los 8 `goals/<slug>/goal.md` tienen su sección «Archivos de este goal».
 5. `node scripts/wiki-lint.mjs` sale en verde, con salida real pegada en el cierre.
 6. `AGENTS.md` tiene la sección que resume el esquema.
 7. El grafo de Obsidian no muestra `memoria/` como islas sueltas.
