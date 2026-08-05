@@ -457,11 +457,6 @@ export default function GanttTable({
     position: "before" | "after" | "child";
   } | undefined>();
   const rowDragStartXRef = useRef<number | undefined>(undefined);
-  const rowMouseDragRef = useRef<{
-    taskId: string | number;
-    startX: number;
-    startY: number;
-  } | undefined>(undefined);
 
   useEffect(() => {
     const root = tableRootRef.current;
@@ -637,36 +632,6 @@ export default function GanttTable({
     [onIndentTask, onOutdentTask],
   );
 
-  const handleRowMouseDown = useCallback(
-    (taskId: string | number, event: React.MouseEvent<HTMLTableRowElement>) => {
-      if (!onIndentTask && !onOutdentTask) return;
-      if (event.button !== 0) return;
-      rowMouseDragRef.current = {
-        taskId,
-        startX: event.clientX,
-        startY: event.clientY,
-      };
-    },
-    [onIndentTask, onOutdentTask],
-  );
-
-  useEffect(() => {
-    const handleWindowMouseUp = (event: MouseEvent) => {
-      const current = rowMouseDragRef.current;
-      if (!current) return;
-      rowMouseDragRef.current = undefined;
-
-      const deltaX = event.clientX - current.startX;
-      const deltaY = event.clientY - current.startY;
-      if (Math.abs(deltaX) < HORIZONTAL_HIERARCHY_DRAG_THRESHOLD) return;
-      if (Math.abs(deltaX) < Math.abs(deltaY)) return;
-      applyHorizontalHierarchyDrag(current.taskId, deltaX);
-    };
-
-    window.addEventListener("mouseup", handleWindowMouseUp);
-    return () => window.removeEventListener("mouseup", handleWindowMouseUp);
-  }, [applyHorizontalHierarchyDrag]);
-
   const getDropPosition = useCallback(
     (event: React.DragEvent<HTMLTableRowElement>): "before" | "after" | "child" => {
       const rect = event.currentTarget.getBoundingClientRect();
@@ -699,7 +664,6 @@ export default function GanttTable({
         setDraggedTaskId(undefined);
         setDropTarget(undefined);
         rowDragStartXRef.current = undefined;
-        rowMouseDragRef.current = undefined;
         return;
       }
       if (!onReorderTask || draggedTaskId === taskId) return;
@@ -711,7 +675,6 @@ export default function GanttTable({
       setDraggedTaskId(undefined);
       setDropTarget(undefined);
       rowDragStartXRef.current = undefined;
-      rowMouseDragRef.current = undefined;
     },
     [applyHorizontalHierarchyDrag, draggedTaskId, dropTarget, getDropPosition, onReorderTask],
   );
@@ -720,7 +683,6 @@ export default function GanttTable({
     setDraggedTaskId(undefined);
     setDropTarget(undefined);
     rowDragStartXRef.current = undefined;
-    rowMouseDragRef.current = undefined;
   }, []);
 
   const budgetData = useMemo(() => {
@@ -1254,7 +1216,6 @@ export default function GanttTable({
                 onDragOver={(event) => handleRowDragOver(task.id, event)}
                 onDrop={(event) => handleRowDrop(task.id, event)}
                 onDragEnd={handleRowDragEnd}
-                onMouseDown={(event) => handleRowMouseDown(task.id, event)}
               />
             );
           })}

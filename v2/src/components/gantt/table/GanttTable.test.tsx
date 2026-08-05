@@ -866,7 +866,10 @@ describe("GanttTable", () => {
     expect(onReorderTask).not.toHaveBeenCalled();
   });
 
-  test("uses mouse horizontal movement to indent under the previous group", () => {
+  // El gesto real del usuario viaja por drag-and-drop HTML5: el atributo
+  // draggable de la fila hace que el navegador emita dragstart y sustituya el
+  // mouseup por dragend, asi que la indentacion se aplica en handleRowDrop.
+  test("uses horizontal drag distance to indent under the previous group", () => {
     const onIndentTask = jest.fn();
     const first = makeTask({ id: "t1", name: "Design" });
     const second = makeTask({ id: "t2", name: "Build" });
@@ -878,14 +881,15 @@ describe("GanttTable", () => {
       />,
     );
 
+    const dataTransfer = { effectAllowed: "", dropEffect: "", setData: jest.fn(), getData: jest.fn() };
     const rows = screen.getAllByTestId("gantt-row");
-    fireEvent.mouseDown(rows[1], { button: 0, clientX: 120, clientY: 10 });
-    fireEvent.mouseUp(window, { button: 0, clientX: 176, clientY: 12 });
+    fireDragEvent(rows[1], "dragStart", dataTransfer, 0, 120);
+    fireDragEvent(rows[1], "drop", dataTransfer, 0, 176);
 
     expect(onIndentTask).toHaveBeenCalledWith("t2");
   });
 
-  test("uses mouse horizontal movement to outdent a nested activity", () => {
+  test("uses horizontal drag distance to outdent a nested activity", () => {
     const onOutdentTask = jest.fn();
     const parent = makeTask({ id: "parent", name: "Parent", isSummary: true, outlineLevel: 1 });
     const child = makeTask({ id: "child", name: "Child", outlineLevel: 2 });
@@ -897,11 +901,35 @@ describe("GanttTable", () => {
       />,
     );
 
+    const dataTransfer = { effectAllowed: "", dropEffect: "", setData: jest.fn(), getData: jest.fn() };
     const rows = screen.getAllByTestId("gantt-row");
-    fireEvent.mouseDown(rows[1], { button: 0, clientX: 176, clientY: 10 });
-    fireEvent.mouseUp(window, { button: 0, clientX: 120, clientY: 12 });
+    fireDragEvent(rows[1], "dragStart", dataTransfer, 0, 176);
+    fireDragEvent(rows[1], "drop", dataTransfer, 0, 120);
 
     expect(onOutdentTask).toHaveBeenCalledWith("child");
+  });
+
+  test("ignores a horizontal drag shorter than the threshold", () => {
+    const onIndentTask = jest.fn();
+    const onOutdentTask = jest.fn();
+    const first = makeTask({ id: "t1", name: "Design" });
+    const second = makeTask({ id: "t2", name: "Build" });
+
+    render(
+      <GanttTable
+        tasks={[first, second]}
+        onIndentTask={onIndentTask}
+        onOutdentTask={onOutdentTask}
+      />,
+    );
+
+    const dataTransfer = { effectAllowed: "", dropEffect: "", setData: jest.fn(), getData: jest.fn() };
+    const rows = screen.getAllByTestId("gantt-row");
+    fireDragEvent(rows[1], "dragStart", dataTransfer, 0, 120);
+    fireDragEvent(rows[1], "drop", dataTransfer, 0, 140);
+
+    expect(onIndentTask).not.toHaveBeenCalled();
+    expect(onOutdentTask).not.toHaveBeenCalled();
   });
 
   test("commits predecessors from the visual dependency popover", () => {
