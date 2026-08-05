@@ -33,6 +33,16 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | E21 | Normalizar tildes y unificar cadenas duplicadas entre capas | #23 | 1 | 3 | 9 | 9 | **7,0** | 0 cadenas de UI sin tildes | backlog |
 | E22 | «Nuevo Proyecto» como `<Link>`; roles ARIA de la barra de vistas | #24, #25 | 1 | 3 | 9 | 9 | **7,0** | Auditoría de accesibilidad sin errores de rol en esa barra | backlog |
 
+### Añadidos en Fase 4 (refactoring-ui)
+
+| # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
+|---|---|---|---|---|---|---|---|---|---|
+| E39 | Señal no cromática de ruta crítica (borde/patrón en barra + peso en tabla) | #42 | 3 | 8 | 9 | 7 | **8,0** | La criticidad se distingue en escala de grises (test visual) | backlog |
+| E40 | Columna Pred. como dato («2FS+4d»), editar solo al interactuar | #43 | 2 | 7 | 8 | 7 | **7,3** | El blur test lo gana el dato, no el botón | backlog |
+| E41 | Encabezados claros (small-caps gris); el oscuro solo en una franja | #44 | 2 | 6 | 8 | 8 | **7,3** | Blur test: los datos pesan más que los encabezados | backlog |
+| E42 | Cinta de iconos agrupada con etiquetas de grupo y overflow «⋯» | #45 | 2 | 7 | 8 | 6 | **7,0** | 0 botones sin agrupar; tiempo-a-encontrar en prueba con 5 usuarios | backlog |
+| E38a | ✅ Barra de vistas legible: 10 px, 2 líneas, 4.5 rem | #41/#46 | 2 | — | — | — | — | 0 etiquetas truncadas (verificado en navegador) | **shipped 2026-08-05** |
+
 ### Añadidos en Fase 3 (design-everyday-things)
 
 | # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
@@ -52,7 +62,7 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | E35 | Anunciar el tipo de dependencia durante el arrastre y permitir corregirlo al soltar | #34 | 3 | 7 | 8 | 6 | **7,0** | 0 dependencias creadas con un tipo que el usuario no eligió | backlog |
 | E36 | Modo Simple/Avanzado: que haga lo que promete, o eliminarlo | #39 | 2 | 6 | 8 | 7 | **7,0** | El modo cambia algo perceptible además de un desplegable | backlog |
 | E37 | Significante visual de celda editable + entrada en edición por teclado (Enter/F2), sin tooltip en inglés | #40 | 2 | 6 | 9 | 8 | **7,7** | La tabla es editable con teclado; 0 textos en inglés en UI española | backlog |
-| E38 | Etiquetas completas en la barra de vistas y encabezados de tabla | #41 | 2 | 6 | 9 | 8 | **7,7** | 0 etiquetas truncadas a 1280 px de ancho | backlog |
+| E38 | Etiquetas completas en la barra de vistas y encabezados de tabla | #41 | 2 | 6 | 9 | 8 | **7,7** | 0 etiquetas truncadas a 1280 px de ancho | **parcial** — barra hecha (E38a); encabezados comprimidos de la tabla siguen open (tienen sistema responsivo propio con abreviaturas) |
 
 **Orden recomendado de ejecución:** ~~E1, E2, E3~~ → ~~E23, E25, E26~~ (hechos) →
 E5, E6, E7, E11, E34 (alto ICE, baratos) → E24, E27, E28, E30, E32 → el resto.

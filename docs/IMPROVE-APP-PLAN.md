@@ -20,7 +20,7 @@ Journey `improve-app` iniciado 2026-08-05 a partir de la destilación del visor 
 | 1 | jobs-to-be-done | done (GATE) | Job confirmado; CUSTOMER.md creado 2026-08-05 |
 | 2 | ux-heuristics | done | 25 hallazgos (3 sev-4, 10 sev-3) en DESIGN.md; 22 experimentos en EXPERIMENTS.md. Verificación visual en navegador pendiente → Fase 4 |
 | 3 | design-everyday-things | done | 16 hallazgos (#26-41) con verificación en vivo en `/gantt-demo`; 16 experimentos E23-E38. Norman 4/10 |
-| 4 | refactoring-ui | pending | Jerarquía visual de toolbar/tabla; tokens |
+| 4 | refactoring-ui | done | Tokens auditados (sólidos); grayscale test 5/10 → hallazgos #42-46 (E39-E42); barra de vistas legible shipped. Sin color nuevo |
 | 5 | microinteractions | pending | Candidato a momento firma: badge de observaciones en la barra |
 | 6 | made-to-stick | pending | Portar el tono de «Ayuda de esta pestaña» del visor 1.0 |
 | 7 | influence-psychology | skipped: sin superficies de upsell | — |
@@ -36,6 +36,6 @@ Journey `improve-app` iniciado 2026-08-05 a partir de la destilación del visor 
 
 ## Next Actions
 
-1. Decidir con el usuario si se arreglan ya los severidad-4 de Fase 3 (E23 rechazo mudo, E25 calendario mudo, E24 destructivas sin historial) antes de seguir.
-2. Fase 4 (refactoring-ui): jerarquía visual, tokens y el truncado de etiquetas (#41).
-3. La verificación visual ya no está pendiente: el stack Docker levantó y se auditó `/gantt-demo` en vivo el 2026-08-05.
+1. Fase 5 (microinteractions): candidato a momento firma = badge de observaciones en barra (traído del visor 1.0); auditar save/undo/drag ya mejorados.
+2. E39 (ruta crítica sin depender del color) es el fix visual de más impacto pendiente.
+3. E24 parcial: siguen fuera del historial editar recurso/partida, sync matriz y reset de columnas.

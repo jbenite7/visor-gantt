@@ -278,16 +278,16 @@
   --gantt-timescale-nonworking-fill: rgb(0 0 0 / 0.15);
   --gantt-chart-nonworking-fill: rgb(0 0 0 / 0.08);
   --gantt-chart-label-shadow-stroke: rgb(0 0 0 / 0.24);
-  --project-view-sidebar-width: 3.625rem;
-  --project-view-sidebar-item-min-height: 2.375rem;
+  --project-view-sidebar-width: 4.5rem;
+  --project-view-sidebar-item-min-height: 3.25rem;
   --project-view-sidebar-item-gap: 0.125rem;
   --project-view-sidebar-item-padding-block: 0.25rem;
   --project-view-sidebar-item-padding-inline: 0.25rem;
   --project-view-sidebar-item-margin-block: 0.125rem;
   --project-view-sidebar-item-margin-inline: 0.3125rem;
   --project-view-sidebar-icon-size: 1rem;
-  --project-view-sidebar-label-size: 0.5rem;
-  --project-view-sidebar-label-line-height: 1.1;
+  --project-view-sidebar-label-size: 0.625rem;
+  --project-view-sidebar-label-line-height: 1.15;
 }
 
 [data-theme="dark"] {
@@ -592,8 +592,12 @@ h6 {
 .project-view-sidebar__label {
   max-width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Dos líneas en vez de recorte: «Seguimiento» dejaba de leerse como «Seguim…». */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  text-align: center;
+  overflow-wrap: break-word;
   font-family: var(--font-inter), system-ui, sans-serif;
   font-size: var(--project-view-sidebar-label-size);
   font-weight: 500;

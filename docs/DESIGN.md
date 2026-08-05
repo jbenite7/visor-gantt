@@ -50,7 +50,7 @@ Auditoría de los flujos núcleo (importación, edición del cronograma, accione
 Don Norman. Esta vez **sí hubo verificación en vivo**: el stack Docker levantó y se recorrió `/gantt-demo`
 (no requiere sesión). Lo verificado en navegador se marca 🔬.
 
-**Puntuación Norman: 4/10** al auditar; **6/10** tras resolver E23, E25 y E26 el mismo día. Fallan 3 de las 5 filas del diagnóstico: los usuarios no entienden qué pasó
+**Puntuación Norman: 4/10** al auditar; **6/10** tras resolver E23, E25 y E26 el mismo día. E24 (parcial) cubrió después los borrados de recursos/presupuesto/matriz. Fallan 3 de las 5 filas del diagnóstico: los usuarios no entienden qué pasó
 (evaluación), no pueden recuperarse de varios errores (destructivas fuera del historial) y faltan
 restricciones que harían el error imposible. Mapeo y descubribilidad pasan a medias.
 
@@ -96,11 +96,34 @@ restricciones que harían el error imposible. Mapeo y descubribilidad pasan a me
 
 ## Tokens
 
-_Pendiente — Fase 4 (refactoring-ui)._
+Auditados en Fase 4 (2026-08-05) sobre `v2/src/app/globals.css` (2925 líneas). **Veredicto: el sistema de
+tokens es sólido; el problema es cómo se usa.**
+
+| Escala | Estado | Nota |
+|---|---|---|
+| Paleta | ✅ Buena | 6 matices AIA (corp/const/arch/proj/alert/warn) × 5 tonos en OKLCH, más grises 50-900 **tintados** (hue 280) — cumple el estándar de Refactoring UI |
+| Radios | ✅ | `--radius-sm/md/lg/xl/pill` (7/10/14/20 px) |
+| Sombras | ✅ | `--shadow-sm/md/lg/xl/focus`, con variante dark |
+| Tipografía | ⚠️ | Dos familias (Montserrat/Inter vía system stack) bien; pero tamaños por componente (`--gantt-*-font-size`) en vez de una escala global, y había un **mínimo de 8 px** en la barra de vistas (corregido a 10 px) |
+| Espaciado | ⚠️ | No existe `--space-*` global; cada componente define los suyos. Consistente en la práctica, pero sin escala declarada |
 
 ## Components
 
-_Pendiente — Fase 4._
+Hallazgos de la prueba de escala de grises (`filter: grayscale(1)` sobre `/gantt-demo`, 2026-08-05).
+**Puntuación Refactoring UI: 5/10** — fallan blur test (los encabezados oscuros pesan más que los datos),
+grayscale test (la criticidad desaparece), etiquetas compitiendo con datos y ancho sin restringir en la
+columna Pred.
+
+| # | Componente | Hallazgo | Sev | Fix | Estado |
+|---|---|---|---|---|---|
+| 42 | Barras del Gantt + tabla | 🔬 **La ruta crítica depende solo del color**: en grises, una barra crítica (`--aia-alert-main`) y una normal son idénticas — misma forma, sin patrón, borde ni icono. Afecta a daltónicos (~8 % de hombres) e impresiones B/N, habituales en obra. El dato existe (columna «Crit.») | **3** | Señal no cromática: borde grueso, patrón o icono ▲ en barras críticas, y peso tipográfico (no color) en la tabla | open |
+| 43 | Tabla | 🔬 Botón **«Editar» repetido en cada fila** de la columna Pred.: el elemento visualmente más pesado de la fila es un control secundario, no el dato. 8 filas = 8 botones idénticos | **2** | Mostrar el token de dependencia como dato («2FS+4d») y editar al hacer click/hover, sin botón permanente | open |
+| 44 | Encabezados | 🔬 Los dos encabezados oscuros (tabla verde oscuro + escala temporal) son **lo más pesado de la pantalla**; en el blur test ganan a los datos. Refactoring UI: los encabezados sirven al dato, no compiten | **2** | Encabezado claro con texto small-caps gris; reservar el oscuro para una sola franja | open |
+| 45 | Cinta de la tabla | 🔬 ~20 botones solo-icono de 14 px en la cinta («ribbon») sin etiqueta — mystery meat en cadena (relacionado con #15) | **2** | Agrupar con separadores + etiquetas en los grupos, overflow en «⋯» | open |
+| 46 | Barra de vistas | ✅ **Resuelto** — etiquetas a 8 px con recorte («Seguim…», «Diagra…»); ahora 10 px, dos líneas permitidas, barra de 3.625 → 4.5 rem. 0 truncadas verificado en navegador | **2** | — | **done** (parte de #41/E38; los encabezados de tabla comprimidos siguen open) |
+
+**Decisión de fase (regla grayscale-first):** no se añade color nuevo. Los fixes #42-45 se resuelven con
+peso, tamaño y espaciado dentro de los tokens existentes.
 
 ## Microinteraction Inventory
 
