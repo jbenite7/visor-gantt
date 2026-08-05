@@ -7,6 +7,14 @@
 - Si la tarea nombra un goal, lee primero su `goal.md`, `facts.md`, `plan.md` y artefactos de validación disponibles. Ese paquete define alcance y done condition; no mezcles otros goals sin autorización.
 - Inspecciona el estado de Git antes de editar. Conserva cambios locales ajenos y no uses metadatos históricos como fecha o rama predeterminada para decidir el trabajo actual.
 
+## Memoria del proyecto
+
+- `memoria/` es la wiki del proyecto: el porqué de las decisiones, las trampas que ya costaron tiempo y un mapa por área. La escribe el asistente; no se edita a mano. El esquema completo está en `memoria/wiki-operacion.md`.
+- Precedencia: **código > este archivo > `memoria/`**. Ninguna nota de la wiki es contrato. Si una nota contradice al repo, gana el repo: corrige la nota y márcala `estado: derogada` en vez de borrarla.
+- Antes de tocar un área, lee su mapa en `memoria/mapas/`: dice qué documentos mandan y qué trampas hay puestas. Empieza siempre por `memoria/index.md`.
+- Al cerrar una tarea, haz **ingest**: escribe o actualiza la página, actualiza `memoria/index.md`, revisa las páginas relacionadas y anexa una línea a `memoria/log.md`.
+- Comprueba la forma con `node scripts/wiki-lint.mjs` (o `npm run test:wiki` desde `v2/`). Reporta, nunca corrige: un verde significa que la forma está bien, no que la wiki diga la verdad. Eso lo comprueba el pase de **veracidad**, y el lint sale en rojo pasados 40 commits de código sin uno.
+
 ## Runtime y mapa de responsabilidades
 
 - Docker Compose es la fuente de verdad del runtime integrado: `frontend` (Next.js en `v2/`), `mpp-parser` (FastAPI + MPXJ), `db` (PostgreSQL) y `pgadmin` opcional.
