@@ -30,6 +30,16 @@ resumen: "Qué documentos mandan en arquitectura y qué trampas hay puestas"
   (`main.py`, `libs/`, `utils/`).
 - `docker-compose.yml` — orquesta `frontend`, `mpp-parser`, `db` y `pgadmin` opcional.
 
+## Módulos
+
+Una página por módulo real, en `memoria/arquitectura/`: [[mpp-parser]],
+[[memoria/arquitectura/importacion-modulo|importacion]], [[mpp-calculo]],
+[[memoria/arquitectura/scheduling-modulo|scheduling]], [[matriz]], [[gantt]], [[reportes]],
+[[persistencia]], [[auth]], [[integraciones]].
+
+**Están escritas a mano.** No hay generador que las sincronice con el código: se desactualizan en
+silencio. Lo único que las mantiene honestas es el pase de veracidad.
+
 ## Trampas y decisiones del área
 
 **Decisiones**
