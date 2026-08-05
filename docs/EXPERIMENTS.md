@@ -33,8 +33,29 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | E21 | Normalizar tildes y unificar cadenas duplicadas entre capas | #23 | 1 | 3 | 9 | 9 | **7,0** | 0 cadenas de UI sin tildes | backlog |
 | E22 | «Nuevo Proyecto» como `<Link>`; roles ARIA de la barra de vistas | #24, #25 | 1 | 3 | 9 | 9 | **7,0** | Auditoría de accesibilidad sin errores de rol en esa barra | backlog |
 
-**Orden recomendado de ejecución:** E1, E2, E3 (severidad 4) → E5, E6, E7, E11 (alto ICE, baratos) →
-E4, E9, E12 → el resto.
+### Añadidos en Fase 3 (design-everyday-things)
+
+| # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
+|---|---|---|---|---|---|---|---|---|---|
+| E23 | Mostrar el issue donde ocurre la edición (toast + inline), no solo en la pestaña «Cuellos» | #26 | 4 | 10 | 10 | 7 | **9,0** | 0 ediciones rechazadas sin mensaje; test que verifica el aviso al rechazar | backlog |
+| E24 | Llevar al historial (o al aviso «Deshacer») recursos, presupuesto, mapeos y plan matricial | #27 | 4 | 9 | 9 | 5 | **7,7** | Toda acción destructiva es deshacible o confirmada; inventario sin huecos | backlog |
+| E25 | Renderizar `calendarIssues` junto al editor de calendario | #28 | 4 | 8 | 10 | 8 | **8,7** | Un calendario inválido muestra el motivo; hoy no muestra nada | backlog |
+| E26 | Restringir la entrada: `min=1`, `step=1`, validar `finish >= start`, unificar duración mínima | #30 | 3 | 9 | 10 | 9 | **9,3** | Imposible introducir duración negativa o fin anterior al inicio | backlog |
+| E27 | Marcar en solo lectura lo que calcula el motor (`finish`, filas resumen) usando el `readOnly` existente | #31 | 3 | 8 | 9 | 8 | **8,3** | 0 celdas derivadas editables | backlog |
+| E28 | Validar en el campo y explicar el rechazo; no convertir texto en `0` ni borrar dependencias en silencio | #29 | 3 | 9 | 9 | 6 | **8,0** | 0 descartes mudos en los 6 campos editables | backlog |
+| E29 | Handles de resize visibles y pista permanente de conexión de dependencias | #32 | 3 | 8 | 8 | 7 | **7,7** | Usuarios nuevos descubren arrastre y enlace sin ayuda (prueba con 5) | backlog |
+| E30 | Snapear el fantasma de arrastre y mostrar la fecha destino durante el gesto | #33 | 3 | 8 | 9 | 7 | **8,0** | El preview coincide con el resultado; 0 «saltos» al soltar | backlog |
+| E31 | Resumen de impacto tras editar: resaltar afectadas usando el `changedTaskIds` que ya se calcula | #35 | 3 | 9 | 8 | 6 | **7,7** | El usuario identifica qué se movió sin comparar de memoria | backlog |
+| E32 | Resumen post-importación (N tareas, dependencias, recursos) y aviso de lo que hace (proyecto nuevo, festivos, matriz) | #36 | 3 | 8 | 9 | 7 | **8,0** | 0 importaciones que terminan sin decir qué se importó | backlog |
+| E33 | Canal de advertencias del parseo (empezando por las columnas descartadas sobre 120) | #37 | 3 | 7 | 9 | 6 | **7,3** | Las pérdidas silenciosas se anuncian; `WarningList` vivo o borrado | backlog |
+| E34 | Separar lo destructivo de lo frecuente: divisor + etiqueta de texto en toolbar y matriz | #38 | 3 | 8 | 9 | 9 | **8,7** | «Eliminar» nunca es adyacente a «Agregar» sin separación | backlog |
+| E35 | Anunciar el tipo de dependencia durante el arrastre y permitir corregirlo al soltar | #34 | 3 | 7 | 8 | 6 | **7,0** | 0 dependencias creadas con un tipo que el usuario no eligió | backlog |
+| E36 | Modo Simple/Avanzado: que haga lo que promete, o eliminarlo | #39 | 2 | 6 | 8 | 7 | **7,0** | El modo cambia algo perceptible además de un desplegable | backlog |
+| E37 | Significante visual de celda editable + entrada en edición por teclado (Enter/F2), sin tooltip en inglés | #40 | 2 | 6 | 9 | 8 | **7,7** | La tabla es editable con teclado; 0 textos en inglés en UI española | backlog |
+| E38 | Etiquetas completas en la barra de vistas y encabezados de tabla | #41 | 2 | 6 | 9 | 8 | **7,7** | 0 etiquetas truncadas a 1280 px de ancho | backlog |
+
+**Orden recomendado de ejecución:** E1, E2, E3 (severidad 4) → **E23, E25, E26** (severidad 4 y alto ICE) →
+E5, E6, E7, E11, E34 (alto ICE, baratos) → E24, E27, E28, E30, E32 → el resto.
 
 ## Experiment Cards
 

@@ -19,7 +19,7 @@ Journey `improve-app` iniciado 2026-08-05 a partir de la destilación del visor 
 |---|---|---|---|
 | 1 | jobs-to-be-done | done (GATE) | Job confirmado; CUSTOMER.md creado 2026-08-05 |
 | 2 | ux-heuristics | done | 25 hallazgos (3 sev-4, 10 sev-3) en DESIGN.md; 22 experimentos en EXPERIMENTS.md. Verificación visual en navegador pendiente → Fase 4 |
-| 3 | design-everyday-things | pending | Errores de importación, feedback de «Procesando», undo vs confirmaciones |
+| 3 | design-everyday-things | done | 16 hallazgos (#26-41) con verificación en vivo en `/gantt-demo`; 16 experimentos E23-E38. Norman 4/10 |
 | 4 | refactoring-ui | pending | Jerarquía visual de toolbar/tabla; tokens |
 | 5 | microinteractions | pending | Candidato a momento firma: badge de observaciones en la barra |
 | 6 | made-to-stick | pending | Portar el tono de «Ayuda de esta pestaña» del visor 1.0 |
@@ -30,11 +30,12 @@ Journey `improve-app` iniciado 2026-08-05 a partir de la destilación del visor 
 ## Key Decisions
 
 - 2026-08-05 — Destilación del visor 1.0 hecha por bundle + API y luego **verificada en vivo** con `aia-ms-project/20260312 DA PORTO TORRE 3.mpp` (7 pestañas, loop de observaciones completo probado); documentada en DESTILACION-VISOR-V1.md. El .mpp de 11 MB solo se pudo probar por API (~36 s); el POST desde el navegador de prueba falló por tamaño/red.
+- 2026-08-05 — Fase 3: se auditó `/gantt-demo` en navegador real (no requiere sesión), evitando autenticarse. Confirmado en vivo el rechazo mudo de ediciones y la adyacencia Agregar/Eliminar.
 - 2026-08-05 — Usuario confirmó el job statement. Dimensiones más débiles: **emocional y funcional** (ambas se atacan). Leak: **Big Hire y Little Hire por igual** → Fases 2-3 cubren tanto upload→primera vista como navegación/uso diario.
 - Pendiente (usuario): prioridad fina de las 6 características destiladas; Fase 7 queda skipped salvo que aparezcan superficies de venta.
 
 ## Next Actions
 
-1. Decidir con el usuario qué severidad-4 se arregla ya (E1, E2, E3 en EXPERIMENTS.md) y quién es el dueño.
-2. Fase 3 (design-everyday-things) sobre los flujos núcleo: importación, acción primaria y acciones destructivas.
-3. Al abrir la Fase 4, completar la verificación visual en navegador que quedó pendiente (el build de Docker no terminó a tiempo en la Fase 2).
+1. Decidir con el usuario si se arreglan ya los severidad-4 de Fase 3 (E23 rechazo mudo, E25 calendario mudo, E24 destructivas sin historial) antes de seguir.
+2. Fase 4 (refactoring-ui): jerarquía visual, tokens y el truncado de etiquetas (#41).
+3. La verificación visual ya no está pendiente: el stack Docker levantó y se auditó `/gantt-demo` en vivo el 2026-08-05.
