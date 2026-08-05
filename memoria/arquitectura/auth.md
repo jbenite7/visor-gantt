@@ -19,7 +19,8 @@ OAuth); `v2/src/app/actions/auth.ts` (Server Action de login/logout); `v2/src/co
 `docker-compose.yml`) y la tabla de usuarios en Postgres vía [[persistencia]].
 
 **Quién lo consume.** Todas las rutas y Server Actions protegidas verifican la sesión a través de
-`session.ts`; `rbac.ts` decide qué puede hacer cada rol en las vistas.
+`session.ts`; `rbac.ts` decide qué puede hacer cada rol en las Server Actions (por ejemplo
+`v2/src/app/actions/project.ts`), no en los componentes de `v2/src/components/`.
 
 **Invariantes.** La seguridad de la cookie de sesión está centralizada en `cookie-security.ts`
 (cubierto por `cookie-security.test.ts`); no debe reimplementarse inline en otra parte del código.

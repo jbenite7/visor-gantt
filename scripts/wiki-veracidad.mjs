@@ -31,7 +31,7 @@ function gitPorDefecto(args) {
 }
 
 export function contarCommits(desde, ejecutor = gitPorDefecto) {
-  const args = ['log', `--since=${desde}`, '--pretty=%H', '--', ...RUTAS_CONTADAS];
+  const args = ['log', `--since=${desde} 00:00`, '--pretty=%H', '--', ...RUTAS_CONTADAS];
   return ejecutor(args).split('\n').filter((l) => l.trim()).length;
 }
 

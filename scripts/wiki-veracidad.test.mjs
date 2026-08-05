@@ -31,6 +31,16 @@ test('contarCommits cuenta las lineas no vacias que devuelve el ejecutor', () =>
   assert.equal(contarCommits('2026-08-01', fake), 3);
 });
 
+test('contarCommits pasa --since con hora 00:00 para incluir los commits del dia', () => {
+  let argsCapturados = null;
+  const fake = (args) => {
+    argsCapturados = args;
+    return '';
+  };
+  contarCommits('2026-08-05', fake);
+  assert.ok(argsCapturados.includes('--since=2026-08-05 00:00'));
+});
+
 test('contarCommits devuelve 0 cuando el ejecutor no devuelve nada', () => {
   assert.equal(contarCommits('2026-08-01', () => ''), 0);
 });
