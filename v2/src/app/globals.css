@@ -1610,6 +1610,13 @@ h6 {
   font-weight: 600;
 }
 
+/* Señal no cromática de criticidad: el color solo no sobrevive a daltonismo ni B/N. */
+.gantt-row-cell--name[data-critical="true"] .gantt-editable-cell__value::before {
+  content: "▲ ";
+  font-size: 0.625em;
+  vertical-align: 0.15em;
+}
+
 .gantt-row-cell--variance[data-variance="positive"] {
   color: var(--aia-proj-main);
   font-weight: 600;

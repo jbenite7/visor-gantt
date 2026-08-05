@@ -4,6 +4,7 @@ import { resolveTaskLabelPlacement } from "../labelPolicy";
 import type { DragState } from "../interaction/useDragBar";
 import type { ResizeState } from "../interaction/useResizeBar";
 import type { DepEdge } from "../interaction/useCreateDependency";
+import { CRITICAL_HATCH_ID } from "./CriticalHatchDefs";
 
 interface TaskBarProps {
   task: GanttTask;
@@ -120,6 +121,22 @@ export default function TaskBar({
             : undefined,
         }}
       />
+
+      {/* Señal no cromática de ruta crítica: trama + borde oscuro (sobrevive en B/N) */}
+      {task.isCritical && (
+        <rect
+          x={x}
+          y={barY}
+          width={width}
+          height={barHeight}
+          fill={`url(#${CRITICAL_HATCH_ID})`}
+          stroke="var(--aia-alert-dark)"
+          strokeWidth={1.5}
+          rx={4}
+          pointerEvents="none"
+          data-testid="task-bar-critical-hatch"
+        />
+      )}
 
       {/* Progress fill overlay */}
       {task.progress > 0 && (

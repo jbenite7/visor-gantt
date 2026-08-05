@@ -21,7 +21,7 @@ import {
   isToday,
 } from "@/components/gantt/utils";
 import TimescaleHeader from "@/components/gantt/timescale/TimescaleHeader";
-import { TaskBar, MilestoneBar, SummaryBar } from "@/components/gantt/bars";
+import { TaskBar, MilestoneBar, SummaryBar, CriticalHatchDefs } from "@/components/gantt/bars";
 import DependencyArrow from "@/components/gantt/arrows/DependencyArrow";
 import { GANTT_HEADER_HEIGHT, GANTT_ROW_HEIGHT } from "@/components/gantt/layout";
 
@@ -156,6 +156,7 @@ function TrackingGanttChart({
           height={chartHeight + finalConfig.headerHeight}
           className="font-sans"
         >
+          <CriticalHatchDefs />
           {/* Timeline Header */}
           <TimescaleHeader
             viewport={viewport}

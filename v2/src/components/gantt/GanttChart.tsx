@@ -11,7 +11,7 @@ import {
   getTaskWidth,
   getDependencyEndpoints,
 } from "./utils";
-import { TaskBar, MilestoneBar, SummaryBar } from "./bars";
+import { TaskBar, MilestoneBar, SummaryBar, CriticalHatchDefs } from "./bars";
 import TimescaleHeader from "./timescale/TimescaleHeader";
 import DependencyArrow from "./arrows/DependencyArrow";
 import { calculateArrowPath, getArrowDirection } from "./arrows/ArrowPath";
@@ -175,6 +175,7 @@ export default function GanttChart({
           overflow="hidden"
           onMouseMove={depState.isCreating ? onDepMove : undefined}
         >
+          <CriticalHatchDefs />
           {/* Timeline Header */}
           <TimescaleHeader
             viewport={fittedViewport}

@@ -37,7 +37,7 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 
 | # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
 |---|---|---|---|---|---|---|---|---|---|
-| E39 | Señal no cromática de ruta crítica (borde/patrón en barra + peso en tabla) | #42 | 3 | 8 | 9 | 7 | **8,0** | La criticidad se distingue en escala de grises (test visual) | backlog |
+| E39 | Señal no cromática de ruta crítica (trama+borde en barra, ▲ en tabla) | #42 | 3 | 8 | 9 | 7 | **8,0** | La criticidad se distingue en escala de grises — **verificado en navegador** | **shipped 2026-08-05** |
 | E40 | Columna Pred. como dato («2FS+4d»), editar solo al interactuar | #43 | 2 | 7 | 8 | 7 | **7,3** | El blur test lo gana el dato, no el botón | backlog |
 | E41 | Encabezados claros (small-caps gris); el oscuro solo en una franja | #44 | 2 | 6 | 8 | 8 | **7,3** | Blur test: los datos pesan más que los encabezados | backlog |
 | E42 | Cinta de iconos agrupada con etiquetas de grupo y overflow «⋯» | #45 | 2 | 7 | 8 | 6 | **7,0** | 0 botones sin agrupar; tiempo-a-encontrar en prueba con 5 usuarios | backlog |
