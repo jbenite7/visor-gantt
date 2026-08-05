@@ -15,7 +15,7 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | E3 | Resolver `/upload`: sesión exigida antes de aceptar el archivo | #1 | 4 | 10 | 9 | 5 | **8,0** | 0 importaciones que terminan en «No autenticado» tras el parseo | **shipped 2026-08-05** |
 | E4 | Progreso por fases en la importación (subiendo → analizando → guardando) + timeout + cancelar | #4 | 3 | 9 | 8 | 5 | **7,3** | % de importaciones abandonadas durante la espera; tiempo percibido en prueba con 5 usuarios | backlog |
 | E5 | Mapear errores del parser a mensajes qué/por qué/cómo; detalle técnico solo a logs | #5, #23 | 3 | 8 | 9 | 7 | **8,0** | 0 stack traces visibles en la UI; los 6 errores del flujo pasan el checklist qué/por qué/cómo | backlog |
-| E6 | Estados vacíos en tabla y Gantt con acción de salida | #9 | 3 | 8 | 9 | 8 | **8,3** | 0 pantallas en blanco: proyecto vacío y filtro sin resultados muestran mensaje + acción | backlog |
+| E6 | Estados vacíos en tabla y Gantt con acción de salida | #9 | 3 | 8 | 9 | 8 | **8,3** | 0 pantallas en blanco — **verificado en navegador** | **shipped 2026-08-05** |
 | E7 | Chip de filtro activo siempre visible y removible («Solo ruta crítica ×») | #10 | 3 | 8 | 8 | 8 | **8,0** | Al aplicar el preset «Dirección», el chip aparece; 0 casos de tareas ocultas sin indicador | backlog |
 | E8 | Panel «Ayuda de esta vista» por pantalla, reutilizando los `hint` ya escritos | #12 | 3 | 8 | 8 | 6 | **7,3** | Las 14 vistas tienen texto de ayuda accesible sin `Cmd+K` ni hover | backlog |
 | E9 | Login: conservar el correo al fallar, validar en el campo, códigos de error en vez de texto en la URL | #6, #8 | 3 | 7 | 9 | 7 | **7,7** | El correo sobrevive a un intento fallido; `/login?error=<texto>` ya no pinta texto arbitrario | backlog |
@@ -32,6 +32,15 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | E20 | Documentar atajos (`Cmd+K` en el botón) y hoja de atajos | #19 | 2 | 5 | 8 | 8 | **7,0** | Uso de la paleta de comandos por sesión | backlog |
 | E21 | Normalizar tildes y unificar cadenas duplicadas entre capas | #23 | 1 | 3 | 9 | 9 | **7,0** | 0 cadenas de UI sin tildes | backlog |
 | E22 | «Nuevo Proyecto» como `<Link>`; roles ARIA de la barra de vistas | #24, #25 | 1 | 3 | 9 | 9 | **7,0** | Auditoría de accesibilidad sin errores de rol en esa barra | backlog |
+
+### Añadidos en Fase 9 (steve-jobs-design-review)
+
+| # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
+|---|---|---|---|---|---|---|---|---|---|
+| E48 | 404 propio: en español, con marca y salida a los cronogramas | F5 / back-of-fence | 2 | 6 | 10 | 9 | **8,3** | 0 páginas de sistema en inglés — **verificado en navegador** | **shipped 2026-08-05** |
+| E49 | El vacío de «Unidad Típica» enseña qué es un sistema repetido con ejemplo de obra | F3 | 2 | 7 | 9 | 9 | **8,3** | Los estados vacíos explican el concepto, no solo la condición técnica | **shipped 2026-08-05** |
+| E50 | **Cortes C1-C6**: de 14 vistas a 9 (fundir Seguimiento/Hoja Tareas en Gantt, Conflictos en Cuellos, sacar Diagrama Red, resolver Matriz y vistas vacías) | PRODUCT.md cut list | 3 | 9 | 7 | 4 | **6,7** | Nº de vistas en la barra ≤ 9; tiempo-a-encontrar en prueba con 5 usuarios | backlog |
+| E51 | Bajar de 6 pasos a 2 hasta el valor (abrir `.mpp` sin cuenta, modo lectura) | PRODUCT.md F1 | 3 | 10 | 8 | 4 | **7,3** | Pasos desde llegar hasta ver el cronograma ≤ 3 | backlog |
 
 ### Añadidos en Fase 8 (high-perf-browser)
 

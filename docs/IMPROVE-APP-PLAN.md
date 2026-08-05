@@ -25,7 +25,7 @@ Journey `improve-app` iniciado 2026-08-05 a partir de la destilación del visor 
 | 6 | made-to-stick | done | POSITIONING.md creado; 9 superficies reescritas y shipped (jerga de infraestructura fuera); ayuda por vista (E8) queda en backlog |
 | 7 | influence-psychology | skipped: sin superficies de upsell | — |
 | 8 | high-perf-browser | done | INP 584 → 184 ms con carga diferida de vistas (E46). LCP/CLS/TTFB en verde (localhost). Pendiente RUM real (E47) |
-| 9 | steve-jobs-design-review | pending | Candidatas a corte: vistas de las 14 que nadie usa |
+| 9 | steve-jobs-design-review | done | **NOT DONE 6/10**; PRODUCT.md con cut list (14→9 vistas) y back-of-fence. 404 y estados vacíos resueltos |
 
 ## Key Decisions
 
@@ -36,6 +36,9 @@ Journey `improve-app` iniciado 2026-08-05 a partir de la destilación del visor 
 
 ## Next Actions
 
-1. Fase 9 (steve-jobs-design-review): revisión en frío de toda la experiencia y **lista de recortes** — con 14 vistas, es la fase con más valor pendiente.
-2. E8 (ayuda por vista con el tono del visor 1.0) es el mayor hueco de copy que queda.
-3. Pendientes: E24 parcial, E12/E13 (feedback de undo/autosave), E4 (progreso de importación), E47 (RUM real).
+**Journey completo: 8 fases `done`, 1 `skipped`.** Lo que queda son decisiones de producto, no auditorías:
+
+1. **E51** — bajar de 6 pasos a 2 hasta el valor (abrir `.mpp` sin cuenta). El mayor hueco frente al visor 1.0.
+2. **E50** — ejecutar los cortes C1-C6 de PRODUCT.md: de 14 vistas a 9.
+3. **E8** — ayuda por vista; el texto ya está escrito dentro de `Cmd+K`.
+4. Menores: E4 (progreso de importación), E12/E13 (feedback de undo/autosave), E24 parcial, E47 (RUM real).

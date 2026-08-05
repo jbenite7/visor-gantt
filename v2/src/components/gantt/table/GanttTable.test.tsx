@@ -1145,3 +1145,33 @@ describe("GanttTable", () => {
     expect(onUpdateTask).not.toHaveBeenCalled();
   });
 });
+
+describe("estado vacío de la tabla (E6)", () => {
+  test("un proyecto sin tareas invita a crear la primera, en vez de dejar la cuadrícula en blanco", () => {
+    render(<GanttTable tasks={[]} />);
+
+    const empty = screen.getByTestId("gantt-table-empty");
+    expect(empty).toHaveTextContent(/todavía no hay tareas/i);
+  });
+
+  test("un filtro sin resultados lo dice y ofrece quitarlo", () => {
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1, isCritical: false })]}
+        taskFilter={{ type: "critical" }}
+        onTaskFilterChange={jest.fn()}
+      />,
+    );
+
+    const empty = screen.getByTestId("gantt-table-empty");
+    expect(empty).toHaveTextContent(/ninguna tarea coincide/i);
+    expect(
+      within(empty).getByRole("button", { name: /quitar el filtro/i }),
+    ).toBeInTheDocument();
+  });
+
+  test("con tareas visibles no aparece ningún estado vacío", () => {
+    render(<GanttTable tasks={[makeTask({ id: 1 })]} />);
+    expect(screen.queryByTestId("gantt-table-empty")).not.toBeInTheDocument();
+  });
+});

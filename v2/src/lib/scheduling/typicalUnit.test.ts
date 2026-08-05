@@ -132,3 +132,16 @@ describe("analyzeTypicalUnits", () => {
     expect(analysis.insufficientReason).toContain("No se detectaron sistemas repetidos");
   });
 });
+
+describe("el estado vacío enseña, no solo informa (F3)", () => {
+  test("explica con un ejemplo de obra qué es un sistema repetido", () => {
+    const analysis = analyzeTypicalUnits([
+      task({ id: 1, name: "Actividad única", wbs: "1" }),
+    ]);
+
+    // Un ejemplo concreto vale más que la condición técnica: el usuario debe
+    // entender qué tendría que traer su cronograma para que esta vista sirva.
+    expect(analysis.insufficientReason).toMatch(/piso|nivel/i);
+    expect(analysis.insufficientReason).toMatch(/ejemplo|por ejemplo/i);
+  });
+});

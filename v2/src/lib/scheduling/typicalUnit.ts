@@ -133,7 +133,11 @@ export function analyzeTypicalUnits(tasks: GanttTask[]): TypicalUnitAnalysis {
     groups,
     insufficientReason:
       groups.length === 0
-        ? "No se detectaron sistemas repetidos en tres o mas niveles con WBS o nombres reconocibles."
+        ? "No se detectaron sistemas repetidos. Esta vista compara la misma " +
+          "actividad cuando se repite en tres o más pisos o niveles — por " +
+          "ejemplo «Mampostería piso 1», «Mampostería piso 2», «Mampostería " +
+          "piso 3» — para ver si el ritmo se mantiene. Nombra las tareas " +
+          "incluyendo su piso o nivel y aparecerán aquí."
         : undefined,
   };
 }

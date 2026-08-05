@@ -1225,6 +1225,35 @@ export default function GanttTable({
           })}
         </tbody>
       </table>
+
+      {visibleTasks.length === 0 && (
+        <div className="gantt-table-empty" data-testid="gantt-table-empty">
+          {tasks.length === 0 ? (
+            <p>
+              Todavía no hay tareas en este cronograma. Agrega la primera con el
+              botón <strong>+</strong> de la barra superior.
+            </p>
+          ) : (
+            <>
+              <p>
+                Ninguna tarea coincide con el filtro activo ({tasks.length} en el
+                cronograma).
+              </p>
+              {onTaskFilterChange && (
+                <button
+                  type="button"
+                  className="apple-button-secondary gantt-table-empty__action"
+                  onClick={() =>
+                    onTaskFilterChange({ ...normalizedTaskFilter, type: "all" })
+                  }
+                >
+                  Quitar el filtro
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
