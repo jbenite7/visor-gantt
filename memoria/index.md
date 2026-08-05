@@ -44,6 +44,7 @@ nota y márcala `estado: derogada` en vez de borrarla.
 
 | Mapa | Cubre |
 |---|---|
+| [[esquema-app]] | Esquema global: servicios, capas, módulos y catálogo de flujos de trabajo |
 | [[arquitectura]] | Stack dockerizado, `v2/src/`, `services/mpp-parser/`, límites entre servicios |
 | [[importacion]] | `.mpp` y `.xml` → modelo de la aplicación; procedencia de los datos originales |
 | [[scheduling]] | CPM, calendarios, dependencias FS/SS/FF/SF, holguras, identidad UID ↔ Row ID |
@@ -53,6 +54,13 @@ nota y márcala `estado: derogada` en vez de borrarla.
 
 Además: **[[estado|Estado de los goals]]** (qué goal está abierto, cerrado o absorbido) y
 **[[log]]** (bitácora cronológica de lo que se ha ingerido y verificado).
+
+## Flujos de trabajo
+
+Una página por flujo end-to-end de la app, en `memoria/flujos/`: [[importacion-mpp]],
+[[autenticacion-y-sesion]], [[edicion-y-recalculo]], [[sincronizacion-matriz-gantt]],
+[[analisis-y-reportes]], [[guardar-y-reabrir]], [[integracion-last-planner]]. El punto de entrada
+es [[esquema-app]].
 
 ## Arquitectura por módulo
 
