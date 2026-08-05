@@ -44,7 +44,8 @@ nota y márcala `estado: derogada` en vez de borrarla.
 
 | Mapa | Cubre |
 |---|---|
-| [[esquema-app]] | Esquema global: servicios, capas, módulos y catálogo de flujos de trabajo |
+| [[esquema-estrategico]] | Esquema para usuario final: problema, roles, metodología (CPM · matriz/LOB · Last Planner) y recorrido |
+| [[esquema-app]] | Esquema técnico global: servicios, capas, módulos y catálogo de flujos de trabajo |
 | [[arquitectura]] | Stack dockerizado, `v2/src/`, `services/mpp-parser/`, límites entre servicios |
 | [[importacion]] | `.mpp` y `.xml` → modelo de la aplicación; procedencia de los datos originales |
 | [[scheduling]] | CPM, calendarios, dependencias FS/SS/FF/SF, holguras, identidad UID ↔ Row ID |
