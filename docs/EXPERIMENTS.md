@@ -33,6 +33,13 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | E21 | Normalizar tildes y unificar cadenas duplicadas entre capas | #23 | 1 | 3 | 9 | 9 | **7,0** | 0 cadenas de UI sin tildes | backlog |
 | E22 | «Nuevo Proyecto» como `<Link>`; roles ARIA de la barra de vistas | #24, #25 | 1 | 3 | 9 | 9 | **7,0** | Auditoría de accesibilidad sin errores de rol en esa barra | backlog |
 
+### Añadidos en Fase 8 (high-perf-browser)
+
+| # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
+|---|---|---|---|---|---|---|---|---|---|
+| E46 | Carga diferida de las 17 vistas (`next/dynamic`) en vez de importarlas todas en el bundle inicial | #47 | 3 | 9 | 10 | 8 | **9,0** | INP al cambiar de vista < 200 ms — **584 → 184 ms verificado** | **shipped 2026-08-05** |
+| E47 | Medición de campo (RUM) sobre proyectos reales de 300+ tareas | #47-49 | 2 | 8 | 7 | 4 | **6,3** | INP/LCP/CLS reales, no de laboratorio en localhost | backlog |
+
 ### Añadidos en Fase 6 (made-to-stick)
 
 | # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |

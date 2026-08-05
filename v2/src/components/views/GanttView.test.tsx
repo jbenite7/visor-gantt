@@ -186,7 +186,7 @@ describe("GanttView", () => {
     expect(within(toolbar).queryByText("Proyecto sin nombre")).not.toBeInTheDocument();
   });
 
-  test("opens the command palette with keyboard and switches views", () => {
+  test("opens the command palette with keyboard and switches views", async () => {
     render(<GanttView tasks={[makeTask({ id: 1 })]} />);
 
     fireEvent.keyDown(window, { key: "k", ctrlKey: true });
@@ -198,7 +198,7 @@ describe("GanttView", () => {
     fireEvent.keyDown(window, { key: "Enter" });
 
     expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
-    expect(screen.getByTestId("matrix-editor-empty")).toBeInTheDocument();
+    expect(await screen.findByTestId("matrix-editor-empty")).toBeInTheDocument();
   });
 
   test("runs editing commands from the command palette", () => {
@@ -357,7 +357,9 @@ describe("GanttView", () => {
       target: { value: "executive" },
     });
 
-    expect(screen.getByTestId("executive-planning-dashboard")).toBeInTheDocument();
+    expect(
+      await screen.findByTestId("executive-planning-dashboard"),
+    ).toBeInTheDocument();
 
     await flushAutosave();
 
@@ -380,7 +382,7 @@ describe("GanttView", () => {
     ]);
   });
 
-  test("hydrates the active view from a persisted role preset", () => {
+  test("hydrates the active view from a persisted role preset", async () => {
     render(
       <GanttView
         projectId="1"
@@ -398,7 +400,9 @@ describe("GanttView", () => {
     );
 
     expect(screen.getByTestId("role-view-preset-select")).toHaveValue("executive");
-    expect(screen.getByTestId("executive-planning-dashboard")).toBeInTheDocument();
+    expect(
+      await screen.findByTestId("executive-planning-dashboard"),
+    ).toBeInTheDocument();
   });
 
   test("autosaves simple interaction mode and hides advanced panels", async () => {
@@ -561,7 +565,7 @@ describe("GanttView", () => {
     );
   });
 
-  test("renders the executive dashboard from the view sidebar", () => {
+  test("renders the executive dashboard from the view sidebar", async () => {
     render(
       <GanttView
         projectId="1"
@@ -574,7 +578,7 @@ describe("GanttView", () => {
 
     fireEvent.click(screen.getByTestId("sidebar-view-executive"));
 
-    expect(screen.getByTestId("executive-planning-dashboard")).toHaveTextContent(
+    expect(await screen.findByTestId("executive-planning-dashboard")).toHaveTextContent(
       "Dashboard ejecutivo",
     );
     expect(screen.getAllByTestId("executive-kpi").length).toBeGreaterThan(0);
@@ -1090,7 +1094,7 @@ describe("GanttView", () => {
     mockedSaveProject.mockClear();
 
     fireEvent.click(screen.getByTestId("sidebar-view-settings"));
-    fireEvent.change(screen.getByLabelText("Fecha no laboral"), {
+    fireEvent.change(await screen.findByLabelText("Fecha no laboral"), {
       target: { value: "2026-01-06" },
     });
     fireEvent.change(screen.getByLabelText("Nombre del día no laboral"), {

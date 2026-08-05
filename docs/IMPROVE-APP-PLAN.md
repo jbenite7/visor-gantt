@@ -24,7 +24,7 @@ Journey `improve-app` iniciado 2026-08-05 a partir de la destilación del visor 
 | 5 | microinteractions | done | Inventario 7 interacciones (5/10); momento firma = badge de observaciones (E43, pasa removal test); E44 nuevo |
 | 6 | made-to-stick | done | POSITIONING.md creado; 9 superficies reescritas y shipped (jerga de infraestructura fuera); ayuda por vista (E8) queda en backlog |
 | 7 | influence-psychology | skipped: sin superficies de upsell | — |
-| 8 | high-perf-browser | pending | Parseo ~36 s de un .mpp de 11 MB sin progreso; INP en tabla de 300+ tareas |
+| 8 | high-perf-browser | done | INP 584 → 184 ms con carga diferida de vistas (E46). LCP/CLS/TTFB en verde (localhost). Pendiente RUM real (E47) |
 | 9 | steve-jobs-design-review | pending | Candidatas a corte: vistas de las 14 que nadie usa |
 
 ## Key Decisions
@@ -36,6 +36,6 @@ Journey `improve-app` iniciado 2026-08-05 a partir de la destilación del visor 
 
 ## Next Actions
 
-1. Fase 7 está `skipped` (sin superficies de venta) → siguiente es Fase 8 (high-perf-browser): INP/LCP/CLS y el parseo de 36 s.
+1. Fase 9 (steve-jobs-design-review): revisión en frío de toda la experiencia y **lista de recortes** — con 14 vistas, es la fase con más valor pendiente.
 2. E8 (ayuda por vista con el tono del visor 1.0) es el mayor hueco de copy que queda.
-3. Pendientes de fases previas: E24 parcial, E12/E13 (feedback de undo/autosave), E4 (progreso de importación).
+3. Pendientes: E24 parcial, E12/E13 (feedback de undo/autosave), E4 (progreso de importación), E47 (RUM real).

@@ -3083,3 +3083,13 @@ h6 {
 .gantt-observation-panel__export span {
   margin-left: auto;
 }
+
+.gantt-view-loading {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 0.875rem;
+}

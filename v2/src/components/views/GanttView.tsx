@@ -5,6 +5,34 @@ import { ChevronDown, Command as CommandIcon, Search, SlidersHorizontal, X } fro
 import type { GanttScale, GanttTask } from "@/components/gantt/types";
 import type { PlanningAuditEvent } from "@/types/audit";
 import type { Observation } from "@/lib/observations/observations";
+import dynamic from "next/dynamic";
+
+/**
+ * Las vistas distintas del Gantt se cargan al abrirlas. Antes las 14 viajaban en
+ * el bundle inicial y montaban de golpe: cambiar de vista costaba ~584 ms de INP.
+ */
+const ViewLoading = () => (
+  <div className="gantt-view-loading" role="status">Cargando vista…</div>
+);
+
+const TaskSheetView = dynamic(() => import("@/components/views/TaskSheetView"), { loading: ViewLoading });
+const TrackingGanttView = dynamic(() => import("@/components/views/TrackingGanttView"), { loading: ViewLoading });
+const NetworkDiagramView = dynamic(() => import("@/components/views/NetworkDiagramView"), { loading: ViewLoading });
+const ResourceSheetView = dynamic(() => import("@/components/views/ResourceSheetView"), { loading: ViewLoading });
+const ResourceUsageView = dynamic(() => import("@/components/views/ResourceUsageView"), { loading: ViewLoading });
+const AssignmentSheetView = dynamic(() => import("@/components/views/AssignmentSheetView"), { loading: ViewLoading });
+const BudgetTable = dynamic(() => import("@/components/budget/BudgetTable"), { loading: ViewLoading });
+const BudgetMapping = dynamic(() => import("@/components/budget/BudgetMapping"), { loading: ViewLoading });
+const LineOfBalance = dynamic(() => import("@/components/charts/LineOfBalance"), { loading: ViewLoading });
+const SCurveView = dynamic(() => import("@/components/views/SCurveView"), { loading: ViewLoading });
+const CalendarSettingsView = dynamic(() => import("@/components/views/CalendarSettingsView"), { loading: ViewLoading });
+const BottlenecksView = dynamic(() => import("@/components/views/BottlenecksView"), { loading: ViewLoading });
+const CalendarView = dynamic(() => import("@/components/views/CalendarView"), { loading: ViewLoading });
+const ConflictsView = dynamic(() => import("@/components/views/ConflictsView"), { loading: ViewLoading });
+const MatrixEditorView = dynamic(() => import("@/components/views/MatrixEditorView"), { loading: ViewLoading });
+const TypicalUnitView = dynamic(() => import("@/components/views/TypicalUnitView"), { loading: ViewLoading });
+const ExecutivePlanningDashboard = dynamic(() => import("@/components/reports/ExecutivePlanningDashboard"), { loading: ViewLoading });
+
 import SplitPane from "@/components/gantt/SplitPane";
 import UndoToast from "@/components/gantt/UndoToast";
 import RejectionToast from "@/components/gantt/RejectionToast";
@@ -13,23 +41,6 @@ import GanttTable from "@/components/gantt/table/GanttTable";
 import GanttChart from "@/components/gantt/GanttChart";
 import PlanningAssistantPanel from "@/components/gantt/assistant/PlanningAssistantPanel";
 import WhatIfScenarioPanel from "@/components/gantt/scenarios/WhatIfScenarioPanel";
-import TaskSheetView from "@/components/views/TaskSheetView";
-import TrackingGanttView from "@/components/views/TrackingGanttView";
-import NetworkDiagramView from "@/components/views/NetworkDiagramView";
-import ResourceSheetView from "@/components/views/ResourceSheetView";
-import ResourceUsageView from "@/components/views/ResourceUsageView";
-import AssignmentSheetView from "@/components/views/AssignmentSheetView";
-import BudgetTable from "@/components/budget/BudgetTable";
-import BudgetMapping from "@/components/budget/BudgetMapping";
-import LineOfBalance from "@/components/charts/LineOfBalance";
-import SCurveView from "@/components/views/SCurveView";
-import CalendarSettingsView from "@/components/views/CalendarSettingsView";
-import BottlenecksView from "@/components/views/BottlenecksView";
-import CalendarView from "@/components/views/CalendarView";
-import ConflictsView from "@/components/views/ConflictsView";
-import MatrixEditorView from "@/components/views/MatrixEditorView";
-import TypicalUnitView from "@/components/views/TypicalUnitView";
-import ExecutivePlanningDashboard from "@/components/reports/ExecutivePlanningDashboard";
 import type { Resource, Assignment } from "@/types/resource";
 import type { BudgetItem, BudgetMapping as BudgetMappingType } from "@/types/budget";
 import type { ProjectCalendar } from "@/types/calendar";

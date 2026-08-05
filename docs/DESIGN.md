@@ -73,6 +73,30 @@ restricciones que harían el error imposible. Mapeo y descubribilidad pasan a me
 | 40 | Editar | ⚠️ **Parcial (E45)** — el tooltip ya está en español; sigue faltando el significante visual y la entrada por teclado. Era `title="Double-click to edit"` — **en inglés dentro de una UI en español**, y no hay forma de entrar en edición con el teclado (`EditableCell.tsx:69,137-138`) | Significantes · Accesibilidad | **2** | Significante visual de celda editable y entrada en edición con Enter/F2 | open |
 | 41 | Navegación | 🔬 **Etiquetas cortadas** en la barra de vistas: con 47 px de ancho se leen «Seguim…», «Diagra…», «Hoja Ta…», «Línea B…», «Conflict…», «Unidad …», «Calend…». Varios encabezados de tabla también se truncan («ID», «Dur.», «Crit.») | Significantes | **2** | Ensanchar la barra o mostrar el nombre completo al enfocar | open |
 
+### Fase 8 — Rendimiento (2026-08-05)
+
+Medido con `PerformanceObserver` en el navegador sobre `localhost:3000/gantt-demo` (build de producción en
+Docker). **Salvedad honesta:** la demo tiene 8 tareas y corre en localhost, así que TTFB/LCP son
+optimistas — el caso real es un `.mpp` de 300+ tareas sobre red. Aun así, el problema encontrado es
+estructural y no depende del tamaño del proyecto.
+
+| Métrica | Antes | Objetivo | Después | Estado |
+|---|---|---|---|---|
+| **INP** (cambiar de vista) | **584 ms** | < 200 ms | **184 ms** | ✅ |
+| LCP | 348 ms | < 2,5 s | 380 ms | ✅ (localhost) |
+| CLS | 0,013 | < 0,1 | 0,013 | ✅ |
+| TTFB | 22 ms | < 800 ms | — | ✅ (localhost) |
+| JS inicial | 237 KB / 9 chunks | — | **208 KB / 8 chunks** | mejorado |
+
+| # | Issue | Heurística | Sev | Fix | Estado |
+|---|---|---|---|---|---|
+| 47 | 🔬 **INP de 584 ms al cambiar de vista**: las **17 vistas se importaban estáticamente** en `GanttView`, así que todas viajaban en el bundle inicial y montaban de golpe. El tiempo de *procesamiento* del handler era 1-8 ms: el coste estaba íntegro en montar y pintar | Rendimiento | **3** | Carga diferida por vista (`next/dynamic`) con estado de carga | **done** — INP 584 → 184 ms verificado |
+| 48 | Importación de 11 MB tarda **~36 s** sin progreso, sin timeout y sin cancelar (mismo que #4) | Rendimiento · Visibilidad | **3** | Progreso por fases + `AbortController`; la latencia real no baja, se hace legible | open (E4) |
+| 49 | Sin skeleton al abrir un proyecto: texto plano «Cargando cronograma…» (#14) | Rendimiento percibido | **2** | Skeleton de tabla + gantt | open (E16) |
+
+**Nota de método:** el LCP de la demo (380 ms) no es representativo de producción. Para cerrar de verdad la
+fase haría falta medición de campo (RUM) sobre proyectos reales; queda anotado como límite de esta auditoría.
+
 ### Trunk Test por pantalla clave
 
 | Pantalla | ¿Qué app? | ¿Qué pantalla? | ¿Mis opciones? | ¿Dónde estoy? | ¿Buscador? | Veredicto |
