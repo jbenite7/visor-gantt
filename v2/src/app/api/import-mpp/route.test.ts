@@ -212,6 +212,15 @@ describe("/api/import-mpp", () => {
     );
   });
 
+  test("informa cuántas tareas, dependencias y recursos se importaron (E32)", async () => {
+    const response = await POST(importRequest());
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("X-Import-Tasks")).toBe("4");
+    expect(response.headers.get("X-Import-Dependencies")).toBe("2");
+    expect(response.headers.get("X-Import-Resources")).toBe("0");
+  });
+
   test("rejects non-mpp files before calling parser", async () => {
     const response = await POST(importRequest("contrato.xml"));
 

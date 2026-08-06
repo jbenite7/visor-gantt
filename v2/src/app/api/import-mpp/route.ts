@@ -79,11 +79,10 @@ export async function POST(request: NextRequest) {
   }
 
   const parsedProject = (await parserResponse.json()) as ParsedMppProject;
-  const result = await saveProject(
-    buildProjectDataFromMpp(parsedProject, file.name, {
-      calculateFields: false,
-    }),
-  );
+  const projectData = buildProjectDataFromMpp(parsedProject, file.name, {
+    calculateFields: false,
+  });
+  const result = await saveProject(projectData);
 
   if (!result.success || !result.id) {
     return NextResponse.json(
@@ -92,7 +91,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.redirect(buildPublicUrl(request, `/project/${result.id}`), {
-    status: 303,
-  });
+  const dependencyCount = projectData.tasks.reduce(
+    (total, task) => total + (task.dependencies?.length ?? 0),
+    0,
+  );
+
+  const response = NextResponse.redirect(
+    buildPublicUrl(request, `/project/${result.id}`),
+    { status: 303 },
+  );
+  response.headers.set("X-Import-Tasks", String(projectData.tasks.length));
+  response.headers.set("X-Import-Dependencies", String(dependencyCount));
+  response.headers.set("X-Import-Resources", String(projectData.resources.length));
+  return response;
 }
