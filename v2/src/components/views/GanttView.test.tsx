@@ -1284,4 +1284,14 @@ describe("ayuda de la vista activa (E8)", () => {
       /gantt/i,
     );
   });
+
+  test("al cambiar de vista, la ayuda muestra la de la vista activa, no la de Gantt", async () => {
+    render(<GanttView tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-calendario"));
+    fireEvent.click(screen.getByTestId("open-view-help"));
+
+    const dialog = await screen.findByRole("dialog", { name: /ayuda/i });
+    expect(dialog).toHaveTextContent(/calendario/i);
+  });
 });
