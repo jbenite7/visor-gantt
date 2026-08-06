@@ -30,20 +30,26 @@ export default function UndoToast({ action, onUndo, locale = "es" }: UndoToastPr
 
   if (!action || !visible) return null;
 
+  // Un aviso "Deshecho: ..." no puede ofrecer "Deshacer": ese botón
+  // deshace la acción anterior del historial, no la que el texto describe.
+  const offersUndo = action.kind !== "undone";
+
   return (
     <div className="gantt-undo-toast" role="status" aria-live="polite">
       <span>{action.description}</span>
-      <button
-        type="button"
-        className="gantt-undo-toast-action"
-        onClick={() => {
-          onUndo();
-          setDismissedToken(action.token);
-        }}
-      >
-        <RotateCcw size={14} aria-hidden />
-        {locale === "en" ? "Undo" : "Deshacer"}
-      </button>
+      {offersUndo && (
+        <button
+          type="button"
+          className="gantt-undo-toast-action"
+          onClick={() => {
+            onUndo();
+            setDismissedToken(action.token);
+          }}
+        >
+          <RotateCcw size={14} aria-hidden />
+          {locale === "en" ? "Undo" : "Deshacer"}
+        </button>
+      )}
       <button
         type="button"
         className="gantt-undo-toast-dismiss"

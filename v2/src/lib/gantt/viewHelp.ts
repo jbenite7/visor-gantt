@@ -66,6 +66,33 @@ const VIEW_HELP: Partial<Record<ViewType, ViewHelp>> = {
       "La jornada, los días laborales y los festivos. Lo que aquí definas manda sobre todas las fechas.",
     needs: "Nada: siempre está disponible.",
   },
+  tracking: {
+    title: "Seguimiento",
+    purpose:
+      "Compara el plan contra la línea base: qué tareas se atrasaron, cuáles se adelantaron y cuánto.",
+    needs:
+      "Una línea base guardada. Sin ella, esta vista no tiene con qué comparar el avance real.",
+  },
+  taskSheet: {
+    title: "Hoja de Tareas",
+    purpose:
+      "El listado completo de la obra en tabla: todas las tareas con sus fechas, duración y avance en una sola grilla editable.",
+    needs: "Tareas cargadas. Es la vista base en formato tabla: siempre tiene algo que mostrar.",
+  },
+  network: {
+    title: "Diagrama de Red",
+    purpose:
+      "Las dependencias entre tareas dibujadas como diagrama, para ver de un vistazo qué actividad depende de cuál.",
+    needs:
+      "Tareas con dependencias definidas. Sin enlaces entre tareas, el diagrama sale con nodos sueltos.",
+  },
+  matrix: {
+    title: "Matriz",
+    purpose:
+      "Genera el cronograma cruzando alcances (qué se hace) con ubicaciones (dónde se hace), para armar la obra por celdas.",
+    needs:
+      "Alcances y ubicaciones definidos. Sin esa matriz base, no hay celdas que programar.",
+  },
 };
 
 export function viewHelpFor(view: ViewType): ViewHelp | null {

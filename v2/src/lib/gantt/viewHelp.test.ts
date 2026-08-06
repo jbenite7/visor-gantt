@@ -1,19 +1,32 @@
 import { viewHelpFor } from "./viewHelp";
 
+const MENU_VIEWS = [
+  "gantt",
+  "executive",
+  "resources",
+  "lob",
+  "scurve",
+  "bottlenecks",
+  "unidadTipica",
+  "calendario",
+  "settings",
+] as const;
+
+// Vistas que salieron del menú de 14→9 pero siguen alcanzables por la paleta
+// de comandos y por presets: también necesitan ayuda o el botón "Ayuda" no
+// hace nada al pulsarlo.
+const OFF_MENU_VIEWS = ["tracking", "taskSheet", "network", "matrix"] as const;
+
+const ALL_REACHABLE_VIEWS = [...MENU_VIEWS, ...OFF_MENU_VIEWS];
+
 describe("viewHelp: cada vista explica para qué sirve (E8)", () => {
-  test("las 9 vistas del menú tienen ayuda", () => {
-    for (const view of [
-      "gantt",
-      "executive",
-      "resources",
-      "lob",
-      "scurve",
-      "bottlenecks",
-      "unidadTipica",
-      "calendario",
-      "settings",
-    ] as const) {
-      expect(viewHelpFor(view)).not.toBeNull();
+  test("todas las vistas alcanzables (menú + fuera de menú) tienen ayuda no vacía", () => {
+    for (const view of ALL_REACHABLE_VIEWS) {
+      const help = viewHelpFor(view);
+      expect(help).not.toBeNull();
+      expect(help!.title.trim().length).toBeGreaterThan(0);
+      expect(help!.purpose.trim().length).toBeGreaterThan(0);
+      expect(help!.needs.trim().length).toBeGreaterThan(0);
     }
   });
 

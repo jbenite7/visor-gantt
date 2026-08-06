@@ -145,8 +145,8 @@ describe("/api/import-mpp", () => {
     const savedProject = (saveProject as jest.Mock).mock.calls[0][0];
 
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(
-      "http://localhost/project/project-123",
+    expect(response.headers.get("location")).toMatch(
+      /^http:\/\/localhost\/project\/project-123(\?.*)?$/,
     );
     expect(global.fetch).toHaveBeenCalledWith(
       "http://mpp-parser:8000/api/parse-mpp",
@@ -215,10 +215,16 @@ describe("/api/import-mpp", () => {
   test("informa cuántas tareas, dependencias y recursos se importaron (E32)", async () => {
     const response = await POST(importRequest());
 
+    // `fetch` sigue los redirects por defecto: el cliente nunca ve las
+    // cabeceras de la respuesta 303, solo la URL final. Por eso el conteo
+    // tiene que viajar en la URL de destino (Location), que sí sobrevive
+    // al seguimiento del redirect, y es eso lo que hay que comprobar aquí.
     expect(response.status).toBe(303);
-    expect(response.headers.get("X-Import-Tasks")).toBe("4");
-    expect(response.headers.get("X-Import-Dependencies")).toBe("2");
-    expect(response.headers.get("X-Import-Resources")).toBe("0");
+    const location = new URL(response.headers.get("location")!);
+    expect(location.pathname).toBe("/project/project-123");
+    expect(location.searchParams.get("tareas")).toBe("4");
+    expect(location.searchParams.get("dependencias")).toBe("2");
+    expect(location.searchParams.get("recursos")).toBe("0");
   });
 
   test("rejects non-mpp files before calling parser", async () => {

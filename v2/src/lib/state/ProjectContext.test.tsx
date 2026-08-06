@@ -496,4 +496,24 @@ describe("el deshacer se anuncia (E12)", () => {
 
     expect(ctx!.lastAction?.description).toMatch(/^Deshecho:/);
   });
+
+  test("el aviso de 'deshecho' no ofrece volver a deshacer (no es kind deshacible)", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1 }), task({ id: 2 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.deleteTasks([2]));
+    expect(ctx!.lastAction?.kind).toBe("delete");
+
+    act(() => ctx!.undo());
+
+    // Un aviso "Deshecho: ..." no debe prometer un botón "Deshacer" que en
+    // realidad deshace la acción anterior del historial, no la que el texto
+    // describe. Se distingue por `kind`, no por el texto.
+    expect(ctx!.lastAction?.kind).toBe("undone");
+  });
 });

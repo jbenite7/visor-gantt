@@ -3122,8 +3122,11 @@ h6 {
 .gantt-view-help {
   position: absolute;
   right: var(--space-4, 1rem);
-  top: var(--space-4, 1rem);
-  z-index: 45;
+  /* La barra superior y el desplegable "Planificación" ocupan hasta ~104px
+     desde arriba: si el panel se ancla a 1rem, ese texto queda cortado por
+     encima. Se ancla más abajo para no solaparse. */
+  top: 7rem;
+  z-index: 60;
   width: min(20rem, calc(100vw - 2rem));
   display: flex;
   flex-direction: column;

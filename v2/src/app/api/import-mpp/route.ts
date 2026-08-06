@@ -96,10 +96,17 @@ export async function POST(request: NextRequest) {
     0,
   );
 
-  const response = NextResponse.redirect(
-    buildPublicUrl(request, `/project/${result.id}`),
-    { status: 303 },
-  );
+  // Los conteos viajan en la URL de destino porque `fetch` sigue los
+  // redirects por defecto: el cliente nunca llega a ver las cabeceras de
+  // esta respuesta 303, solo la URL final. Se dejan también como cabeceras
+  // por si algún consumidor no sigue el redirect, pero lo que decide es
+  // la URL.
+  const destination = buildPublicUrl(request, `/project/${result.id}`);
+  destination.searchParams.set("tareas", String(projectData.tasks.length));
+  destination.searchParams.set("dependencias", String(dependencyCount));
+  destination.searchParams.set("recursos", String(projectData.resources.length));
+
+  const response = NextResponse.redirect(destination, { status: 303 });
   response.headers.set("X-Import-Tasks", String(projectData.tasks.length));
   response.headers.set("X-Import-Dependencies", String(dependencyCount));
   response.headers.set("X-Import-Resources", String(projectData.resources.length));

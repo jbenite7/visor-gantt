@@ -62,4 +62,17 @@ describe("UndoToast (E1)", () => {
     render(<UndoToast action={action()} onUndo={jest.fn()} locale="en" />);
     expect(screen.getByRole("button", { name: /undo/i })).toBeInTheDocument();
   });
+
+  test("un aviso de tipo 'undone' anuncia el texto pero no ofrece el botón Deshacer", () => {
+    render(
+      <UndoToast
+        action={action({ kind: "undone", description: "Deshecho: 1 tarea eliminada" })}
+        onUndo={jest.fn()}
+      />,
+    );
+
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Deshecho: 1 tarea eliminada");
+    expect(screen.queryByRole("button", { name: /deshacer/i })).not.toBeInTheDocument();
+  });
 });

@@ -231,7 +231,7 @@ export interface ProjectContextValue {
  * `token` cambia en cada acción aunque se repita la misma, para que el aviso vuelva a mostrarse.
  */
 export interface LastAction {
-  kind: "add" | "delete" | "other";
+  kind: "add" | "delete" | "other" | "undone";
   count: number;
   description: string;
   token: number;
@@ -790,7 +790,7 @@ export function ProjectProvider({
     if (!description) return;
 
     setLastAction({
-      kind: "other",
+      kind: "undone",
       count: 1,
       description: `Deshecho: ${description}`,
       token: nextActionToken(),

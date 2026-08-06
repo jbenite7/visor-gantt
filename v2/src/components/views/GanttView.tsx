@@ -956,9 +956,12 @@ function GanttViewInner({
       },
       {
         id: "view-conflictos",
-        label: locale === "en" ? "Open Conflicts" : "Abrir Conflictos",
-        hint: locale === "en" ? "Review dependency violations" : "Revisa violaciones de dependencias",
-        keywords: "conflicts conflictos violaciones dependencias",
+        label: locale === "en" ? "Open Issues" : "Abrir Problemas",
+        hint:
+          locale === "en"
+            ? "Review bottlenecks and dependency conflicts"
+            : "Revisa cuellos de botella y conflictos de dependencias",
+        keywords: "conflicts conflictos violaciones dependencias problemas cuellos botella bottlenecks",
       },
       {
         id: "view-network",
