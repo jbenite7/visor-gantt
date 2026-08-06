@@ -1,4 +1,4 @@
-import { insertAt, removeWhere } from "./undoableCollections";
+import { insertAt, removeWhere, replaceWhere } from "./undoableCollections";
 
 describe("insertAt / removeWhere (E24)", () => {
   test("devuelve el elemento a su posición original", () => {
@@ -32,5 +32,25 @@ describe("insertAt / removeWhere (E24)", () => {
     const original = ["a", "b"];
     removeWhere(original, (item) => item === "a");
     expect(original).toEqual(["a", "b"]);
+  });
+});
+
+describe("replaceWhere (E24: editar también se deshace)", () => {
+  test("sustituye el elemento que coincide y respeta el resto", () => {
+    const items = [{ id: 1, n: "a" }, { id: 2, n: "b" }];
+    const next = replaceWhere(items, (i) => i.id === 2, { id: 2, n: "B" });
+
+    expect(next).toEqual([{ id: 1, n: "a" }, { id: 2, n: "B" }]);
+  });
+
+  test("no muta la lista original", () => {
+    const items = [{ id: 1, n: "a" }];
+    replaceWhere(items, (i) => i.id === 1, { id: 1, n: "z" });
+    expect(items[0].n).toBe("a");
+  });
+
+  test("si nada coincide devuelve una copia igual", () => {
+    const items = [{ id: 1, n: "a" }];
+    expect(replaceWhere(items, (i) => i.id === 9, { id: 9, n: "x" })).toEqual(items);
   });
 });

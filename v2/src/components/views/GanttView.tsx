@@ -71,7 +71,7 @@ import {
 } from "@/lib/mpp/taskColumns";
 import { calculateMppFields } from "@/lib/mpp/mppCalculationEngine";
 import { ProjectProvider, useProject } from "@/lib/state/ProjectContext";
-import { insertAt, removeWhere } from "@/lib/state/undoableCollections";
+import { insertAt, removeWhere, replaceWhere } from "@/lib/state/undoableCollections";
 import { useDragBar } from "@/components/gantt/interaction/useDragBar";
 import { useResizeBar } from "@/components/gantt/interaction/useResizeBar";
 import {
@@ -614,9 +614,21 @@ function GanttViewInner({
     setResources((prev) => [...prev, resource]);
   }, []);
 
-  const handleEditResource = useCallback((resource: Resource) => {
-    setResources((prev) => prev.map((r) => (r.uid === resource.uid ? resource : r)));
-  }, []);
+  const handleEditResource = useCallback(
+    (resource: Resource) => {
+      const previous = resources.find((r) => r.uid === resource.uid);
+      if (!previous) return;
+
+      runUndoable({
+        description: `Recurso «${resource.name ?? resource.uid}» editado`,
+        execute: () =>
+          setResources((prev) => replaceWhere(prev, (r) => r.uid === resource.uid, resource)),
+        undo: () =>
+          setResources((prev) => replaceWhere(prev, (r) => r.uid === resource.uid, previous)),
+      });
+    },
+    [resources, runUndoable],
+  );
 
   const handleDeleteResource = useCallback(
     (uid: number) => {
@@ -639,9 +651,21 @@ function GanttViewInner({
     setBudgetItems((prev) => [...prev, item]);
   }, []);
 
-  const handleUpdateBudgetItem = useCallback((item: BudgetItem) => {
-    setBudgetItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
-  }, []);
+  const handleUpdateBudgetItem = useCallback(
+    (item: BudgetItem) => {
+      const previous = budgetItems.find((i) => i.id === item.id);
+      if (!previous) return;
+
+      runUndoable({
+        description: `Partida «${item.subcategory ?? item.category}» editada`,
+        execute: () =>
+          setBudgetItems((prev) => replaceWhere(prev, (i) => i.id === item.id, item)),
+        undo: () =>
+          setBudgetItems((prev) => replaceWhere(prev, (i) => i.id === item.id, previous)),
+      });
+    },
+    [budgetItems, runUndoable],
+  );
 
   const handleDeleteBudgetItem = useCallback(
     (id: string) => {

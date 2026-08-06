@@ -15,3 +15,11 @@ export function insertAt<T>(items: T[], index: number, item: T): T[] {
   const position = Math.max(0, Math.min(index, items.length));
   return [...items.slice(0, position), item, ...items.slice(position)];
 }
+
+export function replaceWhere<T>(
+  items: T[],
+  match: (item: T) => boolean,
+  next: T,
+): T[] {
+  return items.map((item) => (match(item) ? next : item));
+}
