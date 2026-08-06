@@ -1306,3 +1306,29 @@ describe("indicador de guardado (E13)", () => {
     expect(status).toHaveTextContent(/guardado automático/i);
   });
 });
+
+describe("restablecer columnas se puede deshacer (E24)", () => {
+  test("Ctrl+Z devuelve las columnas que el usuario tenía", async () => {
+    render(
+      <GanttView
+        tasks={[makeTask({ id: 1 })]}
+        taskColumnSettings={{ visible: ["id", "name"], widths: {}, labelLocale: "es" }}
+      />,
+    );
+
+    // Restablecer borra la configuración: es la acción destructiva a cubrir.
+    fireEvent.click(screen.getByTestId("column-selector"));
+    fireEvent.click(screen.getByRole("button", { name: /restablecer/i }));
+
+    expect(
+      await screen.findByText(/columnas del cronograma restablecidas/i),
+    ).toBeInTheDocument();
+
+    // Y deshacerlo devuelve exactamente lo que había.
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+
+    expect(
+      await screen.findByText(/deshecho: columnas del cronograma restablecidas/i),
+    ).toBeInTheDocument();
+  });
+});

@@ -23,6 +23,8 @@ interface ResourceSheetViewProps {
   columnSettings?: ResourceColumnSettings;
   locale?: UILocale;
   onColumnSettingsChange?: (settings: ResourceColumnSettings) => void;
+  /** Restablecer columnas borra la configuración del usuario: el padre puede hacerlo deshacible. */
+  onResetColumns?: () => void;
   onLocaleChange?: (locale: UILocale) => void;
 }
 
@@ -92,6 +94,7 @@ export default function ResourceSheetView({
   columnSettings,
   locale = "es",
   onColumnSettingsChange,
+  onResetColumns,
   onLocaleChange,
 }: ResourceSheetViewProps) {
   const labels =
@@ -279,6 +282,10 @@ export default function ResourceSheetView({
   );
 
   const handleResetColumns = useCallback(() => {
+    if (onResetColumns) {
+      onResetColumns();
+      return;
+    }
     updateColumnSettings({
       ...DEFAULT_RESOURCE_COLUMN_SETTINGS,
       visible: [
@@ -287,7 +294,7 @@ export default function ResourceSheetView({
       ],
       labelLocale: locale,
     });
-  }, [extraColumns, locale, updateColumnSettings]);
+  }, [extraColumns, locale, updateColumnSettings, onResetColumns]);
 
   return (
     <div data-testid="resource-sheet-view" className="apple-module flex h-full flex-col">

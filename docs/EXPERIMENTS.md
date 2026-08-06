@@ -77,7 +77,7 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
 |---|---|---|---|---|---|---|---|---|---|
 | E23 | Mostrar el issue donde ocurre la edición (toast + inline), no solo en la pestaña «Cuellos» | #26 | 4 | 10 | 10 | 7 | **9,0** | 0 ediciones rechazadas sin mensaje | **shipped 2026-08-05** |
-| E24 | Llevar al historial recursos, presupuesto, mapeos y plan matricial | #27 | 4 | 9 | 9 | 5 | **7,7** | Toda acción destructiva es deshacible o confirmada | **shipped 2026-08-06** (editar recurso/partida cerrado; quedan sync matriz y reset de columnas) |
+| E24 | Llevar al historial recursos, presupuesto, mapeos, plan matricial y columnas | #27 | 4 | 9 | 9 | 5 | **7,7** | Toda acción destructiva es deshacible o confirmada | **shipped 2026-08-06** — cerrado: borrar/editar recurso y partida, import CSV, mapeos, aplicar y sincronizar matriz, y restablecer columnas |
 | E25 | Renderizar `calendarIssues` junto al editor de calendario | #28 | 4 | 8 | 10 | 8 | **8,7** | Un calendario inválido muestra el motivo | **shipped 2026-08-05** |
 | E26 | Restringir la entrada: `min=1`, `step=1`, validar `finish >= start`, unificar duración mínima | #30 | 3 | 9 | 10 | 9 | **9,3** | Imposible introducir duración negativa o fin anterior al inicio | **shipped 2026-08-05** |
 | E27 | Marcar en solo lectura lo que calcula el motor (`finish`, filas resumen) usando el `readOnly` existente | #31 | 3 | 8 | 9 | 8 | **8,3** | 0 celdas derivadas editables | backlog |

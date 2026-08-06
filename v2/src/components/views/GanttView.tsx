@@ -65,6 +65,9 @@ import {
   buildMppAssignmentColumnsFromAssignments,
   buildMppResourceColumnsFromResources,
   buildMppTaskColumnsFromTasks,
+  DEFAULT_ASSIGNMENT_COLUMN_SETTINGS,
+  DEFAULT_RESOURCE_COLUMN_SETTINGS,
+  DEFAULT_TASK_COLUMN_SETTINGS,
   normalizeTaskColumnSettings,
   normalizeAssignmentColumnSettings,
   normalizeResourceColumnSettings,
@@ -805,8 +808,58 @@ function GanttViewInner({
 
   const handleSyncMatrixFromGantt = useCallback(() => {
     if (!syncedMatrixPlan) return;
-    setMatrixPlan(syncedMatrixPlan);
-  }, [syncedMatrixPlan]);
+    const previous = matrixPlan;
+    const next = syncedMatrixPlan;
+
+    runUndoable({
+      description: "Matriz sincronizada desde el cronograma",
+      execute: () => setMatrixPlan(next),
+      undo: () => setMatrixPlan(previous),
+    });
+  }, [matrixPlan, runUndoable, syncedMatrixPlan]);
+
+  /* ── Restablecer columnas: borra la configuración del usuario, así que se deshace ── */
+  const handleResetTaskColumns = useCallback(() => {
+    const previous = taskColumnSettings;
+    const next = {
+      ...DEFAULT_TASK_COLUMN_SETTINGS,
+      labelLocale: previous?.labelLocale ?? locale,
+    };
+
+    runUndoable({
+      description: "Columnas del cronograma restablecidas",
+      execute: () => setTaskColumnSettings(next),
+      undo: () => setTaskColumnSettings(previous),
+    });
+  }, [locale, runUndoable, taskColumnSettings]);
+
+  const handleResetResourceColumns = useCallback(() => {
+    const previous = resourceColumnSettings;
+    const next = {
+      ...DEFAULT_RESOURCE_COLUMN_SETTINGS,
+      labelLocale: previous?.labelLocale ?? locale,
+    };
+
+    runUndoable({
+      description: "Columnas de recursos restablecidas",
+      execute: () => setResourceColumnSettings(next),
+      undo: () => setResourceColumnSettings(previous),
+    });
+  }, [locale, resourceColumnSettings, runUndoable]);
+
+  const handleResetAssignmentColumns = useCallback(() => {
+    const previous = assignmentColumnSettings;
+    const next = {
+      ...DEFAULT_ASSIGNMENT_COLUMN_SETTINGS,
+      labelLocale: previous?.labelLocale ?? locale,
+    };
+
+    runUndoable({
+      description: "Columnas de asignaciones restablecidas",
+      execute: () => setAssignmentColumnSettings(next),
+      undo: () => setAssignmentColumnSettings(previous),
+    });
+  }, [assignmentColumnSettings, locale, runUndoable]);
 
   const doSave = useCallback(async () => {
     if (!isDirtyRef.current) return;
@@ -1473,6 +1526,7 @@ function GanttViewInner({
                       columnSettings={taskColumnSettings}
                       locale={locale}
                       onColumnSettingsChange={setTaskColumnSettings}
+                      onResetColumns={handleResetTaskColumns}
                       onLocaleChange={(nextLocale: UILocale) =>
                         setUISettings((current) => ({ ...current, locale: nextLocale }))
                       }
@@ -1662,6 +1716,7 @@ function GanttViewInner({
                     columnSettings={resourceColumnSettings}
                     locale={locale}
                     onColumnSettingsChange={setResourceColumnSettings}
+                    onResetColumns={handleResetResourceColumns}
                     onLocaleChange={(nextLocale: UILocale) =>
                       setUISettings({ locale: nextLocale })
                     }
@@ -1677,6 +1732,7 @@ function GanttViewInner({
                     columnSettings={assignmentColumnSettings}
                     locale={locale}
                     onColumnSettingsChange={setAssignmentColumnSettings}
+                    onResetColumns={handleResetAssignmentColumns}
                     onLocaleChange={(nextLocale: UILocale) =>
                       setUISettings({ locale: nextLocale })
                     }

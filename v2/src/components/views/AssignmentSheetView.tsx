@@ -26,6 +26,8 @@ interface AssignmentSheetViewProps {
   columnSettings?: AssignmentColumnSettings;
   locale?: UILocale;
   onColumnSettingsChange?: (settings: AssignmentColumnSettings) => void;
+  /** Restablecer columnas borra la configuración del usuario: el padre puede hacerlo deshacible. */
+  onResetColumns?: () => void;
   onLocaleChange?: (locale: UILocale) => void;
 }
 
@@ -60,6 +62,7 @@ export default function AssignmentSheetView({
   columnSettings,
   locale = "es",
   onColumnSettingsChange,
+  onResetColumns,
   onLocaleChange,
 }: AssignmentSheetViewProps) {
   const labels =
@@ -169,6 +172,10 @@ export default function AssignmentSheetView({
   );
 
   const handleResetColumns = useCallback(() => {
+    if (onResetColumns) {
+      onResetColumns();
+      return;
+    }
     updateColumnSettings({
       ...DEFAULT_ASSIGNMENT_COLUMN_SETTINGS,
       visible: [
@@ -177,7 +184,7 @@ export default function AssignmentSheetView({
       ],
       labelLocale: locale,
     });
-  }, [extraColumns, locale, updateColumnSettings]);
+  }, [extraColumns, locale, updateColumnSettings, onResetColumns]);
 
   return (
     <div data-testid="assignment-sheet-view" className="apple-module flex h-full flex-col">

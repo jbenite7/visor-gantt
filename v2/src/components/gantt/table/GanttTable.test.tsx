@@ -1175,3 +1175,40 @@ describe("estado vacío de la tabla (E6)", () => {
     expect(screen.queryByTestId("gantt-table-empty")).not.toBeInTheDocument();
   });
 });
+
+describe("restablecer columnas es una acción aparte (E24)", () => {
+  test("usa el manejador de restablecer cuando el padre lo ofrece, para poder deshacerlo", () => {
+    const onResetColumns = jest.fn();
+    const onColumnSettingsChange = jest.fn();
+
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1 })]}
+        onColumnSettingsChange={onColumnSettingsChange}
+        onResetColumns={onResetColumns}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("column-selector"));
+    fireEvent.click(screen.getByRole("button", { name: /restablecer/i }));
+
+    expect(onResetColumns).toHaveBeenCalledTimes(1);
+    expect(onColumnSettingsChange).not.toHaveBeenCalled();
+  });
+
+  test("sin manejador del padre sigue restableciendo por su cuenta", () => {
+    const onColumnSettingsChange = jest.fn();
+
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1 })]}
+        onColumnSettingsChange={onColumnSettingsChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("column-selector"));
+    fireEvent.click(screen.getByRole("button", { name: /restablecer/i }));
+
+    expect(onColumnSettingsChange).toHaveBeenCalledTimes(1);
+  });
+});

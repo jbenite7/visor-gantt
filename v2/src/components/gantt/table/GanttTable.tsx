@@ -56,6 +56,11 @@ interface GanttTableProps {
   ) => void;
   /** Motivo por el que una edición se rechazó, para anunciarlo al usuario. */
   onInvalidEdit?: (reason: string) => void;
+  /**
+   * Restablecer columnas borra la configuración del usuario, así que el padre
+   * puede tomarla para hacerla deshacible en vez de aplicarla sin vuelta atrás.
+   */
+  onResetColumns?: () => void;
   budgetMappings?: BudgetMapping[];
   budgetItems?: BudgetItem[];
   mppTaskColumns?: MppTaskColumn[];
@@ -237,6 +242,7 @@ export default function GanttTable({
   onTaskSelect,
   onUpdateTask,
   onInvalidEdit,
+  onResetColumns,
   budgetMappings,
   budgetItems,
   mppTaskColumns = [],
@@ -419,11 +425,15 @@ export default function GanttTable({
 
   // Reset to defaults
   const handleReset = useCallback(() => {
+    if (onResetColumns) {
+      onResetColumns();
+      return;
+    }
     applySettings({
       ...DEFAULT_TASK_COLUMN_SETTINGS,
       labelLocale: normalizedSettings.labelLocale,
     });
-  }, [applySettings, normalizedSettings.labelLocale]);
+  }, [applySettings, normalizedSettings.labelLocale, onResetColumns]);
 
   // Resize a column
   const handleResize = useCallback(
