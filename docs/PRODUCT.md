@@ -61,7 +61,7 @@ por atención sin ganársela.
 
 | # | Fix | Dirección |
 |---|---|---|
-| F1 | **Bajar de 6 pasos a 2 hasta el valor** | Permitir abrir un `.mpp` sin cuenta en modo lectura (la decisión que se aplazó en E3). Es el mayor hueco frente al visor 1.0 |
+| ~~F1~~ | ~~Bajar de 6 pasos a 2 hasta el valor~~ | **Descartado.** El usuario decidió dos veces —en el grilleo del plan y de forma definitiva el 2026-08-06— que la cuenta se queda. La consecuencia asumida: se mantienen 6 pasos hasta el valor y la distancia frente al visor 1.0 en la primera impresión. No volver a proponerlo |
 | F2 | **Cada vista dice para qué sirve** | E8: la ayuda ya está escrita dentro de `Cmd+K`; sacarla a la vista. Sin esto, 9 vistas siguen siendo 9 incógnitas |
 | F3 | **Estados vacíos que enseñan** | «0 sistemas repetidos detectados» debe decir *qué es* un sistema repetido y *por qué* este proyecto no tiene |
 | F4 | **La espera de 36 s se hace legible** | E4: progreso por fases, timeout y cancelar |
@@ -86,7 +86,7 @@ Auditado el 2026-08-05:
 
 | Resultado / problema | Job que sirve | Prioridad | Estado |
 |---|---|---|---|
-| Ver el cronograma sin cuenta (2 pasos, no 6) | Big Hire — funcional | **1** | propuesto (F1) |
+| ~~Ver el cronograma sin cuenta (2 pasos, no 6)~~ | Big Hire — funcional | — | **descartado por el usuario (2026-08-06)** |
 | Cada vista explica su propósito | Emocional — control | **2** | backlog (E8/F2) |
 | De 14 vistas a 9 (C1, C2, C3) | Emocional — sobrecarga | **3** | propuesto |
 | Estados vacíos que enseñan | Emocional | **4** | backlog (F3/E6) |
@@ -94,6 +94,16 @@ Auditado el 2026-08-05:
 | 404 y salir con dignidad | Confianza | **6** | backlog (F5) |
 | Terminar el deshacer (editar recurso, columnas) | Funcional | 7 | backlog (E24 parcial) |
 | Medición de campo real (RUM) | — | 8 | backlog (E47) |
+
+## Decisión firme: la cuenta se queda
+
+El visor 1.0 llega al valor en 2 pasos porque no pide cuenta; v2 pide 6. La revisión lo señaló como el
+mayor hueco y propuso un modo de lectura sin cuenta (F1 / E51). **El usuario lo descartó en el grilleo del
+plan de mejora y lo confirmó como definitivo el 2026-08-06.**
+
+Queda cerrado, no aplazado: no debe reaparecer como pendiente en revisiones futuras. Lo que sí sigue siendo
+cierto —y conviene recordar si algún día cambia la prioridad— es que la entrada es la superficie donde v2
+pierde contra su antecesor, no las capacidades.
 
 ## Nota del revisor
 

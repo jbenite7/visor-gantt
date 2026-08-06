@@ -29,6 +29,8 @@ Journey `improve-app` iniciado 2026-08-05 a partir de la destilación del visor 
 
 ## Key Decisions
 
+- 2026-08-06 — **E51/F1 (abrir un .mpp sin cuenta) descartado definitivamente por el usuario.** Se asume mantener 6 pasos hasta el valor. Cerrado, no aplazado.
+
 - 2026-08-05 — Destilación del visor 1.0 hecha por bundle + API y luego **verificada en vivo** con `aia-ms-project/20260312 DA PORTO TORRE 3.mpp` (7 pestañas, loop de observaciones completo probado); documentada en DESTILACION-VISOR-V1.md. El .mpp de 11 MB solo se pudo probar por API (~36 s); el POST desde el navegador de prueba falló por tamaño/red.
 - 2026-08-05 — Fase 3: se auditó `/gantt-demo` en navegador real (no requiere sesión), evitando autenticarse. Confirmado en vivo el rechazo mudo de ediciones y la adyacencia Agregar/Eliminar.
 - 2026-08-05 — Usuario confirmó el job statement. Dimensiones más débiles: **emocional y funcional** (ambas se atacan). Leak: **Big Hire y Little Hire por igual** → Fases 2-3 cubren tanto upload→primera vista como navegación/uso diario.
