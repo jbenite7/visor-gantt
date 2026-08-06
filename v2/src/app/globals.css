@@ -654,6 +654,11 @@ h6 {
   font-weight: 600;
 }
 
+.gantt-save-status[data-status="idle"] {
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-muted);
+}
+
 .gantt-save-status[data-status="saving"] {
   background: var(--aia-warn-xlight);
   color: var(--aia-warn-dark);

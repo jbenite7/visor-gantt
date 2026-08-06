@@ -1295,3 +1295,14 @@ describe("ayuda de la vista activa (E8)", () => {
     expect(dialog).toHaveTextContent(/calendario/i);
   });
 });
+
+describe("indicador de guardado (E13)", () => {
+  test("está visible desde que se abre el proyecto, no solo al guardar", () => {
+    render(<GanttView tasks={[makeTask({ id: 1 })]} />);
+
+    const status = screen.getByTestId("save-status");
+    expect(status).toBeInTheDocument();
+    expect(status).toHaveAttribute("role", "status");
+    expect(status).toHaveTextContent(/guardado automático/i);
+  });
+});
