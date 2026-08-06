@@ -43,7 +43,7 @@ describe("HomeMppUploadAction", () => {
 
     expect(
       screen.getByRole("button", { name: /importando/i }),
-    ).toHaveTextContent("Importando...");
+    ).toHaveTextContent("Importando…");
 
     await screen.findByRole("button", { name: /subir archivo \.mpp/i });
 

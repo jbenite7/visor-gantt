@@ -1,3 +1,2 @@
-export { default as ViewSwitcher } from "./ViewSwitcher";
-export type { ViewType } from "./ViewSwitcher";
+export type { ViewType } from "./viewTypes";
 export { default as ProjectToolbar } from "./ProjectToolbar";

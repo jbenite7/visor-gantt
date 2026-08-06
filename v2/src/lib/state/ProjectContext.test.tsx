@@ -517,3 +517,25 @@ describe("el deshacer se anuncia (E12)", () => {
     expect(ctx!.lastAction?.kind).toBe("undone");
   });
 });
+
+describe("rehacer limpia el aviso de deshecho", () => {
+  test("tras rehacer, el aviso «Deshecho: …» ya no describe el estado real", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1 }), task({ id: 2 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.deleteTasks([2]));
+    act(() => ctx!.undo());
+    expect(ctx!.lastAction?.kind).toBe("undone");
+
+    act(() => ctx!.redo());
+
+    // La tarea vuelve a estar borrada: el aviso de «deshecho» sería mentira.
+    expect(ctx!.tasks.map((t) => t.id)).toEqual([1]);
+    expect(ctx!.lastAction?.kind).not.toBe("undone");
+  });
+});

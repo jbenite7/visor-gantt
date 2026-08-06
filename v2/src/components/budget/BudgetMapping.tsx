@@ -307,7 +307,7 @@ export default function BudgetMappingPanel({
               type="text"
               value={taskFilter}
               onChange={(e) => setTaskFilter(e.target.value)}
-              placeholder="Filtrar tareas..."
+              placeholder="Filtrar tareas…"
               data-testid="task-filter-input"
               style={{
                 width: "100%",

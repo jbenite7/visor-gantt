@@ -200,7 +200,7 @@ export default function MPPUploader({
           }
         `}
       >
-        {isProcessing ? "Procesando..." : "Seleccionar archivo .mpp"}
+        {isProcessing ? "Procesando…" : "Seleccionar archivo .mpp"}
       </button>
 
       {/* Error Display */}

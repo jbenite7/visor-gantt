@@ -223,7 +223,7 @@ describe("MPPUploader", () => {
     selectFile(createFile("proyecto.mpp"));
 
     expect(
-      await screen.findByRole("button", { name: "Procesando..." }),
+      await screen.findByRole("button", { name: "Procesando…" }),
     ).toBeInTheDocument();
   });
 

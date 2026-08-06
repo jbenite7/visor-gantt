@@ -1,4 +1,4 @@
-import type { ViewType } from "@/components/gantt/toolbar/ViewSwitcher";
+import type { ViewType } from "@/components/gantt/toolbar/viewTypes";
 
 export interface ViewHelp {
   title: string;

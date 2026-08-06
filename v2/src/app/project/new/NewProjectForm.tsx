@@ -126,7 +126,7 @@ function NewProjectFormState({ draftKey }: Required<NewProjectFormProps>) {
             tasks={[]}
             onApplyMatrixPlan={handleCreateMatrixProject}
             onSyncFromGantt={() => undefined}
-            applyLabel={isPending ? "Generando..." : "Guardar y generar cronograma"}
+            applyLabel={isPending ? "Generando…" : "Guardar y generar cronograma"}
           />
         </div>
       ) : (
@@ -182,7 +182,7 @@ function NewProjectFormState({ draftKey }: Required<NewProjectFormProps>) {
               disabled={isPending}
               className="apple-button-primary rounded-[var(--radius-lg)] px-4 py-2.5 text-sm font-semibold transition disabled:opacity-60"
             >
-              {isPending ? "Creando..." : "Crear cronograma vacío"}
+              {isPending ? "Creando…" : "Crear cronograma vacío"}
             </button>
             <button
               type="button"

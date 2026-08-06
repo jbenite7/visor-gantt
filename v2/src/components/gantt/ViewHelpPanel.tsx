@@ -1,7 +1,7 @@
 "use client";
 
 import { HelpCircle } from "lucide-react";
-import type { ViewType } from "@/components/gantt/toolbar/ViewSwitcher";
+import type { ViewType } from "@/components/gantt/toolbar/viewTypes";
 import { viewHelpFor } from "@/lib/gantt/viewHelp";
 
 interface ViewHelpPanelProps {

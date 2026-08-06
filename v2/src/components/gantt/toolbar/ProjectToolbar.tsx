@@ -11,7 +11,7 @@ import {
   ChevronDown,
   MessageSquare,
 } from "lucide-react";
-import type { ViewType } from "./ViewSwitcher";
+import type { ViewType } from "./viewTypes";
 import type { GanttScale } from "@/components/gantt/types";
 import type { UILocale } from "@/types/ui";
 import { t } from "@/lib/i18n";

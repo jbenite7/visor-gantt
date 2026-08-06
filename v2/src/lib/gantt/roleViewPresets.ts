@@ -1,6 +1,6 @@
 import type { TaskColumnSettings } from "@/types/mppColumns";
 import type { RoleViewPresetId, TaskFilterSettings, UILocale, UISettings } from "@/types/ui";
-import type { ViewType } from "@/components/gantt/toolbar/ViewSwitcher";
+import type { ViewType } from "@/components/gantt/toolbar/viewTypes";
 import type { GanttScale } from "@/components/gantt/types";
 
 export interface RoleViewPreset {

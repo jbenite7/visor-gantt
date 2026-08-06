@@ -7,6 +7,13 @@ import { Upload } from "lucide-react";
 const MAX_FILE_SIZE_MB = 50;
 const IMPORT_TIMEOUT_MS = 180000;
 
+/** Traduce el motivo del aborto a un mensaje para el usuario. */
+function abortMessage(reason: unknown): string {
+  return reason === "timeout"
+    ? "El análisis tardó demasiado. Vuelve a intentarlo o prueba con un archivo más pequeño."
+    : "Importación cancelada.";
+}
+
 function validateMppFile(file: File): string | null {
   const extension = `.${file.name.split(".").pop()?.toLowerCase()}`;
   if (extension !== ".mpp") {
@@ -60,11 +67,7 @@ export default function HomeMppUploadAction({
     );
 
     controller.signal.addEventListener("abort", () => {
-      setError(
-        controller.signal.reason === "timeout"
-          ? "El análisis tardó demasiado. Vuelve a intentarlo o prueba con un archivo más pequeño."
-          : "Importación cancelada.",
-      );
+      setError(abortMessage(controller.signal.reason));
       setPhase("idle");
       setIsProcessing(false);
       clearInterval(ticker);
@@ -94,13 +97,9 @@ export default function HomeMppUploadAction({
       setError(payload?.error ?? "No se pudo importar el archivo .mpp");
     } catch {
       if (controller.signal.aborted) {
-        setError(
-          controller.signal.reason === "timeout"
-            ? "El análisis tardó demasiado. Vuelve a intentarlo o prueba con un archivo más pequeño."
-            : "Importación cancelada.",
-        );
+        setError(abortMessage(controller.signal.reason));
       } else {
-        setError("No se pudo conectar con el servidor de importacion");
+        setError("No se pudo conectar con el servidor de importación.");
       }
     } finally {
       clearTimeout(timeout);
@@ -138,7 +137,7 @@ export default function HomeMppUploadAction({
         className="apple-button-primary inline-flex items-center gap-2 rounded-[var(--radius-lg)] px-5 py-2.5 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-60"
       >
         <Upload size={16} aria-hidden />
-        {isProcessing ? "Importando..." : "Subir Archivo .mpp"}
+        {isProcessing ? "Importando…" : "Subir Archivo .mpp"}
       </button>
       {isProcessing && (
         <span className="gantt-import-phase" data-testid="import-phase">

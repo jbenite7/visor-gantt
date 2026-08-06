@@ -11,7 +11,7 @@ import {
   LayoutDashboard,
   Layers3,
 } from "lucide-react";
-import type { ViewType } from "./ViewSwitcher";
+import type { ViewType } from "./viewTypes";
 import type { UILocale } from "@/types/ui";
 
 interface ViewTab {

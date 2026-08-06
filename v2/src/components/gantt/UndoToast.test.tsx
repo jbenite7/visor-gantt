@@ -76,3 +76,21 @@ describe("UndoToast (E1)", () => {
     expect(screen.queryByRole("button", { name: /deshacer/i })).not.toBeInTheDocument();
   });
 });
+
+describe("el aviso no sobrevive a la acción que lo contradice", () => {
+  test("al rehacer, el aviso «Deshecho» desaparece en vez de quedarse mintiendo", () => {
+    const { rerender } = render(
+      <UndoToast
+        action={{ kind: "undone", count: 1, description: "Deshecho: 1 tarea eliminada", token: 5 }}
+        onUndo={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Deshecho:");
+
+    // Rehacer limpia la última acción: el aviso ya no describe el estado real.
+    rerender(<UndoToast action={null} onUndo={jest.fn()} />);
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+});

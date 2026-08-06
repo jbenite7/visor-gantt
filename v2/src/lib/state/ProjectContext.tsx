@@ -797,6 +797,15 @@ export function ProjectProvider({
     });
   }, [history]);
 
+  /**
+   * Rehacer devuelve el cambio que se acababa de deshacer, así que el aviso
+   * «Deshecho: …» pasa a describir un estado que ya no existe: se retira.
+   */
+  const redoAndClearUndoNotice = useCallback(() => {
+    history.redo();
+    setLastAction((current) => (current?.kind === "undone" ? null : current));
+  }, [history]);
+
   /* ── Keyboard shortcuts: Ctrl+Z / Ctrl+Shift+Z ── */
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -819,13 +828,13 @@ export function ProjectProvider({
         e.key === "y"
       ) {
         e.preventDefault();
-        history.redo();
+        redoAndClearUndoNotice();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [history, undoWithAnnounce]);
+  }, [history, redoAndClearUndoNotice, undoWithAnnounce]);
 
   /* ── Context value (memoised) ── */
   const value: ProjectContextValue = useMemo(
@@ -866,7 +875,7 @@ export function ProjectProvider({
       lastRejection,
       reportInvalidEdit,
       undo: undoWithAnnounce,
-      redo: history.redo,
+      redo: redoAndClearUndoNotice,
       canUndo: history.canUndo,
       canRedo: history.canRedo,
     }),
@@ -904,6 +913,7 @@ export function ProjectProvider({
       lastAction,
       lastRejection,
       reportInvalidEdit,
+      redoAndClearUndoNotice,
       history,
       undoWithAnnounce,
     ],
