@@ -29,7 +29,8 @@ export default function HomeMppUploadAction({
   const inputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [phase, setPhase] = useState<"idle" | "uploading" | "parsing" | "saving">(
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [phase, setPhase] = useState<"idle" | "parsing">(
     "idle",
   );
   const abortRef = useRef<AbortController | null>(null);
@@ -52,6 +53,11 @@ export default function HomeMppUploadAction({
       IMPORT_TIMEOUT_MS,
     );
     setPhase("parsing");
+    setElapsedSeconds(0);
+    const ticker = setInterval(
+      () => setElapsedSeconds((seconds) => seconds + 1),
+      1000,
+    );
 
     controller.signal.addEventListener("abort", () => {
       setError(
@@ -61,6 +67,7 @@ export default function HomeMppUploadAction({
       );
       setPhase("idle");
       setIsProcessing(false);
+      clearInterval(ticker);
     });
 
     try {
@@ -97,6 +104,7 @@ export default function HomeMppUploadAction({
       }
     } finally {
       clearTimeout(timeout);
+      clearInterval(ticker);
       abortRef.current = null;
       setPhase("idle");
       setIsProcessing(false);
@@ -133,10 +141,9 @@ export default function HomeMppUploadAction({
         {isProcessing ? "Importando..." : "Subir Archivo .mpp"}
       </button>
       {isProcessing && (
-        <span className="gantt-import-phase">
-          {phase === "uploading" && "Subiendo el archivo…"}
+        <span className="gantt-import-phase" data-testid="import-phase">
           {phase === "parsing" && "Analizando el cronograma…"}
-          {phase === "saving" && "Guardando el proyecto…"}
+          {elapsedSeconds > 0 && ` ${elapsedSeconds} s`}
           <button
             type="button"
             data-testid="cancel-import"

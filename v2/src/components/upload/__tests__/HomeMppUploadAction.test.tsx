@@ -3,7 +3,7 @@
  */
 
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import HomeMppUploadAction from "../HomeMppUploadAction";
 
 const push = jest.fn();
@@ -163,4 +163,32 @@ describe("HomeMppUploadAction", () => {
       expect(screen.getByRole("button")).not.toBeDisabled();
     },
   );
+});
+
+describe("la espera muestra información real, no fases inventadas", () => {
+  test("mientras analiza informa el tiempo transcurrido", async () => {
+    jest.useFakeTimers();
+    global.fetch = jest.fn(() => new Promise<Response>(() => {})) as jest.Mock;
+
+    render(<HomeMppUploadAction />);
+
+    fireEvent.change(screen.getByLabelText("Seleccionar archivo .mpp"), {
+      target: { files: [new File(["mpp"], "obra.mpp")] },
+    });
+
+    // El primer aviso aparece sin esperar: el usuario ve que algo empezó.
+    expect(await screen.findByTestId("import-phase")).toHaveTextContent(
+      /analizando el cronograma/i,
+    );
+
+    await act(async () => {
+      jest.advanceTimersByTime(12000);
+    });
+
+    // Un cronograma grande tarda ~36 s: el contador es lo que distingue
+    // «está trabajando» de «se colgó».
+    expect(screen.getByTestId("import-phase")).toHaveTextContent(/12 s/);
+
+    jest.useRealTimers();
+  });
 });

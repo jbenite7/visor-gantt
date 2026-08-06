@@ -2,13 +2,16 @@ import { loadProject } from "@/app/actions/project";
 import { notFound, redirect } from "next/navigation";
 import ProjectView from "./ProjectView";
 import { getCurrentUser } from "@/lib/auth/session";
+import { parseImportSummary } from "@/lib/import/importSummary";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProjectPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await getCurrentUser();
   if (!user) {
@@ -16,6 +19,15 @@ export default async function ProjectPage({
   }
 
   const { id } = await params;
+  // La importación redirige aquí con los conteos en la URL: es el único canal
+  // que sobrevive al redirect, así que aquí es donde se convierten en aviso.
+  const query = (await searchParams) ?? {};
+  const importSummary = parseImportSummary({
+    tareas: typeof query.tareas === "string" ? query.tareas : undefined,
+    dependencias:
+      typeof query.dependencias === "string" ? query.dependencias : undefined,
+    recursos: typeof query.recursos === "string" ? query.recursos : undefined,
+  });
   const project = await loadProject(id);
 
   if (!project) {
@@ -68,6 +80,7 @@ export default async function ProjectPage({
 
   return (
     <ProjectView
+      importSummary={importSummary}
       projectId={project.id}
       tasks={serializedTasks}
       projectName={project.name}

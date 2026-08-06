@@ -6,6 +6,8 @@ import GanttView from "@/components/views/GanttView";
 import type { GanttTask } from "@/components/gantt/types";
 import type { PlanningAuditEvent } from "@/types/audit";
 import type { Observation } from "@/lib/observations/observations";
+import type { ImportSummary } from "@/lib/import/importSummary";
+import ImportSummaryBanner from "@/components/import/ImportSummaryBanner";
 import Link from "next/link";
 import { createProjectDate } from "@/lib/date/projectDate";
 import type { ProjectCalendar } from "@/types/calendar";
@@ -101,6 +103,7 @@ export default function ProjectView({
   uiSettings,
   planningAuditEvents,
   observations,
+  importSummary = null,
 }: {
   projectId?: string;
   tasks: SerializedTask[];
@@ -124,6 +127,7 @@ export default function ProjectView({
   uiSettings?: UISettings;
   planningAuditEvents?: PlanningAuditEvent[];
   observations?: Observation[];
+  importSummary?: ImportSummary | null;
 }) {
   const [isMounted, setIsMounted] = useState(false);
 
@@ -169,6 +173,7 @@ export default function ProjectView({
 
   return (
     <div className="apple-page flex h-screen min-w-0 flex-col overflow-hidden">
+      <ImportSummaryBanner summary={importSummary} />
       <header className="apple-page-header shrink-0 px-6 py-4">
         <div className="mx-auto flex max-w-7xl min-w-0 items-center justify-between">
           <div className="flex min-w-0 items-center gap-4">

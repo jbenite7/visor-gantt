@@ -3187,3 +3187,24 @@ h6 {
 .gantt-import-phase button:hover {
   background: var(--color-bg-surface-secondary);
 }
+
+/* Resumen de importación: cierra el viaje del .mpp diciendo qué entró. */
+.import-summary-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: var(--border-width-hairline) solid var(--color-hairline);
+  background: var(--aia-corp-xlight);
+  padding: 0.5rem 1rem;
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 0.8125rem;
+  color: var(--aia-corp-dark);
+}
+
+.import-summary-banner__dismiss {
+  margin-left: auto;
+  color: var(--aia-corp-dark);
+  font-size: 1.125rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+}

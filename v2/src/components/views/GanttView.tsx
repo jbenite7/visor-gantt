@@ -95,6 +95,7 @@ import {
   roleViewPresetLabel,
 } from "@/lib/gantt/roleViewPresets";
 import { normalizeTaskStructure } from "@/lib/gantt/taskStructure";
+import { saveStatusLabel } from "@/lib/gantt/saveStatusLabel";
 import { buildExecutivePlanningSummary } from "@/lib/gantt/executiveDashboard";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -291,6 +292,7 @@ function GanttViewInner({
   );
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [projectId, setProjectId] = useState<string | undefined>(initialProjectId);
   const [projectName] = useState<string>(initialProjectName ?? "Sin título");
   const [showStructurePreview, setShowStructurePreview] = useState(false);
@@ -842,6 +844,7 @@ function GanttViewInner({
       if (result.success) {
         setProjectId(result.id);
         setSaveStatus("saved");
+        setLastSavedAt(new Date());
         setTimeout(() => setSaveStatus("idle"), 2000);
       } else {
         setSaveStatus("error");
@@ -1209,10 +1212,7 @@ function GanttViewInner({
           data-testid="save-status"
           role="status"
         >
-          {saveStatus === "idle" && "Guardado automático activo"}
-          {saveStatus === "saving" && "Guardando…"}
-          {saveStatus === "saved" && "Guardado"}
-          {saveStatus === "error" && "No se pudo guardar. Reintentar"}
+          {saveStatusLabel(saveStatus, lastSavedAt)}
         </span>
         <label
           className="apple-button-secondary gantt-role-view inline-flex h-[var(--gantt-topbar-control-height)] shrink-0 items-center gap-[var(--gantt-topbar-gap)] rounded-[var(--radius-lg)] px-[var(--gantt-topbar-control-padding-inline)] text-[length:var(--gantt-topbar-font-size)] font-semibold"
