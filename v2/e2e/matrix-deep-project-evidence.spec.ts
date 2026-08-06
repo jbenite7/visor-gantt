@@ -280,7 +280,8 @@ test("crea evidencia profunda de Programacion Matricial con 2 etapas, 2 torres y
   await expect(page.getByText(/\d+ tareas/).first()).toBeVisible();
   await evidence(page, testInfo, "06-gantt-generado");
 
-  await page.getByTestId("sidebar-view-matrix").click();
+  await page.getByTestId("command-palette-open").click();
+  await page.getByTestId("command-palette-item-view-matrix").click();
   await expect(page.getByText("3 disciplinas · 20 ubicaciones · 140 tareas vinculadas")).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "Etapa 2 Torre A Piso 10" })).toBeVisible();
   await evidence(page, testInfo, "07-matriz-vinculada-post-guardado");

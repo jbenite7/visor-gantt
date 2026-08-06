@@ -211,7 +211,8 @@ test("crea un edificio de 10 pisos desde Programacion Matricial", async ({ page 
   await expect(page.getByText("103 tareas", { exact: true })).toBeVisible();
   await attachVisualEvidence(page, testInfo, "01-gantt");
 
-  await page.getByTestId("sidebar-view-matrix").click();
+  await page.getByTestId("command-palette-open").click();
+  await page.getByTestId("command-palette-item-view-matrix").click();
   await expect(page.getByText("3 disciplinas · 10 ubicaciones · 70 tareas vinculadas")).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "Piso 10" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Estructura en concreto 3 actividades/i })).toHaveCount(10);
