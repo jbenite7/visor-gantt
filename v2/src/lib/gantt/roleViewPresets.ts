@@ -86,6 +86,28 @@ export const ROLE_VIEW_PRESETS: RoleViewPreset[] = [
       "critical",
     ],
   },
+  {
+    id: "tracking",
+    labelEs: "Seguimiento",
+    labelEn: "Tracking",
+    descriptionEs: "Compara el plan contra la línea base para ver qué se atrasó.",
+    descriptionEn: "Compare the plan against the baseline to see what slipped.",
+    view: "tracking",
+    scale: "week",
+    taskFilter: { text: "", type: "all" },
+    visibleTaskColumns: ["id", "wbs", "name", "start", "finish", "duration", "progress"],
+  },
+  {
+    id: "taskSheet",
+    labelEs: "Hoja de Tareas",
+    labelEn: "Task Sheet",
+    descriptionEs: "Listado completo de actividades para revisar datos en tabla.",
+    descriptionEn: "Full activity list for reviewing data as a table.",
+    view: "taskSheet",
+    scale: "week",
+    taskFilter: { text: "", type: "all" },
+    visibleTaskColumns: ["id", "wbs", "name", "start", "finish", "duration", "progress"],
+  },
 ];
 
 export function roleViewPresetLabel(preset: RoleViewPreset, locale: UILocale): string {

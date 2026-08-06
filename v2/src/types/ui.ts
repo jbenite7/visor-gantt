@@ -1,6 +1,6 @@
 export type UILocale = "es" | "en";
 export type TaskFilterType = "all" | "critical" | "non-critical" | "milestones" | "summaries";
-export type RoleViewPresetId = "planner" | "executive" | "field";
+export type RoleViewPresetId = "planner" | "executive" | "field" | "tracking" | "taskSheet";
 export type UIInteractionMode = "simple" | "advanced";
 
 export interface TaskFilterSettings {
