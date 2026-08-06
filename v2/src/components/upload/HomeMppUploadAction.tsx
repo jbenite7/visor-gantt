@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
 
 const MAX_FILE_SIZE_MB = 50;
+const IMPORT_TIMEOUT_MS = 180000;
 
 function validateMppFile(file: File): string | null {
   const extension = `.${file.name.split(".").pop()?.toLowerCase()}`;
@@ -28,6 +29,10 @@ export default function HomeMppUploadAction({
   const inputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phase, setPhase] = useState<"idle" | "uploading" | "parsing" | "saving">(
+    "idle",
+  );
+  const abortRef = useRef<AbortController | null>(null);
   const router = useRouter();
 
   const handleFile = async (file: File) => {
@@ -40,12 +45,31 @@ export default function HomeMppUploadAction({
     setIsProcessing(true);
     setError(null);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const timeout = setTimeout(
+      () => controller.abort("timeout"),
+      IMPORT_TIMEOUT_MS,
+    );
+    setPhase("parsing");
+
+    controller.signal.addEventListener("abort", () => {
+      setError(
+        controller.signal.reason === "timeout"
+          ? "El análisis tardó demasiado. Vuelve a intentarlo o prueba con un archivo más pequeño."
+          : "Importación cancelada.",
+      );
+      setPhase("idle");
+      setIsProcessing(false);
+    });
+
     try {
       const body = new FormData();
       body.append("file", file);
       const response = await fetch("/api/import-mpp", {
         method: "POST",
         body,
+        signal: controller.signal,
       });
 
       if (response.ok) {
@@ -62,8 +86,19 @@ export default function HomeMppUploadAction({
 
       setError(payload?.error ?? "No se pudo importar el archivo .mpp");
     } catch {
-      setError("No se pudo conectar con el servidor de importacion");
+      if (controller.signal.aborted) {
+        setError(
+          controller.signal.reason === "timeout"
+            ? "El análisis tardó demasiado. Vuelve a intentarlo o prueba con un archivo más pequeño."
+            : "Importación cancelada.",
+        );
+      } else {
+        setError("No se pudo conectar con el servidor de importacion");
+      }
     } finally {
+      clearTimeout(timeout);
+      abortRef.current = null;
+      setPhase("idle");
       setIsProcessing(false);
     }
   };
@@ -97,6 +132,20 @@ export default function HomeMppUploadAction({
         <Upload size={16} aria-hidden />
         {isProcessing ? "Importando..." : "Subir Archivo .mpp"}
       </button>
+      {isProcessing && (
+        <span className="gantt-import-phase">
+          {phase === "uploading" && "Subiendo el archivo…"}
+          {phase === "parsing" && "Analizando el cronograma…"}
+          {phase === "saving" && "Guardando el proyecto…"}
+          <button
+            type="button"
+            data-testid="cancel-import"
+            onClick={() => abortRef.current?.abort("user")}
+          >
+            Cancelar
+          </button>
+        </span>
+      )}
       {error && (
         <p className="max-w-md rounded-[var(--radius-lg)] border border-[var(--aia-alert-main)] bg-[var(--aia-alert-xlight)] px-3 py-2 text-sm text-[var(--aia-alert-main)]">
           {error}

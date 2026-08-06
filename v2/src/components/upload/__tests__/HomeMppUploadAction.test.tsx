@@ -41,7 +41,9 @@ describe("HomeMppUploadAction", () => {
 
     selectFile("cronograma.mpp");
 
-    expect(screen.getByRole("button")).toHaveTextContent("Importando...");
+    expect(
+      screen.getByRole("button", { name: /importando/i }),
+    ).toHaveTextContent("Importando...");
 
     await screen.findByRole("button", { name: /subir archivo \.mpp/i });
 
@@ -116,6 +118,28 @@ describe("HomeMppUploadAction", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button")).not.toBeDisabled();
     expect(screen.getByRole("button")).toHaveTextContent("Subir Archivo .mpp");
+  });
+
+  test("mientras importa muestra la fase y deja cancelar (E4)", async () => {
+    let resolveFetch: (value: unknown) => void = () => {};
+    global.fetch = jest.fn(
+      () => new Promise((resolve) => { resolveFetch = resolve; }),
+    ) as jest.Mock;
+
+    render(<HomeMppUploadAction />);
+
+    const input = screen.getByLabelText("Seleccionar archivo .mpp");
+    fireEvent.change(input, {
+      target: { files: [new File(["mpp"], "obra.mpp")] },
+    });
+
+    expect(await screen.findByText(/analizando/i)).toBeInTheDocument();
+
+    const cancel = screen.getByTestId("cancel-import");
+    fireEvent.click(cancel);
+
+    expect(await screen.findByText(/importación cancelada/i)).toBeInTheDocument();
+    resolveFetch({ ok: true, status: 200, url: "/project/1", json: async () => ({}) });
   });
 
   test.each([
