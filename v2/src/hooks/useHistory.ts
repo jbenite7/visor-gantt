@@ -22,11 +22,11 @@ export function useHistory(maxStack?: number) {
     setCanRedo(historyRef.current.canRedo());
   }, []);
 
-  const undo = useCallback(() => {
-    const didUndo = historyRef.current.undo();
+  const undo = useCallback((): string | null => {
+    const description = historyRef.current.undo();
     setCanUndo(historyRef.current.canUndo());
     setCanRedo(historyRef.current.canRedo());
-    return didUndo;
+    return description;
   }, []);
 
   const redo = useCallback(() => {

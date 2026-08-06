@@ -785,6 +785,18 @@ export function ProjectProvider({
     [commitTaskChange, tasks],
   );
 
+  const undoWithAnnounce = useCallback(() => {
+    const description = history.undo();
+    if (!description) return;
+
+    setLastAction({
+      kind: "other",
+      count: 1,
+      description: `Deshecho: ${description}`,
+      token: nextActionToken(),
+    });
+  }, [history]);
+
   /* ── Keyboard shortcuts: Ctrl+Z / Ctrl+Shift+Z ── */
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -801,7 +813,7 @@ export function ProjectProvider({
 
       if (e.key === "z" && !e.shiftKey) {
         e.preventDefault();
-        history.undo();
+        undoWithAnnounce();
       } else if (
         (e.key === "z" && e.shiftKey) ||
         e.key === "y"
@@ -813,7 +825,7 @@ export function ProjectProvider({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [history]);
+  }, [history, undoWithAnnounce]);
 
   /* ── Context value (memoised) ── */
   const value: ProjectContextValue = useMemo(
@@ -853,7 +865,7 @@ export function ProjectProvider({
       lastAction,
       lastRejection,
       reportInvalidEdit,
-      undo: history.undo,
+      undo: undoWithAnnounce,
       redo: history.redo,
       canUndo: history.canUndo,
       canRedo: history.canRedo,
@@ -893,6 +905,7 @@ export function ProjectProvider({
       lastRejection,
       reportInvalidEdit,
       history,
+      undoWithAnnounce,
     ],
   );
 

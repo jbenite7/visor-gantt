@@ -480,3 +480,20 @@ describe("observaciones de obra (E43)", () => {
     expect(ctx!.observations).toHaveLength(1);
   });
 });
+
+describe("el deshacer se anuncia (E12)", () => {
+  test("tras Ctrl+Z el aviso dice qué se deshizo", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1 }), task({ id: 2 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.deleteTasks([2]));
+    act(() => ctx!.undo());
+
+    expect(ctx!.lastAction?.description).toMatch(/^Deshecho:/);
+  });
+});

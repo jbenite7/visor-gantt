@@ -36,13 +36,13 @@ export class HistoryStack {
     }
   }
 
-  /** Undo the most recent command. Returns false if nothing to undo. */
-  undo(): boolean {
+  /** Undo the most recent command. Returns its description, or null if nothing to undo. */
+  undo(): string | null {
     const cmd = this.undoStack.pop();
-    if (!cmd) return false;
+    if (!cmd) return null;
     cmd.undo();
     this.redoStack.push(cmd);
-    return true;
+    return cmd.description;
   }
 
   /** Redo the most recently undone command. Returns false if nothing to redo. */

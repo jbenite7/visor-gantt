@@ -29,7 +29,7 @@ describe("HistoryStack", () => {
 
       const result = stack.undo();
 
-      expect(result).toBe(true);
+      expect(result).toBe("test");
       expect(cmd.undo).toHaveBeenCalledTimes(1);
       expect(stack.canUndo()).toBe(false);
       expect(stack.canRedo()).toBe(true);
@@ -74,10 +74,10 @@ describe("HistoryStack", () => {
 
       // We can verify the stack size by undoing 50 times (should all succeed)
       for (let i = 0; i < 50; i++) {
-        expect(stack.undo()).toBe(true);
+        expect(stack.undo()).not.toBeNull();
       }
       // 51st undo should fail
-      expect(stack.undo()).toBe(false);
+      expect(stack.undo()).toBeNull();
     });
   });
 
@@ -117,7 +117,7 @@ describe("HistoryStack", () => {
 
       expect(stack.canUndo()).toBe(false);
       expect(stack.canRedo()).toBe(false);
-      expect(stack.undo()).toBe(false);
+      expect(stack.undo()).toBeNull();
       expect(stack.redo()).toBe(false);
     });
   });
