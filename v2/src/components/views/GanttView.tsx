@@ -26,9 +26,8 @@ const BudgetMapping = dynamic(() => import("@/components/budget/BudgetMapping"),
 const LineOfBalance = dynamic(() => import("@/components/charts/LineOfBalance"), { loading: ViewLoading });
 const SCurveView = dynamic(() => import("@/components/views/SCurveView"), { loading: ViewLoading });
 const CalendarSettingsView = dynamic(() => import("@/components/views/CalendarSettingsView"), { loading: ViewLoading });
-const BottlenecksView = dynamic(() => import("@/components/views/BottlenecksView"), { loading: ViewLoading });
+const ProblemsView = dynamic(() => import("@/components/views/ProblemsView"), { loading: ViewLoading });
 const CalendarView = dynamic(() => import("@/components/views/CalendarView"), { loading: ViewLoading });
-const ConflictsView = dynamic(() => import("@/components/views/ConflictsView"), { loading: ViewLoading });
 const MatrixEditorView = dynamic(() => import("@/components/views/MatrixEditorView"), { loading: ViewLoading });
 const TypicalUnitView = dynamic(() => import("@/components/views/TypicalUnitView"), { loading: ViewLoading });
 const ExecutivePlanningDashboard = dynamic(() => import("@/components/reports/ExecutivePlanningDashboard"), { loading: ViewLoading });
@@ -1025,7 +1024,7 @@ function GanttViewInner({
         setActiveView("lob");
         break;
       case "view-conflictos":
-        setActiveView("conflictos");
+        setActiveView("bottlenecks");
         break;
       case "view-network":
         setActiveView("network");
@@ -1698,14 +1697,11 @@ function GanttViewInner({
           )}
 
           {activeView === "bottlenecks" && (
-            <BottlenecksView
+            <ProblemsView
+              tasks={calculatedTasks}
               issues={scheduleIssues}
               bottlenecks={bottlenecks}
             />
-          )}
-
-          {activeView === "conflictos" && (
-            <ConflictsView tasks={calculatedTasks} />
           )}
 
           {activeView === "unidadTipica" && (

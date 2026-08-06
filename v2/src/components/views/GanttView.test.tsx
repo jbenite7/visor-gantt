@@ -1252,3 +1252,24 @@ describe("GanttView", () => {
     );
   }, 20_000);
 });
+
+describe("recorte del menú: nada se pierde (C3, C5)", () => {
+  test("la vista Problemas monta las dos secciones", async () => {
+    render(<GanttView tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-bottlenecks"));
+
+    expect(
+      await screen.findByTestId("problems-section-bottlenecks"),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("problems-section-conflicts")).toBeInTheDocument();
+  });
+
+  test("Diagrama de Red sigue accesible desde la paleta de comandos", () => {
+    render(<GanttView tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+
+    expect(screen.getByTestId("command-palette-item-view-network")).toBeInTheDocument();
+  });
+});
