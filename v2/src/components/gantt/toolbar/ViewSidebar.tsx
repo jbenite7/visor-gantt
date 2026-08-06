@@ -2,16 +2,12 @@
 
 import {
   BarChart3,
-  GitCompare,
-  Table,
-  Network,
   Users,
   TrendingUp,
   LineChart,
   Settings,
   AlertTriangle,
   CalendarDays,
-  Grid3X3,
   LayoutDashboard,
   Layers3,
 } from "lucide-react";
@@ -28,15 +24,10 @@ interface ViewTab {
 const VIEW_TABS: ViewTab[] = [
   { id: "gantt", labelEs: "Gantt", labelEn: "Gantt", icon: BarChart3 },
   { id: "executive", labelEs: "Ejecutivo", labelEn: "Executive", icon: LayoutDashboard },
-  { id: "tracking", labelEs: "Seguimiento", labelEn: "Tracking", icon: GitCompare },
-  { id: "taskSheet", labelEs: "Hoja Tareas", labelEn: "Task Sheet", icon: Table },
-  { id: "network", labelEs: "Diagrama Red", labelEn: "Network", icon: Network },
   { id: "resources", labelEs: "Recursos", labelEn: "Resources", icon: Users },
   { id: "lob", labelEs: "Línea Balance", labelEn: "Line Balance", icon: TrendingUp },
-  { id: "matrix", labelEs: "Matriz", labelEn: "Matrix", icon: Grid3X3 },
   { id: "scurve", labelEs: "Curva S", labelEn: "S Curve", icon: LineChart },
-  { id: "bottlenecks", labelEs: "Cuellos", labelEn: "Bottlenecks", icon: AlertTriangle },
-  { id: "conflictos", labelEs: "Conflictos", labelEn: "Conflicts", icon: AlertTriangle },
+  { id: "bottlenecks", labelEs: "Problemas", labelEn: "Problems", icon: AlertTriangle },
   { id: "unidadTipica", labelEs: "Unidad Típica", labelEn: "Typical Unit", icon: Layers3 },
   { id: "calendario", labelEs: "Calendario", labelEn: "Calendar", icon: CalendarDays },
   { id: "settings", labelEs: "Configuración", labelEn: "Settings", icon: Settings },

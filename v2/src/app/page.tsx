@@ -1,13 +1,10 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   AlertTriangle,
-  ArrowRight,
   Database,
   FolderKanban,
   Plus,
   RefreshCw,
-  UploadCloud,
 } from "lucide-react";
 import pool from "@/lib/db";
 import { listProjects } from "@/app/actions/project";
@@ -141,17 +138,6 @@ export default async function Home() {
             <HomeMppUploadAction />
           </div>
         )}
-
-        <div className="mt-8 flex gap-4">
-          <Link
-            href="/gantt-demo"
-            className="apple-button-secondary inline-flex items-center gap-2 rounded-[var(--radius-lg)] px-3 py-2 text-sm font-semibold transition-colors"
-          >
-            <UploadCloud size={15} aria-hidden />
-            Ver Demo Gantt
-            <ArrowRight size={15} aria-hidden />
-          </Link>
-        </div>
       </main>
     </div>
   );

@@ -1153,7 +1153,11 @@ describe("GanttView", () => {
 
     mockedSaveProject.mockClear();
 
-    fireEvent.click(screen.getByTestId("sidebar-view-matrix"));
+    fireEvent.click(screen.getByTestId("command-palette-open"));
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "matriz" },
+    });
+    fireEvent.keyDown(window, { key: "Enter" });
     expect(screen.getByTestId("matrix-editor")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Piso 1"));
