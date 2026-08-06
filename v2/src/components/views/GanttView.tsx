@@ -1207,9 +1207,9 @@ function GanttViewInner({
           role="status"
         >
           {saveStatus === "idle" && "Guardado automático activo"}
-          {saveStatus === "saving" && "Guardando..."}
+          {saveStatus === "saving" && "Guardando…"}
           {saveStatus === "saved" && "Guardado"}
-          {saveStatus === "error" && "Error al guardar"}
+          {saveStatus === "error" && "No se pudo guardar. Reintentar"}
         </span>
         <label
           className="apple-button-secondary gantt-role-view inline-flex h-[var(--gantt-topbar-control-height)] shrink-0 items-center gap-[var(--gantt-topbar-gap)] rounded-[var(--radius-lg)] px-[var(--gantt-topbar-control-padding-inline)] text-[length:var(--gantt-topbar-font-size)] font-semibold"
