@@ -1,0 +1,73 @@
+import type { ViewType } from "@/components/gantt/toolbar/ViewSwitcher";
+
+export interface ViewHelp {
+  title: string;
+  /** Qué responde esta vista. */
+  purpose: string;
+  /** Qué necesita el cronograma para que sirva. */
+  needs: string;
+}
+
+const VIEW_HELP: Partial<Record<ViewType, ViewHelp>> = {
+  gantt: {
+    title: "Gantt",
+    purpose:
+      "El cronograma completo: cuándo va cada actividad, de qué depende y cuál no puede atrasarse.",
+    needs: "Tareas con fechas. Es la vista base: siempre tiene algo que mostrar.",
+  },
+  executive: {
+    title: "Ejecutivo",
+    purpose:
+      "Resumen para dirección: cómo van el plazo, el costo y el alcance en una sola pantalla.",
+    needs: "Tareas con avance. Con presupuesto cargado además compara costo.",
+  },
+  resources: {
+    title: "Recursos",
+    purpose:
+      "Quién y qué hace falta en cada actividad, y cuánto se está cargando cada cuadrilla.",
+    needs:
+      "Recursos asignados a las tareas. Si el .mpp no traía recursos, esta vista sale vacía.",
+  },
+  lob: {
+    title: "Línea de Balance",
+    purpose:
+      "Compara el ritmo de una misma actividad piso por piso, para ver si la obra avanza parejo.",
+    needs:
+      "Actividades que se repitan en varios niveles, con el piso en el nombre o en el WBS.",
+  },
+  scurve: {
+    title: "Curva S",
+    purpose:
+      "Cómo se acumula el avance en el tiempo, para comparar lo planeado con lo real.",
+    needs: "Tareas con fechas y porcentaje de avance.",
+  },
+  bottlenecks: {
+    title: "Problemas",
+    purpose:
+      "Todo lo que está mal en el plan: los cuellos que amarran la obra y las fechas que se contradicen.",
+    needs:
+      "Dependencias entre tareas. Sin conflictos, esta vista dice que el plan está limpio.",
+  },
+  unidadTipica: {
+    title: "Unidad Típica",
+    purpose:
+      "La secuencia constructiva de un piso tipo, para ver si se repite igual en toda la torre.",
+    needs:
+      "La misma actividad repetida en tres o más pisos — por ejemplo «Mampostería piso 1, 2, 3».",
+  },
+  calendario: {
+    title: "Calendario",
+    purpose: "Los días que la obra trabaja y los que no, mes a mes.",
+    needs: "El calendario del proyecto, que viene en el .mpp o se ajusta en Configuración.",
+  },
+  settings: {
+    title: "Configuración",
+    purpose:
+      "La jornada, los días laborales y los festivos. Lo que aquí definas manda sobre todas las fechas.",
+    needs: "Nada: siempre está disponible.",
+  },
+};
+
+export function viewHelpFor(view: ViewType): ViewHelp | null {
+  return VIEW_HELP[view] ?? null;
+}
