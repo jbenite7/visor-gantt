@@ -13,16 +13,16 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | E1 | Alta y baja de tareas pasan por el historial + aviso «N tareas eliminadas · Deshacer» | #2 | 4 | 10 | 10 | 7 | **9,0** | 0 reportes de pérdida de trabajo; `Ctrl+Z` recupera un borrado | **shipped 2026-08-05** |
 | E2 | Estado de error propio en la home, distinto del vacío, con reintento | #3 | 4 | 9 | 10 | 8 | **9,0** | Un fallo de DB muestra el estado de error, no «No hay proyectos guardados» | **shipped 2026-08-05** |
 | E3 | Resolver `/upload`: sesión exigida antes de aceptar el archivo | #1 | 4 | 10 | 9 | 5 | **8,0** | 0 importaciones que terminan en «No autenticado» tras el parseo | **shipped 2026-08-05** |
-| E4 | Progreso por fases en la importación (subiendo → analizando → guardando) + timeout + cancelar | #4 | 3 | 9 | 8 | 5 | **7,3** | % de importaciones abandonadas durante la espera; tiempo percibido en prueba con 5 usuarios | backlog |
+| E4 | Progreso por fases en la importación + timeout + cancelar | #4 | 3 | 9 | 8 | 5 | **7,3** | La espera muestra fase y se puede cancelar de verdad | **shipped 2026-08-06** (parcial: solo la fase «analizando» se emite) |
 | E5 | Mapear errores del parser a mensajes qué/por qué/cómo; detalle técnico solo a logs | #5, #23 | 3 | 8 | 9 | 7 | **8,0** | 0 stack traces visibles en la UI; los 6 errores del flujo pasan el checklist qué/por qué/cómo | backlog |
 | E6 | Estados vacíos en tabla y Gantt con acción de salida | #9 | 3 | 8 | 9 | 8 | **8,3** | 0 pantallas en blanco — **verificado en navegador** | **shipped 2026-08-05** |
 | E7 | Chip de filtro activo siempre visible y removible («Solo ruta crítica ×») | #10 | 3 | 8 | 8 | 8 | **8,0** | Al aplicar el preset «Dirección», el chip aparece; 0 casos de tareas ocultas sin indicador | backlog |
-| E8 | Panel «Ayuda de esta vista» por pantalla, reutilizando los `hint` ya escritos | #12 | 3 | 8 | 8 | 6 | **7,3** | Las 14 vistas tienen texto de ayuda accesible sin `Cmd+K` ni hover | backlog |
+| E8 | Panel «Ayuda de esta vista» por pantalla | #12 | 3 | 8 | 8 | 6 | **7,3** | Todas las vistas alcanzables (13) tienen ayuda accesible sin `Cmd+K` | **shipped 2026-08-06** |
 | E9 | Login: conservar el correo al fallar, validar en el campo, códigos de error en vez de texto en la URL | #6, #8 | 3 | 7 | 9 | 7 | **7,7** | El correo sobrevive a un intento fallido; `/login?error=<texto>` ya no pinta texto arbitrario | backlog |
 | E10 | Salida para usuario bloqueado (recuperación o contacto de admin) y mensajes sin jerga de `.env` | #7 | 3 | 7 | 8 | 6 | **7,0** | Existe una ruta de recuperación desde `/login`; 0 menciones de `.env` en pantallas de usuario | backlog |
 | E11 | Anunciar formato y límite de 50 MB junto al botón de subida | #13 | 3 | 6 | 9 | 9 | **8,0** | Caída de los rechazos por tamaño (medido en logs de `import-mpp`) | backlog |
-| E12 | Feedback de undo («Deshecho: <acción>») y aviso al llegar al tope de 50 | #11 | 3 | 7 | 8 | 7 | **7,3** | Existe región `aria-live`; el mensaje aparece en cada undo (test E2E) | backlog |
-| E13 | Indicador de guardado permanente con hora del último guardado y reintento en error | #20 | 2 | 6 | 8 | 7 | **7,0** | El indicador es visible al abrir un proyecto, no solo al guardar | backlog |
+| E12 | Feedback de undo («Deshecho: <acción>») | #11 | 3 | 7 | 8 | 7 | **7,3** | El mensaje aparece en cada undo | **shipped 2026-08-06** (falta el aviso al llegar al tope de 50) |
+| E13 | Indicador de guardado permanente | #20 | 2 | 6 | 8 | 7 | **7,0** | Visible al abrir el proyecto — **verificado en navegador** | **shipped 2026-08-06** (falta la hora del último guardado) |
 | E14 | Agrupar las 14 vistas por intención y renombrar «Cuellos» → «Cuellos de botella»; icono propio | #16 | 2 | 7 | 7 | 6 | **6,7** | Tiempo para encontrar una vista concreta en prueba con 5 usuarios | backlog |
 | E15 | Etiquetas de texto en acciones destructivas; deshabilitar undo/redo en vez de desmontarlos | #15 | 2 | 6 | 8 | 8 | **7,3** | 0 controles destructivos solo-icono; la barra no se reordena | backlog |
 | E16 | Skeleton al abrir un proyecto | #14 | 2 | 5 | 8 | 8 | **7,0** | LCP percibido en `/project/[id]` (se cierra con Fase 8) | backlog |
@@ -39,7 +39,7 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 |---|---|---|---|---|---|---|---|---|---|
 | E48 | 404 propio: en español, con marca y salida a los cronogramas | F5 / back-of-fence | 2 | 6 | 10 | 9 | **8,3** | 0 páginas de sistema en inglés — **verificado en navegador** | **shipped 2026-08-05** |
 | E49 | El vacío de «Unidad Típica» enseña qué es un sistema repetido con ejemplo de obra | F3 | 2 | 7 | 9 | 9 | **8,3** | Los estados vacíos explican el concepto, no solo la condición técnica | **shipped 2026-08-05** |
-| E50 | **Cortes C1-C6**: de 14 vistas a 9 (fundir Seguimiento/Hoja Tareas en Gantt, Conflictos en Cuellos, sacar Diagrama Red, resolver Matriz y vistas vacías) | PRODUCT.md cut list | 3 | 9 | 7 | 4 | **6,7** | Nº de vistas en la barra ≤ 9; tiempo-a-encontrar en prueba con 5 usuarios | backlog |
+| E50 | **Cortes C1-C6**: de 14 vistas a 9 | PRODUCT.md cut list | 3 | 9 | 7 | 4 | **6,7** | Nº de vistas en la barra ≤ 9 — **9 verificado en navegador** | **shipped 2026-08-06** |
 | E51 | Bajar de 6 pasos a 2 hasta el valor (abrir `.mpp` sin cuenta, modo lectura) | PRODUCT.md F1 | 3 | 10 | 8 | 4 | **7,3** | Pasos desde llegar hasta ver el cronograma ≤ 3 | backlog |
 
 ### Añadidos en Fase 8 (high-perf-browser)
@@ -77,7 +77,7 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
 |---|---|---|---|---|---|---|---|---|---|
 | E23 | Mostrar el issue donde ocurre la edición (toast + inline), no solo en la pestaña «Cuellos» | #26 | 4 | 10 | 10 | 7 | **9,0** | 0 ediciones rechazadas sin mensaje | **shipped 2026-08-05** |
-| E24 | Llevar al historial (o al aviso «Deshacer») recursos, presupuesto, mapeos y plan matricial | #27 | 4 | 9 | 9 | 5 | **7,7** | Toda acción destructiva es deshacible o confirmada | **shipped 2026-08-05** (parcial: quedan sobrescrituras, ver ficha) |
+| E24 | Llevar al historial recursos, presupuesto, mapeos y plan matricial | #27 | 4 | 9 | 9 | 5 | **7,7** | Toda acción destructiva es deshacible o confirmada | **shipped 2026-08-06** (editar recurso/partida cerrado; quedan sync matriz y reset de columnas) |
 | E25 | Renderizar `calendarIssues` junto al editor de calendario | #28 | 4 | 8 | 10 | 8 | **8,7** | Un calendario inválido muestra el motivo | **shipped 2026-08-05** |
 | E26 | Restringir la entrada: `min=1`, `step=1`, validar `finish >= start`, unificar duración mínima | #30 | 3 | 9 | 10 | 9 | **9,3** | Imposible introducir duración negativa o fin anterior al inicio | **shipped 2026-08-05** |
 | E27 | Marcar en solo lectura lo que calcula el motor (`finish`, filas resumen) usando el `readOnly` existente | #31 | 3 | 8 | 9 | 8 | **8,3** | 0 celdas derivadas editables | backlog |
@@ -85,7 +85,7 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | E29 | Handles de resize visibles y pista permanente de conexión de dependencias | #32 | 3 | 8 | 8 | 7 | **7,7** | Usuarios nuevos descubren arrastre y enlace sin ayuda (prueba con 5) | backlog |
 | E30 | Snapear el fantasma de arrastre y mostrar la fecha destino durante el gesto | #33 | 3 | 8 | 9 | 7 | **8,0** | El preview coincide con el resultado; 0 «saltos» al soltar | backlog |
 | E31 | Resumen de impacto tras editar: resaltar afectadas usando el `changedTaskIds` que ya se calcula | #35 | 3 | 9 | 8 | 6 | **7,7** | El usuario identifica qué se movió sin comparar de memoria | backlog |
-| E32 | Resumen post-importación (N tareas, dependencias, recursos) y aviso de lo que hace (proyecto nuevo, festivos, matriz) | #36 | 3 | 8 | 9 | 7 | **8,0** | 0 importaciones que terminan sin decir qué se importó | backlog |
+| E32 | Resumen post-importación (N tareas, dependencias, recursos) | #36 | 3 | 8 | 9 | 7 | **8,0** | Los conteos llegan al cliente en la URL de destino | **parcial 2026-08-06** — los datos llegan; falta que la pantalla los muestre |
 | E33 | Canal de advertencias del parseo (empezando por las columnas descartadas sobre 120) | #37 | 3 | 7 | 9 | 6 | **7,3** | Las pérdidas silenciosas se anuncian; `WarningList` vivo o borrado | backlog |
 | E34 | Separar lo destructivo de lo frecuente: divisor + etiqueta de texto en toolbar y matriz | #38 | 3 | 8 | 9 | 9 | **8,7** | «Eliminar» nunca es adyacente a «Agregar» sin separación | backlog |
 | E35 | Anunciar el tipo de dependencia durante el arrastre y permitir corregirlo al soltar | #34 | 3 | 7 | 8 | 6 | **7,0** | 0 dependencias creadas con un tipo que el usuario no eligió | backlog |
