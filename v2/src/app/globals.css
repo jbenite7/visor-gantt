@@ -2980,14 +2980,15 @@ h6 {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
-  border-left: 3px solid var(--aia-warn-main);
+  border: var(--border-width-hairline) solid var(--aia-warn-light);
   border-radius: var(--radius-sm);
-  background: var(--color-bg-surface-secondary);
+  background: var(--aia-warn-xlight);
   padding: 0.5rem 0.625rem;
 }
 
 .gantt-observation-item[data-status="done"] {
-  border-left-color: var(--aia-corp-main);
+  border-color: var(--color-hairline);
+  background: var(--color-bg-surface-secondary);
   color: var(--color-text-muted);
 }
 

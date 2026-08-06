@@ -936,6 +936,12 @@ function GanttViewInner({
         keywords: "conflicts conflictos violaciones dependencias",
       },
       {
+        id: "view-network",
+        label: locale === "en" ? "Open Network Diagram" : "Abrir Diagrama de Red",
+        hint: locale === "en" ? "Review task dependencies as a network" : "Revisa el orden de la obra y sus dependencias en red",
+        keywords: "network red diagrama dependencias precedencias",
+      },
+      {
         id: "view-unidad-tipica",
         label: locale === "en" ? "Open Typical Unit" : "Abrir Unidad Típica",
         hint: locale === "en" ? "Review repetitive systems by level" : "Revisa sistemas repetidos por nivel",
@@ -1020,6 +1026,9 @@ function GanttViewInner({
         break;
       case "view-conflictos":
         setActiveView("conflictos");
+        break;
+      case "view-network":
+        setActiveView("network");
         break;
       case "view-unidad-tipica":
         setActiveView("unidadTipica");

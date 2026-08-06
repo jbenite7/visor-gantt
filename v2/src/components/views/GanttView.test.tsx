@@ -201,6 +201,19 @@ describe("GanttView", () => {
     expect(await screen.findByTestId("matrix-editor-empty")).toBeInTheDocument();
   });
 
+  test("offers the network diagram view from the command palette", () => {
+    render(<GanttView tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "red" },
+    });
+
+    expect(screen.getByTestId("command-palette-item-view-network")).toBeInTheDocument();
+  });
+
   test("runs editing commands from the command palette", () => {
     render(<GanttView tasks={[makeTask({ id: 1 })]} />);
 
