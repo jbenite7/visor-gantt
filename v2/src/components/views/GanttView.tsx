@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Command as CommandIcon, Search, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, Command as CommandIcon, HelpCircle, Search, SlidersHorizontal, X } from "lucide-react";
 import type { GanttScale, GanttTask } from "@/components/gantt/types";
 import type { PlanningAuditEvent } from "@/types/audit";
 import type { Observation } from "@/lib/observations/observations";
@@ -34,6 +34,7 @@ const ExecutivePlanningDashboard = dynamic(() => import("@/components/reports/Ex
 
 import SplitPane from "@/components/gantt/SplitPane";
 import UndoToast from "@/components/gantt/UndoToast";
+import ViewHelpPanel from "@/components/gantt/ViewHelpPanel";
 import RejectionToast from "@/components/gantt/RejectionToast";
 import ObservationPanel from "@/components/gantt/observations/ObservationPanel";
 import GanttTable from "@/components/gantt/table/GanttTable";
@@ -294,6 +295,7 @@ function GanttViewInner({
   const [projectName] = useState<string>(initialProjectName ?? "Sin título");
   const [showStructurePreview, setShowStructurePreview] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const isDirtyRef = useRef(false);
   const didMountSaveStateRef = useRef(false);
@@ -1256,6 +1258,16 @@ function GanttViewInner({
           <CommandIcon className="gantt-topbar__icon" aria-hidden />
           {locale === "en" ? "Commands" : "Comandos"}
         </button>
+        <button
+          type="button"
+          data-testid="open-view-help"
+          className="apple-button-secondary gantt-command-button inline-flex h-[var(--gantt-topbar-control-height)] shrink-0 items-center gap-[var(--gantt-topbar-gap)] rounded-[var(--radius-lg)] px-[var(--gantt-topbar-control-padding-inline)] text-[length:var(--gantt-topbar-font-size)] font-semibold"
+          onClick={() => setHelpOpen((open) => !open)}
+          title={locale === "en" ? "What is this view for" : "Qué es esta vista"}
+        >
+          <HelpCircle className="gantt-topbar__icon" aria-hidden />
+          {locale === "en" ? "Help" : "Ayuda"}
+        </button>
       </div>
 
       <div className="gantt-project-meta-strip shrink-0 border-b border-[var(--color-hairline)] bg-[var(--color-bg-surface-secondary)] px-[var(--gantt-meta-strip-padding-inline)] py-[var(--gantt-meta-strip-padding-block)]">
@@ -1388,6 +1400,10 @@ function GanttViewInner({
 
       <UndoToast action={lastAction} onUndo={undo} locale={locale} />
       <RejectionToast rejection={lastRejection} locale={locale} />
+
+      {helpOpen && (
+        <ViewHelpPanel view={activeView} onClose={() => setHelpOpen(false)} />
+      )}
 
       {observationPanelTask && (
         <ObservationPanel

@@ -1273,3 +1273,15 @@ describe("recorte del menú: nada se pierde (C3, C5)", () => {
     expect(screen.getByTestId("command-palette-item-view-network")).toBeInTheDocument();
   });
 });
+
+describe("ayuda de la vista activa (E8)", () => {
+  test("el botón de ayuda abre el panel de la vista en la que estás", async () => {
+    render(<GanttView tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.click(screen.getByTestId("open-view-help"));
+
+    expect(await screen.findByRole("dialog", { name: /ayuda/i })).toHaveTextContent(
+      /gantt/i,
+    );
+  });
+});
