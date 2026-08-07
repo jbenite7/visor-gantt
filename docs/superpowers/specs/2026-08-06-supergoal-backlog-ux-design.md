@@ -1,7 +1,6 @@
 # Supergoal «Cerrar el backlog de UX» — diseño
 
-> **BORRADOR.** Las secciones marcadas 🔎 esperan el inventario de módulos en curso, y las marcadas ❓
-> esperan una decisión del usuario. No es ejecutable hasta que ambas se cierren.
+> **Aprobado tras 68 decisiones de grilleo (2026-08-06).** Inventario de 16 módulos completo.
 
 Fecha: 2026-08-06. Origen: los 27 experimentos que quedaron vivos en [EXPERIMENTS.md](../../EXPERIMENTS.md)
 tras entregar el plan anterior, más el inventario funcional completo que el usuario pidió añadir.
@@ -60,7 +59,7 @@ Decisiones tomadas en el grilleo (34 preguntas, 2026-08-06):
 
 | Qué | Decisión |
 |---|---|
-| Fecha de fin | Editarla **cambia la duración**, como MS Project ❓ (ver Riesgos) |
+| Fecha de fin | Editarla **cambia la duración**, como MS Project. Tarea propia con tests; si el motor no lo soporta limpiamente, degrada a solo lectura y se informa |
 | Filas de resumen | Solo lectura, en gris |
 | Texto en campo numérico | Rechazar explicando; nunca convertir a `0` en silencio |
 | Celda editable | Señal al pasar por encima **y** entrada en edición con teclado (Enter/F2) |
@@ -71,7 +70,7 @@ Decisiones tomadas en el grilleo (34 preguntas, 2026-08-06):
 | Impacto de una edición | Resaltar las afectadas **y** dar el recuento |
 | Cambios de calado | Avisar cuando cambia el fin de obra **y** cuando cambia la ruta crítica |
 | Edición rechazada | Marcar las tareas en conflicto **y** enlazar a la vista Problemas |
-| Modo Simple/Avanzado | Que cumpla lo que promete; Simple por defecto ❓ (ver Riesgos) |
+| Modo Simple/Avanzado | Que cumpla lo que promete. **Simple por defecto solo en la primera visita**; después la app recuerda la elección |
 
 ## Bloque C — Pulido
 
@@ -92,8 +91,8 @@ Decisiones tomadas en el grilleo (34 preguntas, 2026-08-06):
 
 ## Bloque D — Módulos sin auditar
 
-Tres exploraciones inventarían ~16 módulos que ninguna fase revisó a fondo. **Análisis: recibido.**
-Recursos/costos y transversales: 🔎 en curso.
+Tres exploraciones inventariaron **16 módulos** que ninguna fase había revisado a fondo, con **36 hallazgos**
+(M1-M36). Los tres informes están incorporados abajo.
 
 ### D1 · Análisis (recibido 2026-08-06)
 
@@ -155,6 +154,55 @@ líneas base no están ahí: viven en la barra principal **y**, duplicadas, dent
 | M35 | Calendario | La vista muestra **máximo 3 tareas por día** sin forma de ver el resto | Baja |
 | M36 | Paleta de comandos | Sin coincidencia difusa: un error de tecleo y no encuentra nada. Faltan comandos de exportación y de Configuración | Baja |
 
+### Decisiones del Bloque D (grilleo del 2026-08-06)
+
+**Observaciones** — el flujo diferencial del producto:
+- Se guardan **al instante**, sin esperar al temporizador: una anotación es un acto único, no hay nada que agrupar.
+- Se pide **responsable** al anotar, opcional: sin él, el CSV de Last Planner exporta una columna vacía y una restricción sin responsable no compromete a nadie.
+- **Vista propia en el menú** con todas las observaciones del proyecto y su exportación, como tenía el visor 1.0.
+
+**Líneas base** — un solo sistema:
+- Las del proyecto son las únicas; Seguimiento deja de tener las suyas. **Y el Gantt principal también dibuja** la comparación, para que el botón haga lo que promete donde se pulsa.
+- Se pueden **nombrar al guardar y borrar**.
+- No se importan las del `.mpp`: se empieza en limpio.
+
+**Exportaciones**:
+- «Copiar Excel» y «PDF» **se renombran a lo que son** ahora; generar `.xlsx` y PDF reales queda anotado como mejora futura con diseño propio.
+- La **API de Last Planner se conecta a la app**: está construida y probada, y hoy no le sirve a nadie.
+- El export del cronograma pasa a ser **CSV de verdad**, con el separador correcto para configuración regional española.
+
+**Tablero ejecutivo**:
+- Con cero tareas muestra **«aún no hay datos»**, no un semáforo verde.
+- Muestra la **fecha de corte**.
+- Cada indicador **lleva a su detalle** (los cuellos abren Problemas, el avance abre el Gantt).
+
+**Asignaciones y recursos**:
+- Se pueden **crear y borrar asignaciones**, y además **asignar desde la propia tarea** en el Gantt.
+- La **sobreasignación se ve en la tabla** y se avisa **al crear** una que sobrecargue.
+- **Una sola definición** de «sobreasignado» compartida por todas las vistas.
+
+**Matriz**:
+- **Vuelve al menú**, dentro de «Trabajo».
+- **Avisa antes de salir** con cambios sin aplicar.
+- «Deshacer» se renombra a **«Descartar cambios» con confirmación** ahora, y se convierte en un deshacer paso a paso como objetivo.
+
+**Guardado**:
+- **Aviso al cerrar** solo si hay algo pendiente.
+- «Reintentar» pasa a ser **un botón de verdad**.
+
+**What-If**: se amplía a **escenarios reales** (varios cambios, con nombre y guardado). Ver Riesgos.
+
+**Análisis**:
+- **Imprimir en los cuatro** módulos (Curva S, Línea de Balance, Unidad Típica, Diagrama de Red), uniforme con el ejecutivo.
+- «Productividad» se renombra a **«Ritmo (1/día)»**; se calculará productividad real **cuando haya cantidades de obra**.
+- Diagrama de Red: **leyenda visible** y los **ciclos de dependencias se avisan en pantalla**, no solo en la consola.
+
+**Menores cerrados con criterio del asistente** (aprobado en bloque): cuellos de LOB encendidos por defecto;
+semáforo de avance que llega a crítico; umbral del 20% explicado en la leyenda; clasificación ambigua
+corregible; mínimo de 3 niveles explicado; ejes de la Curva S con unidades; aviso al borrar un recurso con
+asignaciones más export de la hoja; festivos marcables desde el calendario; días del calendario desplegables;
+paleta con búsqueda tolerante a erratas y comandos de exportación y configuración.
+
 ### Decisión sobre los bugs de pérdida de datos (2026-08-06)
 
 M24 (observaciones sin autoguardado) y M13 (líneas base desconectadas) **entran en el plan como primeras
@@ -213,16 +261,18 @@ se conecta, se renombra o se retira**.
   en la unión de piezas.
 - Verificación por bloque: suite completa, lint, tipos, build y comprobación en navegador.
 
-## Riesgos ❓ (pendientes de decisión del usuario)
+## Riesgos
 
-**1. «Editar el fin cambia la duración» toca el motor de cálculo, no la interfaz.** Es la decisión de más
-riesgo del grilleo. En MS Project esa regla convive con restricciones y calendarios; aquí hay que definir
-qué pasa si el fin cae en día no laboral o si una dependencia lo impide. Propuesta: tarea propia con tests
-exhaustivos y **salida degradada** a solo lectura si el motor no lo soporta limpiamente.
+**1. «Editar el fin cambia la duración» toca el motor de cálculo.** Es lo de más riesgo del supergoal. Va
+como tarea propia con tests exhaustivos y **salida degradada**: si el motor no lo soporta limpiamente
+(restricciones, días no laborales, dependencias que lo impiden), se deja en solo lectura y se informa en vez
+de forzarlo.
 
-**2. «Simple por defecto» cambia la app a quien ya la usa.** Un planificador que hoy tiene todo a la vista
-abriría mañana una app recortada. Propuesta: **Simple solo en la primera visita**, y después la app recuerda
-la elección.
+**2. Ampliar What-If a escenarios reales es una función nueva, no un arreglo.** Varios cambios a la vez, con
+nombre y guardado. Se diseña dentro del Bloque D con su propio alcance; si crece demasiado, se parte.
+
+**3. Alimentar el presupuesto desde PDC es una integración entre aplicaciones.** Fuera de este supergoal,
+anotado como el proyecto siguiente (ver decisión sobre el presupuesto).
 
 ## Criterio de hecho
 
