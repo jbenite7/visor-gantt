@@ -155,6 +155,38 @@ líneas base no están ahí: viven en la barra principal **y**, duplicadas, dent
 | M35 | Calendario | La vista muestra **máximo 3 tareas por día** sin forma de ver el resto | Baja |
 | M36 | Paleta de comandos | Sin coincidencia difusa: un error de tecleo y no encuentra nada. Faltan comandos de exportación y de Configuración | Baja |
 
+### Decisión sobre los bugs de pérdida de datos (2026-08-06)
+
+M24 (observaciones sin autoguardado) y M13 (líneas base desconectadas) **entran en el plan como primeras
+tareas, con máxima prioridad**, en vez de parchearse aparte. Decisión del usuario.
+
+**Riesgo asumido, dicho una vez:** hasta que esas tareas se ejecuten, anotar una observación y cerrar la
+pestaña puede perder lo escrito. Si alguien va a usar la app en obra antes de entonces, conviene avisarle de
+que pulse «Guardar ahora» tras anotar.
+
+### Decisión sobre el presupuesto (2026-08-06)
+
+Se planteó deprecarlo por estar «cubierto en el PDC V2 de lps-aia». **Validado: la premisa era falsa.**
+PDC V2 existe y está activo, pero es un módulo de **plan de compras**: importa un presupuesto de SINCO y lo
+lee (importar, ver en árbol, comparar versiones), sin crear ni editar, y **sin comparación de presupuestado
+contra ejecutado, sin valor ganado y sin curva S de costo real**. Su única curva es de desembolsos futuros
+de contratación. El propio glosario del repo separa los roles: PDC es suministros; control de costos es
+Oficina Técnica.
+
+**Decisión: el presupuesto se mantiene en visor-gantt y pasará a alimentarse del presupuesto que PDC ya
+importa de SINCO**, en vez de cargarse a mano aquí.
+
+**Consecuencia, dicha una vez:** eso es una **integración entre dos aplicaciones**, no un arreglo de UX.
+Necesita su propio diseño (qué canal, quién manda sobre los datos, qué pasa al reimportar en PDC). Por
+tanto:
+
+- Sale del alcance de este supergoal y queda anotado como **el proyecto siguiente**.
+- Mientras tanto, **no se invierte en pulir la carga manual** (M16 exportar sin botón, M17 import CSV
+  silencioso, M20 editar mapeo): se rehará cuando cambie la fuente. Congelados, no descartados.
+- **Sí se mantiene M15** (avisar de cuánto presupuesto está sin vincular) y **M21** (avisar cuando lo
+  vinculado supera la partida): valen igual venga el dato de donde venga, y evitan cifras infladas en el
+  tablero ejecutivo.
+
 ## Panorama del inventario
 
 **36 hallazgos en 16 módulos.** Dos de pérdida o corrupción de datos (M24 observaciones, M13 líneas base),
