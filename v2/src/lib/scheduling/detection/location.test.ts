@@ -346,6 +346,20 @@ describe("extractLocation · tareas que cruzan dos pisos", () => {
     expect(extractLocation("LOSA AÉREA PISO 5")?.span).toBeUndefined();
   });
 
+  test("un guion seguido de un numero cualquiera no es una transicion", () => {
+    // Los porcentajes de avance son corrientes en los nombres de obra.
+    expect(extractLocation("Piso 2 - 100% avance")?.span).toBeUndefined();
+    expect(extractLocation("Piso 2 - 50% avance")?.span).toBeUndefined();
+    expect(extractLocation("Piso 3 - 2026 entrega")?.span).toBeUndefined();
+    // Pero el piso se sigue reconociendo, como antes.
+    expect(extractLocation("Piso 2 - 100% avance")?.value).toBe(2);
+  });
+
+  test("una transicion va hacia arriba, nunca hacia atras", () => {
+    expect(extractLocation("Piso 10 a 9")?.span).toBeUndefined();
+    expect(extractLocation("Piso 10 a 9")?.value).toBe(10);
+  });
+
   test("el orden por value no cambia: un tramo ordena por donde empieza", () => {
     expect(extractLocation("Piso 1 a 2 (eje A)")!.value).toBeLessThan(
       extractLocation("LOSA AÉREA PISO 5")!.value,

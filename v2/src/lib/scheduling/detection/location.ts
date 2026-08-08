@@ -90,14 +90,20 @@ export const LOCATION_PATTERNS: LocationPattern[] = [
     // Una tarea que cruza dos niveles —«Piso 1 a 2»— es un tramo, igual que
     // un rango de ejes. Va delante del patrón de piso normal porque si no,
     // aquel cazaría el primer número y se comería el resto sin avisar.
-    regex: /\b(?:PISO|NIVEL|PLANTA)\s*[-#:]?\s*(\d+)\s*(?:-|\bA\b)\s*(\d+)\b/i,
+    //
+    // El número final se limita a dos dígitos y no puede ir seguido de «%»:
+    // sin eso, «Piso 2 - 100% avance» y «Piso 3 - 2026 entrega» —basura de
+    // avances y fechas pegada con guion— se leerían como un tramo real.
+    regex: /\b(?:PISO|NIVEL|PLANTA)\s*[-#:]?\s*(\d+)\s*(?:-|\bA\b)\s*(\d{1,2})(?!%)\b/i,
     valueOf: (match) => Number(match[1]),
-    spanOf: (match) => ({
-      rawFrom: match[1],
-      rawTo: match[2],
-      from: Number(match[1]),
-      to: Number(match[2]),
-    }),
+    spanOf: (match) => {
+      const from = Number(match[1]);
+      const to = Number(match[2]);
+      // Una transición sube de piso. Si no sube, no es una transición, y el
+      // nombre debe caer al patrón de piso normal (sin tramo).
+      if (!(to > from)) return null;
+      return { rawFrom: match[1], rawTo: match[2], from, to };
+    },
   },
   {
     label: "Piso",
