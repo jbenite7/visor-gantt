@@ -366,6 +366,7 @@ describe("extractLocation · tareas que cruzan dos pisos", () => {
     // Los porcentajes de avance son corrientes en los nombres de obra.
     expect(extractLocation("Piso 2 - 100% avance")?.span).toBeUndefined();
     expect(extractLocation("Piso 2 - 50% avance")?.span).toBeUndefined();
+    expect(extractLocation("Piso 2 - 50 % avance")?.span).toBeUndefined();
     expect(extractLocation("Piso 3 - 2026 entrega")?.span).toBeUndefined();
     // Pero el piso se sigue reconociendo, como antes.
     expect(extractLocation("Piso 2 - 100% avance")?.value).toBe(2);

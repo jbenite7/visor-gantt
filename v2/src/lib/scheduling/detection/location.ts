@@ -99,10 +99,11 @@ export const LOCATION_PATTERNS: LocationPattern[] = [
     // un rango de ejes. Va delante del patrón de piso normal porque si no,
     // aquel cazaría el primer número y se comería el resto sin avisar.
     //
-    // El número final se limita a dos dígitos y no puede ir seguido de «%»:
-    // sin eso, «Piso 2 - 100% avance» y «Piso 3 - 2026 entrega» —basura de
-    // avances y fechas pegada con guion— se leerían como un tramo real.
-    regex: /\b(?:PISO|NIVEL|PLANTA)\s*[-#:]?\s*(\d+)\s*(?:-|\bA\b)\s*(\d{1,2})(?!%)\b/i,
+    // El número final se limita a dos dígitos y no puede ir seguido de «%»,
+    // con o sin espacio delante: sin eso, «Piso 2 - 100% avance», «Piso 3 -
+    // 2026 entrega» y «Piso 2 - 50 % avance» —basura de avances y fechas
+    // pegada con guion— se leerían como un tramo real.
+    regex: /\b(?:PISO|NIVEL|PLANTA)\s*[-#:]?\s*(\d+)\s*(?:-|\bA\b)\s*(\d{1,2})(?!\s*%)\b/i,
     valueOf: (match) => Number(match[1]),
     spanOf: (match) => {
       const from = Number(match[1]);
