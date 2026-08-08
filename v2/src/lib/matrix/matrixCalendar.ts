@@ -1,5 +1,4 @@
 import type { ProjectCalendar } from "@/types/calendar";
-import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
 import {
   isProjectWorkingDay,
   normalizeProjectCalendar,
@@ -9,19 +8,16 @@ import {
  * Aritmética de días laborables para la matriz.
  *
  * Sin calendario se conserva el comportamiento histórico del generador
- * —lunes a viernes—, para que un plan guardado antes de este proyecto genere
- * exactamente las mismas fechas.
+ * —trabajar todos los días menos el domingo—, para que un plan guardado antes
+ * de este proyecto genere exactamente las mismas fechas.
  *
  * Con calendario se usa el del proyecto, que ya resuelve jornada, días
  * laborables y festivos. Aquí no se escribe lógica de calendario nueva: se
  * enchufa la que existe en `projectCalendar.ts`.
  */
 function isWorkingDay(date: Date, calendar?: ProjectCalendar): boolean {
-  const effectiveCalendar = calendar || {
-    ...DEFAULT_PROJECT_CALENDAR,
-    workDays: [1, 2, 3, 4, 5],
-  };
-  return isProjectWorkingDay(date, normalizeProjectCalendar(effectiveCalendar));
+  if (!calendar) return date.getDay() !== 0;
+  return isProjectWorkingDay(date, calendar);
 }
 
 export function matrixAddWorkDays(
@@ -32,6 +28,8 @@ export function matrixAddWorkDays(
   const result = new Date(start);
   result.setHours(0, 0, 0, 0);
 
+  const normalizedCalendar = calendar ? normalizeProjectCalendar(calendar) : undefined;
+
   let added = 0;
   let guard = 0;
   while (added < days) {
@@ -40,7 +38,7 @@ export function matrixAddWorkDays(
     // una década, muy por encima de cualquier cronograma real.
     guard += 1;
     if (guard > 3650) break;
-    if (isWorkingDay(result, calendar)) added += 1;
+    if (isWorkingDay(result, normalizedCalendar)) added += 1;
   }
 
   return result;
