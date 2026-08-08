@@ -5,7 +5,52 @@
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
 import MatrixEditorView from "./MatrixEditorView";
+import MatrixEditorViewDefault, { MATRIX_VISIBLE_ROWS } from "./MatrixEditorView";
+import type { MatrixPlan } from "@/types/matrix";
+import type { GanttTask } from "@/components/gantt/types";
 import { createDefaultMatrixPlan, createEmptyMatrixPlan } from "@/lib/matrix/templates";
+
+function planGrande(scopeCount = 30): MatrixPlan {
+  const scopeTree = Array.from({ length: scopeCount }, (_, index) => ({
+    id: `alcance-${index}`,
+    name: `Alcance ${index + 1}`,
+    type: "Disciplina",
+    defaultRecipeId: "r1",
+  }));
+  const areas = Array.from({ length: 40 }, (_, index) => ({
+    id: `ubicacion-${index}`,
+    name: `Piso ${index + 1}`,
+    type: "Piso",
+  }));
+
+  return {
+    id: "grande",
+    name: "Torre grande",
+    startDate: "2026-03-02",
+    scopeTree,
+    areas,
+    recipes: [
+      {
+        id: "r1",
+        name: "Receta",
+        activities: [
+          { id: "a1", name: "Actividad", productivityPerDay: 1, defaultQuantity: 2 },
+        ],
+        dependencies: [],
+      },
+    ],
+    cells: scopeTree.flatMap((scope) =>
+      areas.map((area) => ({
+        id: `cell-${scope.id}-${area.id}`,
+        scopeId: scope.id,
+        areaId: area.id,
+        recipeId: "r1",
+        active: true,
+        quantity: 2,
+      })),
+    ),
+  };
+}
 
 describe("MatrixEditorView", () => {
   afterEach(() => {
@@ -383,33 +428,475 @@ describe("MatrixEditorView", () => {
   });
 });
 
+function renderEditor() {
+  const onApplyMatrixPlan = jest.fn();
+  const plan = createDefaultMatrixPlan({
+    id: "p1",
+    name: "Torre",
+    startDate: "2026-03-02",
+  });
+  render(
+    <MatrixEditorView
+      matrixPlan={plan}
+      tasks={[]}
+      onApplyMatrixPlan={onApplyMatrixPlan}
+      onSyncFromGantt={jest.fn()}
+    />,
+  );
+  return { plan, onApplyMatrixPlan };
+}
+
+describe("MatrixEditorView · selección de varias celdas", () => {
+  test("sin selección múltiple no aparece el panel de lote", () => {
+    renderEditor();
+
+    expect(screen.queryByTestId("matrix-bulk-panel")).not.toBeInTheDocument();
+  });
+
+  test("marcar dos celdas abre el panel de lote con el recuento", () => {
+    const { plan } = renderEditor();
+    const [primera, segunda] = plan.cells;
+
+    fireEvent.click(screen.getByTestId(`matrix-cell-select-${primera.id}`));
+    fireEvent.click(screen.getByTestId(`matrix-cell-select-${segunda.id}`));
+
+    expect(screen.getByTestId("matrix-bulk-panel")).toHaveTextContent(
+      "2 celdas seleccionadas",
+    );
+  });
+
+  test("seleccionar una fila entera marca todas sus celdas", () => {
+    const { plan } = renderEditor();
+    const scopeId = plan.scopeTree[0].children![0].id;
+
+    fireEvent.click(screen.getByTestId(`matrix-select-row-${scopeId}`));
+
+    const enLaFila = plan.cells.filter((cell) => cell.scopeId === scopeId).length;
+    expect(screen.getByTestId("matrix-bulk-panel")).toHaveTextContent(
+      `${enLaFila} celdas seleccionadas`,
+    );
+  });
+
+  test("desactivar en lote aplica el cambio a las celdas marcadas", () => {
+    const { plan, onApplyMatrixPlan } = renderEditor();
+    const [primera, segunda] = plan.cells;
+
+    fireEvent.click(screen.getByTestId(`matrix-cell-select-${primera.id}`));
+    fireEvent.click(screen.getByTestId(`matrix-cell-select-${segunda.id}`));
+    fireEvent.click(screen.getByRole("button", { name: "Desactivar las seleccionadas" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    const aplicado = onApplyMatrixPlan.mock.calls.at(-1)![0];
+    expect(aplicado.cells.find((cell: { id: string }) => cell.id === primera.id).active).toBe(
+      false,
+    );
+    expect(aplicado.cells.find((cell: { id: string }) => cell.id === segunda.id).active).toBe(
+      false,
+    );
+  });
+
+  test("limpiar la selección cierra el panel", () => {
+    const { plan } = renderEditor();
+
+    fireEvent.click(screen.getByTestId(`matrix-cell-select-${plan.cells[0].id}`));
+    fireEvent.click(screen.getByRole("button", { name: "Quitar la selección" }));
+
+    expect(screen.queryByTestId("matrix-bulk-panel")).not.toBeInTheDocument();
+  });
+});
+
+describe("MatrixEditorView · selección y borrados", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("borrar un alcance descarta sus coordenadas de la selección", () => {
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+    const { plan, onApplyMatrixPlan } = renderEditor();
+    const scopeId = plan.scopeTree[0].children![0].id;
+
+    fireEvent.click(screen.getByTestId(`matrix-select-row-${scopeId}`));
+
+    fireEvent.click(screen.getByRole("button", { name: "Alcances" }));
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Estructura" }));
+    fireEvent.click(screen.getByRole("button", { name: "Matriz" }));
+
+    expect(screen.queryByTestId("matrix-bulk-panel")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    const aplicado = onApplyMatrixPlan.mock.calls.at(-1)![0];
+    expect(
+      aplicado.cells.filter((cell: { scopeId: string }) => cell.scopeId === scopeId),
+    ).toHaveLength(0);
+  });
+});
+
+describe("MatrixEditorView · escala", () => {
+  test("el plan de prueba tiene más de 1000 celdas", () => {
+    expect(planGrande().cells).toHaveLength(1200);
+  });
+
+  test("no monta las 1200 celdas de golpe", () => {
+    render(
+      <MatrixEditorViewDefault
+        matrixPlan={planGrande()}
+        tasks={[]}
+        onApplyMatrixPlan={jest.fn()}
+        onSyncFromGantt={jest.fn()}
+      />,
+    );
+
+    expect(screen.getAllByTestId(/^matrix-cell-select-/).length).toBeLessThanOrEqual(
+      MATRIX_VISIBLE_ROWS * 40,
+    );
+    expect(screen.getAllByTestId(/^matrix-cell-select-/).length).toBeLessThan(1200);
+  });
+
+  test("anuncia cuántas filas se están viendo de cuántas", () => {
+    render(
+      <MatrixEditorViewDefault
+        matrixPlan={planGrande()}
+        tasks={[]}
+        onApplyMatrixPlan={jest.fn()}
+        onSyncFromGantt={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("matrix-window-status")).toHaveTextContent(
+      `Mostrando ${MATRIX_VISIBLE_ROWS} de 30 alcances.`,
+    );
+  });
+
+  test("se puede avanzar a las filas siguientes", () => {
+    render(
+      <MatrixEditorViewDefault
+        matrixPlan={planGrande()}
+        tasks={[]}
+        onApplyMatrixPlan={jest.fn()}
+        onSyncFromGantt={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Alcance 1")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ver los siguientes alcances" }));
+
+    expect(screen.queryByText("Alcance 1")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(`Alcance ${MATRIX_VISIBLE_ROWS + 1}`),
+    ).toBeInTheDocument();
+  });
+
+  test("una matriz pequeña no muestra los controles de ventana", () => {
+    const { plan } = renderEditor();
+
+    expect(plan.cells.length).toBeLessThan(MATRIX_VISIBLE_ROWS * 40);
+    expect(screen.queryByTestId("matrix-window-status")).not.toBeInTheDocument();
+  });
+
+  test("si la matriz encoge por debajo de la página actual, la ventana retrocede", () => {
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+    render(
+      <MatrixEditorViewDefault
+        matrixPlan={planGrande(25)}
+        tasks={[]}
+        onApplyMatrixPlan={jest.fn()}
+        onSyncFromGantt={jest.fn()}
+      />,
+    );
+
+    const siguientes = () =>
+      screen.getByRole("button", { name: "Ver los siguientes alcances" });
+    fireEvent.click(siguientes());
+    fireEvent.click(siguientes());
+    expect(screen.getByTestId("matrix-window-status")).toHaveTextContent(
+      "Mostrando 1 de 25 alcances.",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Alcances" }));
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Alcance 25" }));
+    fireEvent.click(screen.getByRole("button", { name: "Matriz" }));
+
+    expect(screen.getByTestId("matrix-window-status")).toHaveTextContent(
+      `Mostrando ${MATRIX_VISIBLE_ROWS} de 24 alcances.`,
+    );
+    expect(screen.getByText("Alcance 24")).toBeInTheDocument();
+  });
+});
+
+function tarea(id: number, name: string, startDay: number, durationDays: number): GanttTask {
+  return {
+    id,
+    name,
+    start: new Date(2026, 2, startDay),
+    finish: new Date(2026, 2, startDay + durationDays - 1),
+    duration: durationDays,
+    progress: 0,
+    isCritical: false,
+    isMilestone: false,
+    isSummary: false,
+    outlineLevel: 2,
+    dependencies: [],
+  };
+}
+
+/** Tres pisos con la misma actividad: lo mínimo para que haya propuesta. */
+function cronogramaRepetido(): GanttTask[] {
+  return [
+    tarea(1, "Mampostería piso 1", 2, 5),
+    tarea(2, "Mampostería piso 2", 9, 5),
+    tarea(3, "Mampostería piso 3", 16, 5),
+  ];
+}
+
+function planConRendimientoObservado(): MatrixPlan {
+  return {
+    id: "matriz-rendimientos",
+    name: "Torre con obra",
+    startDate: "2026-03-02",
+    scopeTree: [{ id: "estructura", name: "Estructura", type: "Disciplina" }],
+    areas: [{ id: "piso-1", name: "Piso 1", type: "Piso" }],
+    recipes: [
+      {
+        id: "r1",
+        name: "Receta",
+        activities: [
+          { id: "a1", name: "Actividad", productivityPerDay: 5, defaultQuantity: 10 },
+        ],
+        dependencies: [],
+      },
+    ],
+    cells: [
+      {
+        id: "c1",
+        scopeId: "estructura",
+        areaId: "piso-1",
+        recipeId: "r1",
+        active: true,
+        quantity: 10,
+        productivityOverridePerDay: 5,
+        feedback: {
+          source: "gantt",
+          observedDurationDays: 4,
+          suggestedProductivityPerDay: 2.5,
+          status: "pendingApproval",
+        },
+      },
+    ],
+  };
+}
+
+function renderConPlanPorDefecto(props: {
+  onApplyMatrixPlan?: jest.Mock;
+  tasks?: GanttTask[];
+} = {}) {
+  const onApplyMatrixPlan = props.onApplyMatrixPlan ?? jest.fn();
+  render(
+    <MatrixEditorView
+      matrixPlan={createDefaultMatrixPlan({
+        id: "matrix-montaje",
+        name: "Matriz montaje",
+        startDate: "2026-01-05",
+      })}
+      tasks={props.tasks ?? []}
+      onApplyMatrixPlan={onApplyMatrixPlan}
+      onSyncFromGantt={jest.fn()}
+    />,
+  );
+  return onApplyMatrixPlan;
+}
+
+describe("MatrixEditorView · pantallas enchufadas", () => {
+  test("el modo Ubicaciones monta las acciones en lote y duplicar llega al borrador", () => {
+    const onApplyMatrixPlan = renderConPlanPorDefecto();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ubicaciones" }));
+    expect(screen.getByTestId("location-bulk-actions")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Duplicar ubicación" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    expect(onApplyMatrixPlan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        areas: expect.arrayContaining([
+          expect.objectContaining({ name: "Piso 1 (copia)" }),
+        ]),
+      }),
+    );
+  });
+
+  test("el modo Ubicaciones crea un rango de ubicaciones en el borrador", () => {
+    const onApplyMatrixPlan = renderConPlanPorDefecto();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ubicaciones" }));
+    fireEvent.change(screen.getByLabelText("Nombre, con {n} donde va el número"), {
+      target: { value: "Sótano {n}" },
+    });
+    fireEvent.change(screen.getByLabelText("Desde"), { target: { value: "1" } });
+    fireEvent.change(screen.getByLabelText("Hasta"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Crear ubicaciones" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    expect(onApplyMatrixPlan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        areas: expect.arrayContaining([
+          expect.objectContaining({ name: "Sótano 3" }),
+        ]),
+      }),
+    );
+  });
+
+  test("el modo Recetas monta el editor y la actividad nueva llega al borrador", () => {
+    const onApplyMatrixPlan = renderConPlanPorDefecto();
+
+    fireEvent.click(screen.getByRole("button", { name: "Recetas" }));
+    expect(screen.getByTestId("recipe-editor")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Nombre de la actividad"), {
+      target: { value: "Curado" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Agregar actividad" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    const plan = onApplyMatrixPlan.mock.calls[0][0] as MatrixPlan;
+    expect(
+      plan.recipes.flatMap((recipe) => recipe.activities).map((item) => item.name),
+    ).toContain("Curado");
+  });
+
+  test("el modo Plantillas monta el selector y elegir una reemplaza el borrador", () => {
+    const onApplyMatrixPlan = renderConPlanPorDefecto();
+
+    fireEvent.click(screen.getByRole("button", { name: "Plantillas" }));
+    expect(screen.getByTestId("template-picker")).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Urbanismo y obras exteriores" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    expect(onApplyMatrixPlan).toHaveBeenCalledWith(
+      expect.objectContaining({ templateId: "template-urbanismo" }),
+    );
+  });
+
+  test("guardar como plantilla deja la matriz en las plantillas propias", () => {
+    renderConPlanPorDefecto();
+
+    fireEvent.click(screen.getByRole("button", { name: "Plantillas" }));
+    expect(screen.getByTestId("template-picker-own")).toHaveTextContent(
+      "Todavía no has guardado ninguna matriz como plantilla.",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar como plantilla" }));
+
+    expect(screen.getByTestId("template-picker-own")).toHaveTextContent(
+      "Matriz montaje",
+    );
+  });
+
+  test("sin cronograma no se puede generar la matriz desde el cronograma", () => {
+    renderConPlanPorDefecto();
+
+    fireEvent.click(screen.getByRole("button", { name: "Plantillas" }));
+
+    expect(
+      screen.getByRole("button", { name: "Generar matriz desde el cronograma" }),
+    ).toBeDisabled();
+  });
+
+  test("generar desde el cronograma enseña la propuesta y aceptarla construye el plan", () => {
+    const onApplyMatrixPlan = renderConPlanPorDefecto({
+      tasks: cronogramaRepetido(),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Plantillas" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Generar matriz desde el cronograma" }),
+    );
+
+    expect(screen.getByTestId("proposal-review")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Crear la matriz" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    const plan = onApplyMatrixPlan.mock.calls[0][0] as MatrixPlan;
+    expect(plan.areas.map((area) => area.name)).toEqual([
+      "Piso 1",
+      "Piso 2",
+      "Piso 3",
+    ]);
+  });
+
+  test("el modo Rendimientos monta el panel y aprobar llega al borrador", () => {
+    const onApplyMatrixPlan = jest.fn();
+    render(
+      <MatrixEditorView
+        matrixPlan={planConRendimientoObservado()}
+        tasks={[]}
+        onApplyMatrixPlan={onApplyMatrixPlan}
+        onSyncFromGantt={jest.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Rendimientos" }));
+    expect(screen.getByTestId("feedback-item-c1")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Usar el rendimiento real" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    expect(onApplyMatrixPlan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cells: expect.arrayContaining([
+          expect.objectContaining({ id: "c1", productivityOverridePerDay: 2.5 }),
+        ]),
+      }),
+    );
+  });
+
+  test("el modo Rendimientos descarta el rendimiento observado", () => {
+    const onApplyMatrixPlan = jest.fn();
+    render(
+      <MatrixEditorView
+        matrixPlan={planConRendimientoObservado()}
+        tasks={[]}
+        onApplyMatrixPlan={onApplyMatrixPlan}
+        onSyncFromGantt={jest.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Rendimientos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mantener lo planificado" }));
+
+    expect(screen.getByTestId("feedback-empty")).toBeInTheDocument();
+  });
+});
+
 describe("el borrador de la matriz no se pierde sin avisar (M28)", () => {
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  function renderConPlan(
-    extra: Partial<React.ComponentProps<typeof MatrixEditorView>> = {},
-  ) {
-    const matrixPlan = createDefaultMatrixPlan({
-      id: "matrix-borrador",
-      name: "Matriz",
-      startDate: "2026-01-05",
+  function renderConDirty(onDirtyChange = jest.fn()) {
+    const plan = createDefaultMatrixPlan({
+      id: "p-borrador",
+      name: "Torre",
+      startDate: "2026-03-02",
     });
-
     render(
       <MatrixEditorView
-        matrixPlan={matrixPlan}
+        matrixPlan={plan}
         tasks={[]}
         onApplyMatrixPlan={jest.fn()}
         onSyncFromGantt={jest.fn()}
-        {...extra}
+        onDirtyChange={onDirtyChange}
       />,
     );
+    return { plan, onDirtyChange };
   }
 
   test("«Deshacer» pasa a llamarse «Descartar cambios»", () => {
-    renderConPlan();
+    renderConDirty();
 
     expect(screen.getByTestId("matrix-discard")).toHaveTextContent(
       "Descartar cambios",
@@ -418,28 +905,30 @@ describe("el borrador de la matriz no se pierde sin avisar (M28)", () => {
 
   test("sin cambios, descartar no pregunta nada", () => {
     const confirmar = jest.spyOn(window, "confirm").mockReturnValue(true);
-    renderConPlan();
+    renderConDirty();
 
     fireEvent.click(screen.getByTestId("matrix-discard"));
 
     expect(confirmar).not.toHaveBeenCalled();
   });
 
-  test("con cambios, descartar pide confirmación y dice cuántos se pierden", () => {
+  test("con cambios, descartar pide confirmación y dice qué se pierde", () => {
     const confirmar = jest.spyOn(window, "confirm").mockReturnValue(false);
-    renderConPlan();
+    renderConDirty();
 
     fireEvent.click(
       screen.getByRole("button", { name: /Activar todas las celdas/i }),
     );
     fireEvent.click(screen.getByTestId("matrix-discard"));
 
-    expect(confirmar).toHaveBeenCalledWith(expect.stringMatching(/cambio/i));
+    expect(confirmar).toHaveBeenCalledWith(
+      expect.stringMatching(/sin aplicar/i),
+    );
   });
 
   test("si el usuario dice que no, el borrador sigue ahí", () => {
     jest.spyOn(window, "confirm").mockReturnValue(false);
-    renderConPlan();
+    renderConDirty();
 
     fireEvent.click(
       screen.getByRole("button", { name: /Activar todas las celdas/i }),
@@ -450,11 +939,24 @@ describe("el borrador de la matriz no se pierde sin avisar (M28)", () => {
   });
 
   test("el borrador sucio se anuncia al proyecto, para el aviso al cerrar", () => {
-    const onDirtyChange = jest.fn();
-    renderConPlan({ onDirtyChange });
+    const { onDirtyChange } = renderConDirty();
 
     fireEvent.click(
       screen.getByRole("button", { name: /Activar todas las celdas/i }),
+    );
+
+    expect(onDirtyChange).toHaveBeenCalledWith(true);
+  });
+
+  test("un cambio de estructura también cuenta, no solo las celdas", () => {
+    // Lo aporta `describeDraftChanges` del carril B: el contador propio solo
+    // miraba celdas y una ubicación nueva pasaba por «sin cambios».
+    const { onDirtyChange } = renderConDirty();
+
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+    fireEvent.click(screen.getByRole("button", { name: "Ubicaciones" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Agregar hijo a Piso 1" }),
     );
 
     expect(onDirtyChange).toHaveBeenCalledWith(true);

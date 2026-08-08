@@ -1,4 +1,10 @@
 import type { GanttDependency, GanttTask } from "@/components/gantt/types";
+import type { ProjectCalendar } from "@/types/calendar";
+import {
+  matrixFinishFromDuration,
+  matrixNextWorkDay,
+} from "./matrixCalendar";
+import { resolveChaining } from "./matrixChaining";
 import type {
   ActivityRecipe,
   AreaNode,
@@ -9,6 +15,14 @@ import type {
   MatrixPlan,
   ScopeNode,
 } from "@/types/matrix";
+
+export interface MatrixGenerationOptions {
+  /**
+   * Calendario del proyecto. Sin él, la matriz trabaja todos los días menos
+   * el domingo, que es lo que hacía antes de que existiera esta opción.
+   */
+  calendar?: ProjectCalendar;
+}
 
 interface FlatScope {
   node: ScopeNode;
@@ -51,29 +65,6 @@ function addCalendarDays(date: Date, days: number): Date {
   result.setDate(result.getDate() + days);
   result.setHours(0, 0, 0, 0);
   return result;
-}
-
-function addWorkDays(start: Date, days: number): Date {
-  const result = new Date(start);
-  result.setHours(0, 0, 0, 0);
-
-  let added = 0;
-  while (added < days) {
-    result.setDate(result.getDate() + 1);
-    if (result.getDay() !== 0) {
-      added += 1;
-    }
-  }
-
-  return result;
-}
-
-function finishFromDuration(start: Date, durationDays: number): Date {
-  return addWorkDays(start, Math.max(1, durationDays) - 1);
-}
-
-function nextWorkDay(date: Date, lagDays = 0): Date {
-  return addWorkDays(date, 1 + Math.max(0, lagDays));
 }
 
 function flattenScopes(nodes: ScopeNode[]): FlatScope[] {
@@ -294,7 +285,9 @@ function recalculateSummaries(
 
 export function generateScheduleFromMatrix(
   plan: MatrixPlan,
+  options: MatrixGenerationOptions = {},
 ): MatrixGenerationResult {
+  const { calendar } = options;
   const baseStart = createDate(plan.startDate);
   const scopeById = indexScopes(plan.scopeTree);
   const areaById = indexAreas(plan.areas);
@@ -311,6 +304,15 @@ export function generateScheduleFromMatrix(
   const issues: MatrixIssue[] = [];
   const provenance: Record<string, (string | number)[]> = {};
   const summaries = new Map<string, SummaryDraft>();
+  /** Por alcance: qué tarea materializa cada actividad en cada ubicación. */
+  const chainRegistry = new Map<
+    string,
+    Array<{
+      areaIndex: number;
+      recipe: ActivityRecipe;
+      activityTaskIds: Map<string, string | number>;
+    }>
+  >();
 
   const rootOrder = new Map(plan.scopeTree.map((scope, index) => [scope.id, index]));
   const areaRootOrder = new Map(plan.areas.map((area, index) => [area.id, index]));
@@ -491,7 +493,7 @@ export function generateScheduleFromMatrix(
       const start = createDateFromUnknown(activityOverride?.start, cursor);
       const finish = createDateFromUnknown(
         activityOverride?.finish,
-        finishFromDuration(start, duration),
+        matrixFinishFromDuration(start, duration, calendar),
       );
       const taskId =
         activityOverride?.sourceTaskId ??
@@ -530,7 +532,7 @@ export function generateScheduleFromMatrix(
       if (areaSummaryId) {
         addSummaryChild(summaries, areaSummaryId, task.id);
       }
-      cursor = nextWorkDay(finish);
+      cursor = matrixNextWorkDay(finish, 0, calendar);
     });
 
     for (const rule of recipe.dependencies) {
@@ -551,8 +553,50 @@ export function generateScheduleFromMatrix(
       }
     }
 
+    const chainKey = cell.scopeId;
+    const chainEntries = chainRegistry.get(chainKey) ?? [];
+    chainEntries.push({ areaIndex: flatArea.leafIndex, recipe, activityTaskIds });
+    chainRegistry.set(chainKey, chainEntries);
+
     if (cellTaskIds.length > 0) {
       provenance[cell.id] = cellTaskIds;
+    }
+  }
+
+  // Ritmo piso a piso: la cuadrilla que termina una actividad en una
+  // ubicación empieza la misma en la siguiente. Es una dependencia de verdad,
+  // así que un atraso en el piso 1 mueve el piso 2.
+  for (const [scopeId, entries] of chainRegistry) {
+    const scope = scopeById.get(scopeId);
+    const chaining = resolveChaining(scope, entries[0]?.recipe);
+    if (chaining.mode !== "encadenado" || entries.length < 2) continue;
+
+    const ordered = [...entries].sort((a, b) =>
+      chaining.reverse ? b.areaIndex - a.areaIndex : a.areaIndex - b.areaIndex,
+    );
+
+    for (let index = 1; index < ordered.length; index += 1) {
+      const previous = ordered[index - 1];
+      const current = ordered[index];
+
+      for (const [activityId, toId] of current.activityTaskIds) {
+        if (chaining.activityId && chaining.activityId !== activityId) continue;
+        const fromId = previous.activityTaskIds.get(activityId);
+        if (!fromId) continue;
+
+        const dependency: GanttDependency = {
+          from: fromId,
+          to: toId,
+          type: "FS",
+          lag: chaining.lagDays ?? 0,
+        };
+        dependencies.push(dependency);
+
+        const successor = tasks.find((task) => task.id === toId);
+        if (successor) {
+          successor.dependencies = [...successor.dependencies, dependency];
+        }
+      }
     }
   }
 

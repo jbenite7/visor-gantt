@@ -165,6 +165,12 @@ Y `applyMatrixUpdate` acepta `resolutions: Record<string, "matriz" | "gantt">`. 
 conserva **el comportamiento actual** (gana lo generado por la matriz), para que nada existente cambie de
 significado por accidente.
 
+**El horario se resuelve como un bloque** (decidido el 2026-08-08, al revisar la implementación). El inicio,
+el fin y la duración de una tarea no son tres datos independientes: describen una sola cosa. Permitir elegir
+la duración del Gantt y el fin de la matriz produce una tarea que dice dos cosas distintas sobre sí misma.
+Por eso, si el usuario elige «gantt» para **cualquiera** de los tres, se toman **los tres** del Gantt. El
+nombre sí se resuelve por separado, porque no depende de los demás.
+
 ### E7 · Duplicar y crear N ubicaciones
 
 `duplicateAreaNode(plan, areaId)` y `duplicateScopeNode(plan, scopeId)`: copian el nodo con sus hijos y
