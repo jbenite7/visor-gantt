@@ -80,6 +80,23 @@ de Observaciones.
 
 Suite completa: **1317 tests en 141 suites**, lint limpio, tipos filtrados vacíos y `next build` correcto.
 
+**Comprobado en el navegador (2026-08-08)**, sobre `http://localhost:3000/gantt-demo`:
+
+- El menú lateral tiene **exactamente 11 pestañas** —contadas en el DOM, no a ojo— agrupadas en
+  Trabajo · Análisis · Ajustes, con **Matriz** dentro de Trabajo.
+- El editor de matriz abre con sus **seis modos**: Alcances, Ubicaciones, Matriz, **Recetas**,
+  **Plantillas** y **Rendimientos**. Los tres últimos son las pantallas que la revisión final encontró
+  construidas y sin puerta.
+- **Plantillas** lista las tres de fábrica —Vivienda vertical, Urbanismo y obras exteriores, Obra lineal
+  por tramos— y explica el vacío: «Todavía no has guardado ninguna matriz como plantilla».
+- **Recetas** edita una receta real, con sus rendimientos en unidades de obra (Formaleta 50 m²/día, Acero
+  de refuerzo 800 kg/día, Vaciado de concreto 40 m³/día), sus botones de subir, bajar y quitar, y la
+  cadena de vínculos dibujada debajo.
+- **Rendimientos** explica su vacío: «Aparecerán cuando se reporte avance real sobre las tareas que generó
+  la matriz».
+- El aviso **«Cambios sin aplicar»** y el botón **«Descartar cambios»** del carril A funcionan junto a todo
+  lo anterior.
+
 ## Condición de hecho
 
 1. Un cronograma generado desde la matriz **respeta los festivos y la jornada del proyecto**, y si al
