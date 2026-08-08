@@ -5,6 +5,7 @@ import { hashPassword, verifyPassword } from "./password";
 import { ensureAuthTables } from "./rbac";
 import type { AuthUser } from "@/types/auth";
 import { shouldUseSecureCookiesFromHeaders } from "./cookie-security";
+import type { LoginErrorCode } from "./loginErrors";
 
 const SESSION_COOKIE = "vg_session";
 const SESSION_DAYS = 7;
@@ -13,7 +14,11 @@ const INITIAL_ADMIN_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD;
 
 interface LoginResult {
   success: boolean;
-  error?: string;
+  /**
+   * Código, no texto: el mensaje lo pone la app al pintarlo. Un texto libre
+   * viajando por la URL es un cartel que cualquiera puede escribir (E9).
+   */
+  code?: LoginErrorCode;
 }
 
 function normalizeEmail(email: string): string {
@@ -70,7 +75,7 @@ export async function loginWithPassword(
   await ensureAuthTables();
   const email = normalizeEmail(emailInput);
   if (!email || !password) {
-    return { success: false, error: "Escribe tu correo y tu contraseña." };
+    return { success: false, code: "faltan-datos" };
   }
 
   const existingUsers = await userCount();
@@ -80,10 +85,7 @@ export async function loginWithPassword(
         email !== INITIAL_ADMIN_EMAIL ||
         password !== INITIAL_ADMIN_PASSWORD
       ) {
-        return {
-          success: false,
-          error: "No encontramos ninguna cuenta con ese correo. Pide acceso a quien administra el proyecto.",
-        };
+        return { success: false, code: "sin-cuenta" };
       }
     }
 
@@ -104,7 +106,7 @@ export async function loginWithPassword(
   );
   const user = result.rows[0] as { id: string; password_hash: string | null } | undefined;
   if (!user || !verifyPassword(password, user.password_hash)) {
-    return { success: false, error: "El correo o la contraseña no coinciden." };
+    return { success: false, code: "credenciales" };
   }
 
   await createSessionForUser(user.id);
