@@ -29,6 +29,7 @@ const ProblemsView = dynamic(() => import("@/components/views/ProblemsView"), { 
 const ObservationsView = dynamic(() => import("@/components/views/ObservationsView"), { loading: ViewLoading });
 const CalendarView = dynamic(() => import("@/components/views/CalendarView"), { loading: ViewLoading });
 const MatrixEditorView = dynamic(() => import("@/components/views/MatrixEditorView"), { loading: ViewLoading });
+const ConflictChooser = dynamic(() => import("@/components/matrix/ConflictChooser"), { loading: ViewLoading });
 const TypicalUnitView = dynamic(() => import("@/components/views/TypicalUnitView"), { loading: ViewLoading });
 const ExecutivePlanningDashboard = dynamic(() => import("@/components/reports/ExecutivePlanningDashboard"), { loading: ViewLoading });
 
@@ -47,7 +48,11 @@ import type { ProjectCalendar } from "@/types/calendar";
 import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
 import type { Baseline } from "@/types/baseline";
 import { applyBaselineToTasks, saveBaseline } from "@/lib/scheduling/baseline";
-import type { MatrixPlan } from "@/types/matrix";
+import type {
+  ConflictResolution,
+  MatrixPlan,
+  MatrixSyncConflict,
+} from "@/types/matrix";
 import type {
   AssignmentColumnSettings,
   MppAssignmentColumn,
@@ -90,6 +95,10 @@ import {
   applyMatrixUpdate,
   syncMatrixPlanFromTasks,
 } from "@/lib/matrix/matrixSync";
+import {
+  removeAreaWithTasks,
+  type OrphanTaskPolicy,
+} from "@/lib/matrix/removeArea";
 import { buildPlanningRecommendations } from "@/lib/gantt/planningRecommendations";
 import {
   applyRoleViewPreset,
@@ -242,7 +251,7 @@ function GanttViewInner({
         : undefined,
     [initialUISettings.roleViewPreset],
   );
-  const [activeView, setActiveView] = useState<ViewType>(
+  const [activeView, setActiveViewState] = useState<ViewType>(
     initialRoleViewPreset?.view ?? "gantt",
   );
   const [resources, setResources] = useState<Resource[]>(initialResources);
@@ -304,8 +313,9 @@ function GanttViewInner({
           mapping: "Mapeo",
         };
   const syncedMatrixPlan = useMemo(
-    () => (matrixPlan ? syncMatrixPlanFromTasks(matrixPlan, tasks) : undefined),
-    [matrixPlan, tasks],
+    () =>
+      matrixPlan ? syncMatrixPlanFromTasks(matrixPlan, tasks, calendar) : undefined,
+    [matrixPlan, tasks, calendar],
   );
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
@@ -884,19 +894,129 @@ function GanttViewInner({
     [budgetMappings, runUndoable],
   );
 
+  /**
+   * Lo que la matriz quiere aplicar mientras el usuario decide los conflictos.
+   *
+   * Guarda el borrador y los conflictos que se le enseñaron. Entre que pulsa
+   * «Aplicar» y decide, el cronograma puede cambiar por debajo —hay un Ctrl+Z
+   * escuchando—: si aparecen conflictos que no estaban en la lista, nadie ha
+   * decidido sobre ellos y `applyMatrixUpdate` los resolvería a favor de la
+   * matriz, pisando en silencio una edición hecha en obra. Por eso se compara
+   * antes de aplicar y, si no coinciden, se vuelve a preguntar.
+   */
+  const [pendingMatrixConflicts, setPendingMatrixConflicts] = useState<
+    {
+      nextPlan: MatrixPlan;
+      conflicts: MatrixSyncConflict[];
+      /** El cronograma cambió mientras decidía y hay que avisarlo. */
+      changed?: boolean;
+    } | null
+  >(null);
+
+  /**
+   * Cambiar de vista cierra el diálogo de conflictos. Si no, al volver a la
+   * matriz reaparecería con un borrador que ya no existe: el editor se
+   * remonta por `matrixEditorKey` y el usuario decidiría sobre otra cosa.
+   */
+  const setActiveView = useCallback((next: ViewType) => {
+    setPendingMatrixConflicts(null);
+    setActiveViewState(next);
+  }, []);
+
+  /** Aplica un resultado ya calculado: nunca se genera el cronograma dos veces. */
+  const commitMatrixResult = useCallback(
+    (result: ReturnType<typeof applyMatrixUpdate>) => {
+      const previousPlan = matrixPlan;
+      const previousTasks = tasks;
+
+      runUndoable({
+        description: "Plan matricial aplicado al cronograma",
+        execute: () => {
+          setMatrixPlan(result.matrixPlan);
+          setTasks(() => result.tasks);
+        },
+        undo: () => {
+          setMatrixPlan(previousPlan);
+          setTasks(() => previousTasks);
+        },
+      });
+    },
+    [matrixPlan, runUndoable, setTasks, tasks],
+  );
+
   const handleApplyMatrixPlan = useCallback(
     (nextPlan: MatrixPlan) => {
       const result = applyMatrixUpdate({
         tasks,
         currentPlan: syncedMatrixPlan ?? nextPlan,
         nextPlan,
+        calendar,
       });
+
+      // Con conflictos no se aplica a ciegas: los decide el usuario.
+      if (result.conflicts.length > 0) {
+        setPendingMatrixConflicts({ nextPlan, conflicts: result.conflicts });
+        return;
+      }
+
+      commitMatrixResult(result);
+    },
+    [calendar, commitMatrixResult, syncedMatrixPlan, tasks],
+  );
+
+  const handleResolveMatrixConflicts = useCallback(
+    (resolutions: Record<string, ConflictResolution>) => {
+      const pending = pendingMatrixConflicts;
+      if (!pending) return;
+
+      const result = applyMatrixUpdate({
+        tasks,
+        currentPlan: syncedMatrixPlan ?? pending.nextPlan,
+        nextPlan: pending.nextPlan,
+        resolutions,
+        calendar,
+      });
+
+      // Se compara por la misma clave que usan las resoluciones.
+      const mostrados = new Set(
+        pending.conflicts.map((conflict) => `${conflict.taskId}::${conflict.field}`),
+      );
+      const ahora = result.conflicts.map(
+        (conflict) => `${conflict.taskId}::${conflict.field}`,
+      );
+      const sonLosMismos =
+        ahora.length === mostrados.size && ahora.every((key) => mostrados.has(key));
+
+      if (!sonLosMismos) {
+        setPendingMatrixConflicts({
+          nextPlan: pending.nextPlan,
+          conflicts: result.conflicts,
+          changed: true,
+        });
+        return;
+      }
+
+      setPendingMatrixConflicts(null);
+      commitMatrixResult(result);
+    },
+    [calendar, commitMatrixResult, pendingMatrixConflicts, syncedMatrixPlan, tasks],
+  );
+
+  /**
+   * Borrar una ubicación toca la matriz y el cronograma a la vez, así que va
+   * por el deshacer del proyecto, el mismo que el resto de borrados.
+   */
+  const handleRemoveMatrixArea = useCallback(
+    (areaId: string, policy: OrphanTaskPolicy) => {
+      const currentPlan = syncedMatrixPlan ?? matrixPlan;
+      if (!currentPlan) return;
 
       const previousPlan = matrixPlan;
       const previousTasks = tasks;
+      const result = removeAreaWithTasks(currentPlan, tasks, areaId, policy);
 
       runUndoable({
-        description: "Plan matricial aplicado al cronograma",
+        description: `Ubicación «${areaId}» borrada de la matriz`,
         execute: () => {
           setMatrixPlan(result.matrixPlan);
           setTasks(() => result.tasks);
@@ -1087,7 +1207,7 @@ function GanttViewInner({
       setActiveView(next.activeView);
       setScale(next.scale);
     },
-    [setScale, taskColumnSettings, uiSettings],
+    [setActiveView, setScale, taskColumnSettings, uiSettings],
   );
 
   const handleInteractionModeChange = useCallback(
@@ -1318,7 +1438,7 @@ function GanttViewInner({
 
     setCommandPaletteOpen(false);
     setCommandQuery("");
-  }, [handleAddTask, handleManualSave, redo, setScale, undo]);
+  }, [handleAddTask, handleManualSave, redo, setActiveView, setScale, undo]);
 
   useEffect(() => {
     if (!commandPaletteOpen) return;
@@ -2054,18 +2174,43 @@ function GanttViewInner({
           )}
 
           {activeView === "matrix" && (
+            <>
+            {pendingMatrixConflicts && (
+              <>
+                {pendingMatrixConflicts.changed && (
+                  <p
+                    data-testid="conflicts-changed"
+                    className="px-3 py-2 text-xs font-semibold text-[var(--aia-warn-main)]"
+                  >
+                    El cronograma cambió mientras decidías, así que no se aplicó
+                    nada. Estos son los conflictos de ahora: vuelve a elegir.
+                  </p>
+                )}
+                <ConflictChooser
+                  key={pendingMatrixConflicts.conflicts
+                    .map((conflict) => `${conflict.taskId}::${conflict.field}`)
+                    .join("|")}
+                  conflicts={pendingMatrixConflicts.conflicts}
+                  onResolve={handleResolveMatrixConflicts}
+                  onCancel={() => setPendingMatrixConflicts(null)}
+                />
+              </>
+            )}
             <MatrixEditorView
               key={matrixEditorKey}
               matrixPlan={syncedMatrixPlan}
               tasks={calculatedTasks}
               onApplyMatrixPlan={handleApplyMatrixPlan}
               onSyncFromGantt={handleSyncMatrixFromGantt}
+              calendar={calendar}
+              onRemoveArea={handleRemoveMatrixArea}
               onDirtyChange={(dirty) => {
                 // El borrador de la matriz también es trabajo que se puede
                 // perder: entra en el aviso al cerrar (M28).
                 matrixDraftDirtyRef.current = dirty;
               }}
             />
+            </>
           )}
 
           {activeView === "scurve" && (

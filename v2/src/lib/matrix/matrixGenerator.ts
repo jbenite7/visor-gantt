@@ -363,7 +363,7 @@ export function generateScheduleFromMatrix(
           "missingArea",
           "high",
           cell,
-          `La celda ${scope.name} no tiene una ubicacion valida.`,
+          `La celda ${scope.name} no tiene una ubicación válida.`,
         ),
       );
       continue;

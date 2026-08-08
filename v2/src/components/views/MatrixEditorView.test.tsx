@@ -3,12 +3,16 @@
  */
 
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import type { ComponentProps } from "react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import MatrixEditorView from "./MatrixEditorView";
 import MatrixEditorViewDefault, { MATRIX_VISIBLE_ROWS } from "./MatrixEditorView";
 import type { MatrixPlan } from "@/types/matrix";
+import type { ProjectCalendar } from "@/types/calendar";
+import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
 import type { GanttTask } from "@/components/gantt/types";
 import { createDefaultMatrixPlan, createEmptyMatrixPlan } from "@/lib/matrix/templates";
+import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
 
 function planGrande(scopeCount = 30): MatrixPlan {
   const scopeTree = Array.from({ length: scopeCount }, (_, index) => ({
@@ -407,7 +411,7 @@ describe("MatrixEditorView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Eliminar Nivel 9" }));
     expect(window.confirm).toHaveBeenCalledWith(
-      expect.stringContaining("Se eliminaran 2 alcances y 1 celdas"),
+      expect.stringContaining("Se eliminarán 2 alcances y 1 celdas"),
     );
     fireEvent.click(screen.getByRole("button", { name: /Aplicar/i }));
 
@@ -877,26 +881,28 @@ describe("el borrador de la matriz no se pierde sin avisar (M28)", () => {
     jest.restoreAllMocks();
   });
 
-  function renderConDirty(onDirtyChange = jest.fn()) {
-    const plan = createDefaultMatrixPlan({
-      id: "p-borrador",
-      name: "Torre",
-      startDate: "2026-03-02",
+  function renderConPlan(
+    extra: Partial<ComponentProps<typeof MatrixEditorView>> = {},
+  ) {
+    const matrixPlan = createDefaultMatrixPlan({
+      id: "matrix-borrador",
+      name: "Matriz",
+      startDate: "2026-01-05",
     });
+
     render(
       <MatrixEditorView
-        matrixPlan={plan}
+        matrixPlan={matrixPlan}
         tasks={[]}
         onApplyMatrixPlan={jest.fn()}
         onSyncFromGantt={jest.fn()}
-        onDirtyChange={onDirtyChange}
+        {...extra}
       />,
     );
-    return { plan, onDirtyChange };
   }
 
   test("«Deshacer» pasa a llamarse «Descartar cambios»", () => {
-    renderConDirty();
+    renderConPlan();
 
     expect(screen.getByTestId("matrix-discard")).toHaveTextContent(
       "Descartar cambios",
@@ -905,30 +911,28 @@ describe("el borrador de la matriz no se pierde sin avisar (M28)", () => {
 
   test("sin cambios, descartar no pregunta nada", () => {
     const confirmar = jest.spyOn(window, "confirm").mockReturnValue(true);
-    renderConDirty();
+    renderConPlan();
 
     fireEvent.click(screen.getByTestId("matrix-discard"));
 
     expect(confirmar).not.toHaveBeenCalled();
   });
 
-  test("con cambios, descartar pide confirmación y dice qué se pierde", () => {
+  test("con cambios, descartar pide confirmación y dice cuántos se pierden", () => {
     const confirmar = jest.spyOn(window, "confirm").mockReturnValue(false);
-    renderConDirty();
+    renderConPlan();
 
     fireEvent.click(
       screen.getByRole("button", { name: /Activar todas las celdas/i }),
     );
     fireEvent.click(screen.getByTestId("matrix-discard"));
 
-    expect(confirmar).toHaveBeenCalledWith(
-      expect.stringMatching(/sin aplicar/i),
-    );
+    expect(confirmar).toHaveBeenCalledWith(expect.stringMatching(/cambio/i));
   });
 
   test("si el usuario dice que no, el borrador sigue ahí", () => {
     jest.spyOn(window, "confirm").mockReturnValue(false);
-    renderConDirty();
+    renderConPlan();
 
     fireEvent.click(
       screen.getByRole("button", { name: /Activar todas las celdas/i }),
@@ -939,7 +943,8 @@ describe("el borrador de la matriz no se pierde sin avisar (M28)", () => {
   });
 
   test("el borrador sucio se anuncia al proyecto, para el aviso al cerrar", () => {
-    const { onDirtyChange } = renderConDirty();
+    const onDirtyChange = jest.fn();
+    renderConPlan({ onDirtyChange });
 
     fireEvent.click(
       screen.getByRole("button", { name: /Activar todas las celdas/i }),
@@ -947,18 +952,181 @@ describe("el borrador de la matriz no se pierde sin avisar (M28)", () => {
 
     expect(onDirtyChange).toHaveBeenCalledWith(true);
   });
+});
 
-  test("un cambio de estructura también cuenta, no solo las celdas", () => {
-    // Lo aporta `describeDraftChanges` del carril B: el contador propio solo
-    // miraba celdas y una ubicación nueva pasaba por «sin cambios».
-    const { onDirtyChange } = renderConDirty();
+describe("MatrixEditorView · el calendario del proyecto manda en las fechas", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
 
-    jest.spyOn(window, "confirm").mockReturnValue(true);
-    fireEvent.click(screen.getByRole("button", { name: "Ubicaciones" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Agregar hijo a Piso 1" }),
+  /** Solo tres días de obra: estira la matriz muy por encima del umbral. */
+  const calendarioCorto: ProjectCalendar = {
+    ...DEFAULT_PROJECT_CALENDAR,
+    workDays: [1, 2, 3],
+  };
+
+  function renderConCalendario(
+    extra: Partial<ComponentProps<typeof MatrixEditorView>> = {},
+  ) {
+    const onApplyMatrixPlan = jest.fn();
+    render(
+      <MatrixEditorView
+        matrixPlan={createDefaultMatrixPlan({
+          id: "matrix-calendario",
+          name: "Matriz",
+          startDate: "2026-01-05",
+        })}
+        tasks={[]}
+        onApplyMatrixPlan={onApplyMatrixPlan}
+        onSyncFromGantt={jest.fn()}
+        {...extra}
+      />,
+    );
+    return { onApplyMatrixPlan };
+  }
+
+  test("sin calendario la vista previa mantiene el fin de siempre", () => {
+    renderConCalendario();
+
+    // Fecha anclada: si la regla histórica cambiara, este test lo cazaría.
+    expect(screen.getByTestId("matrix-preview")).toHaveTextContent(
+      "Preview: 19 tareas · 2 alertas · fin 2026-01-16",
     );
 
-    expect(onDirtyChange).toHaveBeenCalledWith(true);
+    cleanup();
+
+    renderConCalendario({ calendar: calendarioCorto });
+
+    expect(screen.getByTestId("matrix-preview")).not.toHaveTextContent(
+      "fin 2026-01-16",
+    );
+  });
+
+  test("si el calendario mueve las fechas más de la cuenta, avisa antes de aplicar", () => {
+    const { onApplyMatrixPlan } = renderConCalendario({
+      calendar: calendarioCorto,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    expect(screen.getByTestId("matrix-calendar-warning")).toHaveTextContent(
+      /más tarde/,
+    );
+    expect(onApplyMatrixPlan).not.toHaveBeenCalled();
+  });
+
+  test("el aviso no bloquea: se puede aplicar igual", () => {
+    const { onApplyMatrixPlan } = renderConCalendario({
+      calendar: calendarioCorto,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar de todas formas" }));
+
+    expect(onApplyMatrixPlan).toHaveBeenCalledTimes(1);
+  });
+
+  test("sin calendario se aplica directo, como hasta ahora", () => {
+    const { onApplyMatrixPlan } = renderConCalendario();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    expect(screen.queryByTestId("matrix-calendar-warning")).not.toBeInTheDocument();
+    expect(onApplyMatrixPlan).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("MatrixEditorView · borrar una ubicación no borra tareas a ciegas", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  function planConTareas() {
+    const matrixPlan = createDefaultMatrixPlan({
+      id: "matrix-borrar-area",
+      name: "Matriz",
+      startDate: "2026-01-05",
+    });
+    return { matrixPlan, tasks: generateScheduleFromMatrix(matrixPlan).tasks };
+  }
+
+  function renderParaBorrar(onRemoveArea?: jest.Mock) {
+    const { matrixPlan, tasks } = planConTareas();
+    render(
+      <MatrixEditorView
+        matrixPlan={matrixPlan}
+        tasks={tasks}
+        onApplyMatrixPlan={jest.fn()}
+        onSyncFromGantt={jest.fn()}
+        onRemoveArea={onRemoveArea}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Ubicaciones" }));
+  }
+
+  test("con tareas generadas, avisa y ofrece las dos salidas en vez de confirmar", () => {
+    const confirmar = jest.spyOn(window, "confirm").mockReturnValue(true);
+    renderParaBorrar(jest.fn());
+
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Piso 1" }));
+
+    expect(screen.getByTestId("area-removal-choice")).toHaveTextContent(
+      /tareas ya generadas en el cronograma/,
+    );
+    expect(
+      screen.getByRole("button", { name: "Borrar también sus tareas" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Conservarlas en el cronograma" }),
+    ).toBeInTheDocument();
+    expect(confirmar).not.toHaveBeenCalled();
+  });
+
+  test("borrar también las tareas se lo pide al proyecto, que sabe deshacer", () => {
+    const onRemoveArea = jest.fn();
+    renderParaBorrar(onRemoveArea);
+
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Piso 1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Borrar también sus tareas" }));
+
+    expect(onRemoveArea).toHaveBeenCalledWith("piso-1", "borrar");
+    expect(screen.queryByTestId("area-removal-choice")).not.toBeInTheDocument();
+  });
+
+  test("conservarlas en el cronograma también se lo pide al proyecto", () => {
+    const onRemoveArea = jest.fn();
+    renderParaBorrar(onRemoveArea);
+
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Piso 1" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Conservarlas en el cronograma" }),
+    );
+
+    expect(onRemoveArea).toHaveBeenCalledWith("piso-1", "conservar");
+  });
+
+  test("sin tareas generadas se borra como siempre, con la confirmación de antes", () => {
+    const confirmar = jest.spyOn(window, "confirm").mockReturnValue(true);
+    const onRemoveArea = jest.fn();
+    render(
+      <MatrixEditorView
+        matrixPlan={createDefaultMatrixPlan({
+          id: "matrix-sin-tareas",
+          name: "Matriz",
+          startDate: "2026-01-05",
+        })}
+        tasks={[]}
+        onApplyMatrixPlan={jest.fn()}
+        onSyncFromGantt={jest.fn()}
+        onRemoveArea={onRemoveArea}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Ubicaciones" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Piso 1" }));
+
+    expect(confirmar).toHaveBeenCalled();
+    expect(screen.queryByTestId("area-removal-choice")).not.toBeInTheDocument();
+    expect(onRemoveArea).not.toHaveBeenCalled();
   });
 });

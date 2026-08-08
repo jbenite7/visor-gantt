@@ -32,9 +32,16 @@ import {
   type CellTarget,
 } from "@/lib/matrix/bulk";
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
-import { describeDraftChanges } from "@/lib/matrix/draftState";
+import { describeCalendarShift } from "@/lib/matrix/matrixCalendarShift";
+import {
+  describeAreaRemoval,
+  type AreaRemovalPreview,
+  type OrphanTaskPolicy,
+} from "@/lib/matrix/removeArea";
+import type { ProjectCalendar } from "@/types/calendar";
 import { approveCellFeedback, dismissCellFeedback } from "@/lib/matrix/feedback";
 import { templateFromPlan } from "@/lib/matrix/templateCatalog";
+import { describeDraftChanges } from "@/lib/matrix/draftState";
 import {
   planFromProposal,
   proposeMatrixFromTasks,
@@ -72,6 +79,17 @@ interface MatrixEditorViewProps {
   onSyncFromGantt: () => void;
   /** Avisa al proyecto de que hay borrador sin aplicar, para el aviso al cerrar (M28). */
   onDirtyChange?: (dirty: boolean) => void;
+  /**
+   * El calendario del proyecto: festivos y jornada reales. Sin él la matriz
+   * sigue con su regla histórica —todos los días menos el domingo—, que es lo
+   * que garantiza que ningún plan ya guardado cambie de fechas.
+   */
+  calendar?: ProjectCalendar;
+  /**
+   * Borrar una ubicación que ya generó tareas toca el cronograma, no solo el
+   * borrador: lo ejecuta el proyecto, que es quien sabe deshacerlo.
+   */
+  onRemoveArea?: (areaId: string, policy: OrphanTaskPolicy) => void;
   applyLabel?: string;
 }
 
@@ -305,6 +323,8 @@ export default function MatrixEditorView({
   onApplyMatrixPlan,
   onSyncFromGantt,
   onDirtyChange,
+  calendar,
+  onRemoveArea,
   applyLabel = "Aplicar",
 }: MatrixEditorViewProps) {
   const [draft, setDraft] = useState<MatrixPlan | undefined>(
@@ -313,16 +333,12 @@ export default function MatrixEditorView({
   /**
    * El borrador se perdía sin decir nada al cambiar de pestaña o recargar, y
    * «Deshacer» lo tiraba entero sin avisar de cuánto (M28).
-   *
-   * El recuento lo da `describeDraftChanges`, del carril B: además de contar
-   * celdas distingue los cambios de estructura —alcances y ubicaciones—, que
-   * el contador propio no veía.
    */
-  const cambiosDelBorrador = useMemo(
+  const cambiosPendientes = useMemo(
     () => describeDraftChanges(draft, matrixPlan),
     [draft, matrixPlan],
   );
-  const tieneCambios = cambiosDelBorrador.hasChanges;
+  const tieneCambios = cambiosPendientes.hasChanges;
 
   useEffect(() => {
     onDirtyChange?.(tieneCambios);
@@ -333,15 +349,81 @@ export default function MatrixEditorView({
 
   const descartarCambios = useCallback(() => {
     if (!tieneCambios) return;
-    if (
-      !window.confirm(
-        `${cambiosDelBorrador.message} Se van a descartar. ¿Seguro?`,
-      )
-    ) {
+    if (!window.confirm(`${cambiosPendientes.message} Se van a descartar. ¿Seguro?`)) {
       return;
     }
     setDraft(matrixPlan ? clonePlan(matrixPlan) : draft);
-  }, [cambiosDelBorrador.message, draft, matrixPlan, tieneCambios]);
+  }, [cambiosPendientes, draft, matrixPlan, tieneCambios]);
+
+  /**
+   * El aviso de que el calendario mueve las fechas más de la cuenta. Se
+   * calcula al pulsar «Aplicar» —comparar dos generaciones es caro— y por eso
+   * vive en estado; pero un mensaje calculado sobre un borrador viejo miente,
+   * así que se borra en cuanto cambia el borrador o el calendario.
+   */
+  const [pendingCalendarWarning, setPendingCalendarWarning] = useState<{
+    message: string;
+    forDraft: MatrixPlan | undefined;
+    forCalendar: ProjectCalendar | undefined;
+  } | null>(null);
+
+  // Un aviso calculado sobre otro borrador o con otro calendario ya no dice la
+  // verdad: se muestra solo mientras siga siendo el mismo par.
+  const calendarWarning =
+    pendingCalendarWarning &&
+    pendingCalendarWarning.forDraft === draft &&
+    pendingCalendarWarning.forCalendar === calendar
+      ? pendingCalendarWarning.message
+      : null;
+
+  const aplicarDeTodasFormas = useCallback(() => {
+    if (!draft) return;
+    setPendingCalendarWarning(null);
+    onApplyMatrixPlan(reconcileMatrixCells(draft));
+  }, [draft, onApplyMatrixPlan]);
+
+  const pedirAplicar = useCallback(() => {
+    if (!draft) return;
+    if (calendar) {
+      const shift = describeCalendarShift(draft, calendar);
+      if (shift.exceedsThreshold) {
+        setPendingCalendarWarning({
+          message: shift.message,
+          forDraft: draft,
+          forCalendar: calendar,
+        });
+        return;
+      }
+    }
+    onApplyMatrixPlan(reconcileMatrixCells(draft));
+  }, [calendar, draft, onApplyMatrixPlan]);
+
+  /**
+   * La ubicación que espera decisión.
+   *
+   * En estado va solo el identificador, nunca el recuento: si se guardara el
+   * recuento y el borrador o el cronograma cambiaran por debajo, el aviso
+   * diría un número que ya no es verdad. El recuento se vuelve a calcular en
+   * cada render a partir de lo que hay ahora.
+   */
+  const [pendingAreaRemovalId, setPendingAreaRemovalId] = useState<string | null>(
+    null,
+  );
+
+  const areaRemoval: AreaRemovalPreview | null = useMemo(() => {
+    if (!draft || !pendingAreaRemovalId) return null;
+    const preview = describeAreaRemoval(draft, tasks, pendingAreaRemovalId);
+    return preview.taskIds.length > 0 ? preview : null;
+  }, [draft, pendingAreaRemovalId, tasks]);
+
+  const confirmarBorradoArea = useCallback(
+    (policy: OrphanTaskPolicy) => {
+      if (!pendingAreaRemovalId) return;
+      onRemoveArea?.(pendingAreaRemovalId, policy);
+      setPendingAreaRemovalId(null);
+    },
+    [onRemoveArea, pendingAreaRemovalId],
+  );
 
   const [activeMode, setActiveMode] = useState<MatrixEditorMode>("matrix");
   const [notice, setNotice] = useState<string | null>(null);
@@ -451,9 +533,18 @@ export default function MatrixEditorView({
     return summaries;
   }, [draft]);
   const preview = useMemo(
-    () => (draft ? generateScheduleFromMatrix(draft) : undefined),
-    [draft],
+    () => (draft ? generateScheduleFromMatrix(draft, { calendar }) : undefined),
+    [draft, calendar],
   );
+  /** El fin de la vista previa: es donde se ve que el calendario está entrando. */
+  const previewFinish = useMemo(() => {
+    if (!preview || preview.tasks.length === 0) return undefined;
+    const last = preview.tasks.reduce(
+      (max, task) => Math.max(max, task.finish.getTime()),
+      0,
+    );
+    return new Date(last).toISOString().slice(0, 10);
+  }, [preview]);
   const matrixTaskCount = tasks.filter((task) => task.matrixSource).length;
   const selectedScope = scopes.find((scope) => scope.id === selectedCell?.scopeId);
   const selectedArea = areas.find((area) => area.id === selectedCell?.areaId);
@@ -637,7 +728,7 @@ export default function MatrixEditorView({
     if (
       parentCells.length > 0 &&
       !window.confirm(
-        `El alcance ${parent?.name ?? parentId} tiene ${parentCells.length} celdas. Se moveran al nuevo hijo.`,
+        `El alcance ${parent?.name ?? parentId} tiene ${parentCells.length} celdas. Se moverán al nuevo hijo.`,
       )
     ) {
       return;
@@ -687,7 +778,7 @@ export default function MatrixEditorView({
     if (
       parentCells.length > 0 &&
       !window.confirm(
-        `La ubicacion ${parent?.name ?? parentId} tiene ${parentCells.length} celdas. Se moveran al nuevo hijo.`,
+        `La ubicación ${parent?.name ?? parentId} tiene ${parentCells.length} celdas. Se moverán al nuevo hijo.`,
       )
     ) {
       return;
@@ -727,7 +818,7 @@ export default function MatrixEditorView({
     const cellCount = draft.cells.filter((cell) => ids.includes(cell.scopeId)).length;
     if (
       !window.confirm(
-        `Se eliminaran ${ids.length} alcances y ${cellCount} celdas. Esta accion no se puede deshacer.`,
+        `Se eliminarán ${ids.length} alcances y ${cellCount} celdas. Esta acción no se puede deshacer.`,
       )
     ) {
       return;
@@ -737,11 +828,23 @@ export default function MatrixEditorView({
 
   const deleteArea = (areaId: string) => {
     if (!draft) return;
+
+    // Con tareas ya generadas no hay borrado limpio: se cuenta lo que hay y
+    // se deja elegir. Sin `onRemoveArea` el proyecto no sabría deshacerlo,
+    // así que se mantiene el borrado de siempre.
+    if (onRemoveArea) {
+      const preview = describeAreaRemoval(draft, tasks, areaId);
+      if (preview.taskIds.length > 0) {
+        setPendingAreaRemovalId(areaId);
+        return;
+      }
+    }
+
     const ids = getAreaNodeIds(draft.areas, areaId);
     const cellCount = draft.cells.filter((cell) => ids.includes(cell.areaId)).length;
     if (
       !window.confirm(
-        `Se eliminaran ${ids.length} ubicaciones y ${cellCount} celdas. Esta accion no se puede deshacer.`,
+        `Se eliminarán ${ids.length} ubicaciones y ${cellCount} celdas. Esta acción no se puede deshacer.`,
       )
     ) {
       return;
@@ -1108,7 +1211,7 @@ export default function MatrixEditorView({
           </button>
           <button
             type="button"
-            onClick={() => onApplyMatrixPlan(reconcileMatrixCells(draft))}
+            onClick={pedirAplicar}
             className="apple-button-primary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold"
           >
             <Check size={14} />
@@ -1116,6 +1219,59 @@ export default function MatrixEditorView({
           </button>
         </div>
       </div>
+
+      {calendarWarning && (
+        <div
+          data-testid="matrix-calendar-warning"
+          className="apple-module-header shrink-0 flex flex-wrap items-center gap-2 px-3 py-2 text-xs text-[var(--aia-warn-main)]"
+        >
+          <span className="font-semibold">{calendarWarning}</span>
+          <button
+            type="button"
+            onClick={aplicarDeTodasFormas}
+            className="apple-button-primary inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold"
+          >
+            Aplicar de todas formas
+          </button>
+          <button
+            type="button"
+            onClick={() => setPendingCalendarWarning(null)}
+            className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold"
+          >
+            Revisar antes
+          </button>
+        </div>
+      )}
+
+      {areaRemoval && (
+        <div
+          data-testid="area-removal-choice"
+          className="apple-module-header shrink-0 flex flex-wrap items-center gap-2 px-3 py-2 text-xs text-[var(--aia-warn-main)]"
+        >
+          <span className="font-semibold">{areaRemoval.message}</span>
+          <button
+            type="button"
+            onClick={() => confirmarBorradoArea("borrar")}
+            className="apple-button-primary inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold"
+          >
+            Borrar también sus tareas
+          </button>
+          <button
+            type="button"
+            onClick={() => confirmarBorradoArea("conservar")}
+            className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold"
+          >
+            Conservarlas en el cronograma
+          </button>
+          <button
+            type="button"
+            onClick={() => setPendingAreaRemovalId(null)}
+            className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold"
+          >
+            No borrarla
+          </button>
+        </div>
+      )}
 
       <div className="apple-module-header shrink-0 flex items-center gap-2 px-3 py-2">
         <div className="apple-segmented">
@@ -1168,8 +1324,12 @@ export default function MatrixEditorView({
           />
         </label>
         <div className="flex items-end gap-2">
-          <span className="text-xs text-[var(--color-text-muted)]">
+          <span
+            data-testid="matrix-preview"
+            className="text-xs text-[var(--color-text-muted)]"
+          >
             Preview: {preview?.tasks.length ?? 0} tareas · {preview?.issues.length ?? 0} alertas
+            {previewFinish ? ` · fin ${previewFinish}` : ""}
           </span>
         </div>
       </div>

@@ -9,6 +9,8 @@ import {
 } from "@/lib/matrix/matrixGenerator";
 import type { GanttTask } from "@/components/gantt/types";
 import type { MatrixPlan } from "@/types/matrix";
+import type { ProjectCalendar } from "@/types/calendar";
+import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
 
 function planWithQuantity(quantity: number): MatrixPlan {
   return {
@@ -434,5 +436,65 @@ describe("applyMatrixUpdate · conflictos con elección", () => {
     expect(tarea.duration).toBe(tareaEditada.duration);
     expect(tarea.start.getTime()).toBe(tareaEditada.start.getTime());
     expect(tarea.finish.getTime()).toBe(tareaEditada.finish.getTime());
+  });
+});
+
+describe("aplicar usa el mismo calendario que la vista previa (M26)", () => {
+  /** Un festivo justo en medio de la tarea: si no se respeta, se nota. */
+  const calendarioConFestivo: ProjectCalendar = {
+    ...DEFAULT_PROJECT_CALENDAR,
+    nonWorkingDays: [
+      { id: "f1", date: "2026-01-06", name: "Reyes" },
+      { id: "f2", date: "2026-01-07", name: "Puente" },
+    ],
+  };
+
+  test("el fin que se aplica es el que prometía la vista previa", () => {
+    const plan = planWithQuantity(200);
+    const previsto = generateScheduleFromMatrix(plan, {
+      calendar: calendarioConFestivo,
+    }).tasks.find((task) => !task.isSummary)!;
+
+    const resultado = applyMatrixUpdate({
+      tasks: [],
+      currentPlan: plan,
+      nextPlan: plan,
+      calendar: calendarioConFestivo,
+    });
+    const aplicada = resultado.tasks.find((task) => task.id === previsto.id)!;
+
+    expect(aplicada.finish.getTime()).toBe(previsto.finish.getTime());
+  });
+
+  test("con calendario no aparecen conflictos fantasma", () => {
+    const plan = planWithQuantity(200);
+    const generadas = generateScheduleFromMatrix(plan, {
+      calendar: calendarioConFestivo,
+    }).tasks;
+
+    const resultado = applyMatrixUpdate({
+      tasks: generadas,
+      currentPlan: plan,
+      nextPlan: plan,
+      calendar: calendarioConFestivo,
+    });
+
+    expect(resultado.conflicts).toEqual([]);
+  });
+
+  test("sin calendario todo se comporta como siempre", () => {
+    const plan = planWithQuantity(200);
+
+    const resultado = applyMatrixUpdate({
+      tasks: [],
+      currentPlan: plan,
+      nextPlan: plan,
+    });
+    const aplicada = resultado.tasks.find((task) => !task.isSummary)!;
+
+    // Fecha anclada, no comparada contra el propio generador: así el test
+    // caza que la regla histórica cambie, que es lo que promete su nombre.
+    expect(aplicada.start.toISOString().slice(0, 10)).toBe("2026-01-05");
+    expect(aplicada.finish.toISOString().slice(0, 10)).toBe("2026-01-13");
   });
 });
