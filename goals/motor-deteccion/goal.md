@@ -1,6 +1,6 @@
 ---
 tipo: goal
-estado: abierto
+estado: cerrado
 fecha: 2026-08-07
 areas: [cronograma, deteccion, matriz]
 carril: B
@@ -45,6 +45,23 @@ matrices— y ninguno rinde hasta que esto funcione.
    de una API sin tocar a quien lo llama.
 5. **Cableado** de Línea de Balance y Unidad Típica al motor nuevo, con los sótanos ordenados por debajo
    del piso 1.
+
+## Resultado medido (2026-08-08)
+
+Sobre el archivo real `aia-ms-project/20260312 DA PORTO TORRE 3.mpp`, parseado con el servicio
+`mpp-parser` y pasado por el motor ya cableado:
+
+| | |
+|---|---|
+| Filas del archivo | 240 (212 tareas reales, el resto resúmenes e hitos) |
+| **Con ubicación** | **197 de 212** |
+| Sin ubicación | 15, **todas correctas**: campamentos, excavación a cota, micropilotes, triturado, losas de tacos de escalas y las once de urbanismo (redes externas, vías internas, zonas verdes) |
+| Unidad Típica | 3 sistemas repetidos; el mayor con **15 niveles**, ordenados `Sótano 3 → Sótano 2 → Sótano 1 → Piso 1 …` |
+| Línea de Balance | 3 actividades, 45 unidades, etiqueta detectada `Sótano` |
+
+Las 15 restantes no son un fallo: son obra general, y ahora **se dicen** en vez de descartarse en silencio.
+
+Suite completa **874 tests en 105 suites**, lint limpio, `tsc` filtrado vacío y `next build` correcto.
 
 ## Condición de hecho
 

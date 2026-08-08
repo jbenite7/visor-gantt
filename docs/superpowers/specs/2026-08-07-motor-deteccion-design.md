@@ -112,9 +112,20 @@ está hablando del mismo sitio, y separarlos partiría en dos la Línea de Balan
 3. **el WBS**.
 
 El orden importa: el nombre propio manda sobre el heredado. `buildWbsBreadcrumb` ya existe y ya se usa
-para clasificar familia; aquí se reutiliza para ubicación. Esto solo cubre por sí mismo una parte grande
-de las 44: en el archivo real, toda la mampostería y todo el aseo cuelgan de un padre que se llama
-`SÓTANO n` o `PISO n`.
+para clasificar familia; aquí se reutiliza para ubicación.
+
+**Corrección medida (2026-08-08).** Una versión anterior de esta spec afirmaba que la herencia recuperaba
+«toda la mampostería y todo el aseo» del archivo real. **Es falso, y conviene decirlo.** Al medirlo sobre
+el `.mpp` parseado, la mampostería y el aseo de DA PORTO son hojas que **se llaman `SÓTANO 3` o `PISO 1`
+ellas mismas** (`1.4.5.1 PISO 1`, `1.4.1.1 INTERNA › SÓTANO 3`), así que resuelven por nombre propio: la
+herencia da `0` casos en ese archivo. Sigue siendo correcta y necesaria —hay cronogramas que sí cuelgan la
+hoja de un padre con la ubicación— pero **no es lo que arregla las 44 de este archivo**. Lo que las arregla
+es el patrón de `Sótano`, que sencillamente no existía.
+
+Y hay un peligro asociado que la medición destapó: el nivel raíz de ese archivo se llama
+`DAPORTO TORRE 3`, que caza el patrón `Torre`. Heredar sin tope ubicaba **toda la obra** —vías internas y
+skate park incluidos— en «Torre 3», y la cobertura cantaba 100 %. Por eso la herencia **se detiene antes
+del nivel raíz**: una ubicación que comparten todas las tareas no distingue nada.
 
 ### D4 · «Sin ubicación» es un resultado, no un fallo
 
