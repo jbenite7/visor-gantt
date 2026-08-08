@@ -417,6 +417,29 @@ describe("extractLocation · el resto del vocabulario de obra", () => {
     expect(extract("PERFILACIÓN Y NIVELACIÓN")).toBeNull();
   });
 
+  test("la torregrúa es una máquina, no una torre", () => {
+    // Diez tareas reales de `test_data/20260430 PROGRAMACION ESTACION 16 -
+    // ML1 R2.mpp` hablan de la torregrúa. Sin el `\b` final del patrón de
+    // torre, «torregrua» se leería como «Torre G» y esas tareas acabarían
+    // repartidas por una ubicación inventada. Es la misma trampa que
+    // documenta PDC V2: el texto se parece y significa otra cosa.
+    expect(extract("Montaje torregrúa")).toBeNull();
+    expect(extract("Dado para torregrua")).toBeNull();
+    expect(extract("Pilotaje para torregruas")).toBeNull();
+    expect(extract("Aprobacion de diseño cimentacion torregrua")).toBeNull();
+    expect(extract("Prealistamiento de torregrúas")).toBeNull();
+  });
+
+  test("escrita separada tampoco: «torre grúa» sigue siendo la máquina", () => {
+    expect(extract("Montaje torre grúa")).toBeNull();
+    expect(extract("Montaje torre grúa 2")).toBeNull();
+  });
+
+  test("pero una torre de verdad sí se reconoce", () => {
+    expect(extract("ESTRUCTURA TORRE A")?.value).toBe(1);
+    expect(extract("Acabados torre B")?.value).toBe(2);
+  });
+
   test("el piso escrito con palabra gana a un código que aparezca después", () => {
     expect(extract("MAMPOSTERÍA PISO 4 PLANO S2")?.value).toBe(4);
   });
@@ -523,6 +546,8 @@ export const LOCATION_PATTERNS: LocationPattern[] = [
   },
   {
     label: "Torre",
+    // El `\b` del final no es adorno: sin él, «torregrúa» —diez tareas
+    // reales del cronograma de la Estación 16— se leería como «Torre G».
     regex: /\b(?:TORRE|BLOQUE)\s*[-#:]?\s*([A-Z])\b/i,
     valueOf: letterToNumber,
   },
@@ -583,7 +608,7 @@ Nota para quien implemente: `MEZANINE` y `CUBIERTA` capturan la **palabra** en e
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx jest src/lib/scheduling/detection/location.test.ts`
-Expected: PASS (20 tests — los 6 de la Tarea 2 más los 14 nuevos)
+Expected: PASS (23 tests — los 6 de la Tarea 2 más los 17 nuevos)
 
 - [ ] **Step 5: Commit**
 

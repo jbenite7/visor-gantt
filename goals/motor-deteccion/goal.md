@@ -67,10 +67,11 @@ matrices— y ninguno rinde hasta que esto funcione.
 ## Límite conocido
 
 Este es un motor de **obra vertical**. El otro archivo real del repositorio (`test_data/20260430
-PROGRAMACION ESTACION 16 - ML1 R2.mpp`, una estación de metro) nombra sus ubicaciones con `Módulo`,
-`Edificio` y `Eje` —122 menciones frente a 28 de `Piso`—, y esa gramática **no se cubre aquí**: no está en
-las 103 decisiones y ampliarla a ciegas sería inventar requisitos. Queda escrito para que nadie lo
-descubra en obra. Ver la spec para el detalle medido.
+PROGRAMACION ESTACION 16 - ML1 R2.mpp`, una estación de metro, 300 tareas) nombra sus ubicaciones con
+`Eje`, `Módulo` y `Edificio` —84 menciones frente a 15 de `Piso`—, y esa gramática **no se cubre aquí**: no
+está en las 103 decisiones y ampliarla a ciegas sería inventar requisitos. Queda escrito para que nadie lo
+descubra en obra. Ver la spec para el detalle medido y para el caso de la «torregrúa», que parece una torre
+y no lo es.
 
 ## Fuera de alcance
 

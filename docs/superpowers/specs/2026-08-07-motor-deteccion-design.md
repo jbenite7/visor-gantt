@@ -201,30 +201,34 @@ otro se rompe.
 ### Limitación conocida: esto es un motor de **obra vertical**
 
 El otro archivo de obra del repositorio, `test_data/20260430 PROGRAMACION ESTACION 16 - ML1 R2.mpp` (una
-estación de metro), habla otro idioma. Contado sobre sus **1.668 nombres únicos**:
+estación de metro), habla otro idioma. Contado sobre sus **300 tareas / 104 nombres únicos**:
 
-| Palabra de ubicación | Menciones |
+| Palabra de ubicación | En tareas |
 |---|---|
-| `Eje` | 94 |
-| `Piso` | 28 |
-| `Módulo` | 20 |
-| `Torre` | 10 |
-| `Edificio` | 8 |
-| `Nivel` | 6 |
-| `Sótano`, `Cubierta`, `Abscisa` | 0 |
+| `Eje` | 56 |
+| `Módulo` | 21 |
+| `Piso` | 15 |
+| `Edificio` | 7 |
+| `Torre` | 5 — **y las cinco son «torregrúa»**, la máquina |
+| `Nivel` | 4 |
+| `Sótano`, `Cubierta`, abscisa | 0 |
 
 Sus tareas se llaman `Módulo 1.1 (Ejes A-D)`, `Edificio 1 (Sur)`, `Construcción Losa Aérea (Eje D-H)`,
 `Lucarnas (Ejes DB4-DB8)`.
 
 Qué significa exactamente, sin exagerar en ninguna dirección:
 
-- **El motor sí resuelve algo ahí**: los 28 `Piso N`, los 10 `Torre` y los 6 `Nivel N` caen dentro de los
-  patrones. No es un archivo donde detecte cero.
-- **Pero pierde el eje principal**: `Módulo`, `Edificio` y `Eje` suman 122 menciones y no están cubiertos.
-  En esa obra la unidad de producción es el módulo entre ejes, no el piso.
-- **Y hay un caso que resuelve a medias sin decirlo**: `Piso 1 a 2 (eje A)` y `Piso 2 a 3 (eje 07)` son
-  tareas de transición entre dos niveles. El extractor devuelve el primero y descarta el segundo en
-  silencio.
+- **El motor sí resuelve algo ahí**: los 15 `Piso N` y los 4 `Nivel N` caen dentro de los patrones. No es
+  un archivo donde detecte cero.
+- **Pero pierde el eje principal**: `Eje`, `Módulo` y `Edificio` suman **84 menciones frente a 15 de
+  `Piso`**, y no están cubiertos. En esa obra la unidad de producción es el módulo entre ejes, no el piso.
+- **Ninguna de las cinco «torres» es una torre.** Son `Montaje torregrúa`, `Dado para torregrua`,
+  `Pilotaje para torregruas`… El patrón las rechaza gracias al `\b` que cierra `TORRE\s*([A-Z])\b`:
+  «torregrua» no tiene límite de palabra tras la `g`. Comprobado con el patrón real, y fijado con tests
+  negativos —incluida la grafía separada, «torre grúa»— para que nadie afloje ese `\b` sin romper algo.
+- **Y hay un caso que resuelve a medias sin decirlo**: `Piso 1 (eje B a 2)` y `Piso 1 a 2 (eje A)` son
+  tareas de transición entre dos niveles, con el eje dentro. El extractor devuelve el primer número y
+  descarta el resto en silencio.
 
 **No se amplía el alcance aquí.** Nada de esto está en las 103 decisiones del grilleo, y añadir a ciegas una
 segunda gramática —módulo, edificio, eje, abscisa— sería inventar requisitos. Lo que sí se hace es dejarlo
@@ -232,9 +236,12 @@ escrito: quien ejecute este plan debe saber que «el motor funciona» significa 
 vertical»**, y el usuario puede decidir después si quiere una segunda familia de patrones para
 infraestructura. Una limitación escrita vale más que una sorpresa en obra.
 
-(Detectado a raíz de la auditoría de la sesión «Plan de mejora para app web» el 2026-08-08. Esa auditoría
-reportó «cero pisos, cero torres» en este archivo; medido directamente, hay 28 y 10. La conclusión —anotar
-la limitación— es correcta; los números de arriba son los verificados.)
+**Sobre cómo se midió, porque importa.** Estas cifras salen del parser, sobre nombres de tarea. Una primera
+medición contó cadenas extraídas del binario del `.mpp` y dio números inflados (1.668 «nombres», 28 pisos):
+un `.mpp` guarda además recursos, calendarios, campos personalizados y texto interno de MS Project. La
+conclusión de fondo no cambia —el eje principal se pierde igual—, pero las proporciones sí, y son estas.
+(Detectado en el ida y vuelta con la sesión «Plan de mejora para app web» el 2026-08-08: su primera
+medición decía «cero pisos», la mía decía 28, y ninguna de las dos era la buena.)
 
 ### Limitación, dicha una vez
 
