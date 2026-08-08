@@ -1613,3 +1613,45 @@ describe("el filtro no esconde nada a escondidas (E7)", () => {
     expect(screen.queryByTestId("cell-id-3")).not.toBeInTheDocument();
   });
 });
+
+describe("los niveles WBS hacen lo que dicen (E19)", () => {
+  const jerarquia = [
+    makeTask({ id: 1, name: "Capítulo", isSummary: true, outlineLevel: 1 }),
+    makeTask({ id: 2, name: "Subcapítulo", isSummary: true, outlineLevel: 2 }),
+    makeTask({ id: 3, name: "Detalle de obra", outlineLevel: 3 }),
+  ];
+
+  test("el botón L1 deja a la vista solo el primer nivel", () => {
+    render(<GanttTable tasks={jerarquia} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "L1" }));
+
+    expect(screen.getByText("Capítulo")).toBeInTheDocument();
+    expect(screen.queryByText("Subcapítulo")).not.toBeInTheDocument();
+    expect(screen.queryByText("Detalle de obra")).not.toBeInTheDocument();
+  });
+
+  test("el botón L2 deja a la vista dos niveles", () => {
+    render(<GanttTable tasks={jerarquia} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "L2" }));
+
+    expect(screen.getByText("Capítulo")).toBeInTheDocument();
+    expect(screen.getByText("Subcapítulo")).toBeInTheDocument();
+    expect(screen.queryByText("Detalle de obra")).not.toBeInTheDocument();
+  });
+
+  test("con muchos niveles el control sigue siendo botones, no un desplegable", () => {
+    render(
+      <GanttTable
+        tasks={[
+          ...jerarquia,
+          makeTask({ id: 4, name: "Subdetalle", outlineLevel: 4 }),
+        ]}
+      />,
+    );
+
+    expect(screen.queryByTestId("expand-level-select")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("expand-level-button")).toHaveLength(4);
+  });
+});

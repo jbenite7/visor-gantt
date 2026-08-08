@@ -194,17 +194,19 @@ function getVisibleTasks(
       collapsedStack.pop();
     }
 
+    // Primero: ¿está dentro de un resumen ya colapsado? Si lo está, no se ve,
+    // aunque ella misma sea un resumen colapsado. Antes esta rama iba después
+    // y un capítulo cerrado seguía mostrando sus subcapítulos cerrados.
+    const dentroDeColapsado =
+      collapsedStack.length > 0 &&
+      task.outlineLevel > collapsedStack[collapsedStack.length - 1];
+
+    if (dentroDeColapsado) continue;
+
     if (task.isSummary && collapsedIds.has(task.id)) {
       collapsedStack.push(task.outlineLevel);
-      visible.push(task);
-    } else if (
-      collapsedStack.length > 0 &&
-      task.outlineLevel > collapsedStack[collapsedStack.length - 1]
-    ) {
-      continue;
-    } else {
-      visible.push(task);
     }
+    visible.push(task);
   }
 
   return visible;
@@ -563,11 +565,15 @@ export default function GanttTable({
     () => getVisibleTasks(tasksWithContext, collapsedTaskIds),
     [tasksWithContext, collapsedTaskIds],
   );
+  /**
+   * La etiqueta y el nivel iban desfasados: el botón «L1» aplicaba el nivel 2.
+   * Ahora `L1` es el nivel 1, que es lo que dice (E19).
+   */
   const levelButtons = useMemo(() => {
     const maxLevel = Math.max(1, ...tasks.map((task) => task.outlineLevel || 1));
     return Array.from({ length: maxLevel }, (_, index) => ({
       label: `L${index + 1}`,
-      level: index + 2,
+      level: index + 1,
     }));
   }, [tasks]);
   const normalizedTaskFilter = useMemo(
@@ -779,41 +785,17 @@ export default function GanttTable({
     >
       <div className="gantt-table-ribbon__group gantt-table-ribbon__group--expand">
         <span className="gantt-table-ribbon__label">{t(effectiveLocale, "expand")}</span>
-        {levelButtons.length <= 2 ? (
-          levelButtons.map((btn) => (
-            <button
-              key={btn.label}
-              type="button"
-              data-testid="expand-level-button"
-              className="gantt-table-tools__text-button gantt-table-ribbon__text-button"
-              onClick={() => handleExpandToLevel(btn.level)}
-            >
-              {btn.label}
-            </button>
-          ))
-        ) : (
-          <select
-            data-testid="expand-level-select"
-            className="gantt-table-ribbon__select"
-            value=""
-            aria-label={effectiveLocale === "en" ? "Expand to level" : "Expandir a nivel"}
-            onChange={(event) => {
-              const level = Number.parseInt(event.target.value, 10);
-              if (Number.isFinite(level)) {
-                handleExpandToLevel(level);
-              }
-            }}
+        {levelButtons.map((btn) => (
+          <button
+            key={btn.label}
+            type="button"
+            data-testid="expand-level-button"
+            className="gantt-table-tools__text-button gantt-table-ribbon__text-button"
+            onClick={() => handleExpandToLevel(btn.level)}
           >
-            <option value="" disabled>
-              {effectiveLocale === "en" ? "Level" : "Nivel"}
-            </option>
-            {levelButtons.map((btn) => (
-              <option key={btn.label} value={btn.level}>
-                {btn.label}
-              </option>
-            ))}
-          </select>
-        )}
+            {btn.label}
+          </button>
+        ))}
         <button
           type="button"
           data-testid="expand-all-button"
