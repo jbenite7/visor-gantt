@@ -16,6 +16,7 @@ import type { BudgetItem, BudgetMapping } from "@/types/budget";
 import type { Baseline } from "@/types/baseline";
 import type { MatrixPlan } from "@/types/matrix";
 import type {
+import ScheduleSkeleton from "@/components/gantt/ScheduleSkeleton";
   AssignmentColumnSettings,
   MppAssignmentColumn,
   MppCustomFieldDefinition,

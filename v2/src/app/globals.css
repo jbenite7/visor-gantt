@@ -3380,3 +3380,50 @@ h6 {
 .gantt-row[data-filtered-context="true"] {
   opacity: 0.5;
 }
+
+/* ── Esqueleto del cronograma mientras carga (E16) ── */
+.schedule-skeleton {
+  display: grid;
+  grid-template-columns: minmax(0, 35fr) minmax(0, 65fr);
+  gap: var(--gantt-advanced-panels-gap);
+  height: 100%;
+  padding: var(--gantt-advanced-panels-padding-block)
+    var(--gantt-advanced-panels-padding-inline);
+}
+
+.schedule-skeleton__table,
+.schedule-skeleton__chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--project-view-sidebar-item-gap);
+  min-width: 0;
+}
+
+.schedule-skeleton__row {
+  display: flex;
+  align-items: center;
+  height: var(--gantt-row-height, 2rem);
+}
+
+.schedule-skeleton__block {
+  height: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-hairline);
+  animation: schedule-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes schedule-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .schedule-skeleton__block {
+    animation: none;
+  }
+}

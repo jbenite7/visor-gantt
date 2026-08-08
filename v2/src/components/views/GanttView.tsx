@@ -6,14 +6,13 @@ import type { GanttScale, GanttTask } from "@/components/gantt/types";
 import type { PlanningAuditEvent } from "@/types/audit";
 import type { Observation } from "@/lib/observations/observations";
 import dynamic from "next/dynamic";
+import ScheduleSkeleton from "@/components/gantt/ScheduleSkeleton";
 
 /**
  * Las vistas distintas del Gantt se cargan al abrirlas. Antes las 14 viajaban en
  * el bundle inicial y montaban de golpe: cambiar de vista costaba ~584 ms de INP.
  */
-const ViewLoading = () => (
-  <div className="gantt-view-loading" role="status">Cargando vista…</div>
-);
+const ViewLoading = () => <ScheduleSkeleton />;
 
 const TaskSheetView = dynamic(() => import("@/components/views/TaskSheetView"), { loading: ViewLoading });
 const TrackingGanttView = dynamic(() => import("@/components/views/TrackingGanttView"), { loading: ViewLoading });
