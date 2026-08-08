@@ -411,7 +411,7 @@ describe("MatrixEditorView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Eliminar Nivel 9" }));
     expect(window.confirm).toHaveBeenCalledWith(
-      expect.stringContaining("Se eliminaran 2 alcances y 1 celdas"),
+      expect.stringContaining("Se eliminarán 2 alcances y 1 celdas"),
     );
     fireEvent.click(screen.getByRole("button", { name: /Aplicar/i }));
 

@@ -728,7 +728,7 @@ export default function MatrixEditorView({
     if (
       parentCells.length > 0 &&
       !window.confirm(
-        `El alcance ${parent?.name ?? parentId} tiene ${parentCells.length} celdas. Se moveran al nuevo hijo.`,
+        `El alcance ${parent?.name ?? parentId} tiene ${parentCells.length} celdas. Se moverán al nuevo hijo.`,
       )
     ) {
       return;
@@ -778,7 +778,7 @@ export default function MatrixEditorView({
     if (
       parentCells.length > 0 &&
       !window.confirm(
-        `La ubicacion ${parent?.name ?? parentId} tiene ${parentCells.length} celdas. Se moveran al nuevo hijo.`,
+        `La ubicación ${parent?.name ?? parentId} tiene ${parentCells.length} celdas. Se moverán al nuevo hijo.`,
       )
     ) {
       return;
@@ -818,7 +818,7 @@ export default function MatrixEditorView({
     const cellCount = draft.cells.filter((cell) => ids.includes(cell.scopeId)).length;
     if (
       !window.confirm(
-        `Se eliminaran ${ids.length} alcances y ${cellCount} celdas. Esta accion no se puede deshacer.`,
+        `Se eliminarán ${ids.length} alcances y ${cellCount} celdas. Esta acción no se puede deshacer.`,
       )
     ) {
       return;
@@ -844,7 +844,7 @@ export default function MatrixEditorView({
     const cellCount = draft.cells.filter((cell) => ids.includes(cell.areaId)).length;
     if (
       !window.confirm(
-        `Se eliminaran ${ids.length} ubicaciones y ${cellCount} celdas. Esta accion no se puede deshacer.`,
+        `Se eliminarán ${ids.length} ubicaciones y ${cellCount} celdas. Esta acción no se puede deshacer.`,
       )
     ) {
       return;
