@@ -146,8 +146,18 @@ export const FACTORY_TEMPLATES: MatrixTemplate[] = [
   OBRA_LINEAL,
 ];
 
+/**
+ * Devuelve copias, no las plantillas del catálogo.
+ *
+ * Copiar solo el array protegía de que alguien quitara una plantilla de la
+ * lista, pero no de que la editara por dentro: el editor de recetas muta lo
+ * que recibe, y eso habría alterado la plantilla de fábrica para toda la
+ * sesión.
+ */
 export function listFactoryTemplates(): MatrixTemplate[] {
-  return [...FACTORY_TEMPLATES];
+  return FACTORY_TEMPLATES.map(
+    (template) => JSON.parse(JSON.stringify(template)) as MatrixTemplate,
+  );
 }
 
 /**

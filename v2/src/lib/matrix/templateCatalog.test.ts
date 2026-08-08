@@ -51,6 +51,17 @@ describe("catálogo de plantillas de fábrica", () => {
 
     expect(listFactoryTemplates()).toHaveLength(FACTORY_TEMPLATES.length);
   });
+
+  test("las plantillas que devuelve son copias: editarlas no toca el catálogo", () => {
+    const primera = listFactoryTemplates()[0];
+    primera.recipes[0].name = "Cambiada";
+    primera.scopeTree[0].name = "Cambiado";
+
+    const segunda = listFactoryTemplates()[0];
+    expect(segunda.recipes[0].name).not.toBe("Cambiada");
+    expect(segunda.scopeTree[0].name).not.toBe("Cambiado");
+    expect(FACTORY_TEMPLATES[0].recipes[0].name).not.toBe("Cambiada");
+  });
 });
 
 describe("templateFromPlan", () => {

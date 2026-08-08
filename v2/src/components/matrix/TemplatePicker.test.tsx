@@ -105,4 +105,21 @@ describe("TemplatePicker", () => {
       "Carga primero un cronograma para que la matriz proponga alcances y ubicaciones.",
     );
   });
+
+  test("la plantilla que entrega no es la del catálogo: editarla no lo altera", () => {
+    const onPickTemplate = jest.fn();
+    render(
+      <TemplatePicker
+        canGenerateFromSchedule={false}
+        onPickTemplate={onPickTemplate}
+        onGenerateFromSchedule={jest.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: FACTORY_TEMPLATES[0].name }));
+
+    const entregada = onPickTemplate.mock.calls[0][0];
+    expect(entregada).not.toBe(FACTORY_TEMPLATES[0]);
+    expect(entregada.name).toBe(FACTORY_TEMPLATES[0].name);
+  });
 });
