@@ -4,7 +4,7 @@ describe("parseImportSummary", () => {
   test("lee los conteos que llegan en la URL tras importar", () => {
     expect(
       parseImportSummary({ tareas: "239", dependencias: "212", recursos: "0" }),
-    ).toEqual({ tasks: 239, dependencies: 212, resources: 0 });
+    ).toEqual({ tasks: 239, dependencies: 212, resources: 0, discardedColumns: [] });
   });
 
   test("sin parámetros no hay resumen que mostrar", () => {
@@ -20,6 +20,7 @@ describe("parseImportSummary", () => {
       tasks: 12,
       dependencies: 0,
       resources: 0,
+      discardedColumns: [],
     });
   });
 });
@@ -27,25 +28,53 @@ describe("parseImportSummary", () => {
 describe("formatImportSummary", () => {
   test("resume en lenguaje de obra lo que se importó", () => {
     expect(
-      formatImportSummary({ tasks: 239, dependencies: 212, resources: 0 }),
+      formatImportSummary({ tasks: 239, dependencies: 212, resources: 0, discardedColumns: [] }),
     ).toBe("Se importaron 239 tareas y 212 dependencias.");
   });
 
   test("menciona los recursos solo si vinieron", () => {
     expect(
-      formatImportSummary({ tasks: 10, dependencies: 4, resources: 3 }),
+      formatImportSummary({ tasks: 10, dependencies: 4, resources: 3, discardedColumns: [] }),
     ).toBe("Se importaron 10 tareas, 4 dependencias y 3 recursos.");
   });
 
   test("usa singular cuando corresponde", () => {
-    expect(formatImportSummary({ tasks: 1, dependencies: 1, resources: 1 })).toBe(
+    expect(formatImportSummary({ tasks: 1, dependencies: 1, resources: 1, discardedColumns: [] })).toBe(
       "Se importaron 1 tarea, 1 dependencia y 1 recurso.",
     );
   });
 
   test("un cronograma sin dependencias no las menciona", () => {
-    expect(formatImportSummary({ tasks: 5, dependencies: 0, resources: 0 })).toBe(
+    expect(formatImportSummary({ tasks: 5, dependencies: 0, resources: 0, discardedColumns: [] })).toBe(
       "Se importaron 5 tareas.",
     );
+  });
+});
+
+describe("las pérdidas de la importación se anuncian (E33)", () => {
+  test("lee las columnas descartadas de la URL", () => {
+    const resumen = parseImportSummary({
+      tareas: "12",
+      dependencias: "4",
+      recursos: "2",
+      descartadas: "Texto27,Número14",
+    });
+
+    expect(resumen!.discardedColumns).toEqual(["Texto27", "Número14"]);
+  });
+
+  test("sin el parámetro, la lista queda vacía y no rompe nada", () => {
+    const resumen = parseImportSummary({ tareas: "12" });
+
+    expect(resumen!.discardedColumns).toEqual([]);
+  });
+
+  test("descarta los nombres en blanco que deje un separador de más", () => {
+    const resumen = parseImportSummary({
+      tareas: "12",
+      descartadas: "Texto27,,  ,Número14",
+    });
+
+    expect(resumen!.discardedColumns).toEqual(["Texto27", "Número14"]);
   });
 });

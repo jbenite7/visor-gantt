@@ -113,6 +113,24 @@ export async function POST(request: NextRequest) {
   destination.searchParams.set("dependencias", String(dependencyCount));
   destination.searchParams.set("recursos", String(projectData.resources.length));
 
+  // La importación ligera se queda en las primeras 120 columnas. Decir cuáles
+  // quedaron fuera evita creer que entró todo el archivo (E33).
+  const columnasDescartadas = (parsedProject.availableColumns ?? [])
+    .filter(
+      (nombre) =>
+        !projectData.mppTaskColumns?.some(
+          (columna) =>
+            columna.labelEs === nombre ||
+            columna.labelEn === nombre ||
+            columna.key === nombre ||
+            columna.sourceKey === nombre,
+        ),
+    )
+    .slice(0, 40);
+  if (columnasDescartadas.length > 0) {
+    destination.searchParams.set("descartadas", columnasDescartadas.join(","));
+  }
+
   const response = NextResponse.redirect(destination, { status: 303 });
   response.headers.set("X-Import-Tasks", String(projectData.tasks.length));
   response.headers.set("X-Import-Dependencies", String(dependencyCount));

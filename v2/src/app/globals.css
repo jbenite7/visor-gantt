@@ -3259,3 +3259,17 @@ h6 {
   cursor: pointer;
   font: inherit;
 }
+
+/* ── Aviso de columnas descartadas al importar (E33) ── */
+.import-summary-banner__warnings-toggle {
+  border: 0;
+  background: var(--color-transparent);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+}
+
+.import-summary-banner__warnings {
+  flex-basis: 100%;
+}
