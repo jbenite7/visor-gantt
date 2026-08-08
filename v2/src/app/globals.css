@@ -143,6 +143,12 @@
   --gantt-topbar-font-size: 0.75rem;
   --gantt-toolbar-info-width: 15.5rem;
   --gantt-toolbar-project-info-display: none;
+  /**
+   * El grupo de línea base estaba en `none` sin ninguna regla que lo
+   * reactivara: el control que el inventario llamó «el más visible» no se veía
+   * en ninguna anchura (M13). En pantallas estrechas sigue oculto y se llega
+   * por la vista Seguimiento, que tiene los mismos controles.
+   */
   --gantt-toolbar-baseline-display: none;
   --gantt-toolbar-group-padding-inline: 0.5rem;
   --gantt-toolbar-divider-height: 1.5rem;
@@ -1105,6 +1111,12 @@ h6 {
   background: var(--color-bg-elevated);
   box-shadow: var(--shadow-lg);
   padding: var(--gantt-planning-dropdown-menu-padding);
+}
+
+@media (min-width: 64rem) {
+  :root {
+    --gantt-toolbar-baseline-display: flex;
+  }
 }
 
 @media (max-width: 48rem) {

@@ -955,10 +955,14 @@ function GanttViewInner({
         setLastSavedAt(new Date());
         setTimeout(() => updateSaveStatus("idle"), 2000);
       } else {
+        // Lo que no llegó al servidor sigue pendiente: si no se vuelve a marcar
+        // sucio, el aviso al cerrar deja pasar un trabajo que se va a perder.
+        isDirtyRef.current = true;
         updateSaveStatus("error");
         setTimeout(() => updateSaveStatus("idle"), 3000);
       }
     } catch {
+      isDirtyRef.current = true;
       updateSaveStatus("error");
       setTimeout(() => updateSaveStatus("idle"), 3000);
     }

@@ -1623,3 +1623,64 @@ describe("borrar una línea base es deshacible (M13)", () => {
     );
   });
 });
+
+describe("un guardado fallido deja el trabajo pendiente (M33)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("si el guardado falla, cerrar sigue preguntando", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+      />,
+    );
+
+    mockedSaveProject.mockResolvedValueOnce({
+      success: false,
+      error: "sin conexión",
+    });
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    fireEvent.click(screen.getByText("Guardar ahora"));
+
+    await screen.findByTestId("save-retry");
+
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  test("y sigue preguntando cuando el indicador ya volvió a su estado normal", async () => {
+    jest.useFakeTimers();
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+      />,
+    );
+
+    mockedSaveProject.mockResolvedValueOnce({
+      success: false,
+      error: "sin conexión",
+    });
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    fireEvent.click(screen.getByText("Guardar ahora"));
+
+    // El indicador vuelve a «idle» a los 3 s: el trabajo sigue sin guardarse.
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(4000);
+    });
+
+    expect(screen.queryByTestId("save-retry")).not.toBeInTheDocument();
+
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+});
