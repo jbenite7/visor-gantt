@@ -2002,9 +2002,12 @@ Expected: FAIL — `duplicateAreaNode is not a function`.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Añadir al final de `src/lib/matrix/bulk.ts`:
+Añadir al final de `src/lib/matrix/bulk.ts`, **con los dos `import` movidos arriba del todo**, junto al de
+la Tarea 9: aunque los imports se elevan y funcionarían al final, `eslint` los rechaza con
+`import/first`.
 
 ```ts
+// ↑ estos dos van arriba del archivo, con el import de la Tarea 9
 import type { AreaNode, ScopeNode } from "@/types/matrix";
 import { getAreaLeaves, getScopeLeaves } from "./tree";
 
@@ -2573,7 +2576,8 @@ y análogamente para `duration` (`String(expected.duration)` / `String(task.dura
       `El fin pasó del ${dateKey(expected.finish)} al ${dateKey(task.finish)} desde el Gantt.`
 ```
 
-**c)** Ampliar `ApplyMatrixUpdateInput` y aplicar las elecciones en `applyMatrixUpdate`:
+**c)** Ampliar `ApplyMatrixUpdateInput` y aplicar las elecciones en `applyMatrixUpdate`. Añadir
+`ConflictResolution` al `import type` que `matrixSync.ts` ya trae de `@/types/matrix`:
 
 ```ts
 interface ApplyMatrixUpdateInput {
