@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Check,
   CornerDownRight,
@@ -46,6 +46,8 @@ interface MatrixEditorViewProps {
   tasks: GanttTask[];
   onApplyMatrixPlan: (matrixPlan: MatrixPlan) => void;
   onSyncFromGantt: () => void;
+  /** Avisa al proyecto de que hay borrador sin aplicar, para el aviso al cerrar (M28). */
+  onDirtyChange?: (dirty: boolean) => void;
   applyLabel?: string;
 }
 
@@ -94,6 +96,27 @@ function includeCurrentTypeOption(options: string[], currentValue?: string): str
   const current = currentValue?.trim();
   if (!current || options.includes(current)) return options;
   return [current, ...options];
+}
+
+/**
+ * Cuántas celdas difieren entre lo aplicado y el borrador. Es el número que el
+ * usuario necesita para decidir si descarta.
+ */
+function contarDiferenciasDeMatriz(
+  aplicado: MatrixPlan,
+  borrador: MatrixPlan,
+): number {
+  const previas = new Map(
+    (aplicado.cells ?? []).map((cell) => [cell.id, JSON.stringify(cell)]),
+  );
+  let diferencias = 0;
+
+  for (const cell of borrador.cells ?? []) {
+    if (previas.get(cell.id) !== JSON.stringify(cell)) diferencias += 1;
+    previas.delete(cell.id);
+  }
+
+  return diferencias + previas.size;
 }
 
 function clonePlan(plan: MatrixPlan): MatrixPlan {
@@ -263,11 +286,40 @@ export default function MatrixEditorView({
   tasks,
   onApplyMatrixPlan,
   onSyncFromGantt,
+  onDirtyChange,
   applyLabel = "Aplicar",
 }: MatrixEditorViewProps) {
   const [draft, setDraft] = useState<MatrixPlan | undefined>(
     matrixPlan ? clonePlan(matrixPlan) : undefined,
   );
+  /**
+   * El borrador se perdía sin decir nada al cambiar de pestaña o recargar, y
+   * «Deshacer» lo tiraba entero sin avisar de cuánto (M28).
+   */
+  const cambiosPendientes = useMemo(() => {
+    if (!draft) return 0;
+    if (!matrixPlan) return draft.cells?.length ?? 0;
+    return contarDiferenciasDeMatriz(matrixPlan, draft);
+  }, [draft, matrixPlan]);
+  const tieneCambios = cambiosPendientes > 0;
+
+  useEffect(() => {
+    onDirtyChange?.(tieneCambios);
+  }, [tieneCambios, onDirtyChange]);
+
+  const descartarCambios = useCallback(() => {
+    if (!tieneCambios) return;
+    const plural = cambiosPendientes === 1 ? "cambio" : "cambios";
+    if (
+      !window.confirm(
+        `Se van a descartar ${cambiosPendientes} ${plural} sin aplicar. ¿Seguro?`,
+      )
+    ) {
+      return;
+    }
+    setDraft(matrixPlan ? clonePlan(matrixPlan) : draft);
+  }, [cambiosPendientes, draft, matrixPlan, tieneCambios]);
+
   const [activeMode, setActiveMode] = useState<MatrixEditorMode>("matrix");
   const [notice, setNotice] = useState<string | null>(null);
   const [newScopeName, setNewScopeName] = useState("");
@@ -862,13 +914,22 @@ export default function MatrixEditorView({
             <Check size={14} />
             <span className="min-w-0 whitespace-normal text-left leading-tight">Activar todas las celdas</span>
           </button>
+          {tieneCambios && (
+            <span
+              data-testid="matrix-dirty"
+              className="text-xs font-semibold text-[var(--aia-warn-main)]"
+            >
+              Cambios sin aplicar
+            </span>
+          )}
           <button
             type="button"
-            onClick={() => setDraft(matrixPlan ? clonePlan(matrixPlan) : draft)}
+            data-testid="matrix-discard"
+            onClick={descartarCambios}
             className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold"
           >
             <RotateCcw size={14} />
-            Deshacer
+            Descartar cambios
           </button>
           <button
             type="button"

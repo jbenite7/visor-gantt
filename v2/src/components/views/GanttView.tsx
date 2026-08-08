@@ -315,6 +315,8 @@ function GanttViewInner({
    * marcar estado desde el efecto de autoguardado encadenaría renders.
    */
   const saveStatusRef = useRef<SaveStatus>("idle");
+  /** Borrador de la matriz sin aplicar: cuenta como trabajo pendiente (M28). */
+  const matrixDraftDirtyRef = useRef(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [projectId, setProjectId] = useState<string | undefined>(initialProjectId);
   const [projectName] = useState<string>(initialProjectName ?? "Sin título");
@@ -1368,7 +1370,7 @@ function GanttViewInner({
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       const hayQuePerder = shouldWarnBeforeUnload({
-        hasPendingChanges: isDirtyRef.current,
+        hasPendingChanges: isDirtyRef.current || matrixDraftDirtyRef.current,
         saveStatus: saveStatusRef.current,
       });
       if (!hayQuePerder) return;
@@ -1998,6 +2000,11 @@ function GanttViewInner({
               tasks={calculatedTasks}
               onApplyMatrixPlan={handleApplyMatrixPlan}
               onSyncFromGantt={handleSyncMatrixFromGantt}
+              onDirtyChange={(dirty) => {
+                // El borrador de la matriz también es trabajo que se puede
+                // perder: entra en el aviso al cerrar (M28).
+                matrixDraftDirtyRef.current = dirty;
+              }}
             />
           )}
 
