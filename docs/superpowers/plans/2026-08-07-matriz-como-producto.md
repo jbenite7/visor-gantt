@@ -30,7 +30,8 @@ Spec: [2026-08-07-matriz-como-producto-design.md](../specs/2026-08-07-matriz-com
 | Archivo | Responsabilidad | Fase · Tarea |
 |---|---|---|
 | `src/types/matrix.ts` | Tipos nuevos: `LocationChaining`, `MatrixProposal`, conflicto con dos versiones | 1 · 4, 12, 14 |
-| `src/lib/matrix/matrixCalendar.ts` | Días laborables según el calendario del proyecto; aviso de desplazamiento | 1 · 1, 3 |
+| `src/lib/matrix/matrixCalendar.ts` | Días laborables según el calendario del proyecto | 1 · 1 |
+| `src/lib/matrix/matrixCalendarShift.ts` | Aviso de cuánto desplaza las fechas aplicar el calendario | 1 · 3 |
 | `src/lib/matrix/matrixChaining.ts` | Modo de encadenado efectivo de una celda (el alcance gana a la receta) | 1 · 4 |
 | `src/lib/matrix/matrixCache.ts` | Firma de celda y caché de generación | 1 · 6 |
 | `src/lib/matrix/matrixGenerator.ts` | Acepta calendario, encadenado y caché | 1 · 2, 5, 7 |
@@ -388,8 +389,13 @@ git commit -m "feat(matriz): el generador usa el calendario del proyecto cuando 
 ## Task 3: Aviso cuando el calendario desplaza mucho las fechas
 
 **Files:**
-- Modify: `src/lib/matrix/matrixCalendar.ts` (añadir al final)
-- Modify: `src/lib/matrix/matrixCalendar.test.ts` (añadir un `describe`)
+- Create: `src/lib/matrix/matrixCalendarShift.ts`
+- Test: `src/lib/matrix/matrixCalendarShift.test.ts`
+
+**Por qué archivo aparte y no dentro de `matrixCalendar.ts`:** esta función necesita
+`generateScheduleFromMatrix`, y el generador ya importa `matrixCalendar.ts`. Meterla ahí crearía un ciclo
+de imports entre los dos módulos. `matrixCalendar.ts` se queda siendo aritmética pura de días, sin
+depender de nada de la matriz.
 
 **Interfaces:**
 - Consumes: `generateScheduleFromMatrix` de `./matrixGenerator`, `MatrixPlan`, `ProjectCalendar`.
@@ -401,7 +407,10 @@ git commit -m "feat(matriz): el generador usa el calendario del proyecto cuando 
 - [ ] **Step 1: Write the failing test**
 
 ```ts
-import { CALENDAR_SHIFT_THRESHOLD_DAYS, describeCalendarShift } from "./matrixCalendar";
+import {
+  CALENDAR_SHIFT_THRESHOLD_DAYS,
+  describeCalendarShift,
+} from "./matrixCalendarShift";
 import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
 import type { MatrixPlan } from "@/types/matrix";
 
@@ -462,15 +471,14 @@ describe("describeCalendarShift", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx jest src/lib/matrix/matrixCalendar.test.ts`
-Expected: FAIL — `describeCalendarShift is not a function` y `CALENDAR_SHIFT_THRESHOLD_DAYS` sale `undefined`.
+Run: `npx jest src/lib/matrix/matrixCalendarShift.test.ts`
+Expected: FAIL — `Cannot find module './matrixCalendarShift' from 'src/lib/matrix/matrixCalendarShift.test.ts'`
 
 - [ ] **Step 3: Write minimal implementation**
 
-Añadir al final de `src/lib/matrix/matrixCalendar.ts`:
-
 ```ts
 import type { MatrixPlan } from "@/types/matrix";
+import type { ProjectCalendar } from "@/types/calendar";
 import { generateScheduleFromMatrix } from "./matrixGenerator";
 
 /**
@@ -533,13 +541,13 @@ export function describeCalendarShift(
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx jest src/lib/matrix/matrixCalendar.test.ts`
-Expected: PASS (11 tests)
+Run: `npx jest src/lib/matrix/matrixCalendarShift.test.ts`
+Expected: PASS (3 tests)
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/lib/matrix/matrixCalendar.ts src/lib/matrix/matrixCalendar.test.ts
+git add src/lib/matrix/matrixCalendarShift.ts src/lib/matrix/matrixCalendarShift.test.ts
 git commit -m "feat(matriz): avisar cuando el calendario del proyecto desplaza las fechas"
 ```
 
@@ -801,10 +809,9 @@ describe("generateScheduleFromMatrix · ritmo piso a piso", () => {
   });
 
   test("con actividad de enganche solo esa actividad encadena", () => {
-    const { dependencies } = generarPlan({
-      mode: "encadenado",
-      activityId: "losa",
-    });
+    const { dependencies } = generarPlan(
+      planDeTresPisos({ mode: "encadenado", activityId: "losa" }),
+    );
     const columnas12 = dependencies.filter(
       (dependency) =>
         String(dependency.from).includes("piso-1") &&
@@ -862,9 +869,11 @@ describe("generateScheduleFromMatrix · ritmo piso a piso", () => {
 });
 ```
 
-Aviso: el cuarto test llama `generarPlan({ mode: "encadenado", activityId: "losa" })` — corregir a
-`generarPlan(planDeTresPisos({ mode: "encadenado", activityId: "losa" }))` al escribirlo. Se deja señalado
-aquí porque es el error más fácil de cometer copiando este bloque.
+Aviso sobre los identificadores: las tareas generadas se llaman
+`mx-task-${cell.id}-${activity.id}`, y `cell.id` en este plan de prueba es `celda-piso-1`, `celda-piso-2`…
+Por eso los tests buscan con `String(dependency.from).includes("piso-1")` en vez de construir el
+identificador a mano: si `sanitizeId` cambia, el test sigue midiendo lo que importa —qué piso engancha con
+cuál— y no la forma del identificador.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -888,7 +897,11 @@ import { resolveChaining } from "./matrixChaining";
   /** Por alcance: qué tarea materializa cada actividad en cada ubicación. */
   const chainRegistry = new Map<
     string,
-    Array<{ areaIndex: number; activityTaskIds: Map<string, string | number> }>
+    Array<{
+      areaIndex: number;
+      recipe: ActivityRecipe;
+      activityTaskIds: Map<string, string | number>;
+    }>
   >();
 ```
 
@@ -897,9 +910,13 @@ import { resolveChaining } from "./matrixChaining";
 ```ts
     const chainKey = cell.scopeId;
     const chainEntries = chainRegistry.get(chainKey) ?? [];
-    chainEntries.push({ areaIndex: flatArea.leafIndex, activityTaskIds });
+    chainEntries.push({ areaIndex: flatArea.leafIndex, recipe, activityTaskIds });
     chainRegistry.set(chainKey, chainEntries);
 ```
+
+La receta se guarda aquí, con la celda. Resolverla después por `scope.defaultRecipeId` no sirve: un
+alcance puede no tener receta por defecto y llevar la receta en cada celda, que es como la trae el plan
+generado desde un `.mpp`.
 
 **d)** Después del bucle y **antes** de `recalculateSummaries(tasks, summaries)`:
 
@@ -909,9 +926,7 @@ import { resolveChaining } from "./matrixChaining";
   // así que un atraso en el piso 1 mueve el piso 2.
   for (const [scopeId, entries] of chainRegistry) {
     const scope = scopeById.get(scopeId);
-    const recipeId = scope?.defaultRecipeId;
-    const recipe = recipeId ? recipeById.get(recipeId) : undefined;
-    const chaining = resolveChaining(scope, recipe);
+    const chaining = resolveChaining(scope, entries[0]?.recipe);
     if (chaining.mode !== "encadenado" || entries.length < 2) continue;
 
     const ordered = [...entries].sort((a, b) =>
@@ -944,9 +959,10 @@ import { resolveChaining } from "./matrixChaining";
   }
 ```
 
-Nota sobre la receta: se resuelve por `scope.defaultRecipeId` porque el encadenado es una propiedad del
-alcance completo, no de una celda suelta. Si distintas celdas del mismo alcance usan recetas distintas, el
-encadenado del alcance manda igualmente, que es lo que el usuario espera al configurarlo ahí.
+Nota sobre la receta: si distintas celdas del mismo alcance usan recetas distintas, manda la de la primera
+celda registrada, y por encima de ella el `locationChaining` del alcance. Es la interpretación que el
+usuario espera: el encadenado se configura en el alcance porque es el alcance quien sabe si su oficio
+encadena, no cada celda.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -5841,7 +5857,7 @@ git commit -m "perf(matriz): dibujar por ventana y precalcular el resumen de cad
 - Modify: `src/components/gantt/toolbar/ViewSidebar.test.tsx` y `src/components/views/GanttView.test.tsx`
 
 **Interfaces:**
-- Consumes: `describeDraftChanges` de `@/lib/matrix/draftState`; `describeCalendarShift` de `@/lib/matrix/matrixCalendar`; `ConflictChooser` de `@/components/matrix/ConflictChooser`; `applyMatrixUpdate` con `resolutions`.
+- Consumes: `describeDraftChanges` de `@/lib/matrix/draftState`; `describeCalendarShift` de `@/lib/matrix/matrixCalendarShift`; `ConflictChooser` de `@/components/matrix/ConflictChooser`; `applyMatrixUpdate` con `resolutions`.
 - Produces: `MatrixEditorView` recibe dos props nuevas: `calendar?: ProjectCalendar` y `onUnappliedChangesChange?: (changes: DraftChanges) => void`.
 
 - [ ] **Step 1: Write the failing test**

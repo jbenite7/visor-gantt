@@ -221,7 +221,8 @@ Todo en `v2/src/lib/matrix/`. Ninguna dependencia del carril A.
 
 | Archivo | Responsabilidad | Estado |
 |---|---|---|
-| `matrixCalendar.ts` | `matrixAddWorkDays`, `describeCalendarShift` | nuevo |
+| `matrixCalendar.ts` | `matrixAddWorkDays`, `matrixFinishFromDuration`, `matrixNextWorkDay` | nuevo |
+| `matrixCalendarShift.ts` | `describeCalendarShift` — va aparte: usa el generador, que ya usa el calendario | nuevo |
 | `matrixGenerator.ts` | Acepta `options.calendar` y `options.cache`; emite el encadenado entre ubicaciones | se amplía |
 | `matrixChaining.ts` | Resuelve el modo de encadenado efectivo de una celda (alcance gana a receta) | nuevo |
 | `matrixCache.ts` | Firma de celda y caché de generación | nuevo |

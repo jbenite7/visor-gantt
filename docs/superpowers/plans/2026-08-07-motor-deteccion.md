@@ -283,21 +283,25 @@ const numeric = (match: RegExpMatchArray): number => Number(match[1]);
 
 /**
  * Patrones en orden de prioridad: gana el primero que acierta.
+ *
+ * Todos llevan la bandera `i` aunque `extractLocation` ya normalice a
+ * mayúsculas: `lob.ts` los reutiliza tal cual sobre texto ya en minúsculas
+ * para limpiar el nombre de la actividad. Sin `i`, ahí no casaría ninguno.
  */
 export const LOCATION_PATTERNS: LocationPattern[] = [
   {
     label: "Piso",
-    regex: /\b(?:PISO|NIVEL|PLANTA)\s*[-#:]?\s*(\d+)\b/,
+    regex: /\b(?:PISO|NIVEL|PLANTA)\s*[-#:]?\s*(\d+)\b/i,
     valueOf: numeric,
   },
   {
     label: "Etapa",
-    regex: /\b(?:ETAPA|FASE)\s*[-#:]?\s*(\d+)\b/,
+    regex: /\b(?:ETAPA|FASE)\s*[-#:]?\s*(\d+)\b/i,
     valueOf: numeric,
   },
   {
     label: "Sótano",
-    regex: /\bSOTANO\s*[-#:]?\s*(\d+)\b/,
+    regex: /\bSOTANO\s*[-#:]?\s*(\d+)\b/i,
     valueOf: (match) => -Number(match[1]),
   },
 ];
@@ -414,8 +418,21 @@ describe("extractLocation · el resto del vocabulario de obra", () => {
   test("el piso escrito con palabra gana a un código que aparezca después", () => {
     expect(extract("MAMPOSTERÍA PISO 4 PLANO S2")?.value).toBe(4);
   });
+
+  test("el patrón del sótano lleva la tilde como alternativa, porque se reutiliza sin normalizar", () => {
+    // `typicalUnit.ts` recorre estos patrones para quitar la ubicación del
+    // nombre y quedarse con el sistema, y lo hace sobre el nombre **tal cual**
+    // para conservar las tildes de «Mampostería». Sin esta alternativa,
+    // «Pintura Sótano 1» y «Pintura Piso 1» serían dos sistemas distintos.
+    const sotano = LOCATION_PATTERNS.find((pattern) => pattern.label === "Sótano")!;
+    expect(new RegExp(sotano.regex.source, "i").test("Pintura Sótano 1")).toBe(true);
+    expect(new RegExp(sotano.regex.source, "i").test("Pintura Sotano 1")).toBe(true);
+  });
 });
 ```
+
+Recordatorio: este bloque necesita `LOCATION_PATTERNS` en el `import` de arriba, junto a
+`MEZZANINE_LOCATION_VALUE` y `ROOF_LOCATION_VALUE`.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -440,7 +457,7 @@ export const MEZZANINE_LOCATION_VALUE = 0.5;
 
 const numeric = (match: RegExpMatchArray): number => Number(match[1]);
 const letterToNumber = (match: RegExpMatchArray): number =>
-  match[1].charCodeAt(0) - "A".charCodeAt(0) + 1;
+  match[1].toUpperCase().charCodeAt(0) - "A".charCodeAt(0) + 1;
 
 /**
  * Patrones en orden de prioridad: gana el primero que acierta.
@@ -449,64 +466,75 @@ const letterToNumber = (match: RegExpMatchArray): number =>
  * códigos de una letra, para que «MAMPOSTERÍA PISO 4 PLANO S2» dé el piso 4
  * y no el sótano 2. Y los códigos llevan `\b` a los dos lados para no cazar
  * la «p» de «pintura» ni la «s» de «escalas».
+ *
+ * Dos detalles que parecen redundantes y no lo son, porque estos patrones se
+ * reutilizan fuera de `extractLocation`:
+ *
+ * · **la bandera `i`** — `lob.ts` los aplica sobre texto ya en minúsculas
+ *   para limpiar el nombre de la actividad; sin `i` no casaría ninguno;
+ * · **las tildes como alternativa** (`S[OÓ]TANO`, `[AÁ]REA`) —
+ *   `typicalUnit.ts` los aplica sobre el nombre **sin normalizar**, porque
+ *   necesita conservar las tildes del sistema («mampostería»). Sin la
+ *   alternativa, «Pintura Sótano 1» y «Pintura Piso 1» acabarían en dos
+ *   sistemas distintos.
  */
 export const LOCATION_PATTERNS: LocationPattern[] = [
   {
     label: "Piso",
-    regex: /\b(?:PISO|NIVEL|PLANTA)\s*[-#:]?\s*(\d+)\b/,
+    regex: /\b(?:PISO|NIVEL|PLANTA)\s*[-#:]?\s*(\d+)\b/i,
     valueOf: numeric,
   },
   {
     label: "Etapa",
-    regex: /\b(?:ETAPA|FASE)\s*[-#:]?\s*(\d+)\b/,
+    regex: /\b(?:ETAPA|FASE)\s*[-#:]?\s*(\d+)\b/i,
     valueOf: numeric,
   },
   {
     label: "Sótano",
-    regex: /\bSOTANO\s*[-#:]?\s*(\d+)\b/,
+    regex: /\bS[OÓ]TANO\s*[-#:]?\s*(\d+)\b/i,
     valueOf: (match) => -Number(match[1]),
   },
   {
     label: "Torre",
-    regex: /\b(?:TORRE|BLOQUE)\s*[-#:]?\s*(\d+)\b/,
+    regex: /\b(?:TORRE|BLOQUE)\s*[-#:]?\s*(\d+)\b/i,
     valueOf: numeric,
   },
   {
     label: "Torre",
-    regex: /\b(?:TORRE|BLOQUE)\s*[-#:]?\s*([A-Z])\b/,
+    regex: /\b(?:TORRE|BLOQUE)\s*[-#:]?\s*([A-Z])\b/i,
     valueOf: letterToNumber,
   },
-  { label: "Zona", regex: /\bZONA\s*[-#:]?\s*(\d+)\b/, valueOf: numeric },
-  { label: "Sector", regex: /\bSECTOR\s*[-#:]?\s*(\d+)\b/, valueOf: numeric },
+  { label: "Zona", regex: /\bZONA\s*[-#:]?\s*(\d+)\b/i, valueOf: numeric },
+  { label: "Sector", regex: /\bSECTOR\s*[-#:]?\s*(\d+)\b/i, valueOf: numeric },
   {
     label: "Tramo",
-    regex: /\b(?:TRAMO|FRENTE)\s*[-#:]?\s*(\d+)\b/,
+    regex: /\b(?:TRAMO|FRENTE)\s*[-#:]?\s*(\d+)\b/i,
     valueOf: numeric,
   },
   {
     label: "Lote",
-    regex: /\b(?:LOTE|MANZANA)\s*[-#:]?\s*(\d+)\b/,
+    regex: /\b(?:LOTE|MANZANA)\s*[-#:]?\s*(\d+)\b/i,
     valueOf: numeric,
   },
   {
     label: "Apartamento",
-    regex: /\b(?:APARTAMENTO|APTO|UNIDAD)\s*[-#:]?\s*(\d+)\b/,
+    regex: /\b(?:APARTAMENTO|APTO|UNIDAD)\s*[-#:]?\s*(\d+)\b/i,
     valueOf: numeric,
   },
-  { label: "Zona", regex: /\bAREA\s*[A-Z]-(\d+)\b/, valueOf: numeric },
+  { label: "Zona", regex: /\b[AÁ]REA\s*[A-Z]-(\d+)\b/i, valueOf: numeric },
   {
     label: "Piso",
-    regex: /\b(MEZ+ANINE)\b/,
+    regex: /\b(MEZ+ANINE)\b/i,
     valueOf: () => MEZZANINE_LOCATION_VALUE,
   },
   {
     label: "Piso",
-    regex: /\b(CUBIERTA|AZOTEA|TERRAZA)\b/,
+    regex: /\b(CUBIERTA|AZOTEA|TERRAZA)\b/i,
     valueOf: () => ROOF_LOCATION_VALUE,
   },
-  { label: "Piso", regex: /\bP(\d{2,})\b/, valueOf: numeric },
-  { label: "Sótano", regex: /\bS(\d{1,2})\b/, valueOf: (m) => -Number(m[1]) },
-  { label: "Piso", regex: /\bN-?(\d+)\b/, valueOf: numeric },
+  { label: "Piso", regex: /\bP(\d{2,})\b/i, valueOf: numeric },
+  { label: "Sótano", regex: /\bS(\d{1,2})\b/i, valueOf: (m) => -Number(m[1]) },
+  { label: "Piso", regex: /\bN-?(\d+)\b/i, valueOf: numeric },
 ];
 ```
 
@@ -515,7 +543,7 @@ Nota para quien implemente: `MEZANINE` y `CUBIERTA` capturan la **palabra** en e
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx jest src/lib/scheduling/detection/location.test.ts`
-Expected: PASS (16 tests — los 6 de la Tarea 2 más los 10 nuevos)
+Expected: PASS (17 tests — los 6 de la Tarea 2 más los 11 nuevos)
 
 - [ ] **Step 5: Commit**
 
@@ -1967,13 +1995,24 @@ describe("extractUnitLabel (ahora sobre el motor de detección)", () => {
     expect(UNIT_PATTERNS.length).toBeGreaterThan(0);
     expect(UNIT_PATTERNS.every((pattern) => pattern.regex instanceof RegExp)).toBe(true);
   });
+
+  test("los patrones sirven sobre texto en minúsculas, que es como los usa lob.ts", () => {
+    // `lob.ts` limpia el nombre de la actividad sobre texto ya normalizado a
+    // minúsculas y sin tildes. Si los patrones no aceptaran minúsculas, la
+    // Línea de Balance dejaría de agrupar actividades.
+    const limpio = UNIT_PATTERNS.reduce(
+      (text, pattern) => text.replace(pattern.regex, " "),
+      "mamposteria piso 3",
+    );
+    expect(limpio.trim()).toBe("mamposteria");
+  });
 });
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx jest src/lib/scheduling/unitPatterns.test.ts`
-Expected: FAIL — el primer test falla con `Expected: {"label": "Piso", "numericValue": 3, "value": "3"}` / `Received: {"label": "Piso", "value": "3"}`, y el del sótano con `Received: null`.
+Expected: FAIL — el primer test falla con `Expected: {"label": "Piso", "numericValue": 3, "value": "3"}` / `Received: {"label": "Piso", "value": "3"}`, y el del sótano con `Received: null`. El de minúsculas ya pasa antes del cambio (los patrones viejos llevaban `i`); está para que esa propiedad no se pierda al derivarlos del motor.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -2018,7 +2057,7 @@ export function extractUnitLabel(text: string): UnitMatch | null {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx jest src/lib/scheduling/unitPatterns.test.ts src/lib/scheduling/typicalUnit.test.ts src/lib/scheduling/lob.test.ts`
-Expected: PASS los 5 nuevos. Si `typicalUnit.test.ts` o `lob.test.ts` fallan aquí, **no se arreglan tocando sus tests**: se anota el fallo y se resuelve en la Tarea 13 o 14, que es donde se cablean esos archivos.
+Expected: PASS los 6 de `unitPatterns.test.ts`. Si `typicalUnit.test.ts` o `lob.test.ts` fallan aquí, **no se arreglan tocando sus tests**: se anota el fallo y se resuelve en la Tarea 13 o 14, que es donde se cablean esos archivos.
 
 - [ ] **Step 5: Commit**
 
@@ -2173,6 +2212,14 @@ y en la línea del `sort` dentro del `map` de grupos:
 ```
 
 Nota: `levels` sigue construyéndose con `new Set(items.map((item) => item.level))`. Como `level` es el texto, «SOTANO 1» y «SÓTANO 1» ya llegan normalizados desde `extractLocation` (`raw` sale del nombre normalizado), así que no hay duplicados por tilde.
+
+**`systemName` no se toca, y hay un motivo.** Recorre `UNIT_PATTERNS` para quitar la ubicación del nombre
+y quedarse con el sistema, y lo hace sobre `task.name` **tal cual**, porque el test que ya existe espera
+`system: "mampostería"` **con tilde**. Por eso el patrón del sótano se escribió en la Tarea 3 como
+`\bS[OÓ]TANO\b`: si solo aceptara `SOTANO`, «Pintura Sótano 1» conservaría su ubicación en el nombre y
+acabaría en un sistema distinto al de «Pintura Piso 1», rompiendo el segundo test de esta tarea. Si ese
+test falla con `["pintura sótano 1"]` o similar en el grupo, el fallo está en el patrón de la Tarea 3, no
+aquí.
 
 - [ ] **Step 4: Run test to verify it passes**
 
