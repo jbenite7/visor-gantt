@@ -43,6 +43,7 @@ describe("summarizeDetection", () => {
     expect(coverage.byScope.heredada).toBe(1);
     expect(coverage.byScope.obraGeneral).toBe(2);
     expect(coverage.byScope.diccionario).toBe(0);
+    expect(coverage.byScope.wbs).toBe(0);
   });
 
   test("lo describe en lenguaje de obra", () => {
@@ -57,5 +58,12 @@ describe("summarizeDetection", () => {
     expect(coverage.total).toBe(0);
     expect(coverage.withLocation).toBe(0);
     expect(describeCoverage(coverage)).toBe("Aún no hay tareas que analizar.");
+    expect(coverage.byScope).toEqual({
+      propia: 0,
+      heredada: 0,
+      wbs: 0,
+      diccionario: 0,
+      obraGeneral: 0,
+    });
   });
 });
