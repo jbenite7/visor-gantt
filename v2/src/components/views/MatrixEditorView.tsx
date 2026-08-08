@@ -23,7 +23,6 @@ import type {
 import { createDefaultMatrixPlan } from "@/lib/matrix/templates";
 import { applyBulkCellEdit, type CellTarget } from "@/lib/matrix/bulk";
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
-import { createMatrixCache } from "@/lib/matrix/matrixCache";
 import {
   canAddChild,
   getAreaLeaves,
@@ -305,8 +304,15 @@ export default function MatrixEditorView({
 
   const [rowOffset, setRowOffset] = useState(0);
   const needsWindow = scopes.length > MATRIX_VISIBLE_ROWS;
+  // Si la matriz encoge y la página actual deja de existir, hay que volver a
+  // la última que sí existe: si no, la tabla queda en blanco sin decir por qué.
+  const maxOffset = Math.max(
+    0,
+    Math.floor((scopes.length - 1) / MATRIX_VISIBLE_ROWS) * MATRIX_VISIBLE_ROWS,
+  );
+  const effectiveRowOffset = Math.min(rowOffset, maxOffset);
   const visibleScopes = needsWindow
-    ? scopes.slice(rowOffset, rowOffset + MATRIX_VISIBLE_ROWS)
+    ? scopes.slice(effectiveRowOffset, effectiveRowOffset + MATRIX_VISIBLE_ROWS)
     : scopes;
 
   const [selection, setSelection] = useState<CellTarget[]>([]);
@@ -376,10 +382,9 @@ export default function MatrixEditorView({
     }
     return summaries;
   }, [draft]);
-  const previewCache = useMemo(() => createMatrixCache(), []);
   const preview = useMemo(
-    () => (draft ? generateScheduleFromMatrix(draft, { cache: previewCache }) : undefined),
-    [draft, previewCache],
+    () => (draft ? generateScheduleFromMatrix(draft) : undefined),
+    [draft],
   );
   const matrixTaskCount = tasks.filter((task) => task.matrixSource).length;
   const selectedScope = scopes.find((scope) => scope.id === selectedCell?.scopeId);
@@ -1234,17 +1239,17 @@ export default function MatrixEditorView({
               </span>
               <button
                 type="button"
-                disabled={rowOffset === 0}
+                disabled={effectiveRowOffset === 0}
                 onClick={() =>
-                  setRowOffset(Math.max(0, rowOffset - MATRIX_VISIBLE_ROWS))
+                  setRowOffset(Math.max(0, effectiveRowOffset - MATRIX_VISIBLE_ROWS))
                 }
               >
                 Ver los alcances anteriores
               </button>
               <button
                 type="button"
-                disabled={rowOffset + MATRIX_VISIBLE_ROWS >= scopes.length}
-                onClick={() => setRowOffset(rowOffset + MATRIX_VISIBLE_ROWS)}
+                disabled={effectiveRowOffset + MATRIX_VISIBLE_ROWS >= scopes.length}
+                onClick={() => setRowOffset(effectiveRowOffset + MATRIX_VISIBLE_ROWS)}
               >
                 Ver los siguientes alcances
               </button>

@@ -9,8 +9,8 @@ import MatrixEditorViewDefault, { MATRIX_VISIBLE_ROWS } from "./MatrixEditorView
 import type { MatrixPlan } from "@/types/matrix";
 import { createDefaultMatrixPlan, createEmptyMatrixPlan } from "@/lib/matrix/templates";
 
-function planGrande(): MatrixPlan {
-  const scopeTree = Array.from({ length: 30 }, (_, index) => ({
+function planGrande(scopeCount = 30): MatrixPlan {
+  const scopeTree = Array.from({ length: scopeCount }, (_, index) => ({
     id: `alcance-${index}`,
     name: `Alcance ${index + 1}`,
     type: "Disciplina",
@@ -591,5 +591,34 @@ describe("MatrixEditorView · escala", () => {
 
     expect(plan.cells.length).toBeLessThan(MATRIX_VISIBLE_ROWS * 40);
     expect(screen.queryByTestId("matrix-window-status")).not.toBeInTheDocument();
+  });
+
+  test("si la matriz encoge por debajo de la página actual, la ventana retrocede", () => {
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+    render(
+      <MatrixEditorViewDefault
+        matrixPlan={planGrande(25)}
+        tasks={[]}
+        onApplyMatrixPlan={jest.fn()}
+        onSyncFromGantt={jest.fn()}
+      />,
+    );
+
+    const siguientes = () =>
+      screen.getByRole("button", { name: "Ver los siguientes alcances" });
+    fireEvent.click(siguientes());
+    fireEvent.click(siguientes());
+    expect(screen.getByTestId("matrix-window-status")).toHaveTextContent(
+      "Mostrando 1 de 25 alcances.",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Alcances" }));
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Alcance 25" }));
+    fireEvent.click(screen.getByRole("button", { name: "Matriz" }));
+
+    expect(screen.getByTestId("matrix-window-status")).toHaveTextContent(
+      `Mostrando ${MATRIX_VISIBLE_ROWS} de 24 alcances.`,
+    );
+    expect(screen.getByText("Alcance 24")).toBeInTheDocument();
   });
 });
