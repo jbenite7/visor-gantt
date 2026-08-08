@@ -1,0 +1,175 @@
+import { normalizeName } from "./normalize";
+
+/**
+ * Ubicación detectada en un nombre de tarea.
+ *
+ * `value` es lo que hoy falta en visor-gantt y lo que aporta el extractor de
+ * PDC V2 (`ActivityMatcherService::extractLocationValue`): un número
+ * **ordenable**. Sin él, «SÓTANO 3» se ordena como texto y acaba después del
+ * «PISO 12», que es justo al revés de como se construye una obra.
+ */
+export interface LocationMatch {
+  /** Etiqueta para agrupar y mostrar: «Piso», «Sótano», «Torre»… */
+  label: string;
+  /** El texto tal cual salió del nombre. */
+  raw: string;
+  /** Número ordenable. Los sótanos son negativos. */
+  value: number;
+}
+
+export interface LocationPattern {
+  label: string;
+  regex: RegExp;
+  valueOf: (match: RegExpMatchArray) => number;
+}
+
+/**
+ * La cubierta va por encima de cualquier piso realista. Es un centinela
+ * elegido aquí, no un dato del proyecto: el extractor solo mira un nombre y
+ * no sabe cuántos pisos tiene la torre. No se usa `Infinity` porque tiene
+ * que poder guardarse como JSON.
+ */
+export const ROOF_LOCATION_VALUE = 900;
+
+/** El mezanine está entre el sótano 1 y el piso 1. Igual que en PDC V2. */
+export const MEZZANINE_LOCATION_VALUE = 0.5;
+
+const numeric = (match: RegExpMatchArray): number => Number(match[1]);
+const letterToNumber = (match: RegExpMatchArray): number =>
+  match[1].toUpperCase().charCodeAt(0) - "A".charCodeAt(0) + 1;
+/**
+ * Número de un texto que puede llevar letra pegada: «302A» es el
+ * apartamento 302 de la nomenclatura, no otro número.
+ */
+const leadingNumber = (match: RegExpMatchArray): number => Number.parseInt(match[1], 10);
+
+/**
+ * Patrones en orden de prioridad: gana el primero que acierta.
+ *
+ * El orden no es decorativo. Las palabras completas van antes que los
+ * códigos de una letra, para que «MAMPOSTERÍA PISO 4 PLANO S2» dé el piso 4
+ * y no el sótano 2. Y los códigos llevan `\b` a los dos lados para no cazar
+ * la «p» de «pintura» ni la «s» de «escalas».
+ *
+ * Dos detalles que parecen redundantes y no lo son, porque estos patrones se
+ * reutilizan fuera de `extractLocation`:
+ *
+ * · **la bandera `i`** — `lob.ts` los aplica sobre texto ya en minúsculas
+ *   para limpiar el nombre de la actividad; sin `i` no casaría ninguno;
+ * · **las tildes como alternativa** (`S[OÓ]TANO`, `[AÁ]REA`) —
+ *   `typicalUnit.ts` los aplica sobre el nombre **sin normalizar**, porque
+ *   necesita conservar las tildes del sistema («mampostería»). Sin la
+ *   alternativa, «Pintura Sótano 1» y «Pintura Piso 1» acabarían en dos
+ *   sistemas distintos.
+ */
+export const LOCATION_PATTERNS: LocationPattern[] = [
+  {
+    label: "Piso",
+    regex: /\b(?:PISO|NIVEL|PLANTA)\s*[-#:]?\s*(\d+)\b/i,
+    valueOf: numeric,
+  },
+  {
+    label: "Etapa",
+    regex: /\b(?:ETAPA|FASE)\s*[-#:]?\s*(\d+)\b/i,
+    valueOf: numeric,
+  },
+  {
+    label: "Etapa",
+    regex: /\b(?:ETAPA|FASE)\s*[-#:]?\s*([A-Z])\b/i,
+    valueOf: letterToNumber,
+  },
+  {
+    label: "Sótano",
+    regex: /\bS[OÓ]TANO\s*[-#:]?\s*(\d+)\b/i,
+    valueOf: (match) => -Number(match[1]),
+  },
+  {
+    label: "Torre",
+    regex: /\b(?:TORRE|BLOQUE)\s*[-#:]?\s*(\d+)\b/i,
+    valueOf: numeric,
+  },
+  {
+    label: "Torre",
+    // El `\b` del final no es adorno: sin él, «torregrúa» —diez tareas
+    // reales del cronograma de la Estación 16— se leería como «Torre G».
+    regex: /\b(?:TORRE|BLOQUE)\s*[-#:]?\s*([A-Z])\b/i,
+    valueOf: letterToNumber,
+  },
+  { label: "Zona", regex: /\bZONA\s*[-#:]?\s*(\d+)\b/i, valueOf: numeric },
+  { label: "Zona", regex: /\bZONA\s*[-#:]?\s*([A-Z])\b/i, valueOf: letterToNumber },
+  { label: "Sector", regex: /\bSECTOR\s*[-#:]?\s*(\d+)\b/i, valueOf: numeric },
+  { label: "Sector", regex: /\bSECTOR\s*[-#:]?\s*([A-Z])\b/i, valueOf: letterToNumber },
+  {
+    label: "Tramo",
+    regex: /\b(?:TRAMO|FRENTE)\s*[-#:]?\s*(\d+)\b/i,
+    valueOf: numeric,
+  },
+  {
+    label: "Tramo",
+    regex: /\b(?:TRAMO|FRENTE)\s*[-#:]?\s*([A-Z])\b/i,
+    valueOf: letterToNumber,
+  },
+  {
+    label: "Lote",
+    regex: /\b(?:LOTE|MANZANA)\s*[-#:]?\s*(\d+)\b/i,
+    valueOf: numeric,
+  },
+  {
+    label: "Lote",
+    regex: /\b(?:LOTE|MANZANA)\s*[-#:]?\s*([A-Z])\b/i,
+    valueOf: letterToNumber,
+  },
+  {
+    label: "Apartamento",
+    // El sufijo de letra es nomenclatura de obra: el «302A» y el «302B» son
+    // dos apartamentos del piso 3. Se guarda entero en `raw` y se ordena por
+    // la parte numérica.
+    regex: /\b(?:APARTAMENTO|APTO|UNIDAD)\s*[-#:]?\s*(\d+[A-Z]?)\b/i,
+    valueOf: leadingNumber,
+  },
+  { label: "Zona", regex: /\b[AÁ]REA\s*[A-Z]-(\d+)\b/i, valueOf: numeric },
+  { label: "Zona", regex: /\b[AÁ]REA\s*[-#:]?\s*(\d+)\b/i, valueOf: numeric },
+  {
+    label: "Piso",
+    regex: /\b(MEZ+ANINE)\b/i,
+    valueOf: () => MEZZANINE_LOCATION_VALUE,
+  },
+  {
+    label: "Piso",
+    regex: /\b(CUBIERTA|AZOTEA|TERRAZA)\b/i,
+    valueOf: () => ROOF_LOCATION_VALUE,
+  },
+  { label: "Piso", regex: /\bP(\d{2,})\b/i, valueOf: numeric },
+  { label: "Sótano", regex: /\bS(\d{1,2})\b/i, valueOf: (m) => -Number(m[1]) },
+  { label: "Piso", regex: /\bN-?(\d+)\b/i, valueOf: numeric },
+];
+
+/**
+ * Cómo se nombra una ubicación en pantalla.
+ *
+ * Existe por dos motivos, y el segundo es de corrección, no de estética:
+ *
+ * · `value` es un número de dominio, y `900` (cubierta) no se puede enseñar
+ *   tal cual: `TypicalUnitView.tsx:110` pinta el nivel literalmente;
+ * · `raw` tampoco vale como identidad: «SÓTANO 3» y «PISO 3» dan los dos
+ *   `"3"`, y Unidad Típica cuenta niveles distintos con un `Set` de esa
+ *   etiqueta. Sin el prefijo, los dos colapsarían en uno y la vista perdería
+ *   un nivel sin decirlo.
+ */
+export function formatLocationLabel(location: LocationMatch): string {
+  if (location.value === ROOF_LOCATION_VALUE) return "Cubierta";
+  if (location.value === MEZZANINE_LOCATION_VALUE) return "Mezanine";
+  return `${location.label} ${location.raw}`;
+}
+
+export function extractLocation(text: string): LocationMatch | null {
+  const normalized = normalizeName(text);
+  for (const pattern of LOCATION_PATTERNS) {
+    const match = normalized.match(pattern.regex);
+    if (!match) continue;
+    const value = pattern.valueOf(match);
+    if (!Number.isFinite(value)) continue;
+    return { label: pattern.label, raw: match[1] ?? match[0], value };
+  }
+  return null;
+}
