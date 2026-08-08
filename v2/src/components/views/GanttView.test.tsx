@@ -1749,3 +1749,92 @@ describe("se ve qué se movió y cuánto (E31)", () => {
     );
   });
 });
+
+describe("el modo Simple esconde lo avanzado de verdad (E36)", () => {
+  const columnaMpp = {
+    key: "mpp:Cost1",
+    fieldId: "COST_1",
+    sourceKey: "Cost1",
+    labelEn: "Cost 1",
+    labelEs: "Costo unitario",
+    dataType: "number" as const,
+    group: "custom" as const,
+    isCustom: true,
+    isCore: false,
+    isEditable: true,
+  };
+
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("en modo Simple no se ven las columnas importadas del .mpp", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        mppTaskColumns={[columnaMpp]}
+        taskColumnSettings={{
+          visible: ["id", "name", "mpp:Cost1"],
+          widths: {},
+          labelLocale: "es",
+        }}
+        uiSettings={{
+          locale: "es",
+          interactionMode: "simple",
+          taskFilter: { text: "", type: "all" },
+        }}
+      />,
+    );
+
+    expect(screen.queryByText("Costo unitario")).not.toBeInTheDocument();
+  });
+
+  test("y al pasar a Avanzado vuelven, sin perder nada", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        mppTaskColumns={[columnaMpp]}
+        taskColumnSettings={{
+          visible: ["id", "name", "mpp:Cost1"],
+          widths: {},
+          labelLocale: "es",
+        }}
+        uiSettings={{
+          locale: "es",
+          interactionMode: "simple",
+          taskFilter: { text: "", type: "all" },
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("interaction-mode-advanced"));
+
+    expect(screen.getByText("Costo unitario")).toBeInTheDocument();
+  });
+
+  test("un proyecto que ya tiene historial arranca en Avanzado, no en Simple", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        planningAuditEvents={[
+          {
+            id: "ev-1",
+            kind: "taskEdit",
+            summary: "Duración de Excavación",
+            taskIds: [1],
+            createdAt: "2026-08-01T10:00:00.000Z",
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByTestId("interaction-mode-advanced")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+  });
+});

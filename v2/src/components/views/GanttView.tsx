@@ -102,6 +102,7 @@ import { normalizeTaskStructure } from "@/lib/gantt/taskStructure";
 import { saveStatusLabel } from "@/lib/gantt/saveStatusLabel";
 import { shouldWarnBeforeUnload } from "@/lib/gantt/pendingChanges";
 import { detectDeepChanges } from "@/lib/gantt/deepChanges";
+import { resolveInteractionMode } from "@/lib/gantt/interactionMode";
 import { buildExecutivePlanningSummary } from "@/lib/gantt/executiveDashboard";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -275,7 +276,14 @@ function GanttViewInner({
     ),
   );
   const locale = uiSettings.locale;
-  const interactionMode = uiSettings.interactionMode ?? "advanced";
+  /**
+   * Simple es la puerta de entrada, no una preferencia permanente: se ofrece en
+   * la primera visita y después manda lo que el usuario haya elegido (E36).
+   */
+  const interactionMode = resolveInteractionMode(uiSettings, {
+    isFirstVisit: !initialProjectId,
+    hasHistory: planningAuditEvents.length > 0,
+  });
   const isAdvancedMode = interactionMode === "advanced";
   const resourceViewLabels =
     locale === "en"
@@ -414,7 +422,15 @@ function GanttViewInner({
   const calculatedTasks = calculatedMpp.tasks;
   const calculatedResources = calculatedMpp.resources;
   const calculatedAssignments = calculatedMpp.assignments;
-  const mppTaskColumns = calculatedMpp.mppTaskColumns;
+  /**
+   * En modo Simple, las columnas importadas del `.mpp` no se muestran: son
+   * exactamente lo que abruma a quien abre el cronograma por primera vez.
+   * No se pierden — vuelven enteras al pasar a Avanzado.
+   */
+  const mppTaskColumns = useMemo(
+    () => (isAdvancedMode ? calculatedMpp.mppTaskColumns : []),
+    [calculatedMpp.mppTaskColumns, isAdvancedMode],
+  );
   const mppResourceColumns = calculatedMpp.mppResourceColumns;
   const mppAssignmentColumns = calculatedMpp.mppAssignmentColumns;
   const planningRecommendations = useMemo(
