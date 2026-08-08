@@ -152,6 +152,28 @@ describe("duplicateAreaNode", () => {
     const original = plan();
     expect(duplicateAreaNode(original, "fantasma", AHORA).areas).toHaveLength(2);
   });
+
+  test("no choca con el id de un nodo intermedio del árbol", () => {
+    // "piso-1-copia" ya existe como rama (con una hija), no como hoja: si
+    // `taken` solo mirara hojas, el id generado repetiría este.
+    const jerarquico: MatrixPlan = {
+      ...plan(),
+      areas: [
+        ...plan().areas,
+        {
+          id: "piso-1-copia",
+          name: "Torre A",
+          type: "Piso",
+          children: [{ id: "torre-a-1", name: "Depto 1", type: "Piso" }],
+        },
+      ],
+    };
+
+    const result = duplicateAreaNode(jerarquico, "piso-1", AHORA);
+    const copia = result.areas.find((area) => area.name === "Piso 1 (copia)")!;
+
+    expect(copia.id).not.toBe("piso-1-copia");
+  });
 });
 
 describe("duplicateScopeNode", () => {

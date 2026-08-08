@@ -60,6 +60,9 @@ export function applyBulkCellEdit(
           id: `cell-${target.scopeId}-${target.areaId}`,
           scopeId: target.scopeId,
           areaId: target.areaId,
+          // Nace inactiva: la celda se crea solo porque cayó dentro de la
+          // selección, y el parche puede no decir nada sobre activarla. No
+          // hay que activar algo que el usuario no pidió explícitamente.
           active: false,
         },
         patch,
@@ -77,6 +80,19 @@ function sanitizeId(value: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+/** Todos los identificadores del árbol, incluidos los nodos intermedios. */
+function collectAllIds<T extends { id: string; children?: T[] }>(nodes: T[]): Set<string> {
+  const ids = new Set<string>();
+  const walk = (list: T[]) => {
+    for (const node of list) {
+      ids.add(node.id);
+      if (node.children) walk(node.children);
+    }
+  };
+  walk(nodes);
+  return ids;
 }
 
 function uniqueId(base: string, taken: Set<string>): string {
@@ -118,7 +134,7 @@ export function duplicateAreaNode(
   const source = getAreaLeaves(plan.areas).find((leaf) => leaf.node.id === areaId)?.node;
   if (!source) return plan;
 
-  const taken = new Set(getAreaLeaves(plan.areas).map((leaf) => leaf.node.id));
+  const taken = collectAllIds(plan.areas);
   const copy: AreaNode = {
     ...source,
     id: uniqueId(`${source.id}-copia`, taken),
@@ -147,7 +163,7 @@ export function duplicateScopeNode(
   )?.node;
   if (!source) return plan;
 
-  const taken = new Set(getScopeLeaves(plan.scopeTree).map((leaf) => leaf.node.id));
+  const taken = collectAllIds(plan.scopeTree);
   const copy: ScopeNode = {
     ...source,
     id: uniqueId(`${source.id}-copia`, taken),
@@ -189,7 +205,7 @@ export function createAreaRange(
     : [input.pattern];
 
   const existingNames = new Set(plan.areas.map((area) => area.name));
-  const taken = new Set(getAreaLeaves(plan.areas).map((leaf) => leaf.node.id));
+  const taken = collectAllIds(plan.areas);
 
   const created: AreaNode[] = names
     .filter((name) => !existingNames.has(name))
@@ -206,6 +222,9 @@ export function createAreaRange(
       scopeId: scope.id,
       areaId: area.id,
       recipeId: scope.defaultRecipeId,
+      // Nace activa: crear ubicaciones es un acto deliberado del usuario
+      // («quiero los pisos 1 a 20»), así que sus celdas arrancan con lo que
+      // pidió, sin un paso extra para activarlas.
       active: true,
       lastEditedAt: editedAt,
       lastEditedFrom: "matrix" as const,
