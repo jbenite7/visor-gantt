@@ -1757,7 +1757,6 @@ function GanttViewInner({
                       showBaseline={Boolean(activeBaseline)}
                       observations={observations}
                       calendar={calendar}
-                      observations={observations}
                       scale={scale}
                       selectedTaskIds={selectedTaskIds}
                       onTaskSelect={handleTaskSelect}
