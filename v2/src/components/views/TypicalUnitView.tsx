@@ -32,6 +32,19 @@ export default function TypicalUnitView({ tasks }: TypicalUnitViewProps) {
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
             {analysis.groups.length} sistemas repetidos detectados
           </p>
+          {/*
+            «Productividad · unidades/día» prometía algo que el número no era:
+            es el inverso de la duración, y no hay ninguna cantidad de obra
+            detrás. Se llama por su nombre y se explica de dónde sale (M2).
+          */}
+          <p
+            data-testid="ritmo-nota"
+            className="mt-1 max-w-prose text-sm text-[var(--color-text-muted)]"
+          >
+            El <strong>ritmo (1/día)</strong> es el inverso de la duración:
+            cuántos niveles por día da el paso actual. Cuando la matriz aporte
+            cantidades de obra, aquí habrá productividad real.
+          </p>
         </div>
         <div className="inline-flex rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] p-1">
           {[
@@ -61,7 +74,7 @@ export default function TypicalUnitView({ tasks }: TypicalUnitViewProps) {
             <table className="min-w-full text-left text-sm">
               <thead className="bg-[var(--color-bg-surface-secondary)] text-xs uppercase text-[var(--color-text-muted)]">
                 <tr>
-                  {["Sistema", "Niveles", "Actividades", "Duración promedio", "Productividad"].map((head) => (
+                  {["Sistema", "Niveles", "Actividades", "Duración promedio", "Ritmo (1/día)"].map((head) => (
                     <th key={head} className="px-3 py-2 font-semibold">{head}</th>
                   ))}
                 </tr>
@@ -73,7 +86,7 @@ export default function TypicalUnitView({ tasks }: TypicalUnitViewProps) {
                     <td className="px-3 py-2 text-[var(--color-text-muted)]">{group.levelCount}</td>
                     <td className="px-3 py-2 text-[var(--color-text-muted)]">{group.taskCount}</td>
                     <td className="px-3 py-2 text-[var(--color-text-muted)]">{formatNumber(group.averageDurationDays)}d</td>
-                    <td className="px-3 py-2 font-semibold text-[var(--aia-corp-dark)]">{formatNumber(group.averageProductivity)} unidades/día</td>
+                    <td className="px-3 py-2 font-semibold text-[var(--aia-corp-dark)]">{formatNumber(group.averageProductivity)} 1/día</td>
                   </tr>
                 ))}
               </tbody>
@@ -96,7 +109,7 @@ export default function TypicalUnitView({ tasks }: TypicalUnitViewProps) {
                     )}
                   </div>
                   <p className="text-xs text-[var(--color-text-muted)]">
-                    {group.levelCount} niveles · {formatNumber(group.averageProductivity)} unidades/día
+                    {group.levelCount} niveles · {formatNumber(group.averageProductivity)} 1/día
                   </p>
                   {group.family.reviewReason && (
                     <p className="mt-1 text-xs text-[var(--color-warning,#b45309)]">
@@ -110,7 +123,7 @@ export default function TypicalUnitView({ tasks }: TypicalUnitViewProps) {
                       <span className="font-semibold text-[var(--color-text-strong)]">Nivel {activity.level}</span>
                       <span className="truncate text-[var(--color-text-muted)]">{activity.name}</span>
                       <span className="text-[var(--color-text-muted)]">{activity.durationDays}d</span>
-                      <span className="font-semibold text-[var(--aia-corp-dark)]">{formatNumber(activity.productivity)} unidades/día</span>
+                      <span className="font-semibold text-[var(--aia-corp-dark)]">{formatNumber(activity.productivity)} 1/día</span>
                     </div>
                   ))}
                 </div>
