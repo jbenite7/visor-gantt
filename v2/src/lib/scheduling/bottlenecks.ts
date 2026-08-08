@@ -29,7 +29,7 @@ export function detectBottlenecks({
         severity: "high",
         taskIds: [task.id],
         metric: "Holgura: 0d",
-        message: `${task.name} esta en la ruta critica.`,
+        message: `${task.name} está en la ruta crítica.`,
       });
       continue;
     }

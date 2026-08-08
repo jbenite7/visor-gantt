@@ -188,7 +188,7 @@ export default function ColumnSelector({
         : `Origen: ${spec.sourceOfTruth ?? "importación"}`,
     ];
     if (spec.formula) pieces.push(`${locale === "en" ? "Formula" : "Formula"}: ${spec.formula}`);
-    if (spec.lastCalculatedAt) pieces.push(`${locale === "en" ? "Last calculation" : "Ultimo calculo"}: ${spec.lastCalculatedAt}`);
+    if (spec.lastCalculatedAt) pieces.push(`${locale === "en" ? "Last calculation" : "Último cálculo"}: ${spec.lastCalculatedAt}`);
     if (spec.unsupportedReason) pieces.push(spec.unsupportedReason);
     return pieces.join(" | ");
   };

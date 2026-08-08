@@ -54,9 +54,16 @@ describe("barrido de tildes (E21)", () => {
    * columnas pegadas van sin tilde a propósito, porque se comparan.
    */
   function esCopyDeUsuario(literal: string): boolean {
-    const texto = literal.replace(/^["'`]|["'`]$/g, "");
+    const texto = literal
+      .replace(/^["'`]|["'`]$/g, "")
+      // Las interpolaciones son datos, no idioma: se ignoran para juzgar.
+      .replace(/\$\{[^}]*\}/g, "…");
     // Códigos, rutas y claves: nunca son copy.
     if (/[?&=/_]/.test(texto)) return false;
+    // SQL: va en mayúsculas y no lo lee ningún usuario.
+    if (/^(CREATE|SELECT|INSERT|UPDATE|DELETE|ALTER|DROP)\b/i.test(texto.trim())) {
+      return false;
+    }
     if (/^[a-z-]+$/.test(texto.trim())) return false;
     const palabras = texto.split(/\s+/);
     // Una lista de palabras clave repite la misma palabra con y sin tilde.
@@ -76,12 +83,20 @@ describe("barrido de tildes (E21)", () => {
     return true;
   }
 
+  /** Literales de texto: comillas dobles y plantillas con backticks. */
+  function literalesDeCopy(contenido: string): string[] {
+    return [
+      ...(contenido.match(/"[^"\n]{3,200}"/g) ?? []),
+      ...(contenido.match(/`[^`]{3,300}`/g) ?? []),
+    ];
+  }
+
   test("ninguna cadena de interfaz se quedó sin tildes", () => {
     const culpables: string[] = [];
 
     for (const archivo of archivosDeUI("src")) {
       const contenido = readFileSync(archivo, "utf8");
-      const literales = contenido.match(/"[^"\n]{3,200}"/g) ?? [];
+      const literales = literalesDeCopy(contenido);
 
       for (const literal of literales) {
         if (!esCopyDeUsuario(literal)) continue;
@@ -94,6 +109,23 @@ describe("barrido de tildes (E21)", () => {
     }
 
     expect(culpables).toEqual([]);
+  });
+
+  test("caza también las plantillas con backticks, que se le escapaban", () => {
+    // El agujero real: cuatro avisos de confirmación antes de borrar vivían en
+    // plantillas y el detector solo miraba comillas dobles. Los encontró el
+    // carril B a mano, no este test.
+    expect(
+      literalesDeCopy("const a = `La ubicacion ${x} tiene celdas.`;"),
+    ).toContain("`La ubicacion ${x} tiene celdas.`");
+  });
+
+  test("una plantilla que solo arma una ruta no es copy", () => {
+    expect(
+      literalesDeCopy("fetch(`/api/project/${id}/tasks`);").filter((l) =>
+        esCopyDeUsuario(l),
+      ),
+    ).toEqual([]);
   });
 
   test("el propio detector caza el caso que motivó el barrido", () => {
