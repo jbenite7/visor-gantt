@@ -66,13 +66,86 @@ describe("ConflictChooser", () => {
     );
 
     fireEvent.click(
-      screen.getByRole("radio", { name: "Conservar lo del Gantt en el nombre" }),
+      screen.getByRole("radio", {
+        name: "Conservar lo del Gantt en el nombre de mx-task-c1-columnas",
+      }),
     );
     fireEvent.click(screen.getByRole("button", { name: "Aplicar con estas decisiones" }));
 
     expect(onResolve).toHaveBeenCalledWith({
       "mx-task-c1-columnas::name": "gantt",
       "mx-task-c1-columnas::duration": "matriz",
+    });
+  });
+
+  test("el horario de una tarea se decide de una vez, aunque tenga varios campos en conflicto", () => {
+    const onResolve = jest.fn();
+    const conflictosConHorario: MatrixSyncConflict[] = [
+      ...conflictos,
+      {
+        taskId: "mx-task-c1-columnas",
+        cellId: "c1",
+        field: "start",
+        matrixValue: "2026-08-10",
+        ganttValue: "2026-08-12",
+        message: "El inicio pasó del 2026-08-10 al 2026-08-12 desde el Gantt.",
+      },
+    ];
+    render(
+      <ConflictChooser
+        conflicts={conflictosConHorario}
+        onResolve={onResolve}
+        onCancel={jest.fn()}
+      />,
+    );
+
+    const fila = screen.getByTestId("conflict-mx-task-c1-columnas-schedule");
+    expect(fila).toHaveTextContent("5 → 8");
+    expect(fila).toHaveTextContent("2026-08-10 → 2026-08-12");
+
+    fireEvent.click(
+      screen.getByRole("radio", {
+        name: "Conservar lo del Gantt en el horario de mx-task-c1-columnas",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar con estas decisiones" }));
+
+    expect(onResolve).toHaveBeenCalledWith({
+      "mx-task-c1-columnas::name": "matriz",
+      "mx-task-c1-columnas::duration": "gantt",
+      "mx-task-c1-columnas::start": "gantt",
+    });
+  });
+
+  test("una lista de conflictos nueva no congela el estado: el conflicto nuevo parte de la matriz", () => {
+    const onResolve = jest.fn();
+    const { rerender } = render(
+      <ConflictChooser conflicts={conflictos} onResolve={onResolve} onCancel={jest.fn()} />,
+    );
+
+    const conflictosNuevos: MatrixSyncConflict[] = [
+      {
+        taskId: "mx-task-c2-vigas",
+        cellId: "c2",
+        field: "name",
+        matrixValue: "Vigas · Piso 1",
+        ganttValue: "Vigas piso 1 (revisadas)",
+        message: "«Vigas · Piso 1» se renombró a «Vigas piso 1 (revisadas)» desde el Gantt.",
+      },
+    ];
+
+    rerender(
+      <ConflictChooser
+        conflicts={conflictosNuevos}
+        onResolve={onResolve}
+        onCancel={jest.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar con estas decisiones" }));
+
+    expect(onResolve).toHaveBeenCalledWith({
+      "mx-task-c2-vigas::name": "matriz",
     });
   });
 
