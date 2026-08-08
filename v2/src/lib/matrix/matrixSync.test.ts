@@ -215,3 +215,102 @@ describe("matrixSync", () => {
     });
   });
 });
+
+import { applyMatrixUpdate as aplicar } from "./matrixSync";
+import { generateScheduleFromMatrix as generar } from "./matrixGenerator";
+import type { MatrixPlan } from "@/types/matrix";
+
+function planSimple(): MatrixPlan {
+  return {
+    id: "p-conflicto",
+    name: "Torre",
+    startDate: "2026-03-02",
+    scopeTree: [{ id: "estructura", name: "Estructura", type: "Disciplina" }],
+    areas: [{ id: "piso-1", name: "Piso 1", type: "Piso" }],
+    recipes: [
+      {
+        id: "r1",
+        name: "Estructura",
+        activities: [
+          { id: "columnas", name: "Columnas", productivityPerDay: 1, defaultQuantity: 5 },
+        ],
+        dependencies: [],
+      },
+    ],
+    cells: [
+      { id: "c1", scopeId: "estructura", areaId: "piso-1", recipeId: "r1", active: true },
+    ],
+  };
+}
+
+describe("applyMatrixUpdate · conflictos con elección", () => {
+  test("el conflicto trae las dos versiones para poder elegir con la información delante", () => {
+    const plan = planSimple();
+    const { tasks } = generar(plan);
+    const editadasEnGantt = tasks.map((task) =>
+      task.isSummary ? task : { ...task, name: "Columnas piso 1 (renombrada en obra)" },
+    );
+
+    const { conflicts } = aplicar({
+      tasks: editadasEnGantt,
+      currentPlan: plan,
+      nextPlan: plan,
+    });
+    const conflictoDeNombre = conflicts.find((item) => item.field === "name")!;
+
+    expect(conflictoDeNombre.ganttValue).toBe("Columnas piso 1 (renombrada en obra)");
+    expect(conflictoDeNombre.matrixValue).toContain("Columnas");
+    expect(conflictoDeNombre.matrixValue).not.toBe(conflictoDeNombre.ganttValue);
+  });
+
+  test("sin elección explícita gana la matriz, como hasta hoy", () => {
+    const plan = planSimple();
+    const { tasks } = generar(plan);
+    const editadasEnGantt = tasks.map((task) =>
+      task.isSummary ? task : { ...task, name: "Renombrada" },
+    );
+
+    const result = aplicar({ tasks: editadasEnGantt, currentPlan: plan, nextPlan: plan });
+    const tarea = result.tasks.find((task) => task.matrixSource)!;
+
+    expect(tarea.name).not.toBe("Renombrada");
+  });
+
+  test("eligiendo el Gantt se conserva lo que se editó en obra", () => {
+    const plan = planSimple();
+    const { tasks } = generar(plan);
+    const tareaOriginal = tasks.find((task) => task.matrixSource)!;
+    const editadasEnGantt = tasks.map((task) =>
+      task.isSummary ? task : { ...task, name: "Renombrada" },
+    );
+
+    const result = aplicar({
+      tasks: editadasEnGantt,
+      currentPlan: plan,
+      nextPlan: plan,
+      resolutions: { [`${tareaOriginal.id}::name`]: "gantt" },
+    });
+    const tarea = result.tasks.find((task) => task.matrixSource)!;
+
+    expect(tarea.name).toBe("Renombrada");
+  });
+
+  test("elegir la matriz explícitamente hace lo mismo que no elegir", () => {
+    const plan = planSimple();
+    const { tasks } = generar(plan);
+    const tareaOriginal = tasks.find((task) => task.matrixSource)!;
+    const editadasEnGantt = tasks.map((task) =>
+      task.isSummary ? task : { ...task, name: "Renombrada" },
+    );
+
+    const result = aplicar({
+      tasks: editadasEnGantt,
+      currentPlan: plan,
+      nextPlan: plan,
+      resolutions: { [`${tareaOriginal.id}::name`]: "matriz" },
+    });
+    const tarea = result.tasks.find((task) => task.matrixSource)!;
+
+    expect(tarea.name).toBe(tareaOriginal.name);
+  });
+});

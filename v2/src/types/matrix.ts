@@ -168,9 +168,15 @@ export interface MatrixGenerationResult {
   provenance: Record<string, (string | number)[]>;
 }
 
+export type ConflictResolution = "matriz" | "gantt";
+
 export interface MatrixSyncConflict {
   taskId: string | number;
   cellId: string;
   field: "name" | "duration" | "start" | "finish";
+  /** Lo que dice la matriz. */
+  matrixValue: string;
+  /** Lo que se editó en el Gantt. */
+  ganttValue: string;
   message: string;
 }

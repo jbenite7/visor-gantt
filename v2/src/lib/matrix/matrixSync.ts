@@ -5,12 +5,19 @@ import type {
   MatrixSyncConflict,
   MatrixCell,
   MatrixActivityOverride,
+  ConflictResolution,
 } from "@/types/matrix";
 
 interface ApplyMatrixUpdateInput {
   tasks: GanttTask[];
   currentPlan: MatrixPlan;
   nextPlan: MatrixPlan;
+  /**
+   * Qué gana en cada conflicto, con la clave `${taskId}::${campo}`. Sin
+   * elección gana la matriz, que es lo que hacía antes de que se pudiera
+   * elegir.
+   */
+  resolutions?: Record<string, ConflictResolution>;
 }
 
 interface ApplyMatrixUpdateResult {
@@ -121,7 +128,9 @@ function detectConflicts(
         taskId: task.id,
         cellId: source.cellId,
         field: "name",
-        message: `La tarea ${task.id} fue renombrada manualmente desde el Gantt.`,
+        matrixValue: expected.name,
+        ganttValue: task.name,
+        message: `«${expected.name}» se renombró a «${task.name}» desde el Gantt.`,
       });
     }
 
@@ -130,7 +139,9 @@ function detectConflicts(
         taskId: task.id,
         cellId: source.cellId,
         field: "duration",
-        message: `La duracion de la tarea ${task.id} fue editada manualmente desde el Gantt.`,
+        matrixValue: String(expected.duration),
+        ganttValue: String(task.duration),
+        message: `La duración pasó de ${expected.duration} a ${task.duration} días desde el Gantt.`,
       });
     }
 
@@ -139,7 +150,9 @@ function detectConflicts(
         taskId: task.id,
         cellId: source.cellId,
         field: "start",
-        message: `El inicio de la tarea ${task.id} fue editado manualmente desde el Gantt.`,
+        matrixValue: dateKey(expected.start),
+        ganttValue: dateKey(task.start),
+        message: `El inicio pasó del ${dateKey(expected.start)} al ${dateKey(task.start)} desde el Gantt.`,
       });
     }
 
@@ -148,7 +161,9 @@ function detectConflicts(
         taskId: task.id,
         cellId: source.cellId,
         field: "finish",
-        message: `El fin de la tarea ${task.id} fue editado manualmente desde el Gantt.`,
+        matrixValue: dateKey(expected.finish),
+        ganttValue: dateKey(task.finish),
+        message: `El fin pasó del ${dateKey(expected.finish)} al ${dateKey(task.finish)} desde el Gantt.`,
       });
     }
   }
@@ -174,6 +189,7 @@ export function applyMatrixUpdate({
   tasks,
   currentPlan,
   nextPlan,
+  resolutions = {},
 }: ApplyMatrixUpdateInput): ApplyMatrixUpdateResult {
   const previousBySource = new Map(
     tasks
@@ -181,9 +197,31 @@ export function applyMatrixUpdate({
       .filter((entry): entry is [string, GanttTask] => entry[0] != null),
   );
   const generated = generateScheduleFromMatrix(nextPlan);
-  const mergedGenerated = generated.tasks.map((task) =>
-    mergeGeneratedTask(task, previousBySource),
-  );
+  const conflicts = detectConflicts(tasks, currentPlan);
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+
+  const mergedGenerated = generated.tasks.map((task) => {
+    const merged = mergeGeneratedTask(task, previousBySource);
+    let result = merged;
+
+    for (const conflict of conflicts) {
+      if (conflict.taskId !== merged.id) continue;
+      if (resolutions[`${conflict.taskId}::${conflict.field}`] !== "gantt") continue;
+
+      const fromGantt = taskById.get(conflict.taskId);
+      if (!fromGantt) continue;
+
+      if (conflict.field === "name") result = { ...result, name: fromGantt.name };
+      if (conflict.field === "duration") {
+        result = { ...result, duration: fromGantt.duration };
+      }
+      if (conflict.field === "start") result = { ...result, start: fromGantt.start };
+      if (conflict.field === "finish") result = { ...result, finish: fromGantt.finish };
+    }
+
+    return result;
+  });
+
   const generatedIds = new Set(mergedGenerated.map((task) => task.id));
   const nonMatrixTasks = tasks.filter(
     (task) => !task.matrixSource && !generatedIds.has(task.id),
@@ -192,7 +230,7 @@ export function applyMatrixUpdate({
   return {
     tasks: [...mergedGenerated, ...nonMatrixTasks],
     matrixPlan: attachGeneratedTaskIds(nextPlan, generated.provenance),
-    conflicts: detectConflicts(tasks, currentPlan),
+    conflicts,
   };
 }
 
