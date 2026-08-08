@@ -1523,3 +1523,55 @@ describe("reintentar el guardado es un botón", () => {
     );
   });
 });
+
+describe("la línea base se dibuja donde se guarda (M13)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("al guardar y seleccionar una línea base, el Gantt principal la dibuja", async () => {
+    const { container } = render(
+      <GanttView
+        projectId="1"
+        projectName="Obra"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+      />,
+    );
+
+    expect(container.querySelector("g.baseline-bars")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTitle("Guardar línea base"));
+
+    await waitFor(() =>
+      expect(container.querySelector("g.baseline-bars")).toBeInTheDocument(),
+    );
+    expect(container.querySelectorAll("g.baseline-bars rect")).toHaveLength(1);
+  });
+
+  test("una línea base cargada del proyecto no se dibuja hasta seleccionarla", () => {
+    const { container } = render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        baselines={[
+          {
+            id: "bl-1",
+            name: "Línea base 1",
+            createdAt: new Date("2026-08-01"),
+            tasks: [
+              {
+                taskId: 1,
+                baselineStart: createProjectDate("2026-01-05"),
+                baselineFinish: createProjectDate("2026-01-10"),
+                baselineDuration: 5,
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(container.querySelector("g.baseline-bars")).not.toBeInTheDocument();
+  });
+});

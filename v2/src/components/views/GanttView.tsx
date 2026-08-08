@@ -46,6 +46,7 @@ import type { BudgetItem, BudgetMapping as BudgetMappingType } from "@/types/bud
 import type { ProjectCalendar } from "@/types/calendar";
 import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
 import type { Baseline } from "@/types/baseline";
+import { applyBaselineToTasks, saveBaseline } from "@/lib/scheduling/baseline";
 import type { MatrixPlan } from "@/types/matrix";
 import type {
   AssignmentColumnSettings,
@@ -554,22 +555,33 @@ function GanttViewInner({
 
   /* ── Save Baseline handler ── */
   const handleSaveBaseline = useCallback(() => {
-    const baselineNumber = baselines.length + 1;
-    const newBaseline: Baseline = {
-      id: `bl-${Date.now()}`,
-      name: `Baseline ${baselineNumber}`,
-      createdAt: new Date(),
-      tasks: calculatedTasks.map((t) => ({
-        taskId: t.id,
-        baselineStart: new Date(t.start),
-        baselineFinish: new Date(t.finish),
-        baselineDuration: t.duration,
-        baselineCost: t.cost,
-      })),
-    };
-    setBaselines((prev) => [...prev, newBaseline]);
-    setActiveBaselineId(newBaseline.id);
+    const nueva = saveBaseline(
+      calculatedTasks,
+      `Línea base ${baselines.length + 1}`,
+    );
+    setBaselines((prev) => [...prev, nueva]);
+    setActiveBaselineId(nueva.id);
   }, [baselines.length, calculatedTasks]);
+
+  const activeBaseline = useMemo(
+    () => baselines.find((b) => b.id === activeBaselineId) ?? null,
+    [baselines, activeBaselineId],
+  );
+
+  /**
+   * El botón «Línea base» está en la barra principal: la comparación tiene que
+   * verse aquí, no solo dentro de Seguimiento (M13).
+   *
+   * Solo para dibujar: los campos baseline* son derivados y no se persisten
+   * dentro de cada tarea.
+   */
+  const tasksForChart = useMemo(
+    () =>
+      activeBaseline
+        ? applyBaselineToTasks(calculatedTasks, activeBaseline)
+        : calculatedTasks,
+    [activeBaseline, calculatedTasks],
+  );
 
   /* ── Select Baseline handler ── */
   const handleSelectBaseline = useCallback((id: string) => {
@@ -1614,7 +1626,8 @@ function GanttViewInner({
                   }
                   right={
                     <GanttChart
-                      tasks={calculatedTasks}
+                      tasks={tasksForChart}
+                      showBaseline={Boolean(activeBaseline)}
                       observations={observations}
                       calendar={calendar}
                       scale={scale}
