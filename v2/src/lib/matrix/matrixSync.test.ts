@@ -85,12 +85,20 @@ describe("matrixSync", () => {
     ]);
   });
 
-  test("captures Gantt duration edits as approved-feedback candidates on matrix cells", () => {
+  test("la edición manual en el Gantt es la que produce el rendimiento observado", () => {
     const plan = planWithQuantity(50);
     const generated = generateScheduleFromMatrix(plan);
+    // Así sella la app cada edición manual del Gantt: con `matrixSync`.
     const editedTasks = generated.tasks.map((task) =>
       task.matrixSource?.activityId === "mamposteria"
-        ? { ...task, duration: 5 }
+        ? {
+            ...task,
+            duration: 5,
+            matrixSync: {
+              lastEditedAt: "2026-01-02T00:00:00.000Z",
+              lastEditedFrom: "gantt" as const,
+            },
+          }
         : task,
     );
 
@@ -102,6 +110,15 @@ describe("matrixSync", () => {
       suggestedProductivityPerDay: 10,
       status: "pendingApproval",
     });
+  });
+
+  test("una celda que nadie tocó en el Gantt no propone ningún rendimiento", () => {
+    const plan = planWithQuantity(50);
+    const generated = generateScheduleFromMatrix(plan);
+
+    const synced = syncMatrixPlanFromTasks(plan, generated.tasks);
+
+    expect(synced.cells[0].feedback).toBeUndefined();
   });
 
   test("syncs newer Gantt edits back to activity-level matrix quantities automatically", () => {
@@ -153,7 +170,13 @@ describe("matrixSync", () => {
         lastEditedFrom: "gantt",
       }),
     ]);
-    expect(synced.cells[0].feedback).toBeUndefined();
+    // El override se aplica y, además, queda el rendimiento observado a la
+    // espera de visto bueno: son dos cosas distintas.
+    expect(synced.cells[0].feedback).toMatchObject({
+      source: "gantt",
+      observedDurationDays: 5,
+      status: "pendingApproval",
+    });
   });
 
   test("keeps newer Gantt task edits when applying an older matrix update", () => {

@@ -244,18 +244,28 @@ export function applyMatrixUpdate({
   };
 }
 
+/**
+ * Deja en la celda el rendimiento que salió de obra, a la espera de visto bueno.
+ *
+ * La cantidad puede estar en la celda o en el override de la actividad: si
+ * solo se mirara `cell.quantity`, una celda con cantidades por actividad
+ * —que es lo normal— nunca produciría rendimiento observado.
+ */
 function updateCellFeedback(
   cell: MatrixCell,
   observedDurationDays: number,
 ): MatrixCell {
-  if (!cell.quantity || observedDurationDays <= 0) return cell;
+  const quantity =
+    cell.quantity ??
+    cell.activityOverrides?.find((override) => override.quantity > 0)?.quantity;
+  if (!quantity || observedDurationDays <= 0) return cell;
 
   return {
     ...cell,
     feedback: {
       source: "gantt",
       observedDurationDays,
-      suggestedProductivityPerDay: cell.quantity / observedDurationDays,
+      suggestedProductivityPerDay: quantity / observedDurationDays,
       status: "pendingApproval",
     },
   };
@@ -316,41 +326,56 @@ function upsertActivityOverride(
     activityOverrides: nextOverrides,
     lastEditedAt: sync.lastEditedAt,
     lastEditedFrom: "gantt",
-    feedback: undefined,
   };
 }
 
+/**
+ * Recoge el rendimiento que salió de obra y sincroniza las celdas.
+ *
+ * El rendimiento observado **nace de la edición manual en el Gantt**: si el
+ * jefe de obra alarga «Mampostería Piso 1» de 4 a 6 días, esos 6 días son el
+ * dato real y hay que proponerlos. Antes se hacía al revés —la edición del
+ * Gantt cancelaba el feedback y las celdas intactas lo generaban con la
+ * duración que la propia matriz había calculado—, así que el panel ofrecía
+ * aprobar como real un dato planificado.
+ */
 export function syncMatrixPlanFromTasks(
   plan: MatrixPlan,
   tasks: GanttTask[],
 ): MatrixPlan {
-  const durationsByCell = new Map<string, number[]>();
   const taskIdsByCell = new Map<string, (string | number)[]>();
   const ganttEditedTasksByCell = new Map<string, GanttTask[]>();
+  /** Lo que la matriz había calculado, para saber si la obra se desvió. */
+  const expectedBySource = buildPreviousExpectedMap(plan);
+  const observedDurationByCell = new Map<string, number>();
 
   for (const task of tasks) {
     const source = task.matrixSource;
     if (!source || source.matrixPlanId !== plan.id || task.isSummary) continue;
 
-    const durations = durationsByCell.get(source.cellId) ?? [];
-    durations.push(task.duration);
-    durationsByCell.set(source.cellId, durations);
-
     const taskIds = taskIdsByCell.get(source.cellId) ?? [];
     taskIds.push(task.id);
     taskIdsByCell.set(source.cellId, taskIds);
 
-    if (task.matrixSync?.lastEditedFrom === "gantt") {
-      const edited = ganttEditedTasksByCell.get(source.cellId) ?? [];
-      edited.push(task);
-      ganttEditedTasksByCell.set(source.cellId, edited);
-    }
+    if (task.matrixSync?.lastEditedFrom !== "gantt") continue;
+
+    const edited = ganttEditedTasksByCell.get(source.cellId) ?? [];
+    edited.push(task);
+    ganttEditedTasksByCell.set(source.cellId, edited);
+
+    const key = sourceKey(task);
+    const expected = key ? expectedBySource.get(key) : undefined;
+    if (expected && expected.duration === task.duration) continue;
+
+    observedDurationByCell.set(
+      source.cellId,
+      Math.max(observedDurationByCell.get(source.cellId) ?? 0, task.duration),
+    );
   }
 
   return {
     ...plan,
     cells: plan.cells.map((cell) => {
-      const durations = durationsByCell.get(cell.id) ?? [];
       const generatedTaskIds = taskIdsByCell.get(cell.id) ?? cell.generatedTaskIds;
       const editedTasks = ganttEditedTasksByCell.get(cell.id) ?? [];
       const initialSyncedCell: MatrixCell = {
@@ -363,19 +388,10 @@ export function syncMatrixPlanFromTasks(
         initialSyncedCell,
       );
 
-      if (editedTasks.length > 0) {
-        return autoSyncedCell;
-      }
+      const observedDurationDays = observedDurationByCell.get(cell.id);
+      if (observedDurationDays === undefined) return autoSyncedCell;
 
-      if (durations.length === 0) {
-        return { ...cell, generatedTaskIds, syncedTaskIds: generatedTaskIds };
-      }
-
-      const observedDurationDays = Math.max(...durations);
-      return updateCellFeedback(
-        { ...cell, generatedTaskIds, syncedTaskIds: generatedTaskIds },
-        observedDurationDays,
-      );
+      return updateCellFeedback(autoSyncedCell, observedDurationDays);
     }),
   };
 }
