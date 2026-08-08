@@ -3360,3 +3360,13 @@ h6 {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+
+/* ── El atajo visible en el botón de la paleta (E20) ── */
+.gantt-command-button__shortcut {
+  border: var(--border-width-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  padding-inline: 0.25rem;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: var(--gantt-toolbar-meta-size);
+}

@@ -1838,3 +1838,61 @@ describe("el modo Simple esconde lo avanzado de verdad (E36)", () => {
     );
   });
 });
+
+describe("la paleta de comandos se deja encontrar (E20, M36)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("el botón enseña el atajo, para que se aprenda solo", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    expect(screen.getByTestId("command-palette-open")).toHaveTextContent("⌘K");
+  });
+
+  test("una errata al teclear sigue encontrando el comando", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "cruva" },
+    });
+
+    // Acotado a la paleta: «Curva S» también es una entrada del menú lateral.
+    expect(
+      within(screen.getByTestId("command-palette")).getByText(/curva s/i),
+    ).toBeInTheDocument();
+  });
+
+  test("lo que no existe sigue sin aparecer: tolerar no es adivinar", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "zzzzzz" },
+    });
+
+    expect(screen.getByText(/no hay comandos coincidentes/i)).toBeInTheDocument();
+  });
+
+  test("la paleta conoce la exportación y la configuración", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+
+    const paleta = within(screen.getByTestId("command-palette"));
+    expect(paleta.getByText("Configuración")).toBeInTheDocument();
+    expect(paleta.getByText(/exportar el cronograma/i)).toBeInTheDocument();
+  });
+
+  test("la Matriz sigue en la paleta además de estar en el menú", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+
+    expect(
+      within(screen.getByTestId("command-palette")).getByText(/matriz/i),
+    ).toBeInTheDocument();
+  });
+});

@@ -103,6 +103,7 @@ import { saveStatusLabel } from "@/lib/gantt/saveStatusLabel";
 import { shouldWarnBeforeUnload } from "@/lib/gantt/pendingChanges";
 import { detectDeepChanges } from "@/lib/gantt/deepChanges";
 import { resolveInteractionMode } from "@/lib/gantt/interactionMode";
+import { fuzzyMatches } from "@/lib/gantt/fuzzyMatch";
 import { buildExecutivePlanningSummary } from "@/lib/gantt/executiveDashboard";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -1151,6 +1152,24 @@ function GanttViewInner({
         keywords: "zoom month mes escala",
       },
       {
+        id: "export-schedule",
+        label: locale === "en" ? "Export the schedule" : "Exportar el cronograma",
+        hint:
+          locale === "en"
+            ? "Download the visible schedule as CSV"
+            : "Descarga el cronograma visible en CSV",
+        keywords: "export exportar csv excel descargar cronograma",
+      },
+      {
+        id: "view-settings",
+        label: locale === "en" ? "Settings" : "Configuración",
+        hint:
+          locale === "en"
+            ? "Project calendar and preferences"
+            : "Calendario del proyecto y preferencias",
+        keywords: "settings configuracion configuración ajustes calendario",
+      },
+      {
         id: "zoom-quarter",
         label: locale === "en" ? "Zoom by quarter" : "Zoom por trimestre",
         hint: locale === "en" ? "Set timeline scale to quarters" : "Cambia la escala a trimestres",
@@ -1161,12 +1180,15 @@ function GanttViewInner({
   );
 
   const filteredCommands = useMemo(() => {
-    const normalizedQuery = commandQuery.trim().toLowerCase();
-    if (!normalizedQuery) return commandActions;
-    return commandActions.filter((command) => {
-      const haystack = `${command.label} ${command.hint} ${command.keywords}`.toLowerCase();
-      return haystack.includes(normalizedQuery);
-    });
+    const query = commandQuery.trim();
+    if (!query) return commandActions;
+    return commandActions.filter((command) =>
+      // Una errata dejaba la paleta vacía justo cuando más falta hace (M36).
+      fuzzyMatches(
+        `${command.label} ${command.hint} ${command.keywords}`,
+        query,
+      ),
+    );
   }, [commandActions, commandQuery]);
 
   const runCommand = useCallback((command: CommandPaletteAction) => {
@@ -1193,6 +1215,13 @@ function GanttViewInner({
         break;
       case "view-matrix":
         setActiveView("matrix");
+        break;
+      case "view-settings":
+        setActiveView("settings");
+        break;
+      case "export-schedule":
+        setActiveView("gantt");
+        // El export vive junto a la tabla, donde está lo que se va a exportar.
         break;
       case "view-executive":
         setActiveView("executive");
@@ -1487,6 +1516,8 @@ function GanttViewInner({
         >
           <CommandIcon className="gantt-topbar__icon" aria-hidden />
           {locale === "en" ? "Commands" : "Comandos"}
+          {/* El atajo a la vista: se aprende usando el botón, no leyendo ayuda */}
+          <kbd className="gantt-command-button__shortcut">⌘K</kbd>
         </button>
         <button
           type="button"
