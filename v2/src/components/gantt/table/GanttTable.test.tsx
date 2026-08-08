@@ -231,6 +231,9 @@ describe("GanttTable", () => {
     expect(successorCells[7]).toHaveClass("gantt-row-cell--date");
     expect(successorCells[8]).toHaveClass("gantt-row-cell--predecessors");
     expect(successorCells[8]).toHaveTextContent("1FS");
+
+    // El control de edición aparece al señalar la fila (E40).
+    fireEvent.mouseEnter(screen.getAllByTestId("gantt-row")[1]);
     expect(within(successorCells[8]).getByRole("button", { name: "Editar predecesoras" })).toBeInTheDocument();
     expect(successorCells[8]).toHaveTextContent("Editar");
     expect(successorCells[6]).not.toHaveTextContent("2026-01-05");
@@ -241,7 +244,12 @@ describe("GanttTable", () => {
 
     const cells = screen.getAllByTestId("gantt-row")[0].querySelectorAll("td");
     expect(cells[8]).toHaveTextContent("Sin pred.");
-    expect(within(cells[8]).getByRole("button", { name: "Editar predecesoras" })).toBeInTheDocument();
+
+    // El control de edición aparece al señalar la fila (E40); el dato, siempre.
+    fireEvent.mouseEnter(screen.getAllByTestId("gantt-row")[0]);
+    expect(
+      within(cells[8]).getByRole("button", { name: "Editar predecesoras" }),
+    ).toBeInTheDocument();
     expect(cells[8]).toHaveTextContent("Editar");
   });
 
@@ -945,6 +953,14 @@ describe("GanttTable", () => {
       />,
     );
 
+    // El control aparece al señalar la fila (E40).
+
+    fireEvent.mouseEnter(
+
+      screen.getByTestId("cell-predecessors-2").closest("tr")!,
+
+    );
+
     fireEvent.click(screen.getByTestId("dependency-popover-open-2"));
     fireEvent.change(screen.getByTestId("dependency-search"), {
       target: { value: "Predecessor" },
@@ -973,6 +989,14 @@ describe("GanttTable", () => {
         tasks={[predecessor, successor]}
         onUpdateTask={onUpdateTask}
       />,
+    );
+
+    // El control aparece al señalar la fila (E40).
+
+    fireEvent.mouseEnter(
+
+      screen.getByTestId("cell-predecessors-2").closest("tr")!,
+
     );
 
     fireEvent.click(screen.getByTestId("dependency-popover-open-2"));
@@ -1017,6 +1041,14 @@ describe("GanttTable", () => {
         tasks={[predecessor, successor]}
         onUpdateTask={onUpdateTask}
       />,
+    );
+
+    // El control aparece al señalar la fila (E40).
+
+    fireEvent.mouseEnter(
+
+      screen.getByTestId("cell-predecessors-205").closest("tr")!,
+
     );
 
     fireEvent.click(screen.getByTestId("dependency-popover-open-205"));
@@ -1675,5 +1707,65 @@ describe("las exportaciones dicen lo que hacen (M25)", () => {
       "title",
       expect.stringMatching(/pegar en Excel/i),
     );
+  });
+});
+
+describe("la cinta se lee por grupos y los encabezados no gritan (E41, E42)", () => {
+  test("cada grupo de la cinta lleva su etiqueta visible", () => {
+    render(<GanttTable tasks={[makeTask({ id: 1 })]} onUpdateTask={jest.fn()} />);
+
+    const etiquetas = screen
+      .getAllByTestId("gantt-table-ribbon-group")
+      .map((grupo) => grupo.getAttribute("data-label"));
+
+    expect(etiquetas.length).toBeGreaterThanOrEqual(3);
+    expect(etiquetas.every((etiqueta) => Boolean(etiqueta))).toBe(true);
+  });
+
+  test("los grupos están separados, no en una sola tira de iconos", () => {
+    render(<GanttTable tasks={[makeTask({ id: 1 })]} onUpdateTask={jest.fn()} />);
+
+    const grupos = screen.getAllByTestId("gantt-table-ribbon-group");
+    expect(new Set(grupos.map((g) => g.getAttribute("data-label"))).size).toBe(
+      grupos.length,
+    );
+  });
+});
+
+describe("la columna Predecesoras muestra el dato, no el control (E40)", () => {
+  const conDependencia = [
+    makeTask({ id: 1 }),
+    makeTask({ id: 2, dependencies: [{ from: 1, to: 2, type: "FS", lag: 2 }] }),
+  ];
+
+  test("de entrada se lee el vínculo, no un botón", () => {
+    render(<GanttTable tasks={conDependencia} onUpdateTask={jest.fn()} />);
+
+    const celda = screen.getByTestId("cell-predecessors-2");
+    expect(celda).toHaveTextContent("1FS+2");
+    expect(celda.querySelector("button")).toBeNull();
+  });
+
+  test("el control aparece al pasar por la fila", () => {
+    render(<GanttTable tasks={conDependencia} onUpdateTask={jest.fn()} />);
+
+    const celda = screen.getByTestId("cell-predecessors-2");
+    fireEvent.mouseEnter(celda.closest("tr")!);
+
+    expect(celda.querySelector("button")).not.toBeNull();
+  });
+
+  test("y también cuando la fila está seleccionada, sin ratón", () => {
+    render(
+      <GanttTable
+        tasks={conDependencia}
+        selectedTaskIds={[2]}
+        onUpdateTask={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("cell-predecessors-2").querySelector("button"),
+    ).not.toBeNull();
   });
 });

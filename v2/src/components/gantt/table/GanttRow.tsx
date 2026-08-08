@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { DEFAULT_PROJECT_CALENDAR, type ProjectCalendar } from "@/types/calendar";
 import { durationFromFinish } from "@/lib/gantt/finishEditing";
 import type { GanttTask, GanttDependency } from "@/components/gantt/types";
@@ -318,6 +320,8 @@ export default function GanttRow({
 
   // ── Editable: should we wrap cells in EditableCell? ──
   const canEdit = !!onUpdateTask;
+  /** La fila está bajo el puntero: se usa para revelar controles (E40). */
+  const [estaSenalada, setEstaSenalada] = useState(false);
 
   const renderCell = (column: ColumnConfig) => {
     /** Identificador estable por celda, para poder apuntar a una en las pruebas. */
@@ -490,12 +494,18 @@ export default function GanttRow({
                 }}
               />
             </div>
-            <DependencyPopover
-              task={task}
-              tasks={allTasks}
-              locale={locale}
-              onCommit={(deps) => onUpdateTask!(task.id, "dependencies", deps)}
-            />
+            {/*
+              El dato manda: de entrada se lee «1FS+2», y el control para
+              editarlo aparece al pasar por la fila o al seleccionarla (E40).
+            */}
+            {(estaSenalada || isSelected) && (
+              <DependencyPopover
+                task={task}
+                tasks={allTasks}
+                locale={locale}
+                onCommit={(deps) => onUpdateTask!(task.id, "dependencies", deps)}
+              />
+            )}
           </div>
         ) : (
           renderDependencyDisplay(predecessorValue, locale)
@@ -607,6 +617,8 @@ export default function GanttRow({
       data-summary={task.isSummary}
       data-changed={Boolean(isChanged)}
       data-filtered-context={Boolean(isFilteredContext)}
+      onMouseEnter={() => setEstaSenalada(true)}
+      onMouseLeave={() => setEstaSenalada(false)}
       data-stripe={index % 2 === 0 ? "even" : "odd"}
       data-draggable={draggable}
       data-dragging={isDragging}

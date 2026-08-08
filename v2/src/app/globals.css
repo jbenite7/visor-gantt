@@ -1439,8 +1439,20 @@ h6 {
   flex-shrink: 1;
 }
 
+/*
+ * Las etiquetas de grupo estaban escritas pero ocultas por CSS: la cinta se
+ * veía como una tira de iconos sin agrupar (E42). Se muestran desde 64rem,
+ * donde hay sitio; por debajo mandan los separadores.
+ */
 .gantt-table-ribbon__group:not(.gantt-table-ribbon__group--expand) .gantt-table-ribbon__label {
   display: none;
+}
+
+@media (min-width: 64rem) {
+  .gantt-table-ribbon__group:not(.gantt-table-ribbon__group--expand)
+    .gantt-table-ribbon__label {
+    display: inline;
+  }
 }
 
 .gantt-table-ribbon__label,

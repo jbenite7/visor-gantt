@@ -711,6 +711,10 @@ describe("GanttView", () => {
 
     mockedSaveProject.mockClear();
 
+    // El control aparece al señalar la fila (E40).
+    fireEvent.mouseEnter(
+      screen.getByTestId("cell-predecessors-2").closest("tr")!,
+    );
     fireEvent.click(screen.getByTestId("dependency-popover-open-2"));
     fireEvent.change(screen.getByTestId("dependency-search"), {
       target: { value: "Predecesora" },

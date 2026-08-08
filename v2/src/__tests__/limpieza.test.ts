@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 function archivosDeUI(dir: string, acc: string[] = []): string[] {
@@ -58,12 +58,20 @@ describe("barrido de tildes (E21)", () => {
 
 describe("no queda código muerto de subida (E17)", () => {
   test("MPPUploader ya no existe: la subida real vive en HomeMppUploadAction", () => {
-    expect(() => require("@/components/upload/MPPUploader")).toThrow();
+    expect(existsSync("src/components/upload/MPPUploader.tsx")).toBe(false);
   });
 
   test("y la subida que sí usa la app sigue en su sitio", () => {
-    expect(() =>
-      require("@/components/upload/HomeMppUploadAction"),
-    ).not.toThrow();
+    expect(existsSync("src/components/upload/HomeMppUploadAction.tsx")).toBe(
+      true,
+    );
+  });
+
+  test("nadie lo importa: no queda una referencia colgando", () => {
+    const referencias = archivosDeUI("src").filter((archivo) =>
+      readFileSync(archivo, "utf8").includes("upload/MPPUploader"),
+    );
+
+    expect(referencias).toEqual([]);
   });
 });

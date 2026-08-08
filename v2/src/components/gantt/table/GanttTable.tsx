@@ -798,7 +798,11 @@ export default function GanttTable({
       role="toolbar"
       aria-label={effectiveLocale === "en" ? "Table tools" : "Herramientas de tabla"}
     >
-      <div className="gantt-table-ribbon__group gantt-table-ribbon__group--expand">
+      <div
+        className="gantt-table-ribbon__group gantt-table-ribbon__group--expand"
+        data-testid="gantt-table-ribbon-group"
+        data-label={t(effectiveLocale, "expand")}
+      >
         <span className="gantt-table-ribbon__label">{t(effectiveLocale, "expand")}</span>
         {levelButtons.map((btn) => (
           <button
@@ -829,7 +833,11 @@ export default function GanttTable({
         </button>
       </div>
       <span className="gantt-table-ribbon__divider" aria-hidden />
-      <div className="gantt-table-ribbon__group">
+      <div
+        className="gantt-table-ribbon__group"
+        data-testid="gantt-table-ribbon-group"
+        data-label={effectiveLocale === "en" ? "Hierarchy" : "Jerarquía"}
+      >
         <span className="gantt-table-ribbon__label">
           {effectiveLocale === "en" ? "Hierarchy" : "Jerarquía"}
         </span>
@@ -879,15 +887,19 @@ export default function GanttTable({
         </button>
       </div>
       <span className="gantt-table-ribbon__divider" aria-hidden />
-      <div className="gantt-table-ribbon__group">
+      <div
+        className="gantt-table-ribbon__group"
+        data-testid="gantt-table-ribbon-group"
+        data-label={effectiveLocale === "en" ? "Create" : "Crear"}
+      >
         <span className="gantt-table-ribbon__label">
           {effectiveLocale === "en" ? "Create" : "Crear"}
         </span>
         <button
           type="button"
           data-testid="hierarchy-add-chapter"
-          title={effectiveLocale === "en" ? "Add chapter" : "Crear capitulo"}
-          aria-label={effectiveLocale === "en" ? "Add chapter" : "Crear capitulo"}
+          title={effectiveLocale === "en" ? "Add chapter" : "Crear capítulo"}
+          aria-label={effectiveLocale === "en" ? "Add chapter" : "Crear capítulo"}
           disabled={!onInsertTask}
           className="gantt-table-toolbar__icon-button"
           onClick={() => handleInsertTask("summary")}
@@ -933,7 +945,11 @@ export default function GanttTable({
         </button>
       </div>
       <span className="gantt-table-ribbon__divider" aria-hidden />
-      <div className="gantt-table-ribbon__group gantt-table-ribbon__group--data">
+      <div
+        className="gantt-table-ribbon__group gantt-table-ribbon__group--data"
+        data-testid="gantt-table-ribbon-group"
+        data-label={effectiveLocale === "en" ? "Data" : "Datos"}
+      >
         <span className="gantt-table-ribbon__label">
           {effectiveLocale === "en" ? "Data" : "Datos"}
         </span>
