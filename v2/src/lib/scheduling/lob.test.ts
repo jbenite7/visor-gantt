@@ -624,3 +624,43 @@ describe("generateAutomaticLOBFromTasks", () => {
     expect(activity.family?.confidence).toBeGreaterThan(0);
   });
 });
+
+import { generateLOBFromTasks } from "./lob";
+import { extractLocation } from "./detection/location";
+
+describe("Línea de Balance · ubicación con el motor nuevo", () => {
+  test("un sótano da un índice negativo, para que la línea baje", () => {
+    expect(extractLocation("COLUMNAS SÓTANO 2")?.value).toBe(-2);
+  });
+
+  test("las actividades de sótano ya no quedan fuera del análisis", () => {
+    const { mappings } = generateLOBFromTasks(
+      [
+        {
+          id: 1,
+          name: "MAMPOSTERÍA SÓTANO 1",
+          start: new Date("2026-01-05T08:00:00"),
+          finish: new Date("2026-01-09T17:00:00"),
+          duration: 5,
+          progress: 0,
+          isCritical: false,
+          isMilestone: false,
+          isSummary: false,
+          outlineLevel: 1,
+          dependencies: [],
+          wbs: "1.1",
+        },
+      ],
+      [{ activityName: "Mampostería", taskIds: [1], unitLabel: "Sótano" }],
+    );
+
+    expect(mappings).toHaveLength(1);
+    expect(mappings[0].unitLabel).toBe("Sótano");
+  });
+
+  test("el índice de la unidad respeta el orden físico, no el texto", () => {
+    const nombres = ["MAMPOSTERÍA SÓTANO 2", "MAMPOSTERÍA PISO 1", "MAMPOSTERÍA CUBIERTA"];
+    const indices = nombres.map((name) => extractLocation(name)!.value);
+    expect(indices).toEqual([-2, 1, 900]);
+  });
+});

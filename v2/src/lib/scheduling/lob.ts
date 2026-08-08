@@ -10,6 +10,7 @@ import type { GanttTask } from "@/components/gantt/types";
 import type { MatrixPlan } from "@/types/matrix";
 import { classifyActivityFamily, type ActivityFamilyResult } from "./activityFamily";
 import { UNIT_PATTERNS, buildWbsBreadcrumb } from "./unitPatterns";
+import { extractLocation } from "./detection/location";
 
 // ── Layout types ──────────────────────────────────────────────────
 
@@ -442,20 +443,17 @@ function normalizeText(value: string): string {
     .trim();
 }
 
+/**
+ * Ubicación de una actividad, con el motor de detección.
+ *
+ * `index` es el número ordenable: los sótanos van en negativo, así que la
+ * Línea de Balance los dibuja por debajo del piso 1 en vez de después del
+ * piso 12, que es lo que hacía cuando el índice salía del texto.
+ */
 function detectUnit(name: string): { label: string; key: string; index: number } | null {
-  const normalized = normalizeText(name);
-  for (const pattern of UNIT_PATTERNS) {
-    const match = normalized.match(pattern.regex);
-    if (!match) continue;
-    const raw = match[1].toUpperCase();
-    const numeric = Number(raw.replace(/^[A-Z]/, ""));
-    return {
-      label: pattern.label,
-      key: raw,
-      index: Number.isFinite(numeric) ? numeric : raw.charCodeAt(0),
-    };
-  }
-  return null;
+  const location = extractLocation(name);
+  if (!location) return null;
+  return { label: location.label, key: location.raw, index: location.value };
 }
 
 function normalizeActivityName(name: string): string {
