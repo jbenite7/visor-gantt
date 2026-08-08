@@ -9,7 +9,10 @@ import type {
  *
  * Dos reglas viven aquí y no en la pantalla, porque son del dato:
  * quitar una actividad quita sus vínculos —si no, `generateScheduleFromMatrix`
- * los descarta en silencio— y un vínculo no puede cerrar un círculo.
+ * los descarta en silencio— y un vínculo no puede cerrar un círculo. La detección
+ * cubre el ciclo **directo** —A antes que B y B antes que A—, que es el que el
+ * editor puede producir con dos clics. Un ciclo indirecto (A→B, B→C, C→A) no se
+ * detecta aquí: el generador simplemente no emitiría esas dependencias.
  */
 export function addRecipeActivity(
   recipe: ActivityRecipe,

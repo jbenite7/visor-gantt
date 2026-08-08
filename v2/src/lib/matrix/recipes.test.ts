@@ -73,6 +73,13 @@ describe("removeRecipeActivity", () => {
     expect(result.activities).toHaveLength(2);
     expect(result.dependencies).toHaveLength(1);
   });
+
+  test("quita las dependencias también cuando la actividad era la predecesora", () => {
+    const result = removeRecipeActivity(receta(), "columnas");
+
+    expect(result.activities.map((item) => item.id)).toEqual(["losa"]);
+    expect(result.dependencies).toHaveLength(0);
+  });
 });
 
 describe("moveRecipeActivity", () => {
@@ -84,6 +91,12 @@ describe("moveRecipeActivity", () => {
 
   test("un índice fuera de rango se ajusta al extremo", () => {
     const result = moveRecipeActivity(receta(), "columnas", 99);
+
+    expect(result.activities.map((item) => item.id)).toEqual(["losa", "columnas"]);
+  });
+
+  test("un índice negativo se ajusta al principio", () => {
+    const result = moveRecipeActivity(receta(), "losa", -5);
 
     expect(result.activities.map((item) => item.id)).toEqual(["losa", "columnas"]);
   });
