@@ -99,6 +99,7 @@ import {
 } from "@/lib/gantt/roleViewPresets";
 import { normalizeTaskStructure } from "@/lib/gantt/taskStructure";
 import { saveStatusLabel } from "@/lib/gantt/saveStatusLabel";
+import { shouldWarnBeforeUnload } from "@/lib/gantt/pendingChanges";
 import { buildExecutivePlanningSummary } from "@/lib/gantt/executiveDashboard";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -295,6 +296,7 @@ function GanttViewInner({
   );
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [projectId, setProjectId] = useState<string | undefined>(initialProjectId);
   const [projectName] = useState<string>(initialProjectName ?? "Sin título");
@@ -866,6 +868,7 @@ function GanttViewInner({
     if (!isDirtyRef.current) return;
 
     isDirtyRef.current = false;
+    setHasPendingChanges(false);
     setSaveStatus("saving");
 
     try {
@@ -901,10 +904,12 @@ function GanttViewInner({
         setLastSavedAt(new Date());
         setTimeout(() => setSaveStatus("idle"), 2000);
       } else {
+        setHasPendingChanges(true);
         setSaveStatus("error");
         setTimeout(() => setSaveStatus("idle"), 3000);
       }
     } catch {
+      setHasPendingChanges(true);
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 3000);
     }
@@ -1187,6 +1192,7 @@ function GanttViewInner({
     }
 
     isDirtyRef.current = true;
+    setHasPendingChanges(true);
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
     }
@@ -1234,8 +1240,26 @@ function GanttViewInner({
       autoSaveTimerRef.current = null;
     }
     isDirtyRef.current = true;
+    setHasPendingChanges(true);
     void doSaveRef.current();
   }, [observations]);
+
+  /**
+   * Preguntar antes de cerrar, pero solo si hay algo que perder: un diálogo
+   * que sale siempre es un diálogo que nadie lee.
+   */
+  useEffect(() => {
+    if (!shouldWarnBeforeUnload({ hasPendingChanges, saveStatus })) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // El navegador no deja personalizar el texto; solo pedir la confirmación.
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasPendingChanges, saveStatus]);
 
   useEffect(
     () => () => {

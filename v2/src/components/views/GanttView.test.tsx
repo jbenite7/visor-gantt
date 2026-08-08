@@ -1443,3 +1443,48 @@ describe("las observaciones no se pierden (M24)", () => {
     expect(mockedSaveProject).not.toHaveBeenCalled();
   });
 });
+
+describe("aviso al cerrar con cambios pendientes (M33)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("sin tocar nada, cerrar no pregunta", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  test("tras editar y antes de que guarde, cerrar pregunta", async () => {
+    jest.useFakeTimers();
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+      />,
+    );
+
+    const cells = screen.getAllByTestId("editable-cell");
+    fireEvent.doubleClick(cells[0]);
+    const input = screen.getByDisplayValue("Excavación");
+    fireEvent.change(input, { target: { value: "Excavación manual" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+});
