@@ -1285,6 +1285,10 @@ export interface MatrixGenerationOptions {
       const signature = cellSignature({
         cell,
         recipe,
+        scope,
+        area,
+        scopeLeafIndex: flatScope?.leafIndex,
+        areaLeafIndex: flatArea?.leafIndex,
         startDate: plan.startDate,
         calendarKey,
       });
