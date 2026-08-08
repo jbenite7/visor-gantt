@@ -354,7 +354,7 @@ export function diagnoseSCurve(
       severity: evData.spi < 0.75 ? "high" : "medium",
       taskIds: tasks.filter((task) => (task.progress ?? 0) < 100).map((task) => task.id),
       message: `El avance ganado esta por debajo del valor planificado (SPI ${evData.spi.toFixed(2)}).`,
-      recommendation: "Revisa ruta critica, restricciones y compromisos de recuperacion antes del siguiente corte.",
+      recommendation: "Revisa ruta crítica, restricciones y compromisos de recuperación antes del siguiente corte.",
       metric: `EV/PV ${Math.round(lastPoint.ev).toLocaleString("es-CO")} / ${Math.round(lastPoint.pv).toLocaleString("es-CO")}`,
     });
   }

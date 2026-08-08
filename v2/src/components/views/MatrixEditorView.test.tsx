@@ -270,10 +270,10 @@ describe("MatrixEditorView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Ubicaciones" }));
     fireEvent.click(screen.getByRole("button", { name: "Agregar hijo a Piso 1" }));
-    fireEvent.change(screen.getByLabelText("Nombre ubicacion Nueva sub-ubicacion"), {
+    fireEvent.change(screen.getByLabelText("Nombre ubicación Nueva sub-ubicación"), {
       target: { value: "Apto 101" },
     });
-    fireEvent.change(screen.getByLabelText("Tipo ubicacion Apto 101"), {
+    fireEvent.change(screen.getByLabelText("Tipo ubicación Apto 101"), {
       target: { value: "Unidad" },
     });
 

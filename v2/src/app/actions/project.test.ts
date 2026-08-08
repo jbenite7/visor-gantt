@@ -34,7 +34,7 @@ const template: MatrixTemplate = {
     {
       id: "obra",
       name: "Obra",
-      type: "Capitulo",
+      type: "Capítulo",
       children: [
         {
           id: "zapatas",

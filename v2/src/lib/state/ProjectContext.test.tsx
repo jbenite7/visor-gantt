@@ -628,3 +628,4 @@ describe("el impacto de una edición se puede ver (E31)", () => {
     expect(ctx!.lastChange).toBeNull();
   });
 });
+

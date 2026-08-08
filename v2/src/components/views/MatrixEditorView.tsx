@@ -65,7 +65,7 @@ const matrixIconButtonClass =
   "inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)]";
 
 const scopeTypeOptions = [
-  "Capitulo",
+  "Capítulo",
   "Subcapitulo",
   "Disciplina",
   "Partida",
@@ -82,8 +82,8 @@ const areaTypeOptions = [
   "Piso",
   "Unidad",
   "Ambiente",
-  "Sub-Ubicacion",
-  "Ubicacion",
+  "Sub-Ubicación",
+  "Ubicación",
   "Apartamento",
   "Habitacion",
   "Zona",
@@ -158,7 +158,7 @@ function inferAreaTypeForLabel(label: string): string {
   if (normalized.includes("zona")) return "Zona";
   if (normalized.includes("local")) return "Local";
   if (normalized.includes("km")) return "Km";
-  return "Ubicacion";
+  return "Ubicación";
 }
 
 function findRecipeForScope(scopeId: string, plan: MatrixPlan): string | undefined {
@@ -305,6 +305,9 @@ export default function MatrixEditorView({
 
   useEffect(() => {
     onDirtyChange?.(tieneCambios);
+    // Al desmontar —cambiar de vista— el borrador se pierde: deja de haber
+    // trabajo pendiente por el que preguntar al cerrar.
+    return () => onDirtyChange?.(false);
   }, [tieneCambios, onDirtyChange]);
 
   const descartarCambios = useCallback(() => {
@@ -586,8 +589,8 @@ export default function MatrixEditorView({
     }
     const child: AreaNode = {
       id: createNodeId("area", parentId),
-      name: "Nueva sub-ubicacion",
-      type: "Sub-Ubicacion",
+      name: "Nueva sub-ubicación",
+      type: "Sub-Ubicación",
     };
     let nextPlan: MatrixPlan = {
       ...draft,
@@ -604,8 +607,8 @@ export default function MatrixEditorView({
     if (!draft) return;
     const sibling: AreaNode = {
       id: createNodeId("area", targetId),
-      name: "Nueva sub-ubicacion",
-      type: "Sub-Ubicacion",
+      name: "Nueva sub-ubicación",
+      type: "Sub-Ubicación",
     };
     applyNextDraft({
       ...draft,
@@ -826,7 +829,7 @@ export default function MatrixEditorView({
               <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                 Nombre
                 <input
-                  aria-label={`Nombre ubicacion ${node.name}`}
+                  aria-label={`Nombre ubicación ${node.name}`}
                   value={node.name}
                   onChange={(event) =>
                     updateAreaDetails(node.id, { name: event.target.value })
@@ -837,7 +840,7 @@ export default function MatrixEditorView({
               <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                 Tipo
                 <select
-                  aria-label={`Tipo ubicacion ${node.name}`}
+                  aria-label={`Tipo ubicación ${node.name}`}
                   value={node.type ?? ""}
                   onChange={(event) =>
                     updateAreaDetails(node.id, { type: event.target.value || undefined })

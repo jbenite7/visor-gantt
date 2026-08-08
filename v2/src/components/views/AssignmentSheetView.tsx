@@ -368,6 +368,11 @@ export default function AssignmentSheetView({
                   {locale === "en" ? column.labelEn ?? column.label : column.labelEs ?? column.label}
                 </th>
               ))}
+              {onDeleteAssignment && (
+                <th style={{ ...thStyle, width: 90 }}>
+                  {locale === "en" ? "Remove" : "Quitar"}
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>

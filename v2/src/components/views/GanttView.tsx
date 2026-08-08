@@ -102,6 +102,7 @@ import {
 import { normalizeTaskStructure } from "@/lib/gantt/taskStructure";
 import { saveStatusLabel } from "@/lib/gantt/saveStatusLabel";
 import { shouldWarnBeforeUnload } from "@/lib/gantt/pendingChanges";
+import { removeAt } from "@/lib/state/undoableCollections";
 import { detectDeepChanges } from "@/lib/gantt/deepChanges";
 import { resolveInteractionMode } from "@/lib/gantt/interactionMode";
 import { fuzzyMatches } from "@/lib/gantt/fuzzyMatch";
@@ -427,13 +428,19 @@ function GanttViewInner({
   const calculatedResources = calculatedMpp.resources;
   const calculatedAssignments = calculatedMpp.assignments;
   /**
-   * En modo Simple, las columnas importadas del `.mpp` no se muestran: son
-   * exactamente lo que abruma a quien abre el cronograma por primera vez.
-   * No se pierden — vuelven enteras al pasar a Avanzado.
+   * Las columnas del `.mpp` tal como vinieron. Esto es lo que se persiste:
+   * esconderlas en modo Simple no puede borrarlas del proyecto.
    */
-  const mppTaskColumns = useMemo(
-    () => (isAdvancedMode ? calculatedMpp.mppTaskColumns : []),
-    [calculatedMpp.mppTaskColumns, isAdvancedMode],
+  const mppTaskColumns = calculatedMpp.mppTaskColumns;
+
+  /**
+   * Lo que ve la tabla. En modo Simple las columnas importadas no se muestran
+   * —son exactamente lo que abruma a quien abre el cronograma por primera
+   * vez— y vuelven enteras al pasar a Avanzado (E36).
+   */
+  const visibleMppTaskColumns = useMemo(
+    () => (isAdvancedMode ? mppTaskColumns : []),
+    [mppTaskColumns, isAdvancedMode],
   );
   const mppResourceColumns = calculatedMpp.mppResourceColumns;
   const mppAssignmentColumns = calculatedMpp.mppAssignmentColumns;
@@ -955,16 +962,9 @@ function GanttViewInner({
       runUndoable({
         description: "Recurso asignado a la actividad",
         execute: () => setAssignments((prev) => [...prev, assignment]),
-        undo: () =>
-          setAssignments((prev) =>
-            prev.filter(
-              (a) =>
-                !(
-                  a.taskId === assignment.taskId &&
-                  a.resourceId === assignment.resourceId
-                ),
-            ),
-          ),
+        // Por posición: dos asignaciones del mismo par son indistinguibles por
+        // sus campos, y filtrarlas se llevaría también la que ya estaba.
+        undo: () => setAssignments((prev) => removeAt(prev, prev.length - 1)),
       });
     },
     [runUndoable],
@@ -981,8 +981,7 @@ function GanttViewInner({
 
       runUndoable({
         description: "Asignación de recurso eliminada",
-        execute: () =>
-          setAssignments((prev) => prev.filter((_, i) => i !== index)),
+        execute: () => setAssignments((prev) => removeAt(prev, index)),
         undo: () =>
           setAssignments((prev) => {
             const next = [...prev];
@@ -1788,7 +1787,7 @@ function GanttViewInner({
                       changedTaskIds={lastChange?.taskIds ?? []}
                       calendar={calendar}
                       observations={observations}
-                      mppTaskColumns={mppTaskColumns}
+                      mppTaskColumns={visibleMppTaskColumns}
                       customFieldDefinitions={calculatedMpp.customFieldDefinitions}
                       columnSettings={taskColumnSettings}
                       locale={locale}
@@ -1842,7 +1841,7 @@ function GanttViewInner({
               onUpdateTask={updateTask}
               selectedTaskIds={selectedTaskIds}
               onTaskSelect={handleTaskSelect}
-              mppTaskColumns={mppTaskColumns}
+              mppTaskColumns={visibleMppTaskColumns}
               customFieldDefinitions={calculatedMpp.customFieldDefinitions}
               columnSettings={taskColumnSettings}
               locale={locale}

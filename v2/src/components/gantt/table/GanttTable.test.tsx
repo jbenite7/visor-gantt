@@ -643,13 +643,13 @@ describe("GanttTable", () => {
       kind: "summary",
       afterTaskId: regularTask.id,
       parentTaskId: undefined,
-      name: "Nuevo capitulo",
+      name: "Nuevo capítulo",
     });
     expect(onInsertTask).toHaveBeenCalledWith({
       kind: "summary",
       parentTaskId: regularTask.id,
       afterTaskId: undefined,
-      name: "Nuevo capitulo",
+      name: "Nuevo capítulo",
     });
     expect(onInsertTask).toHaveBeenCalledWith({
       kind: "task",

@@ -171,3 +171,41 @@ describe("la sobrecarga se ve aquí, sin ir a Problemas (M19)", () => {
     );
   });
 });
+
+describe("la tabla no se descuadra al poder borrar (M14)", () => {
+  test("la columna Quitar tiene su encabezado", () => {
+    render(
+      <AssignmentSheetView
+        assignments={yaOcupada}
+        tasks={tareas}
+        resources={recursos}
+        onDeleteAssignment={jest.fn()}
+      />,
+    );
+
+    const encabezados = screen.getAllByRole("columnheader").length;
+    const celdas = screen
+      .getAllByTestId("assignment-delete")[0]
+      .closest("tr")!
+      .querySelectorAll("td").length;
+
+    expect(celdas).toBe(encabezados);
+  });
+
+  test("sin poder borrar, ni encabezado ni celda de más", () => {
+    render(
+      <AssignmentSheetView
+        assignments={yaOcupada}
+        tasks={tareas}
+        resources={recursos}
+      />,
+    );
+
+    const encabezados = screen.getAllByRole("columnheader").length;
+    const celdas = screen
+      .getAllByRole("row")[1]
+      .querySelectorAll("td").length;
+
+    expect(celdas).toBe(encabezados);
+  });
+});

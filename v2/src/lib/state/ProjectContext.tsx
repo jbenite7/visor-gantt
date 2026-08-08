@@ -327,7 +327,7 @@ export function ProjectProvider({
     setLastRejection({ reason, token: nextActionToken() });
   }, []);
 
-  /** Publica el motivo del rechazo para que la UI pueda mostrarlo donde el usuario está mirando. */
+  /** Publica qué actividades movió la última edición aceptada para que la UI pueda mostrarlo donde el usuario está mirando. */
   const publishChange = useCallback((taskIds: (string | number)[]) => {
     if (taskIds.length === 0) return;
     setLastChange({ taskIds, token: nextActionToken() });

@@ -624,7 +624,7 @@ export default function GanttTable({
         kind,
         parentTaskId,
         afterTaskId: parentTaskId === undefined ? selectedTaskId : undefined,
-        name: kind === "summary" ? "Nuevo capitulo" : "Nueva tarea",
+        name: kind === "summary" ? "Nuevo capítulo" : "Nueva tarea",
       });
     },
     [onInsertTask, selectedTaskId],

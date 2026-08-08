@@ -204,22 +204,22 @@ async function setInputByLabel(page: Page, label: string, value: string) {
 }
 
 async function renameArea(page: Page, currentName: string, nextName: string, type: string) {
-  await setInputByLabel(page, `Nombre ubicacion ${currentName}`, nextName);
-  await expect(page.getByLabel(`Nombre ubicacion ${nextName}`).first()).toHaveValue(nextName);
+  await setInputByLabel(page, `Nombre ubicación ${currentName}`, nextName);
+  await expect(page.getByLabel(`Nombre ubicación ${nextName}`).first()).toHaveValue(nextName);
   // El campo "Tipo" es un <select>, no un <input>: se usa selectOption en vez de setInputByLabel.
-  await page.getByLabel(`Tipo ubicacion ${nextName}`).first().selectOption(type);
-  await expect(page.getByLabel(`Tipo ubicacion ${nextName}`).first()).toHaveValue(type);
+  await page.getByLabel(`Tipo ubicación ${nextName}`).first().selectOption(type);
+  await expect(page.getByLabel(`Tipo ubicación ${nextName}`).first()).toHaveValue(type);
 }
 
 async function createTowerWithFloors(page: Page, etapaName: string, towerName: string) {
   await page.getByRole("button", { name: `Agregar hijo a ${etapaName}` }).click();
-  await renameArea(page, "Nueva sub-ubicacion", towerName, "Torre");
+  await renameArea(page, "Nueva sub-ubicación", towerName, "Torre");
 
   for (let floor = 1; floor <= 10; floor += 1) {
     await page.getByRole("button", { name: `Agregar hijo a ${towerName}`, exact: true }).click();
     await renameArea(
       page,
-      "Nueva sub-ubicacion",
+      "Nueva sub-ubicación",
       `${towerName} Piso ${String(floor).padStart(2, "0")}`,
       "Piso",
     );

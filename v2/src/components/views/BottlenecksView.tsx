@@ -9,7 +9,7 @@ interface BottlenecksViewProps {
 }
 
 const KIND_LABEL: Record<Bottleneck["kind"], string> = {
-  critical: "Ruta critica",
+  critical: "Ruta crítica",
   nearCritical: "Holgura baja",
   dependencyConvergence: "Convergencia",
   resourceOverallocation: "Recurso",

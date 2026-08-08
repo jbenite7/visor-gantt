@@ -149,7 +149,7 @@ export function buildExecutivePlanningSummary({
       detail: `${criticalTasks.length} tareas críticas · ${highBottlenecks} cuellos altos · SPI ${ev.spi?.toFixed(2) ?? "sin datos"}`,
       recommendation:
         scheduleHealth === "good"
-          ? "Mantener seguimiento de ruta critica y holguras bajas."
+          ? "Mantener seguimiento de ruta crítica y holguras bajas."
           : "Priorizar restricciones de ruta critica y compromisos de recuperacion.",
     },
     {
