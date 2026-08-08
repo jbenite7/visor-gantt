@@ -1,4 +1,9 @@
 import type { GanttDependency, GanttTask } from "@/components/gantt/types";
+import type { ProjectCalendar } from "@/types/calendar";
+import {
+  matrixFinishFromDuration,
+  matrixNextWorkDay,
+} from "./matrixCalendar";
 import type {
   ActivityRecipe,
   AreaNode,
@@ -9,6 +14,14 @@ import type {
   MatrixPlan,
   ScopeNode,
 } from "@/types/matrix";
+
+export interface MatrixGenerationOptions {
+  /**
+   * Calendario del proyecto. Sin él, la matriz trabaja todos los días menos
+   * el domingo, que es lo que hacía antes de que existiera esta opción.
+   */
+  calendar?: ProjectCalendar;
+}
 
 interface FlatScope {
   node: ScopeNode;
@@ -51,29 +64,6 @@ function addCalendarDays(date: Date, days: number): Date {
   result.setDate(result.getDate() + days);
   result.setHours(0, 0, 0, 0);
   return result;
-}
-
-function addWorkDays(start: Date, days: number): Date {
-  const result = new Date(start);
-  result.setHours(0, 0, 0, 0);
-
-  let added = 0;
-  while (added < days) {
-    result.setDate(result.getDate() + 1);
-    if (result.getDay() !== 0) {
-      added += 1;
-    }
-  }
-
-  return result;
-}
-
-function finishFromDuration(start: Date, durationDays: number): Date {
-  return addWorkDays(start, Math.max(1, durationDays) - 1);
-}
-
-function nextWorkDay(date: Date, lagDays = 0): Date {
-  return addWorkDays(date, 1 + Math.max(0, lagDays));
 }
 
 function flattenScopes(nodes: ScopeNode[]): FlatScope[] {
@@ -294,7 +284,9 @@ function recalculateSummaries(
 
 export function generateScheduleFromMatrix(
   plan: MatrixPlan,
+  options: MatrixGenerationOptions = {},
 ): MatrixGenerationResult {
+  const { calendar } = options;
   const baseStart = createDate(plan.startDate);
   const scopeById = indexScopes(plan.scopeTree);
   const areaById = indexAreas(plan.areas);
@@ -491,7 +483,7 @@ export function generateScheduleFromMatrix(
       const start = createDateFromUnknown(activityOverride?.start, cursor);
       const finish = createDateFromUnknown(
         activityOverride?.finish,
-        finishFromDuration(start, duration),
+        matrixFinishFromDuration(start, duration, calendar),
       );
       const taskId =
         activityOverride?.sourceTaskId ??
@@ -530,7 +522,7 @@ export function generateScheduleFromMatrix(
       if (areaSummaryId) {
         addSummaryChild(summaries, areaSummaryId, task.id);
       }
-      cursor = nextWorkDay(finish);
+      cursor = matrixNextWorkDay(finish, 0, calendar);
     });
 
     for (const rule of recipe.dependencies) {

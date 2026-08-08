@@ -395,3 +395,62 @@ describe("generateScheduleFromMatrix", () => {
     expect(result.provenance["cell-redes-mep-piso-10"]).toHaveLength(2);
   });
 });
+
+import { generateScheduleFromMatrix as generar } from "./matrixGenerator";
+import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
+import type { MatrixPlan } from "@/types/matrix";
+
+function planDeUnaCelda(): MatrixPlan {
+  return {
+    id: "plan-cal",
+    name: "Torre con festivos",
+    startDate: "2026-07-15",
+    scopeTree: [{ id: "estructura", name: "Estructura", type: "Disciplina" }],
+    areas: [{ id: "piso-1", name: "Piso 1", type: "Piso" }],
+    recipes: [
+      {
+        id: "receta-estructura",
+        name: "Estructura",
+        activities: [
+          { id: "columnas", name: "Columnas", productivityPerDay: 1, defaultQuantity: 5 },
+        ],
+        dependencies: [],
+      },
+    ],
+    cells: [
+      {
+        id: "celda-1",
+        scopeId: "estructura",
+        areaId: "piso-1",
+        recipeId: "receta-estructura",
+        active: true,
+      },
+    ],
+  };
+}
+
+describe("generateScheduleFromMatrix · calendario del proyecto", () => {
+  test("sin calendario las fechas no cambian respecto a lo de siempre", () => {
+    const { tasks } = generar(planDeUnaCelda());
+    const columnas = tasks.find((task) => !task.isSummary)!;
+
+    // Miércoles 15 + 5 días saltando solo el domingo → lunes 20
+    expect(columnas.finish.toISOString().slice(0, 10)).toBe("2026-07-20");
+  });
+
+  test("con el calendario del proyecto respeta el fin de semana y el festivo", () => {
+    const { tasks } = generar(planDeUnaCelda(), {
+      calendar: {
+        ...DEFAULT_PROJECT_CALENDAR,
+        workDays: [1, 2, 3, 4, 5],
+        nonWorkingDays: [
+          { id: "f1", date: "2026-07-20", name: "Día de la Independencia" },
+        ],
+      },
+    });
+    const columnas = tasks.find((task) => !task.isSummary)!;
+
+    // 15, 16, 17, 21, 22 → termina el miércoles 22
+    expect(columnas.finish.toISOString().slice(0, 10)).toBe("2026-07-22");
+  });
+});
