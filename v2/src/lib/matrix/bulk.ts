@@ -1,4 +1,5 @@
-import type { MatrixCell, MatrixPlan } from "@/types/matrix";
+import type { AreaNode, MatrixCell, MatrixPlan, ScopeNode } from "@/types/matrix";
+import { getAreaLeaves, getScopeLeaves } from "./tree";
 
 export interface CellPatch {
   recipeId?: string;
@@ -67,4 +68,153 @@ export function applyBulkCellEdit(
     );
 
   return { ...plan, cells: [...updated, ...created] };
+}
+
+function sanitizeId(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function uniqueId(base: string, taken: Set<string>): string {
+  let candidate = base;
+  let suffix = 2;
+  while (taken.has(candidate)) {
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  taken.add(candidate);
+  return candidate;
+}
+
+/** Una celda copiada arranca sin tareas: las de la original son suyas, no de la copia. */
+function copyCell(
+  cell: MatrixCell,
+  scopeId: string,
+  areaId: string,
+  editedAt: string,
+): MatrixCell {
+  return {
+    ...cell,
+    id: `cell-${scopeId}-${areaId}`,
+    scopeId,
+    areaId,
+    generatedTaskIds: [],
+    syncedTaskIds: [],
+    feedback: undefined,
+    lastEditedAt: editedAt,
+    lastEditedFrom: "matrix",
+  };
+}
+
+export function duplicateAreaNode(
+  plan: MatrixPlan,
+  areaId: string,
+  editedAt: string,
+): MatrixPlan {
+  const source = getAreaLeaves(plan.areas).find((leaf) => leaf.node.id === areaId)?.node;
+  if (!source) return plan;
+
+  const taken = new Set(getAreaLeaves(plan.areas).map((leaf) => leaf.node.id));
+  const copy: AreaNode = {
+    ...source,
+    id: uniqueId(`${source.id}-copia`, taken),
+    name: `${source.name} (copia)`,
+    children: undefined,
+  };
+
+  const copiedCells = plan.cells
+    .filter((cell) => cell.areaId === areaId)
+    .map((cell) => copyCell(cell, cell.scopeId, copy.id, editedAt));
+
+  return {
+    ...plan,
+    areas: [...plan.areas, copy],
+    cells: [...plan.cells, ...copiedCells],
+  };
+}
+
+export function duplicateScopeNode(
+  plan: MatrixPlan,
+  scopeId: string,
+  editedAt: string,
+): MatrixPlan {
+  const source = getScopeLeaves(plan.scopeTree).find(
+    (leaf) => leaf.node.id === scopeId,
+  )?.node;
+  if (!source) return plan;
+
+  const taken = new Set(getScopeLeaves(plan.scopeTree).map((leaf) => leaf.node.id));
+  const copy: ScopeNode = {
+    ...source,
+    id: uniqueId(`${source.id}-copia`, taken),
+    name: `${source.name} (copia)`,
+    children: undefined,
+  };
+
+  const copiedCells = plan.cells
+    .filter((cell) => cell.scopeId === scopeId)
+    .map((cell) => copyCell(cell, copy.id, cell.areaId, editedAt));
+
+  return {
+    ...plan,
+    scopeTree: [...plan.scopeTree, copy],
+    cells: [...plan.cells, ...copiedCells],
+  };
+}
+
+/**
+ * Crea varias ubicaciones de una vez: «Piso {n}», de 1 a 20.
+ *
+ * `from` puede ser mayor que `to` para crear sótanos en el orden en que se
+ * construyen. Sin `{n}` en el patrón se crea una sola: repetir veinte veces
+ * el mismo nombre no es lo que nadie quiere.
+ */
+export function createAreaRange(
+  plan: MatrixPlan,
+  input: { pattern: string; from: number; to: number; type?: string },
+  editedAt: string,
+): MatrixPlan {
+  const step = input.from <= input.to ? 1 : -1;
+  const numbers: number[] = [];
+  for (let n = input.from; step > 0 ? n <= input.to : n >= input.to; n += step) {
+    numbers.push(n);
+  }
+
+  const names = input.pattern.includes("{n}")
+    ? numbers.map((n) => input.pattern.replace("{n}", String(n)))
+    : [input.pattern];
+
+  const existingNames = new Set(plan.areas.map((area) => area.name));
+  const taken = new Set(getAreaLeaves(plan.areas).map((leaf) => leaf.node.id));
+
+  const created: AreaNode[] = names
+    .filter((name) => !existingNames.has(name))
+    .map((name) => ({
+      id: uniqueId(sanitizeId(name), taken),
+      name,
+      type: input.type,
+    }));
+
+  const scopes = getScopeLeaves(plan.scopeTree).map((leaf) => leaf.node);
+  const newCells: MatrixCell[] = created.flatMap((area) =>
+    scopes.map((scope) => ({
+      id: `cell-${scope.id}-${area.id}`,
+      scopeId: scope.id,
+      areaId: area.id,
+      recipeId: scope.defaultRecipeId,
+      active: true,
+      lastEditedAt: editedAt,
+      lastEditedFrom: "matrix" as const,
+    })),
+  );
+
+  return {
+    ...plan,
+    areas: [...plan.areas, ...created],
+    cells: [...plan.cells, ...newCells],
+  };
 }
