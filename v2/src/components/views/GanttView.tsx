@@ -29,6 +29,7 @@ const ProblemsView = dynamic(() => import("@/components/views/ProblemsView"), { 
 const ObservationsView = dynamic(() => import("@/components/views/ObservationsView"), { loading: ViewLoading });
 const CalendarView = dynamic(() => import("@/components/views/CalendarView"), { loading: ViewLoading });
 const MatrixEditorView = dynamic(() => import("@/components/views/MatrixEditorView"), { loading: ViewLoading });
+const ConflictChooser = dynamic(() => import("@/components/matrix/ConflictChooser"), { loading: ViewLoading });
 const TypicalUnitView = dynamic(() => import("@/components/views/TypicalUnitView"), { loading: ViewLoading });
 const ExecutivePlanningDashboard = dynamic(() => import("@/components/reports/ExecutivePlanningDashboard"), { loading: ViewLoading });
 
@@ -47,7 +48,11 @@ import type { ProjectCalendar } from "@/types/calendar";
 import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
 import type { Baseline } from "@/types/baseline";
 import { applyBaselineToTasks, saveBaseline } from "@/lib/scheduling/baseline";
-import type { MatrixPlan } from "@/types/matrix";
+import type {
+  ConflictResolution,
+  MatrixPlan,
+  MatrixSyncConflict,
+} from "@/types/matrix";
 import type {
   AssignmentColumnSettings,
   MppAssignmentColumn,
@@ -884,12 +889,25 @@ function GanttViewInner({
     [budgetMappings, runUndoable],
   );
 
-  const handleApplyMatrixPlan = useCallback(
-    (nextPlan: MatrixPlan) => {
+  /**
+   * Lo que la matriz quiere aplicar mientras el usuario decide los conflictos.
+   *
+   * Guarda el borrador y los conflictos calculados al pulsar. Si el
+   * cronograma cambiara por debajo, los conflictos que se ven podrían quedar
+   * viejos: por eso al resolver se vuelve a llamar a `applyMatrixUpdate` con
+   * las tareas de ahora, y no se reutiliza el resultado de antes.
+   */
+  const [pendingMatrixConflicts, setPendingMatrixConflicts] = useState<
+    { nextPlan: MatrixPlan; conflicts: MatrixSyncConflict[] } | null
+  >(null);
+
+  const commitMatrixPlan = useCallback(
+    (nextPlan: MatrixPlan, resolutions?: Record<string, ConflictResolution>) => {
       const result = applyMatrixUpdate({
         tasks,
         currentPlan: syncedMatrixPlan ?? nextPlan,
         nextPlan,
+        resolutions,
       });
 
       const previousPlan = matrixPlan;
@@ -908,6 +926,35 @@ function GanttViewInner({
       });
     },
     [matrixPlan, runUndoable, setTasks, syncedMatrixPlan, tasks],
+  );
+
+  const handleApplyMatrixPlan = useCallback(
+    (nextPlan: MatrixPlan) => {
+      const result = applyMatrixUpdate({
+        tasks,
+        currentPlan: syncedMatrixPlan ?? nextPlan,
+        nextPlan,
+      });
+
+      // Con conflictos no se aplica a ciegas: los decide el usuario.
+      if (result.conflicts.length > 0) {
+        setPendingMatrixConflicts({ nextPlan, conflicts: result.conflicts });
+        return;
+      }
+
+      commitMatrixPlan(nextPlan);
+    },
+    [commitMatrixPlan, syncedMatrixPlan, tasks],
+  );
+
+  const handleResolveMatrixConflicts = useCallback(
+    (resolutions: Record<string, ConflictResolution>) => {
+      const pending = pendingMatrixConflicts;
+      if (!pending) return;
+      setPendingMatrixConflicts(null);
+      commitMatrixPlan(pending.nextPlan, resolutions);
+    },
+    [commitMatrixPlan, pendingMatrixConflicts],
   );
 
   const handleSyncMatrixFromGantt = useCallback(() => {
@@ -2054,6 +2101,14 @@ function GanttViewInner({
           )}
 
           {activeView === "matrix" && (
+            <>
+            {pendingMatrixConflicts && (
+              <ConflictChooser
+                conflicts={pendingMatrixConflicts.conflicts}
+                onResolve={handleResolveMatrixConflicts}
+                onCancel={() => setPendingMatrixConflicts(null)}
+              />
+            )}
             <MatrixEditorView
               key={matrixEditorKey}
               matrixPlan={syncedMatrixPlan}
@@ -2067,6 +2122,7 @@ function GanttViewInner({
                 matrixDraftDirtyRef.current = dirty;
               }}
             />
+            </>
           )}
 
           {activeView === "scurve" && (

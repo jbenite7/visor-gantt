@@ -2096,3 +2096,71 @@ describe("la matriz y el calendario del proyecto (M26)", () => {
   });
 });
 
+describe("los conflictos de la matriz los decide el usuario (M26)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  async function renderConConflicto() {
+    const matrixPlan = createSingleCellMatrixPlan();
+    const renombrada = {
+      ...makeLinkedMatrixTask(),
+      name: "Formaleta como se llama en obra",
+    };
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Conflictos"
+        tasks={[renombrada]}
+        matrixPlan={matrixPlan}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("command-palette-open"));
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "matriz" },
+    });
+    fireEvent.keyDown(window, { key: "Enter" });
+    await screen.findByTestId("matrix-editor");
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    return { renombrada };
+  }
+
+  test("con conflictos no se aplica a ciegas: se pregunta", async () => {
+    await renderConConflicto();
+
+    expect(await screen.findByTestId("conflict-chooser")).toBeInTheDocument();
+  });
+
+  test("elegir «Gantt» conserva el nombre puesto en obra", async () => {
+    jest.useFakeTimers();
+    const { renombrada } = await renderConConflicto();
+
+    fireEvent.click(
+      await screen.findByLabelText(
+        `Conservar lo del Gantt en el nombre de ${renombrada.id}`,
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar con estas decisiones" }));
+
+    expect(screen.queryByTestId("conflict-chooser")).not.toBeInTheDocument();
+
+    await flushAutosave();
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    expect(
+      latestSavedProject().tasks.find((task) => task.id === renombrada.id)?.name,
+    ).toBe("Formaleta como se llama en obra");
+  }, 20_000);
+
+  test("«No aplicar» deja el cronograma como estaba", async () => {
+    await renderConConflicto();
+
+    fireEvent.click(await screen.findByRole("button", { name: "No aplicar" }));
+
+    expect(screen.queryByTestId("conflict-chooser")).not.toBeInTheDocument();
+  });
+});
+
