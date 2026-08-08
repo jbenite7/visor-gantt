@@ -35,6 +35,14 @@ export interface LocationSpan {
   rawTo: string;
   from: number;
   to: number;
+  /**
+   * Cierto cuando el principio y el fin pertenecen a rejillas distintas.
+   *
+   * `Ejes J-DB08` va de la letra J a la serie DB: `from` y `to` son números de
+   * rejillas distintas y **no se pueden restar ni comparar**. Los textos crudos
+   * siguen siendo la verdad; estos números solo sirven dentro de una rejilla.
+   */
+  crossesGrids?: boolean;
 }
 
 export interface LocationPattern {
@@ -146,7 +154,9 @@ export const LOCATION_PATTERNS: LocationPattern[] = [
       const from = parseAxisLabel(match[1]);
       const to = parseAxisLabel(match[2]);
       if (!from || !to) return null;
-      return { rawFrom: from.raw, rawTo: to.raw, from: from.index, to: to.index };
+      const span: LocationSpan = { rawFrom: from.raw, rawTo: to.raw, from: from.index, to: to.index };
+      if (from.family !== to.family) span.crossesGrids = true;
+      return span;
     },
   },
   {

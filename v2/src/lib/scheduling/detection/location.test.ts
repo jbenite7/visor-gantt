@@ -281,6 +281,22 @@ describe("extractLocation · ejes (nombres reales de la Estación 16)", () => {
     // Exige dos etiquetas alrededor del separador, no una sola.
     expect(extractLocation("Losa aérea - Eje D")?.span).toBeUndefined();
   });
+
+  test("un tramo entre rejillas distintas se marca como tal", () => {
+    // «J» es una letra y «DB08» es de la serie DB: sus numeros no se pueden restar.
+    expect(extractLocation("Ejes J-DB08")?.span?.crossesGrids).toBe(true);
+    expect(extractLocation("Lucarnas (Ejes H-DB4)")?.span?.crossesGrids).toBe(true);
+    expect(extractLocation("Excavación eje (Eje 3-H)")?.span?.crossesGrids).toBe(true);
+  });
+
+  test("un tramo dentro de la misma rejilla no lleva la marca", () => {
+    expect(extractLocation("Construcción Losa Aérea (Eje D-H)")?.span?.crossesGrids).toBeUndefined();
+    expect(extractLocation("Lucarnas (Ejes DB4-DB8)")?.span?.crossesGrids).toBeUndefined();
+  });
+
+  test("una transición entre pisos no habla de rejillas", () => {
+    expect(extractLocation("Piso 1 a 2")?.span?.crossesGrids).toBeUndefined();
+  });
 });
 
 describe("extractLocation · módulo y edificio", () => {

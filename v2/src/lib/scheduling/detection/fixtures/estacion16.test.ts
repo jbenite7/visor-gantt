@@ -9,6 +9,7 @@ describe("vocabulario real de PROGRAMACION ESTACION 16", () => {
     if (caso.span) {
       expect(resultado?.span?.from).toBe(caso.span.from);
       expect(resultado?.span?.to).toBe(caso.span.to);
+      expect(resultado?.span?.crossesGrids).toBe(caso.span.crossesGrids);
     }
   });
 

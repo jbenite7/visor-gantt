@@ -13,7 +13,7 @@ export interface Estacion16Case {
   name: string;
   label: string | null;
   value: number | null;
-  span?: { from: number; to: number };
+  span?: { from: number; to: number; crossesGrids?: boolean };
 }
 
 export const ESTACION_16_NAMES: Estacion16Case[] = [
@@ -69,13 +69,19 @@ export const ESTACION_16_NAMES: Estacion16Case[] = [
     name: "Lucarnas (Ejes H-DB4)",
     label: "Eje",
     value: 8,
-    span: { from: 8, to: 4 },
+    span: { from: 8, to: 4, crossesGrids: true },
   },
   {
     name: "Solucion apuntalamiento y liberacion zona aledaña predio BIC (Eje 3-H)",
     label: "Eje",
     value: 3,
-    span: { from: 3, to: 8 },
+    span: { from: 3, to: 8, crossesGrids: true },
+  },
+  {
+    name: "Ejes J-DB08",
+    label: "Eje",
+    value: 10,
+    span: { from: 10, to: 8, crossesGrids: true },
   },
 
   // ── Pisos: los 15 que el motor de P3 ya resolvía ──
