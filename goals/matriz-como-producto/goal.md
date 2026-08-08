@@ -1,6 +1,6 @@
 ---
 tipo: goal
-estado: abierto
+estado: fases 1 y 2 cerradas; fase 3 pendiente del carril A
 fecha: 2026-08-07
 areas: [matriz, cronograma, producto]
 carril: B
@@ -42,6 +42,25 @@ Este proyecto la convierte en producto: **que sirva para armar la obra, y que ap
 | Edición en lote | **Seleccionar varias celdas** (o fila/columna) y aplicarles receta, cantidad o activación |
 | Escala | Aguantar **más de 1000 celdas** sin recalcular en cada tecla ni dibujar lo que no se ve |
 | M27 · M28 | La matriz **vuelve al menú** y **avisa antes de salir** con cambios sin aplicar |
+
+## Estado (2026-08-08)
+
+**Fases 1 y 2 ejecutadas y fusionadas**: 25 tareas TDD con revisión independiente por tarea, revisión
+final de rama y dos olas de arreglos. **1066 tests en 121 suites**, lint limpio, `tsc` filtrado vacío y
+`next build` correcto.
+
+La revisión final cazó tres cosas que ninguna revisión por tarea podía ver:
+- **cinco pantallas construidas que nadie podía alcanzar** —el mismo patrón que este supergoal existe para
+  eliminar—, ahora montadas en el editor con modo propio cada una;
+- **el panel de rendimientos leía un dato que la aplicación nunca escribe**: ignoraba justo la edición
+  manual en el Gantt, que es la que produce el rendimiento observado, y ofrecía aprobar como «real» un dato
+  que había calculado la propia matriz;
+- una **caché que no cacheaba**: firmaba cada celda y generaba todo igual, añadiendo coste en cada tecla.
+  Retirada.
+
+**La Fase 3 sigue bloqueada por el carril A** y es lo único pendiente: la matriz en el menú, el aviso al
+salir con cambios sin aplicar, el calendario del proyecto cableado, el `ConflictChooser` montado y el
+borrado de ubicación con `runUndoable`.
 
 ## Condición de hecho
 
