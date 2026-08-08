@@ -1,6 +1,7 @@
 import type { GanttTask } from "@/components/gantt/types";
 import { formatLocationLabel, resolveTaskLocation } from "@/lib/scheduling/detection";
 import { UNIT_PATTERNS } from "@/lib/scheduling/unitPatterns";
+import type { MatrixCell, MatrixPlan } from "@/types/matrix";
 
 /**
  * Propuesta de matriz a partir de un cronograma cargado.
@@ -197,5 +198,91 @@ export function proposeMatrixFromTasks(tasks: GanttTask[]): MatrixProposal {
       recipes.length === 0
         ? "Este cronograma no repite ninguna actividad en tres o más ubicaciones, así que no hay recetas que proponer."
         : `Se proponen ${locations.length} ubicaciones, ${scopes.length} alcances y ${recipes.length} recetas a partir de ${operational.length} tareas.`,
+  };
+}
+
+export interface ProposalAcceptance {
+  locationIds: string[];
+  scopeIds: string[];
+  recipeIds: string[];
+}
+
+/**
+ * Convierte en plan lo que el usuario aceptó de la propuesta.
+ *
+ * Es un paso aparte a propósito: la propuesta se revisa, el plan se construye.
+ * Un alcance aceptado sin su receta entra igualmente, con sus celdas
+ * inactivas, para que el usuario complete la receta en el editor en vez de
+ * perder el alcance.
+ */
+export function planFromProposal(
+  proposal: MatrixProposal,
+  acceptance: ProposalAcceptance,
+  input: { id: string; name: string; startDate: string; editedAt: string },
+): MatrixPlan {
+  const acceptedLocations = new Set(acceptance.locationIds);
+  const acceptedScopes = new Set(acceptance.scopeIds);
+  const acceptedRecipes = new Set(acceptance.recipeIds);
+
+  const areas = proposal.locations
+    .filter((location) => acceptedLocations.has(location.id))
+    .map((location) => ({
+      id: location.id,
+      name: location.name,
+      type: location.type,
+    }));
+
+  const recipes = proposal.recipes
+    .filter((recipe) => acceptedRecipes.has(recipe.id))
+    .map((recipe) => ({
+      id: recipe.id,
+      name: recipe.name,
+      activities: recipe.activities.map((activity) => ({
+        id: activity.id,
+        name: activity.name,
+        // Con cantidad 1, el rendimiento es el inverso de la duración
+        // mediana: es la forma honesta de decir «esto tardó esto» mientras
+        // no haya cantidades de obra medidas.
+        productivityPerDay: 1 / Math.max(1, activity.medianDurationDays),
+        defaultQuantity: 1,
+      })),
+      dependencies: [],
+    }));
+
+  const recipeByScopeId = new Map(
+    proposal.recipes
+      .filter((recipe) => acceptedRecipes.has(recipe.id))
+      .map((recipe) => [recipe.scopeId, recipe.id]),
+  );
+
+  const scopeTree = proposal.scopes
+    .filter((scope) => acceptedScopes.has(scope.id))
+    .map((scope) => ({
+      id: scope.id,
+      name: scope.name,
+      type: "Disciplina",
+      defaultRecipeId: recipeByScopeId.get(scope.id),
+    }));
+
+  const cells: MatrixCell[] = scopeTree.flatMap((scope) =>
+    areas.map((area) => ({
+      id: `cell-${scope.id}-${area.id}`,
+      scopeId: scope.id,
+      areaId: area.id,
+      recipeId: scope.defaultRecipeId,
+      active: scope.defaultRecipeId !== undefined,
+      lastEditedAt: input.editedAt,
+      lastEditedFrom: "matrix" as const,
+    })),
+  );
+
+  return {
+    id: input.id,
+    name: input.name,
+    startDate: input.startDate,
+    scopeTree,
+    areas,
+    recipes,
+    cells,
   };
 }

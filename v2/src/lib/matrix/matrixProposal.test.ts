@@ -1,4 +1,4 @@
-import { MIN_LOCATIONS_FOR_RECIPE, proposeMatrixFromTasks } from "./matrixProposal";
+import { MIN_LOCATIONS_FOR_RECIPE, planFromProposal, proposeMatrixFromTasks } from "./matrixProposal";
 import type { GanttTask } from "@/components/gantt/types";
 
 function task(
@@ -208,5 +208,104 @@ describe("proposeMatrixFromTasks · honestidad", () => {
     expect(proposeMatrixFromTasks(cronograma()).summary).toBe(
       "Se proponen 4 ubicaciones, 3 alcances y 2 recetas a partir de 7 tareas.",
     );
+  });
+});
+
+const ENTRADA = {
+  id: "plan-nuevo",
+  name: "Torre 3",
+  startDate: "2026-03-02",
+  editedAt: "2026-08-07T12:00:00.000Z",
+};
+
+function todoAceptado(proposal: ReturnType<typeof proposeMatrixFromTasks>) {
+  return {
+    locationIds: proposal.locations.map((location) => location.id),
+    scopeIds: proposal.scopes.map((scope) => scope.id),
+    recipeIds: proposal.recipes.map((recipe) => recipe.id),
+  };
+}
+
+describe("planFromProposal", () => {
+  test("construye el plan con lo aceptado", () => {
+    const proposal = proposeMatrixFromTasks(cronograma());
+    const plan = planFromProposal(proposal, todoAceptado(proposal), ENTRADA);
+
+    expect(plan.id).toBe("plan-nuevo");
+    expect(plan.areas.map((area) => area.name)).toEqual([
+      "Piso 1",
+      "Piso 2",
+      "Piso 3",
+      "Obra general",
+    ]);
+    expect(plan.scopeTree).toHaveLength(3);
+  });
+
+  test("lo descartado no entra en el plan", () => {
+    const proposal = proposeMatrixFromTasks(cronograma());
+    const plan = planFromProposal(
+      proposal,
+      {
+        locationIds: ["piso-1", "piso-2"],
+        scopeIds: ["mamposteria"],
+        recipeIds: ["receta-mamposteria"],
+      },
+      ENTRADA,
+    );
+
+    expect(plan.areas).toHaveLength(2);
+    expect(plan.scopeTree).toHaveLength(1);
+    expect(plan.recipes).toHaveLength(1);
+  });
+
+  test("crea una celda por cada cruce de alcance y ubicación aceptados", () => {
+    const proposal = proposeMatrixFromTasks(cronograma());
+    const plan = planFromProposal(
+      proposal,
+      {
+        locationIds: ["piso-1", "piso-2", "piso-3"],
+        scopeIds: ["mamposteria", "pintura"],
+        recipeIds: ["receta-mamposteria", "receta-pintura"],
+      },
+      ENTRADA,
+    );
+
+    expect(plan.cells).toHaveLength(6);
+  });
+
+  test("el rendimiento propuesto llega a la receta del plan", () => {
+    const proposal = proposeMatrixFromTasks(cronograma());
+    const plan = planFromProposal(proposal, todoAceptado(proposal), ENTRADA);
+    const mamposteria = plan.recipes.find((recipe) => recipe.name === "Mampostería")!;
+
+    // 5 días de mediana con cantidad 1 → rendimiento 1/5 por día
+    expect(mamposteria.activities[0].productivityPerDay).toBeCloseTo(1 / 5, 5);
+    expect(mamposteria.activities[0].defaultQuantity).toBe(1);
+  });
+
+  test("un alcance sin receta aceptada queda con sus celdas inactivas, no roto", () => {
+    const proposal = proposeMatrixFromTasks(cronograma());
+    const plan = planFromProposal(
+      proposal,
+      { locationIds: ["piso-1"], scopeIds: ["vias-internas"], recipeIds: [] },
+      ENTRADA,
+    );
+
+    expect(plan.cells).toHaveLength(1);
+    expect(plan.cells[0].active).toBe(false);
+    expect(plan.cells[0].recipeId).toBeUndefined();
+  });
+
+  test("aceptar nada devuelve un plan vacío que se puede abrir sin reventar", () => {
+    const proposal = proposeMatrixFromTasks(cronograma());
+    const plan = planFromProposal(
+      proposal,
+      { locationIds: [], scopeIds: [], recipeIds: [] },
+      ENTRADA,
+    );
+
+    expect(plan.cells).toEqual([]);
+    expect(plan.areas).toEqual([]);
+    expect(plan.scopeTree).toEqual([]);
   });
 });
