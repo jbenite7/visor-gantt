@@ -5,7 +5,51 @@
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
 import MatrixEditorView from "./MatrixEditorView";
+import MatrixEditorViewDefault, { MATRIX_VISIBLE_ROWS } from "./MatrixEditorView";
+import type { MatrixPlan } from "@/types/matrix";
 import { createDefaultMatrixPlan, createEmptyMatrixPlan } from "@/lib/matrix/templates";
+
+function planGrande(): MatrixPlan {
+  const scopeTree = Array.from({ length: 30 }, (_, index) => ({
+    id: `alcance-${index}`,
+    name: `Alcance ${index + 1}`,
+    type: "Disciplina",
+    defaultRecipeId: "r1",
+  }));
+  const areas = Array.from({ length: 40 }, (_, index) => ({
+    id: `ubicacion-${index}`,
+    name: `Piso ${index + 1}`,
+    type: "Piso",
+  }));
+
+  return {
+    id: "grande",
+    name: "Torre grande",
+    startDate: "2026-03-02",
+    scopeTree,
+    areas,
+    recipes: [
+      {
+        id: "r1",
+        name: "Receta",
+        activities: [
+          { id: "a1", name: "Actividad", productivityPerDay: 1, defaultQuantity: 2 },
+        ],
+        dependencies: [],
+      },
+    ],
+    cells: scopeTree.flatMap((scope) =>
+      areas.map((area) => ({
+        id: `cell-${scope.id}-${area.id}`,
+        scopeId: scope.id,
+        areaId: area.id,
+        recipeId: "r1",
+        active: true,
+        quantity: 2,
+      })),
+    ),
+  };
+}
 
 describe("MatrixEditorView", () => {
   afterEach(() => {
@@ -484,5 +528,68 @@ describe("MatrixEditorView · selección y borrados", () => {
     expect(
       aplicado.cells.filter((cell: { scopeId: string }) => cell.scopeId === scopeId),
     ).toHaveLength(0);
+  });
+});
+
+describe("MatrixEditorView · escala", () => {
+  test("el plan de prueba tiene más de 1000 celdas", () => {
+    expect(planGrande().cells).toHaveLength(1200);
+  });
+
+  test("no monta las 1200 celdas de golpe", () => {
+    render(
+      <MatrixEditorViewDefault
+        matrixPlan={planGrande()}
+        tasks={[]}
+        onApplyMatrixPlan={jest.fn()}
+        onSyncFromGantt={jest.fn()}
+      />,
+    );
+
+    expect(screen.getAllByTestId(/^matrix-cell-select-/).length).toBeLessThanOrEqual(
+      MATRIX_VISIBLE_ROWS * 40,
+    );
+    expect(screen.getAllByTestId(/^matrix-cell-select-/).length).toBeLessThan(1200);
+  });
+
+  test("anuncia cuántas filas se están viendo de cuántas", () => {
+    render(
+      <MatrixEditorViewDefault
+        matrixPlan={planGrande()}
+        tasks={[]}
+        onApplyMatrixPlan={jest.fn()}
+        onSyncFromGantt={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("matrix-window-status")).toHaveTextContent(
+      `Mostrando ${MATRIX_VISIBLE_ROWS} de 30 alcances.`,
+    );
+  });
+
+  test("se puede avanzar a las filas siguientes", () => {
+    render(
+      <MatrixEditorViewDefault
+        matrixPlan={planGrande()}
+        tasks={[]}
+        onApplyMatrixPlan={jest.fn()}
+        onSyncFromGantt={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Alcance 1")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ver los siguientes alcances" }));
+
+    expect(screen.queryByText("Alcance 1")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(`Alcance ${MATRIX_VISIBLE_ROWS + 1}`),
+    ).toBeInTheDocument();
+  });
+
+  test("una matriz pequeña no muestra los controles de ventana", () => {
+    const { plan } = renderEditor();
+
+    expect(plan.cells.length).toBeLessThan(MATRIX_VISIBLE_ROWS * 40);
+    expect(screen.queryByTestId("matrix-window-status")).not.toBeInTheDocument();
   });
 });

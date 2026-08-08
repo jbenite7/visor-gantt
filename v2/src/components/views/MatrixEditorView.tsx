@@ -23,6 +23,7 @@ import type {
 import { createDefaultMatrixPlan } from "@/lib/matrix/templates";
 import { applyBulkCellEdit, type CellTarget } from "@/lib/matrix/bulk";
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
+import { createMatrixCache } from "@/lib/matrix/matrixCache";
 import {
   canAddChild,
   getAreaLeaves,
@@ -96,6 +97,15 @@ function includeCurrentTypeOption(options: string[], currentValue?: string): str
   if (!current || options.includes(current)) return options;
   return [current, ...options];
 }
+
+/**
+ * Cuántos alcances se dibujan a la vez.
+ *
+ * La matriz llega a 30 × 40 = 1200 celdas, y montarlas todas hace que cada
+ * tecla repinte 1200 nodos. Se dibujan las filas que caben y se avanza por
+ * páginas: la matriz sigue completa en el dato, solo se muestra por partes.
+ */
+export const MATRIX_VISIBLE_ROWS = 12;
 
 function clonePlan(plan: MatrixPlan): MatrixPlan {
   return JSON.parse(JSON.stringify(plan)) as MatrixPlan;
@@ -293,6 +303,12 @@ export default function MatrixEditorView({
   const scopes = useMemo(() => scopeLeaves.map((leaf) => leaf.node), [scopeLeaves]);
   const areas = useMemo(() => areaLeaves.map((leaf) => leaf.node), [areaLeaves]);
 
+  const [rowOffset, setRowOffset] = useState(0);
+  const needsWindow = scopes.length > MATRIX_VISIBLE_ROWS;
+  const visibleScopes = needsWindow
+    ? scopes.slice(rowOffset, rowOffset + MATRIX_VISIBLE_ROWS)
+    : scopes;
+
   const [selection, setSelection] = useState<CellTarget[]>([]);
 
   // La selección guarda coordenadas, no celdas, para sobrevivir a las que
@@ -337,9 +353,33 @@ export default function MatrixEditorView({
     draft?.cells.forEach((cell) => map.set(cellKey(cell.scopeId, cell.areaId), cell));
     return map;
   }, [draft]);
+  const cellSummaries = useMemo(() => {
+    const summaries = new Map<
+      string,
+      { recipeName: string; activityCount: number; totalDuration: number; quantitySummary: string }
+    >();
+    if (!draft) return summaries;
+
+    for (const cell of draft.cells) {
+      const recipe = getRecipe(draft, cell);
+      const overrides =
+        recipe?.activities.map((activity) => getOverride(cell, activity)) ?? [];
+      summaries.set(cellKey(cell.scopeId, cell.areaId), {
+        recipeName: recipe?.name ?? "Sin receta",
+        activityCount: overrides.length,
+        totalDuration: overrides.reduce(
+          (sum, override) => sum + durationDays(override),
+          0,
+        ),
+        quantitySummary: formatQuantitySummary(overrides),
+      });
+    }
+    return summaries;
+  }, [draft]);
+  const previewCache = useMemo(() => createMatrixCache(), []);
   const preview = useMemo(
-    () => (draft ? generateScheduleFromMatrix(draft) : undefined),
-    [draft],
+    () => (draft ? generateScheduleFromMatrix(draft, { cache: previewCache }) : undefined),
+    [draft, previewCache],
   );
   const matrixTaskCount = tasks.filter((task) => task.matrixSource).length;
   const selectedScope = scopes.find((scope) => scope.id === selectedCell?.scopeId);
@@ -1113,7 +1153,7 @@ export default function MatrixEditorView({
                   </td>
                 </tr>
               )}
-              {scopes.map((scope) => (
+              {visibleScopes.map((scope) => (
                 <tr key={scope.id} className="border-b border-[var(--color-hairline)]">
                   <th className="sticky left-0 bg-[var(--color-bg-elevated)] text-left px-3 py-2 font-semibold text-[var(--color-text-strong)]">
                     <button
@@ -1139,16 +1179,7 @@ export default function MatrixEditorView({
                   </th>
                   {areas.map((area) => {
                     const cell = cellsByPair.get(cellKey(scope.id, area.id));
-                    const recipe = getRecipe(draft, cell);
-                    const overrides =
-                      recipe?.activities.map((activity) =>
-                        getOverride(cell, activity),
-                      ) ?? [];
-                    const totalDuration = overrides.reduce(
-                      (sum, override) => sum + durationDays(override),
-                      0,
-                    );
-                    const quantitySummary = formatQuantitySummary(overrides);
+                    const summary = cellSummaries.get(cellKey(scope.id, area.id));
                     const isFocused =
                       selectedCell?.scopeId === scope.id &&
                       selectedCell.areaId === area.id;
@@ -1180,13 +1211,13 @@ export default function MatrixEditorView({
                           }}
                         >
                           <span className="block text-xs font-semibold text-[var(--color-text-strong)]">
-                            {cell?.active ? recipe?.name ?? "Sin receta" : "Inactiva"}
+                            {cell?.active ? summary?.recipeName ?? "Sin receta" : "Inactiva"}
                           </span>
                           <span className="block text-xs text-[var(--color-text-muted)]">
-                            {overrides.length} actividades · {totalDuration} días
+                            {summary?.activityCount ?? 0} actividades · {summary?.totalDuration ?? 0} días
                           </span>
                           <span className="block text-xs text-[var(--color-text-muted)] truncate">
-                            {quantitySummary}
+                            {summary?.quantitySummary ?? ""}
                           </span>
                         </button>
                       </td>
@@ -1196,6 +1227,29 @@ export default function MatrixEditorView({
               ))}
             </tbody>
           </table>
+          {needsWindow && (
+            <div className="flex items-center gap-2 p-2 text-xs">
+              <span data-testid="matrix-window-status">
+                {`Mostrando ${visibleScopes.length} de ${scopes.length} alcances.`}
+              </span>
+              <button
+                type="button"
+                disabled={rowOffset === 0}
+                onClick={() =>
+                  setRowOffset(Math.max(0, rowOffset - MATRIX_VISIBLE_ROWS))
+                }
+              >
+                Ver los alcances anteriores
+              </button>
+              <button
+                type="button"
+                disabled={rowOffset + MATRIX_VISIBLE_ROWS >= scopes.length}
+                onClick={() => setRowOffset(rowOffset + MATRIX_VISIBLE_ROWS)}
+              >
+                Ver los siguientes alcances
+              </button>
+            </div>
+          )}
         </div>
 
         <aside
