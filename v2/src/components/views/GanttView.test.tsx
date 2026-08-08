@@ -1139,12 +1139,17 @@ describe("GanttView", () => {
 
     mockedSaveProject.mockClear();
 
-    fireEvent.click(screen.getByTitle("Guardar línea base"));
+    fireEvent.click(screen.getByTestId("baseline-save-open"));
+    fireEvent.change(screen.getByTestId("baseline-name-input"), {
+      target: { value: "Antes de la lluvia" },
+    });
+    fireEvent.click(screen.getByTestId("baseline-save-confirm"));
 
     await flushAutosave();
 
     await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
     expect(latestSavedProject().baselines).toHaveLength(1);
+    expect(latestSavedProject().baselines[0].name).toBe("Antes de la lluvia");
     expect(latestSavedProject().baselines[0].tasks[0]).toEqual(
       expect.objectContaining({
         taskId: 1,
@@ -1541,7 +1546,8 @@ describe("la línea base se dibuja donde se guarda (M13)", () => {
 
     expect(container.querySelector("g.baseline-bars")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByTitle("Guardar línea base"));
+    fireEvent.click(screen.getByTestId("baseline-save-open"));
+    fireEvent.click(screen.getByTestId("baseline-save-confirm"));
 
     await waitFor(() =>
       expect(container.querySelector("g.baseline-bars")).toBeInTheDocument(),
@@ -1573,5 +1579,47 @@ describe("la línea base se dibuja donde se guarda (M13)", () => {
     );
 
     expect(container.querySelector("g.baseline-bars")).not.toBeInTheDocument();
+  });
+});
+
+describe("borrar una línea base es deshacible (M13)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("Ctrl+Z devuelve la línea base borrada", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        baselines={[
+          {
+            id: "bl-1",
+            name: "Antes de la lluvia",
+            createdAt: new Date("2026-08-01"),
+            tasks: [
+              {
+                taskId: 1,
+                baselineStart: createProjectDate("2026-01-05"),
+                baselineFinish: createProjectDate("2026-01-10"),
+                baselineDuration: 5,
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("baseline-menu-open"));
+    fireEvent.click(screen.getByTestId("baseline-delete-bl-1"));
+
+    expect(screen.queryByTestId("baseline-menu-open")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("baseline-menu-open")).toBeInTheDocument(),
+    );
   });
 });

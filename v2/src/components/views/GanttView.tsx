@@ -554,14 +554,44 @@ function GanttViewInner({
   }, [deleteTasks, selectedTaskIds]);
 
   /* ── Save Baseline handler ── */
-  const handleSaveBaseline = useCallback(() => {
-    const nueva = saveBaseline(
-      calculatedTasks,
-      `Línea base ${baselines.length + 1}`,
-    );
-    setBaselines((prev) => [...prev, nueva]);
-    setActiveBaselineId(nueva.id);
-  }, [baselines.length, calculatedTasks]);
+  const handleSaveBaseline = useCallback(
+    (name: string) => {
+      const nueva = saveBaseline(calculatedTasks, name);
+      setBaselines((prev) => [...prev, nueva]);
+      setActiveBaselineId(nueva.id);
+    },
+    [calculatedTasks],
+  );
+
+  /**
+   * Borrar una línea base pasa por el historial, como el resto de lo
+   * destructivo desde E24: una foto del plan aprobado no se pierde por un clic.
+   */
+  const handleDeleteBaseline = useCallback(
+    (id: string) => {
+      const index = baselines.findIndex((b) => b.id === id);
+      if (index === -1) return;
+      const removed = baselines[index];
+      const wasActive = activeBaselineId === id;
+
+      runUndoable({
+        description: `Línea base «${removed.name}» eliminada`,
+        execute: () => {
+          setBaselines((prev) => prev.filter((b) => b.id !== id));
+          if (wasActive) setActiveBaselineId(undefined);
+        },
+        undo: () => {
+          setBaselines((prev) => {
+            const next = [...prev];
+            next.splice(index, 0, removed);
+            return next;
+          });
+          if (wasActive) setActiveBaselineId(id);
+        },
+      });
+    },
+    [activeBaselineId, baselines, runUndoable],
+  );
 
   const activeBaseline = useMemo(
     () => baselines.find((b) => b.id === activeBaselineId) ?? null,
@@ -1324,6 +1354,8 @@ function GanttViewInner({
           activeBaselineId={activeBaselineId}
           onSaveBaseline={handleSaveBaseline}
           onSelectBaseline={handleSelectBaseline}
+          onDeleteBaseline={handleDeleteBaseline}
+          proposedBaselineName={`Línea base ${baselines.length + 1}`}
           locale={locale}
         />
         <span
