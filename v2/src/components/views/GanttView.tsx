@@ -251,7 +251,7 @@ function GanttViewInner({
         : undefined,
     [initialUISettings.roleViewPreset],
   );
-  const [activeView, setActiveView] = useState<ViewType>(
+  const [activeView, setActiveViewState] = useState<ViewType>(
     initialRoleViewPreset?.view ?? "gantt",
   );
   const [resources, setResources] = useState<Resource[]>(initialResources);
@@ -897,25 +897,35 @@ function GanttViewInner({
   /**
    * Lo que la matriz quiere aplicar mientras el usuario decide los conflictos.
    *
-   * Guarda el borrador y los conflictos calculados al pulsar. Si el
-   * cronograma cambiara por debajo, los conflictos que se ven podrían quedar
-   * viejos: por eso al resolver se vuelve a llamar a `applyMatrixUpdate` con
-   * las tareas de ahora, y no se reutiliza el resultado de antes.
+   * Guarda el borrador y los conflictos que se le enseñaron. Entre que pulsa
+   * «Aplicar» y decide, el cronograma puede cambiar por debajo —hay un Ctrl+Z
+   * escuchando—: si aparecen conflictos que no estaban en la lista, nadie ha
+   * decidido sobre ellos y `applyMatrixUpdate` los resolvería a favor de la
+   * matriz, pisando en silencio una edición hecha en obra. Por eso se compara
+   * antes de aplicar y, si no coinciden, se vuelve a preguntar.
    */
   const [pendingMatrixConflicts, setPendingMatrixConflicts] = useState<
-    { nextPlan: MatrixPlan; conflicts: MatrixSyncConflict[] } | null
+    {
+      nextPlan: MatrixPlan;
+      conflicts: MatrixSyncConflict[];
+      /** El cronograma cambió mientras decidía y hay que avisarlo. */
+      changed?: boolean;
+    } | null
   >(null);
 
-  const commitMatrixPlan = useCallback(
-    (nextPlan: MatrixPlan, resolutions?: Record<string, ConflictResolution>) => {
-      const result = applyMatrixUpdate({
-        tasks,
-        currentPlan: syncedMatrixPlan ?? nextPlan,
-        nextPlan,
-        resolutions,
-        calendar,
-      });
+  /**
+   * Cambiar de vista cierra el diálogo de conflictos. Si no, al volver a la
+   * matriz reaparecería con un borrador que ya no existe: el editor se
+   * remonta por `matrixEditorKey` y el usuario decidiría sobre otra cosa.
+   */
+  const setActiveView = useCallback((next: ViewType) => {
+    setPendingMatrixConflicts(null);
+    setActiveViewState(next);
+  }, []);
 
+  /** Aplica un resultado ya calculado: nunca se genera el cronograma dos veces. */
+  const commitMatrixResult = useCallback(
+    (result: ReturnType<typeof applyMatrixUpdate>) => {
       const previousPlan = matrixPlan;
       const previousTasks = tasks;
 
@@ -931,7 +941,7 @@ function GanttViewInner({
         },
       });
     },
-    [calendar, matrixPlan, runUndoable, setTasks, syncedMatrixPlan, tasks],
+    [matrixPlan, runUndoable, setTasks, tasks],
   );
 
   const handleApplyMatrixPlan = useCallback(
@@ -949,19 +959,47 @@ function GanttViewInner({
         return;
       }
 
-      commitMatrixPlan(nextPlan);
+      commitMatrixResult(result);
     },
-    [calendar, commitMatrixPlan, syncedMatrixPlan, tasks],
+    [calendar, commitMatrixResult, syncedMatrixPlan, tasks],
   );
 
   const handleResolveMatrixConflicts = useCallback(
     (resolutions: Record<string, ConflictResolution>) => {
       const pending = pendingMatrixConflicts;
       if (!pending) return;
+
+      const result = applyMatrixUpdate({
+        tasks,
+        currentPlan: syncedMatrixPlan ?? pending.nextPlan,
+        nextPlan: pending.nextPlan,
+        resolutions,
+        calendar,
+      });
+
+      // Se compara por la misma clave que usan las resoluciones.
+      const mostrados = new Set(
+        pending.conflicts.map((conflict) => `${conflict.taskId}::${conflict.field}`),
+      );
+      const ahora = result.conflicts.map(
+        (conflict) => `${conflict.taskId}::${conflict.field}`,
+      );
+      const sonLosMismos =
+        ahora.length === mostrados.size && ahora.every((key) => mostrados.has(key));
+
+      if (!sonLosMismos) {
+        setPendingMatrixConflicts({
+          nextPlan: pending.nextPlan,
+          conflicts: result.conflicts,
+          changed: true,
+        });
+        return;
+      }
+
       setPendingMatrixConflicts(null);
-      commitMatrixPlan(pending.nextPlan, resolutions);
+      commitMatrixResult(result);
     },
-    [commitMatrixPlan, pendingMatrixConflicts],
+    [calendar, commitMatrixResult, pendingMatrixConflicts, syncedMatrixPlan, tasks],
   );
 
   /**
@@ -1169,7 +1207,7 @@ function GanttViewInner({
       setActiveView(next.activeView);
       setScale(next.scale);
     },
-    [setScale, taskColumnSettings, uiSettings],
+    [setActiveView, setScale, taskColumnSettings, uiSettings],
   );
 
   const handleInteractionModeChange = useCallback(
@@ -1400,7 +1438,7 @@ function GanttViewInner({
 
     setCommandPaletteOpen(false);
     setCommandQuery("");
-  }, [handleAddTask, handleManualSave, redo, setScale, undo]);
+  }, [handleAddTask, handleManualSave, redo, setActiveView, setScale, undo]);
 
   useEffect(() => {
     if (!commandPaletteOpen) return;
@@ -2138,11 +2176,25 @@ function GanttViewInner({
           {activeView === "matrix" && (
             <>
             {pendingMatrixConflicts && (
-              <ConflictChooser
-                conflicts={pendingMatrixConflicts.conflicts}
-                onResolve={handleResolveMatrixConflicts}
-                onCancel={() => setPendingMatrixConflicts(null)}
-              />
+              <>
+                {pendingMatrixConflicts.changed && (
+                  <p
+                    data-testid="conflicts-changed"
+                    className="px-3 py-2 text-xs font-semibold text-[var(--aia-warn-main)]"
+                  >
+                    El cronograma cambió mientras decidías, así que no se aplicó
+                    nada. Estos son los conflictos de ahora: vuelve a elegir.
+                  </p>
+                )}
+                <ConflictChooser
+                  key={pendingMatrixConflicts.conflicts
+                    .map((conflict) => `${conflict.taskId}::${conflict.field}`)
+                    .join("|")}
+                  conflicts={pendingMatrixConflicts.conflicts}
+                  onResolve={handleResolveMatrixConflicts}
+                  onCancel={() => setPendingMatrixConflicts(null)}
+                />
+              </>
             )}
             <MatrixEditorView
               key={matrixEditorKey}

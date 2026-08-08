@@ -484,17 +484,17 @@ describe("aplicar usa el mismo calendario que la vista previa (M26)", () => {
 
   test("sin calendario todo se comporta como siempre", () => {
     const plan = planWithQuantity(200);
-    const deSiempre = generateScheduleFromMatrix(plan).tasks.find(
-      (task) => !task.isSummary,
-    )!;
 
     const resultado = applyMatrixUpdate({
       tasks: [],
       currentPlan: plan,
       nextPlan: plan,
     });
-    const aplicada = resultado.tasks.find((task) => task.id === deSiempre.id)!;
+    const aplicada = resultado.tasks.find((task) => !task.isSummary)!;
 
-    expect(aplicada.finish.getTime()).toBe(deSiempre.finish.getTime());
+    // Fecha anclada, no comparada contra el propio generador: así el test
+    // caza que la regla histórica cambie, que es lo que promete su nombre.
+    expect(aplicada.start.toISOString().slice(0, 10)).toBe("2026-01-05");
+    expect(aplicada.finish.toISOString().slice(0, 10)).toBe("2026-01-13");
   });
 });

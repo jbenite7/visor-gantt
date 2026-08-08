@@ -987,15 +987,19 @@ describe("MatrixEditorView · el calendario del proyecto manda en las fechas", (
 
   test("sin calendario la vista previa mantiene el fin de siempre", () => {
     renderConCalendario();
-    const sinCalendario = screen.getByTestId("matrix-preview").textContent;
+
+    // Fecha anclada: si la regla histórica cambiara, este test lo cazaría.
+    expect(screen.getByTestId("matrix-preview")).toHaveTextContent(
+      "Preview: 19 tareas · 2 alertas · fin 2026-01-16",
+    );
 
     cleanup();
 
     renderConCalendario({ calendar: calendarioCorto });
-    const conCalendario = screen.getByTestId("matrix-preview").textContent;
 
-    expect(sinCalendario).toMatch(/fin \d{4}-\d{2}-\d{2}/);
-    expect(conCalendario).not.toEqual(sinCalendario);
+    expect(screen.getByTestId("matrix-preview")).not.toHaveTextContent(
+      "fin 2026-01-16",
+    );
   });
 
   test("si el calendario mueve las fechas más de la cuenta, avisa antes de aplicar", () => {
