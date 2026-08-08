@@ -304,6 +304,7 @@ function GanttViewInner({
   const [commandQuery, setCommandQuery] = useState("");
   const isDirtyRef = useRef(false);
   const didMountSaveStateRef = useRef(false);
+  const didMountObservationsRef = useRef(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const commandInputRef = useRef<HTMLInputElement>(null);
   const previousActiveViewRef = useRef<ViewType | null>(null);
@@ -1214,6 +1215,27 @@ function GanttViewInner({
     uiSettings,
     projectName,
   ]);
+
+  /**
+   * Las observaciones se guardan al instante, sin pasar por el temporizador.
+   *
+   * Anotar en obra es un acto único: no hay nada que agrupar, y quien anota
+   * cierra la pestaña a los dos segundos. Esperar 750 ms era exactamente la
+   * ventana en la que se perdía lo escrito (M24).
+   */
+  useEffect(() => {
+    if (!didMountObservationsRef.current) {
+      didMountObservationsRef.current = true;
+      return;
+    }
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    isDirtyRef.current = true;
+    void doSaveRef.current();
+  }, [observations]);
 
   useEffect(
     () => () => {

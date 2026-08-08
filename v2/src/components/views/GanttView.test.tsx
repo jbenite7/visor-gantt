@@ -1332,3 +1332,114 @@ describe("restablecer columnas se puede deshacer (E24)", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("las observaciones no se pierden (M24)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("anotar guarda al instante, sin esperar al temporizador", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Obra con observaciones"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByTestId("editable-cell")[0]);
+    fireEvent.click(screen.getByTestId("open-observations"));
+
+    fireEvent.change(screen.getByTestId("observation-text"), {
+      target: { value: "Falta acero de refuerzo en el eje 3" },
+    });
+
+    mockedSaveProject.mockClear();
+    fireEvent.click(screen.getByTestId("observation-save"));
+
+    // Sin avanzar ni un milisegundo: el guardado tiene que haber salido ya.
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockedSaveProject).toHaveBeenCalled();
+    expect(latestSavedProject().observations).toEqual([
+      expect.objectContaining({
+        taskId: 1,
+        text: "Falta acero de refuerzo en el eje 3",
+        status: "pending",
+      }),
+    ]);
+  });
+
+  test("atender una observación también guarda al instante", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Obra con observaciones"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+        observations={[
+          {
+            id: "obs-1",
+            taskId: 1,
+            taskName: "Excavación",
+            text: "Falta acero",
+            status: "pending",
+            createdAt: "2026-08-07T08:00:00.000Z",
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByTestId("editable-cell")[0]);
+    fireEvent.click(screen.getByTestId("open-observations"));
+
+    mockedSaveProject.mockClear();
+    fireEvent.click(screen.getByTestId("observation-toggle-obs-1"));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockedSaveProject).toHaveBeenCalled();
+    expect(latestSavedProject().observations[0].status).toBe("done");
+  });
+
+  test("abrir el proyecto con observaciones ya guardadas no dispara un guardado", async () => {
+    jest.useFakeTimers();
+
+    mockedSaveProject.mockClear();
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Obra con observaciones"
+        tasks={[makeTask({ id: 1 })]}
+        observations={[
+          {
+            id: "obs-1",
+            taskId: 1,
+            taskName: "Excavación",
+            text: "Falta acero",
+            status: "pending",
+            createdAt: "2026-08-07T08:00:00.000Z",
+          },
+        ]}
+      />,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockedSaveProject).not.toHaveBeenCalled();
+  });
+});
