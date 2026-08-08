@@ -27,6 +27,13 @@ export default function LocationBulkActions({
   const [to, setTo] = useState(1);
   const [type, setType] = useState("Piso");
 
+  const locationIds = locations.map((location) => location.id);
+  // Si la lista cambia —duplicar añade una, crear un rango añade varias— el
+  // desplegable debe seguirla, no quedarse con la que había al montar.
+  const effectiveSelected = locationIds.includes(selected)
+    ? selected
+    : locationIds[0] ?? "";
+
   const count = Math.abs(to - from) + 1;
 
   return (
@@ -36,7 +43,7 @@ export default function LocationBulkActions({
           Ubicación a duplicar
           <select
             className={inputClass}
-            value={selected}
+            value={effectiveSelected}
             onChange={(event) => setSelected(event.target.value)}
           >
             {locations.map((location) => (
@@ -49,7 +56,7 @@ export default function LocationBulkActions({
         <button
           type="button"
           disabled={locations.length === 0}
-          onClick={() => onDuplicate(selected)}
+          onClick={() => onDuplicate(effectiveSelected)}
         >
           Duplicar ubicación
         </button>

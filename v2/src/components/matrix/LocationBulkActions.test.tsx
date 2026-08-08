@@ -100,4 +100,39 @@ describe("LocationBulkActions", () => {
 
     expect(screen.getByRole("button", { name: "Duplicar ubicación" })).toBeDisabled();
   });
+
+  test("cuando la lista cambia, el selector sigue a la nueva lista", () => {
+    const onDuplicate = jest.fn();
+    const { rerender } = render(
+      <LocationBulkActions
+        locations={ubicaciones}
+        onDuplicate={onDuplicate}
+        onCreateRange={jest.fn()}
+      />,
+    );
+
+    // Seleccionar piso-2
+    fireEvent.change(screen.getByLabelText("Ubicación a duplicar"), {
+      target: { value: "piso-2" },
+    });
+
+    // Re-renderizar con una lista donde piso-2 ya no existe
+    const nuevasUbicaciones = [
+      { id: "piso-1", name: "Piso 1" },
+      { id: "piso-3", name: "Piso 3" },
+    ];
+    rerender(
+      <LocationBulkActions
+        locations={nuevasUbicaciones}
+        onDuplicate={onDuplicate}
+        onCreateRange={jest.fn()}
+      />,
+    );
+
+    // Pulsar "Duplicar ubicación"
+    fireEvent.click(screen.getByRole("button", { name: "Duplicar ubicación" }));
+
+    // Debe recibir piso-1 (la primera de la nueva lista), no piso-2 (que ya no existe)
+    expect(onDuplicate).toHaveBeenCalledWith("piso-1");
+  });
 });
