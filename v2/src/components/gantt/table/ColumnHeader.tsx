@@ -82,7 +82,7 @@ export default function ColumnHeader({
           ? `${locale === "en" ? "Formula" : "Formula"}: ${calculationSpec.formula}`
           : undefined,
         calculationSpec.lastCalculatedAt
-          ? `${locale === "en" ? "Last calculation" : "Ultimo calculo"}: ${calculationSpec.lastCalculatedAt}`
+          ? `${locale === "en" ? "Last calculation" : "Último cálculo"}: ${calculationSpec.lastCalculatedAt}`
           : undefined,
         calculationSpec.unsupportedReason,
       ]
