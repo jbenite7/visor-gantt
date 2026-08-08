@@ -1,3 +1,4 @@
+import { parseAxisLabel } from "./axisLabel";
 import { normalizeName } from "./normalize";
 
 /**
@@ -103,6 +104,23 @@ export const LOCATION_PATTERNS: LocationPattern[] = [
     label: "Sótano",
     regex: /\bS[OÓ]TANO\s*[-#:]?\s*(\d+)\b/i,
     valueOf: (match) => -Number(match[1]),
+  },
+  {
+    label: "Eje",
+    // Dos etiquetas alrededor del separador: un guion decorativo no basta.
+    regex: /\bEJES?\b\s*[-#:]?\s*([A-Z]{0,3}\d{0,3}|[A-Z])\s*(?:-|\bA\b)\s*([A-Z]{0,3}\d{0,3}|[A-Z])\b/i,
+    valueOf: (match) => parseAxisLabel(match[1])?.index ?? Number.NaN,
+    spanOf: (match) => {
+      const from = parseAxisLabel(match[1]);
+      const to = parseAxisLabel(match[2]);
+      if (!from || !to) return null;
+      return { rawFrom: from.raw, rawTo: to.raw, from: from.index, to: to.index };
+    },
+  },
+  {
+    label: "Eje",
+    regex: /\bEJES?\b\s*[-#:]?\s*([A-Z]{1,3}\d{1,3}|[A-Z]|\d{1,3})\b/i,
+    valueOf: (match) => parseAxisLabel(match[1])?.index ?? Number.NaN,
   },
   {
     label: "Torre",

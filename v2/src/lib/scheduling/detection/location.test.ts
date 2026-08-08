@@ -207,12 +207,11 @@ describe("unidades nombradas con letra", () => {
   });
 });
 
-import { extractLocation as extraer } from "./location";
 
 describe("extractLocation · la ubicación puede ser un tramo", () => {
   test("lo que ya resolvía sigue sin tramo: nada cambia para obra vertical", () => {
-    expect(extraer("LOSA AÉREA PISO 5")?.span).toBeUndefined();
-    expect(extraer("COLUMNAS SÓTANO 2")?.span).toBeUndefined();
+    expect(extractLocation("LOSA AÉREA PISO 5")?.span).toBeUndefined();
+    expect(extractLocation("COLUMNAS SÓTANO 2")?.span).toBeUndefined();
   });
 
   test("el tipo admite un tramo con principio y fin", () => {
@@ -226,5 +225,50 @@ describe("extractLocation · la ubicación puede ser un tramo", () => {
 
     expect(conTramo.span.from).toBe(conTramo.value);
     expect(conTramo.span.to).toBeGreaterThan(conTramo.span.from);
+  });
+});
+
+describe("extractLocation · ejes (nombres reales de la Estación 16)", () => {
+  test("un rango de ejes da un tramo con principio y fin", () => {
+    const eje = extractLocation("Módulo 1.1 (Ejes A-D)");
+    expect(eje?.span).toEqual({ rawFrom: "A", rawTo: "D", from: 1, to: 4 });
+  });
+
+  test("el rango también con la palabra en singular", () => {
+    expect(extractLocation("Construcción Losa Aérea (Eje D-H)")?.span).toEqual({
+      rawFrom: "D",
+      rawTo: "H",
+      from: 4,
+      to: 8,
+    });
+  });
+
+  test("un rango entre familias distintas se admite y conserva los dos textos", () => {
+    // «Ejes J-DB08» cruza dos rejillas. El dato lo dice; ordenarlas entre sí
+    // es problema de quien las dibuje, no del extractor.
+    const eje = extractLocation("Módulo 2.2 (Ejes J-DB08)");
+    expect(eje?.span?.rawFrom).toBe("J");
+    expect(eje?.span?.rawTo).toBe("DB08");
+  });
+
+  test("el rango numérico también: «Eje 3-H» es un caso real del archivo", () => {
+    expect(extractLocation("Solución apuntalamiento (Eje 3-H)")?.span?.rawFrom).toBe("3");
+  });
+
+  test("un eje suelto resuelve sin tramo", () => {
+    const eje = extractLocation("Refuerzo (eje A)");
+    expect(eje?.label).toBe("Eje");
+    expect(eje?.value).toBe(1);
+    expect(eje?.span).toBeUndefined();
+  });
+
+  test("«eje» sin etiqueta detrás no resuelve", () => {
+    expect(extractLocation("Replanteo de ejes")).toBeNull();
+    expect(extractLocation("Nivelación hasta nivel superior")).toBeNull();
+  });
+
+  test("un guion decorativo no convierte un eje suelto en rango", () => {
+    // Exige dos etiquetas alrededor del separador, no una sola.
+    expect(extractLocation("Losa aérea - Eje D")?.span).toBeUndefined();
   });
 });
