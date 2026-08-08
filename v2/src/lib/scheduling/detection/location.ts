@@ -15,12 +15,33 @@ export interface LocationMatch {
   raw: string;
   /** Número ordenable. Los sótanos son negativos. */
   value: number;
+  /** Presente solo cuando la ubicación es un tramo. */
+  span?: LocationSpan;
+}
+
+/**
+ * Una ubicación con principio y fin.
+ *
+ * Un eje no es un punto: `Ejes A-D` dice «voy del A al D». Y una tarea de
+ * transición entre pisos —`Piso 1 a 2`— es lo mismo. Reducir cualquiera de
+ * los dos a su primer valor es descartar la mitad del dato sin avisar.
+ *
+ * `from` coincide siempre con `value`, para que todo lo que hoy ordena por
+ * `value` siga funcionando sin enterarse de que existen los tramos.
+ */
+export interface LocationSpan {
+  rawFrom: string;
+  rawTo: string;
+  from: number;
+  to: number;
 }
 
 export interface LocationPattern {
   label: string;
   regex: RegExp;
   valueOf: (match: RegExpMatchArray) => number;
+  /** Solo los patrones de tramo lo aportan. */
+  spanOf?: (match: RegExpMatchArray) => LocationSpan | null;
 }
 
 /**
@@ -169,7 +190,15 @@ export function extractLocation(text: string): LocationMatch | null {
     if (!match) continue;
     const value = pattern.valueOf(match);
     if (!Number.isFinite(value)) continue;
-    return { label: pattern.label, raw: match[1] ?? match[0], value };
+
+    const span = pattern.spanOf?.(match) ?? undefined;
+    const result: LocationMatch = {
+      label: pattern.label,
+      raw: match[1] ?? match[0],
+      value,
+    };
+    if (span) result.span = span;
+    return result;
   }
   return null;
 }

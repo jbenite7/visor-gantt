@@ -206,3 +206,25 @@ describe("unidades nombradas con letra", () => {
     expect(extract("SECTOR PRIVADO")).toBeNull();
   });
 });
+
+import { extractLocation as extraer } from "./location";
+
+describe("extractLocation · la ubicación puede ser un tramo", () => {
+  test("lo que ya resolvía sigue sin tramo: nada cambia para obra vertical", () => {
+    expect(extraer("LOSA AÉREA PISO 5")?.span).toBeUndefined();
+    expect(extraer("COLUMNAS SÓTANO 2")?.span).toBeUndefined();
+  });
+
+  test("el tipo admite un tramo con principio y fin", () => {
+    // Este test fija la forma del dato antes de que ningún patrón lo use.
+    const conTramo = {
+      label: "Eje",
+      raw: "A",
+      value: 1,
+      span: { rawFrom: "A", rawTo: "D", from: 1, to: 4 },
+    };
+
+    expect(conTramo.span.from).toBe(conTramo.value);
+    expect(conTramo.span.to).toBeGreaterThan(conTramo.span.from);
+  });
+});
