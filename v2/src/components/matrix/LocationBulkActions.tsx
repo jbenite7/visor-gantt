@@ -34,7 +34,10 @@ export default function LocationBulkActions({
     ? selected
     : locationIds[0] ?? "";
 
-  const count = Math.abs(to - from) + 1;
+  // Sin `{n}` el motor crea una sola ubicación: repetir veinte veces el
+  // mismo nombre no es lo que nadie quiere. El aviso debe decir eso, no
+  // prometer veinte.
+  const count = pattern.includes("{n}") ? Math.abs(to - from) + 1 : 1;
 
   return (
     <section className="apple-section space-y-3 p-3" data-testid="location-bulk-actions">
@@ -106,7 +109,9 @@ export default function LocationBulkActions({
       </div>
 
       <p data-testid="range-preview" className="text-xs text-[var(--color-text-muted)]">
-        {`Se crearán ${count} ubicaciones.`}
+        {count === 1
+          ? `Se creará ${count} ubicación.`
+          : `Se crearán ${count} ubicaciones.`}
       </p>
     </section>
   );

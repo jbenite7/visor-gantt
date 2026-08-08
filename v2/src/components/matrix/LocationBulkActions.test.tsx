@@ -135,4 +135,44 @@ describe("LocationBulkActions", () => {
     // Debe recibir piso-1 (la primera de la nueva lista), no piso-2 (que ya no existe)
     expect(onDuplicate).toHaveBeenCalledWith("piso-1");
   });
+
+  test("sin {n} en el patrón, el aviso dice que se creará 1 ubicación", () => {
+    render(
+      <LocationBulkActions
+        locations={ubicaciones}
+        onDuplicate={jest.fn()}
+        onCreateRange={jest.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Nombre, con {n} donde va el número"), {
+      target: { value: "Cubierta" },
+    });
+    fireEvent.change(screen.getByLabelText("Desde"), { target: { value: "1" } });
+    fireEvent.change(screen.getByLabelText("Hasta"), { target: { value: "20" } });
+
+    expect(screen.getByTestId("range-preview")).toHaveTextContent(
+      "Se creará 1 ubicación.",
+    );
+  });
+
+  test("el singular de creará/ubicación sale bien", () => {
+    render(
+      <LocationBulkActions
+        locations={ubicaciones}
+        onDuplicate={jest.fn()}
+        onCreateRange={jest.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Nombre, con {n} donde va el número"), {
+      target: { value: "Sótano {n}" },
+    });
+    fireEvent.change(screen.getByLabelText("Desde"), { target: { value: "1" } });
+    fireEvent.change(screen.getByLabelText("Hasta"), { target: { value: "1" } });
+
+    expect(screen.getByTestId("range-preview")).toHaveTextContent(
+      "Se creará 1 ubicación.",
+    );
+  });
 });
