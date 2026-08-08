@@ -1,4 +1,5 @@
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
+import { generateScheduleFromMatrix as generarPlan } from "@/lib/matrix/matrixGenerator";
 import { recalculateSchedule } from "@/lib/scheduling/scheduleEngine";
 import type { MatrixPlan } from "@/types/matrix";
 import { DEFAULT_MATRIX_TEMPLATE, createDefaultMatrixPlan } from "@/lib/matrix/templates";
@@ -395,3 +396,197 @@ describe("generateScheduleFromMatrix", () => {
     expect(result.provenance["cell-redes-mep-piso-10"]).toHaveLength(2);
   });
 });
+
+import { generateScheduleFromMatrix as generar } from "./matrixGenerator";
+import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
+import type { MatrixPlan } from "@/types/matrix";
+
+function planDeUnaCelda(): MatrixPlan {
+  return {
+    id: "plan-cal",
+    name: "Torre con festivos",
+    startDate: "2026-07-15",
+    scopeTree: [{ id: "estructura", name: "Estructura", type: "Disciplina" }],
+    areas: [{ id: "piso-1", name: "Piso 1", type: "Piso" }],
+    recipes: [
+      {
+        id: "receta-estructura",
+        name: "Estructura",
+        activities: [
+          { id: "columnas", name: "Columnas", productivityPerDay: 1, defaultQuantity: 5 },
+        ],
+        dependencies: [],
+      },
+    ],
+    cells: [
+      {
+        id: "celda-1",
+        scopeId: "estructura",
+        areaId: "piso-1",
+        recipeId: "receta-estructura",
+        active: true,
+      },
+    ],
+  };
+}
+
+describe("generateScheduleFromMatrix · calendario del proyecto", () => {
+  test("sin calendario las fechas no cambian respecto a lo de siempre", () => {
+    const { tasks } = generar(planDeUnaCelda());
+    const columnas = tasks.find((task) => !task.isSummary)!;
+
+    // Miércoles 15 + 5 días saltando solo el domingo → lunes 20
+    expect(columnas.finish.toISOString().slice(0, 10)).toBe("2026-07-20");
+  });
+
+  test("con el calendario del proyecto respeta el fin de semana y el festivo", () => {
+    const { tasks } = generar(planDeUnaCelda(), {
+      calendar: {
+        ...DEFAULT_PROJECT_CALENDAR,
+        workDays: [1, 2, 3, 4, 5],
+        nonWorkingDays: [
+          { id: "f1", date: "2026-07-20", name: "Día de la Independencia" },
+        ],
+      },
+    });
+    const columnas = tasks.find((task) => !task.isSummary)!;
+
+    // 15, 16, 17, 21, 22 → termina el miércoles 22
+    expect(columnas.finish.toISOString().slice(0, 10)).toBe("2026-07-22");
+  });
+});
+
+function planDeTresPisos(chaining: MatrixPlan["recipes"][number]["locationChaining"]): MatrixPlan {
+  return {
+    id: "plan-cadena",
+    name: "Torre de tres pisos",
+    startDate: "2026-03-02",
+    scopeTree: [{ id: "estructura", name: "Estructura", type: "Disciplina" }],
+    areas: [
+      { id: "piso-1", name: "Piso 1", type: "Piso" },
+      { id: "piso-2", name: "Piso 2", type: "Piso" },
+      { id: "piso-3", name: "Piso 3", type: "Piso" },
+    ],
+    recipes: [
+      {
+        id: "r1",
+        name: "Estructura",
+        activities: [
+          { id: "columnas", name: "Columnas", productivityPerDay: 1, defaultQuantity: 3 },
+          { id: "losa", name: "Losa", productivityPerDay: 1, defaultQuantity: 4 },
+        ],
+        dependencies: [
+          { predecessorActivityId: "columnas", successorActivityId: "losa", type: "FS" },
+        ],
+        locationChaining: chaining,
+      },
+    ],
+    cells: ["piso-1", "piso-2", "piso-3"].map((areaId) => ({
+      id: `celda-${areaId}`,
+      scopeId: "estructura",
+      areaId,
+      recipeId: "r1",
+      active: true,
+    })),
+  };
+}
+
+describe("generateScheduleFromMatrix · ritmo piso a piso", () => {
+  test("en paralelo no hay vínculo entre pisos: es lo de siempre", () => {
+    const { dependencies } = generarPlan(planDeTresPisos({ mode: "paralelo" }));
+    const entrePisos = dependencies.filter(
+      (dependency) =>
+        String(dependency.from).includes("piso-1") &&
+        String(dependency.to).includes("piso-2"),
+    );
+
+    expect(entrePisos).toHaveLength(0);
+  });
+
+  test("encadenado vincula cada actividad con la misma del piso siguiente", () => {
+    const { dependencies } = generarPlan(planDeTresPisos({ mode: "encadenado" }));
+    const columnas12 = dependencies.find(
+      (dependency) =>
+        String(dependency.from).includes("piso-1") &&
+        String(dependency.from).includes("columnas") &&
+        String(dependency.to).includes("piso-2") &&
+        String(dependency.to).includes("columnas"),
+    );
+
+    expect(columnas12).toBeDefined();
+    expect(columnas12?.type).toBe("FS");
+  });
+
+  test("la cadena llega hasta el último piso", () => {
+    const { dependencies } = generarPlan(planDeTresPisos({ mode: "encadenado" }));
+    const losa23 = dependencies.find(
+      (dependency) =>
+        String(dependency.from).includes("piso-2") &&
+        String(dependency.from).includes("losa") &&
+        String(dependency.to).includes("piso-3") &&
+        String(dependency.to).includes("losa"),
+    );
+
+    expect(losa23).toBeDefined();
+  });
+
+  test("con actividad de enganche solo esa actividad encadena", () => {
+    const { dependencies } = generarPlan(
+      planDeTresPisos({ mode: "encadenado", activityId: "losa" }),
+    );
+    const columnas12 = dependencies.filter(
+      (dependency) =>
+        String(dependency.from).includes("piso-1") &&
+        String(dependency.from).includes("columnas") &&
+        String(dependency.to).includes("piso-2"),
+    );
+    const losa12 = dependencies.filter(
+      (dependency) =>
+        String(dependency.from).includes("piso-1") &&
+        String(dependency.from).includes("losa") &&
+        String(dependency.to).includes("piso-2"),
+    );
+
+    expect(columnas12).toHaveLength(0);
+    expect(losa12).toHaveLength(1);
+  });
+
+  test("el desfase entre pisos se guarda en el vínculo", () => {
+    const { dependencies } = generarPlan(
+      planDeTresPisos({ mode: "encadenado", lagDays: 2 }),
+    );
+    const primera = dependencies.find(
+      (dependency) =>
+        String(dependency.from).includes("piso-1") &&
+        String(dependency.to).includes("piso-2"),
+    );
+
+    expect(primera?.lag).toBe(2);
+  });
+
+  test("invertido encadena de arriba abajo", () => {
+    const { dependencies } = generarPlan(
+      planDeTresPisos({ mode: "encadenado", reverse: true }),
+    );
+    const desdeElTercero = dependencies.find(
+      (dependency) =>
+        String(dependency.from).includes("piso-3") &&
+        String(dependency.to).includes("piso-2"),
+    );
+
+    expect(desdeElTercero).toBeDefined();
+  });
+
+  test("la tarea sucesora recibe el vínculo en su lista de dependencias", () => {
+    const { tasks, dependencies } = generarPlan(planDeTresPisos({ mode: "encadenado" }));
+    const primera = dependencies.find(
+      (dependency) =>
+        String(dependency.from).includes("piso-1") &&
+        String(dependency.to).includes("piso-2"),
+    )!;
+    const sucesora = tasks.find((task) => task.id === primera.to)!;
+
+    expect(sucesora.dependencies.some((item) => item.from === primera.from)).toBe(true);
+  });
+});
+

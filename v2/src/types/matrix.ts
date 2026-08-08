@@ -19,6 +19,8 @@ export interface ScopeNode {
   name: string;
   type: string;
   defaultRecipeId?: string;
+  /** Gana sobre el de la receta: es el alcance quien sabe si su oficio encadena. */
+  locationChaining?: LocationChaining;
   children?: ScopeNode[];
 }
 
@@ -51,12 +53,32 @@ export interface LineOfBalanceRule {
   offsetDays: number;
 }
 
+export type LocationChainingMode = "encadenado" | "paralelo";
+
+/**
+ * Cómo se relaciona una ubicación con la siguiente dentro del mismo alcance.
+ *
+ * `lineOfBalance.offsetDays` desplazaba cada ubicación un número fijo de días:
+ * si el piso 1 se atrasaba, el piso 2 no se movía. Esto genera dependencias
+ * de verdad, que sí se mueven.
+ */
+export interface LocationChaining {
+  mode: LocationChainingMode;
+  /** Días de espera entre una ubicación y la siguiente. */
+  lagDays?: number;
+  /** Si se indica, solo esa actividad engancha. Por defecto, todas. */
+  activityId?: string;
+  /** Invierte el orden: de arriba abajo en vez de abajo arriba. */
+  reverse?: boolean;
+}
+
 export interface ActivityRecipe {
   id: string;
   name: string;
   activities: ActivityRecipeItem[];
   dependencies: ActivityDependencyRule[];
   lineOfBalance?: LineOfBalanceRule;
+  locationChaining?: LocationChaining;
 }
 
 export interface MatrixCell {
@@ -146,9 +168,15 @@ export interface MatrixGenerationResult {
   provenance: Record<string, (string | number)[]>;
 }
 
+export type ConflictResolution = "matriz" | "gantt";
+
 export interface MatrixSyncConflict {
   taskId: string | number;
   cellId: string;
   field: "name" | "duration" | "start" | "finish";
+  /** Lo que dice la matriz. */
+  matrixValue: string;
+  /** Lo que se editó en el Gantt. */
+  ganttValue: string;
   message: string;
 }

@@ -18,10 +18,33 @@ import type {
   MatrixActivityOverride,
   MatrixCell,
   MatrixPlan,
+  MatrixTemplate,
   ScopeNode,
 } from "@/types/matrix";
-import { createDefaultMatrixPlan } from "@/lib/matrix/templates";
+import {
+  createDefaultMatrixPlan,
+  createMatrixPlanFromTemplate,
+} from "@/lib/matrix/templates";
+import {
+  applyBulkCellEdit,
+  createAreaRange,
+  duplicateAreaNode,
+  type CellTarget,
+} from "@/lib/matrix/bulk";
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
+import { approveCellFeedback, dismissCellFeedback } from "@/lib/matrix/feedback";
+import { templateFromPlan } from "@/lib/matrix/templateCatalog";
+import {
+  planFromProposal,
+  proposeMatrixFromTasks,
+  type MatrixProposal,
+  type ProposalAcceptance,
+} from "@/lib/matrix/matrixProposal";
+import FeedbackPanel from "@/components/matrix/FeedbackPanel";
+import LocationBulkActions from "@/components/matrix/LocationBulkActions";
+import ProposalReview from "@/components/matrix/ProposalReview";
+import RecipeEditor from "@/components/matrix/RecipeEditor";
+import TemplatePicker from "@/components/matrix/TemplatePicker";
 import {
   canAddChild,
   getAreaLeaves,
@@ -54,7 +77,13 @@ interface SelectedCellRef {
   areaId: string;
 }
 
-type MatrixEditorMode = "scopes" | "locations" | "matrix";
+type MatrixEditorMode =
+  | "scopes"
+  | "locations"
+  | "matrix"
+  | "recipes"
+  | "plantillas"
+  | "rendimientos";
 
 const matrixInputClass =
   "rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] px-2 py-1 text-sm";
@@ -95,6 +124,15 @@ function includeCurrentTypeOption(options: string[], currentValue?: string): str
   if (!current || options.includes(current)) return options;
   return [current, ...options];
 }
+
+/**
+ * Cuántos alcances se dibujan a la vez.
+ *
+ * La matriz llega a 30 × 40 = 1200 celdas, y montarlas todas hace que cada
+ * tecla repinte 1200 nodos. Se dibujan las filas que caben y se avanza por
+ * páginas: la matriz sigue completa en el dato, solo se muestra por partes.
+ */
+export const MATRIX_VISIBLE_ROWS = 12;
 
 function clonePlan(plan: MatrixPlan): MatrixPlan {
   return JSON.parse(JSON.stringify(plan)) as MatrixPlan;
@@ -272,6 +310,9 @@ export default function MatrixEditorView({
   const [notice, setNotice] = useState<string | null>(null);
   const [newScopeName, setNewScopeName] = useState("");
   const [newAreaName, setNewAreaName] = useState("");
+  const [ownTemplates, setOwnTemplates] = useState<MatrixTemplate[]>([]);
+  const [proposal, setProposal] = useState<MatrixProposal | null>(null);
+  const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
   const [selectedCell, setSelectedCell] = useState<SelectedCellRef | null>(() => {
     if (!matrixPlan) return null;
     const firstScope = getScopeLeaves(matrixPlan.scopeTree)[0]?.node;
@@ -291,10 +332,86 @@ export default function MatrixEditorView({
   );
   const scopes = useMemo(() => scopeLeaves.map((leaf) => leaf.node), [scopeLeaves]);
   const areas = useMemo(() => areaLeaves.map((leaf) => leaf.node), [areaLeaves]);
+
+  const [rowOffset, setRowOffset] = useState(0);
+  const needsWindow = scopes.length > MATRIX_VISIBLE_ROWS;
+  // Si la matriz encoge y la página actual deja de existir, hay que volver a
+  // la última que sí existe: si no, la tabla queda en blanco sin decir por qué.
+  const maxOffset = Math.max(
+    0,
+    Math.floor((scopes.length - 1) / MATRIX_VISIBLE_ROWS) * MATRIX_VISIBLE_ROWS,
+  );
+  const effectiveRowOffset = Math.min(rowOffset, maxOffset);
+  const visibleScopes = needsWindow
+    ? scopes.slice(effectiveRowOffset, effectiveRowOffset + MATRIX_VISIBLE_ROWS)
+    : scopes;
+
+  const [selection, setSelection] = useState<CellTarget[]>([]);
+
+  // La selección guarda coordenadas, no celdas, para sobrevivir a las que
+  // crea la edición en lote. Pero un alcance o una ubicación pueden
+  // borrarse: si no filtramos, el lote crearía celdas para coordenadas que
+  // ya no existen, invisibles en la tabla y presentes en el plan.
+  const effectiveSelection = selection.filter(
+    (target) =>
+      scopes.some((scope) => scope.id === target.scopeId) &&
+      areas.some((area) => area.id === target.areaId),
+  );
+
+  const isSelected = (scopeId: string, areaId: string) =>
+    effectiveSelection.some(
+      (target) => target.scopeId === scopeId && target.areaId === areaId,
+    );
+
+  const toggleSelection = (scopeId: string, areaId: string) =>
+    setSelection((current) =>
+      isSelected(scopeId, areaId)
+        ? current.filter(
+            (target) => !(target.scopeId === scopeId && target.areaId === areaId),
+          )
+        : [...current, { scopeId, areaId }],
+    );
+
+  const selectRow = (scopeId: string) =>
+    setSelection(areas.map((area) => ({ scopeId, areaId: area.id })));
+
+  const selectColumn = (areaId: string) =>
+    setSelection(scopes.map((scope) => ({ scopeId: scope.id, areaId })));
+
+  const applyToSelection = (patch: Parameters<typeof applyBulkCellEdit>[2]) => {
+    setDraft((current) =>
+      current
+        ? applyBulkCellEdit(current, effectiveSelection, patch, new Date().toISOString())
+        : current,
+    );
+  };
   const cellsByPair = useMemo(() => {
     const map = new Map<string, MatrixCell>();
     draft?.cells.forEach((cell) => map.set(cellKey(cell.scopeId, cell.areaId), cell));
     return map;
+  }, [draft]);
+  const cellSummaries = useMemo(() => {
+    const summaries = new Map<
+      string,
+      { recipeName: string; activityCount: number; totalDuration: number; quantitySummary: string }
+    >();
+    if (!draft) return summaries;
+
+    for (const cell of draft.cells) {
+      const recipe = getRecipe(draft, cell);
+      const overrides =
+        recipe?.activities.map((activity) => getOverride(cell, activity)) ?? [];
+      summaries.set(cellKey(cell.scopeId, cell.areaId), {
+        recipeName: recipe?.name ?? "Sin receta",
+        activityCount: overrides.length,
+        totalDuration: overrides.reduce(
+          (sum, override) => sum + durationDays(override),
+          0,
+        ),
+        quantitySummary: formatQuantitySummary(overrides),
+      });
+    }
+    return summaries;
   }, [draft]);
   const preview = useMemo(
     () => (draft ? generateScheduleFromMatrix(draft) : undefined),
@@ -315,6 +432,12 @@ export default function MatrixEditorView({
     selectedRecipe?.activities.flatMap((activity) =>
       activityAlerts(activity, getOverride(selectedMatrixCell, activity)),
     ) ?? [];
+
+  // La receta que se edita: la elegida a mano, o la de la celda seleccionada.
+  const recipeInEditor =
+    draft?.recipes.find((recipe) => recipe.id === editingRecipeId) ??
+    selectedRecipe ??
+    draft?.recipes[0];
 
   const createDraft = () => {
     const firstTaskStart = tasks[0]?.start.toISOString().slice(0, 10);
@@ -628,6 +751,73 @@ export default function MatrixEditorView({
     });
   };
 
+  const duplicateLocation = (areaId: string) => {
+    if (!draft) return;
+    applyNextDraft(duplicateAreaNode(draft, areaId, new Date().toISOString()));
+  };
+
+  const createLocationRange = (input: {
+    pattern: string;
+    from: number;
+    to: number;
+    type: string;
+  }) => {
+    if (!draft) return;
+    applyNextDraft(createAreaRange(draft, input, new Date().toISOString()));
+  };
+
+  const replaceRecipe = (recipe: ActivityRecipe) => {
+    if (!draft) return;
+    setDraft({
+      ...draft,
+      recipes: draft.recipes.map((item) => (item.id === recipe.id ? recipe : item)),
+    });
+  };
+
+  const pickTemplate = (template: MatrixTemplate) => {
+    if (!draft) return;
+    setProposal(null);
+    applyNextDraft(
+      createMatrixPlanFromTemplate({
+        template,
+        id: draft.id,
+        name: draft.name,
+        startDate: draft.startDate,
+      }),
+    );
+  };
+
+  const saveAsTemplate = () => {
+    if (!draft) return;
+    const template = templateFromPlan(draft, draft.name);
+    setOwnTemplates((current) => [
+      ...current.filter((item) => item.id !== template.id),
+      template,
+    ]);
+  };
+
+  const acceptProposal = (acceptance: ProposalAcceptance) => {
+    if (!draft || !proposal) return;
+    const next = planFromProposal(proposal, acceptance, {
+      id: draft.id,
+      name: draft.name,
+      startDate: draft.startDate,
+      editedAt: new Date().toISOString(),
+    });
+    setProposal(null);
+    applyNextDraft(next);
+  };
+
+  const approveFeedback = (cellId: string) => {
+    if (!draft) return;
+    setDraft(approveCellFeedback(draft, cellId, new Date().toISOString()));
+  };
+
+  const dismissFeedback = (cellId: string) => {
+    if (!draft) return;
+    setDraft(dismissCellFeedback(draft, cellId, new Date().toISOString()));
+  };
+
   const renderScopeTree = (nodes: ScopeNode[], depth = 1): ReactNode =>
     nodes.map((node) => {
       const isLeaf = !node.children || node.children.length === 0;
@@ -887,6 +1077,9 @@ export default function MatrixEditorView({
           ["scopes", "Alcances"],
           ["locations", "Ubicaciones"],
           ["matrix", "Matriz"],
+          ["recipes", "Recetas"],
+          ["plantillas", "Plantillas"],
+          ["rendimientos", "Rendimientos"],
         ].map(([mode, label]) => (
           <button
             key={mode}
@@ -980,8 +1173,69 @@ export default function MatrixEditorView({
             </div>
           )}
         </div>
+      ) : activeMode === "recipes" ? (
+        <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3">
+          <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
+            Receta a editar
+            <select
+              className={matrixInputClass}
+              value={recipeInEditor?.id ?? ""}
+              onChange={(event) => setEditingRecipeId(event.target.value)}
+            >
+              {draft.recipes.map((recipe) => (
+                <option key={recipe.id} value={recipe.id}>
+                  {recipe.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {recipeInEditor ? (
+            <RecipeEditor recipe={recipeInEditor} onChange={replaceRecipe} />
+          ) : (
+            <div className="apple-section px-3 py-6 text-sm text-[var(--color-text-muted)]">
+              Sin recetas. Elige una plantilla para partir de recetas ya armadas.
+            </div>
+          )}
+        </div>
+      ) : activeMode === "plantillas" ? (
+        <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3">
+          <button
+            type="button"
+            onClick={saveAsTemplate}
+            className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold"
+          >
+            Guardar como plantilla
+          </button>
+          {proposal ? (
+            <ProposalReview
+              proposal={proposal}
+              onAccept={acceptProposal}
+              onCancel={() => setProposal(null)}
+            />
+          ) : (
+            <TemplatePicker
+              ownTemplates={ownTemplates}
+              canGenerateFromSchedule={tasks.length > 0}
+              onPickTemplate={pickTemplate}
+              onGenerateFromSchedule={() => setProposal(proposeMatrixFromTasks(tasks))}
+            />
+          )}
+        </div>
+      ) : activeMode === "rendimientos" ? (
+        <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3">
+          <FeedbackPanel
+            plan={draft}
+            onApprove={approveFeedback}
+            onDismiss={dismissFeedback}
+          />
+        </div>
       ) : activeMode === "locations" ? (
         <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3">
+          <LocationBulkActions
+            locations={areas.map((area) => ({ id: area.id, name: area.name }))}
+            onDuplicate={duplicateLocation}
+            onCreateRange={createLocationRange}
+          />
           {draft.areas.length > 0 ? (
             renderAreaTree(draft.areas)
           ) : (
@@ -993,6 +1247,50 @@ export default function MatrixEditorView({
       ) : (
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] overflow-hidden">
         <div className="min-h-0 overflow-auto">
+        {effectiveSelection.length > 0 && (
+          <div
+            data-testid="matrix-bulk-panel"
+            className="apple-section flex flex-wrap items-center gap-2 p-2 text-sm"
+          >
+            <span>{`${effectiveSelection.length} celdas seleccionadas`}</span>
+            <button type="button" onClick={() => applyToSelection({ active: true })}>
+              Activar las seleccionadas
+            </button>
+            <button type="button" onClick={() => applyToSelection({ active: false })}>
+              Desactivar las seleccionadas
+            </button>
+            <label className="flex items-center gap-1 text-xs">
+              Cantidad
+              <input
+                type="number"
+                className={matrixInputClass}
+                onBlur={(event) =>
+                  applyToSelection({ quantity: Number(event.target.value) })
+                }
+              />
+            </label>
+            <label className="flex items-center gap-1 text-xs">
+              Receta
+              <select
+                className={matrixInputClass}
+                defaultValue=""
+                onChange={(event) =>
+                  event.target.value && applyToSelection({ recipeId: event.target.value })
+                }
+              >
+                <option value="">Sin cambiar</option>
+                {draft?.recipes.map((recipe) => (
+                  <option key={recipe.id} value={recipe.id}>
+                    {recipe.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="button" onClick={() => setSelection([])}>
+              Quitar la selección
+            </button>
+          </div>
+        )}
           <table className="apple-table min-w-full text-sm">
             <thead className="sticky top-0 z-10">
               <tr>
@@ -1005,6 +1303,14 @@ export default function MatrixEditorView({
                     className="text-left px-3 py-2 font-semibold"
                   >
                     {area.name}
+                    <button
+                      type="button"
+                      data-testid={`matrix-select-column-${area.id}`}
+                      onClick={() => selectColumn(area.id)}
+                      className="ml-2 text-xs text-[var(--color-text-muted)]"
+                    >
+                      Seleccionar columna
+                    </button>
                   </th>
                 ))}
               </tr>
@@ -1020,7 +1326,7 @@ export default function MatrixEditorView({
                   </td>
                 </tr>
               )}
-              {scopes.map((scope) => (
+              {visibleScopes.map((scope) => (
                 <tr key={scope.id} className="border-b border-[var(--color-hairline)]">
                   <th className="sticky left-0 bg-[var(--color-bg-elevated)] text-left px-3 py-2 font-semibold text-[var(--color-text-strong)]">
                     <button
@@ -1035,25 +1341,33 @@ export default function MatrixEditorView({
                     >
                       {scope.name}
                     </button>
+                    <button
+                      type="button"
+                      data-testid={`matrix-select-row-${scope.id}`}
+                      onClick={() => selectRow(scope.id)}
+                      className="ml-2 text-xs text-[var(--color-text-muted)]"
+                    >
+                      Seleccionar fila
+                    </button>
                   </th>
                   {areas.map((area) => {
                     const cell = cellsByPair.get(cellKey(scope.id, area.id));
-                    const recipe = getRecipe(draft, cell);
-                    const overrides =
-                      recipe?.activities.map((activity) =>
-                        getOverride(cell, activity),
-                      ) ?? [];
-                    const totalDuration = overrides.reduce(
-                      (sum, override) => sum + durationDays(override),
-                      0,
-                    );
-                    const quantitySummary = formatQuantitySummary(overrides);
-                    const isSelected =
+                    const summary = cellSummaries.get(cellKey(scope.id, area.id));
+                    const isFocused =
                       selectedCell?.scopeId === scope.id &&
                       selectedCell.areaId === area.id;
 
                     return (
                       <td key={area.id} className="bg-[var(--color-bg-elevated)] px-3 py-2 align-top">
+                        {cell && (
+                          <input
+                            type="checkbox"
+                            data-testid={`matrix-cell-select-${cell.id}`}
+                            aria-label={`Seleccionar ${scope.name} en ${area.name}`}
+                            checked={isSelected(scope.id, area.id)}
+                            onChange={() => toggleSelection(scope.id, area.id)}
+                          />
+                        )}
                         <button
                           type="button"
                           onClick={() =>
@@ -1061,7 +1375,7 @@ export default function MatrixEditorView({
                           }
                           className="w-full text-left rounded-lg border px-3 py-2 shadow-sm"
                           style={{
-                            borderColor: isSelected
+                            borderColor: isFocused
                               ? "var(--aia-corp-main)"
                               : "var(--color-hairline)",
                             background: cell?.active
@@ -1070,13 +1384,13 @@ export default function MatrixEditorView({
                           }}
                         >
                           <span className="block text-xs font-semibold text-[var(--color-text-strong)]">
-                            {cell?.active ? recipe?.name ?? "Sin receta" : "Inactiva"}
+                            {cell?.active ? summary?.recipeName ?? "Sin receta" : "Inactiva"}
                           </span>
                           <span className="block text-xs text-[var(--color-text-muted)]">
-                            {overrides.length} actividades · {totalDuration} días
+                            {summary?.activityCount ?? 0} actividades · {summary?.totalDuration ?? 0} días
                           </span>
                           <span className="block text-xs text-[var(--color-text-muted)] truncate">
-                            {quantitySummary}
+                            {summary?.quantitySummary ?? ""}
                           </span>
                         </button>
                       </td>
@@ -1086,6 +1400,29 @@ export default function MatrixEditorView({
               ))}
             </tbody>
           </table>
+          {needsWindow && (
+            <div className="flex items-center gap-2 p-2 text-xs">
+              <span data-testid="matrix-window-status">
+                {`Mostrando ${visibleScopes.length} de ${scopes.length} alcances.`}
+              </span>
+              <button
+                type="button"
+                disabled={effectiveRowOffset === 0}
+                onClick={() =>
+                  setRowOffset(Math.max(0, effectiveRowOffset - MATRIX_VISIBLE_ROWS))
+                }
+              >
+                Ver los alcances anteriores
+              </button>
+              <button
+                type="button"
+                disabled={effectiveRowOffset + MATRIX_VISIBLE_ROWS >= scopes.length}
+                onClick={() => setRowOffset(effectiveRowOffset + MATRIX_VISIBLE_ROWS)}
+              >
+                Ver los siguientes alcances
+              </button>
+            </div>
+          )}
         </div>
 
         <aside

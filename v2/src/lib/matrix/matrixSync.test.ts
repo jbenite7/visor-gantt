@@ -1,8 +1,12 @@
 import {
   applyMatrixUpdate,
+  applyMatrixUpdate as aplicar,
   syncMatrixPlanFromTasks,
 } from "@/lib/matrix/matrixSync";
-import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
+import {
+  generateScheduleFromMatrix,
+  generateScheduleFromMatrix as generar,
+} from "@/lib/matrix/matrixGenerator";
 import type { GanttTask } from "@/components/gantt/types";
 import type { MatrixPlan } from "@/types/matrix";
 
@@ -81,12 +85,20 @@ describe("matrixSync", () => {
     ]);
   });
 
-  test("captures Gantt duration edits as approved-feedback candidates on matrix cells", () => {
+  test("la edición manual en el Gantt es la que produce el rendimiento observado", () => {
     const plan = planWithQuantity(50);
     const generated = generateScheduleFromMatrix(plan);
+    // Así sella la app cada edición manual del Gantt: con `matrixSync`.
     const editedTasks = generated.tasks.map((task) =>
       task.matrixSource?.activityId === "mamposteria"
-        ? { ...task, duration: 5 }
+        ? {
+            ...task,
+            duration: 5,
+            matrixSync: {
+              lastEditedAt: "2026-01-02T00:00:00.000Z",
+              lastEditedFrom: "gantt" as const,
+            },
+          }
         : task,
     );
 
@@ -96,6 +108,89 @@ describe("matrixSync", () => {
       source: "gantt",
       observedDurationDays: 5,
       suggestedProductivityPerDay: 10,
+      status: "pendingApproval",
+    });
+  });
+
+  test("una celda que nadie tocó en el Gantt no propone ningún rendimiento", () => {
+    const plan = planWithQuantity(50);
+    const generated = generateScheduleFromMatrix(plan);
+
+    const synced = syncMatrixPlanFromTasks(plan, generated.tasks);
+
+    expect(synced.cells[0].feedback).toBeUndefined();
+  });
+
+  test("descartar un rendimiento observado lo mantiene descartado en la siguiente sincronización", () => {
+    const base = planWithQuantity(50);
+    // Lo que deja el panel al pulsar «Mantener lo planificado».
+    const planDescartado: MatrixPlan = {
+      ...base,
+      cells: [
+        {
+          ...base.cells[0],
+          feedback: {
+            source: "gantt",
+            observedDurationDays: 5,
+            suggestedProductivityPerDay: 10,
+            status: "dismissed",
+          },
+        },
+      ],
+    };
+    // La tarea sigue editada en obra y sigue durando lo mismo: nada nuevo que
+    // observar, así que no hay nada que volver a preguntar.
+    const editedTasks = generateScheduleFromMatrix(planDescartado).tasks.map((task) =>
+      task.matrixSource?.activityId === "mamposteria"
+        ? {
+            ...task,
+            duration: 5,
+            matrixSync: {
+              lastEditedAt: "2026-01-02T00:00:00.000Z",
+              lastEditedFrom: "gantt" as const,
+            },
+          }
+        : task,
+    );
+
+    const synced = syncMatrixPlanFromTasks(planDescartado, editedTasks);
+
+    expect(synced.cells[0].feedback?.status).toBe("dismissed");
+  });
+
+  test("si la obra vuelve a editar la tarea con otra duración, el rendimiento se pregunta de nuevo", () => {
+    const base = planWithQuantity(50);
+    const planDescartado: MatrixPlan = {
+      ...base,
+      cells: [
+        {
+          ...base.cells[0],
+          feedback: {
+            source: "gantt",
+            observedDurationDays: 5,
+            suggestedProductivityPerDay: 10,
+            status: "dismissed",
+          },
+        },
+      ],
+    };
+    const editedTasks = generateScheduleFromMatrix(planDescartado).tasks.map((task) =>
+      task.matrixSource?.activityId === "mamposteria"
+        ? {
+            ...task,
+            duration: 8,
+            matrixSync: {
+              lastEditedAt: "2026-01-03T00:00:00.000Z",
+              lastEditedFrom: "gantt" as const,
+            },
+          }
+        : task,
+    );
+
+    const synced = syncMatrixPlanFromTasks(planDescartado, editedTasks);
+
+    expect(synced.cells[0].feedback).toMatchObject({
+      observedDurationDays: 8,
       status: "pendingApproval",
     });
   });
@@ -149,7 +244,13 @@ describe("matrixSync", () => {
         lastEditedFrom: "gantt",
       }),
     ]);
-    expect(synced.cells[0].feedback).toBeUndefined();
+    // El override se aplica y, además, queda el rendimiento observado a la
+    // espera de visto bueno: son dos cosas distintas.
+    expect(synced.cells[0].feedback).toMatchObject({
+      source: "gantt",
+      observedDurationDays: 5,
+      status: "pendingApproval",
+    });
   });
 
   test("keeps newer Gantt task edits when applying an older matrix update", () => {
@@ -213,5 +314,125 @@ describe("matrixSync", () => {
         lastEditedFrom: "gantt",
       },
     });
+  });
+});
+
+function planSimple(): MatrixPlan {
+  return {
+    id: "p-conflicto",
+    name: "Torre",
+    startDate: "2026-03-02",
+    scopeTree: [{ id: "estructura", name: "Estructura", type: "Disciplina" }],
+    areas: [{ id: "piso-1", name: "Piso 1", type: "Piso" }],
+    recipes: [
+      {
+        id: "r1",
+        name: "Estructura",
+        activities: [
+          { id: "columnas", name: "Columnas", productivityPerDay: 1, defaultQuantity: 5 },
+        ],
+        dependencies: [],
+      },
+    ],
+    cells: [
+      { id: "c1", scopeId: "estructura", areaId: "piso-1", recipeId: "r1", active: true },
+    ],
+  };
+}
+
+describe("applyMatrixUpdate · conflictos con elección", () => {
+  test("el conflicto trae las dos versiones para poder elegir con la información delante", () => {
+    const plan = planSimple();
+    const { tasks } = generar(plan);
+    const editadasEnGantt = tasks.map((task) =>
+      task.isSummary ? task : { ...task, name: "Columnas piso 1 (renombrada en obra)" },
+    );
+
+    const { conflicts } = aplicar({
+      tasks: editadasEnGantt,
+      currentPlan: plan,
+      nextPlan: plan,
+    });
+    const conflictoDeNombre = conflicts.find((item) => item.field === "name")!;
+
+    expect(conflictoDeNombre.ganttValue).toBe("Columnas piso 1 (renombrada en obra)");
+    expect(conflictoDeNombre.matrixValue).toContain("Columnas");
+    expect(conflictoDeNombre.matrixValue).not.toBe(conflictoDeNombre.ganttValue);
+  });
+
+  test("sin elección explícita gana la matriz, como hasta hoy", () => {
+    const plan = planSimple();
+    const { tasks } = generar(plan);
+    const editadasEnGantt = tasks.map((task) =>
+      task.isSummary ? task : { ...task, name: "Renombrada" },
+    );
+
+    const result = aplicar({ tasks: editadasEnGantt, currentPlan: plan, nextPlan: plan });
+    const tarea = result.tasks.find((task) => task.matrixSource)!;
+
+    expect(tarea.name).not.toBe("Renombrada");
+  });
+
+  test("eligiendo el Gantt se conserva lo que se editó en obra", () => {
+    const plan = planSimple();
+    const { tasks } = generar(plan);
+    const tareaOriginal = tasks.find((task) => task.matrixSource)!;
+    const editadasEnGantt = tasks.map((task) =>
+      task.isSummary ? task : { ...task, name: "Renombrada" },
+    );
+
+    const result = aplicar({
+      tasks: editadasEnGantt,
+      currentPlan: plan,
+      nextPlan: plan,
+      resolutions: { [`${tareaOriginal.id}::name`]: "gantt" },
+    });
+    const tarea = result.tasks.find((task) => task.matrixSource)!;
+
+    expect(tarea.name).toBe("Renombrada");
+  });
+
+  test("elegir la matriz explícitamente hace lo mismo que no elegir", () => {
+    const plan = planSimple();
+    const { tasks } = generar(plan);
+    const tareaOriginal = tasks.find((task) => task.matrixSource)!;
+    const editadasEnGantt = tasks.map((task) =>
+      task.isSummary ? task : { ...task, name: "Renombrada" },
+    );
+
+    const result = aplicar({
+      tasks: editadasEnGantt,
+      currentPlan: plan,
+      nextPlan: plan,
+      resolutions: { [`${tareaOriginal.id}::name`]: "matriz" },
+    });
+    const tarea = result.tasks.find((task) => task.matrixSource)!;
+
+    expect(tarea.name).toBe(tareaOriginal.name);
+  });
+
+  test("elegir el Gantt solo para la duración trae también el inicio y el fin, para que cuadren entre sí", () => {
+    const plan = planSimple();
+    const { tasks } = generar(plan);
+    const tareaOriginal = tasks.find((task) => task.matrixSource)!;
+    const editadasEnGantt = tasks.map((task) => {
+      if (task.isSummary) return task;
+      const nuevoInicio = new Date(task.start.getTime() + 3 * 24 * 60 * 60 * 1000);
+      const nuevoFin = new Date(task.finish.getTime() + 3 * 24 * 60 * 60 * 1000);
+      return { ...task, start: nuevoInicio, finish: nuevoFin, duration: task.duration + 2 };
+    });
+    const tareaEditada = editadasEnGantt.find((task) => task.matrixSource)!;
+
+    const result = aplicar({
+      tasks: editadasEnGantt,
+      currentPlan: plan,
+      nextPlan: plan,
+      resolutions: { [`${tareaOriginal.id}::duration`]: "gantt" },
+    });
+    const tarea = result.tasks.find((task) => task.matrixSource)!;
+
+    expect(tarea.duration).toBe(tareaEditada.duration);
+    expect(tarea.start.getTime()).toBe(tareaEditada.start.getTime());
+    expect(tarea.finish.getTime()).toBe(tareaEditada.finish.getTime());
   });
 });

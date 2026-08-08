@@ -92,9 +92,11 @@ const calendarioObra: ProjectCalendar = {
 
 describe("matrixAddWorkDays", () => {
   test("sin calendario mantiene el comportamiento de siempre: solo salta el domingo", () => {
-    // Viernes 2026-07-17 + 2 días laborables = martes 21 (salta el domingo 19, trabaja el sábado 18)
+    // Viernes 2026-07-17 + 2 días laborables = lunes 20: trabaja el sábado 18
+    // y salta el domingo 19. Es la regla histórica del generador, y este test
+    // es lo único que impide que alguien la cambie sin darse cuenta.
     const result = matrixAddWorkDays(new Date("2026-07-17T00:00:00"), 2);
-    expect(result.toISOString().slice(0, 10)).toBe("2026-07-21");
+    expect(result.toISOString().slice(0, 10)).toBe("2026-07-20");
   });
 
   test("con calendario de lunes a viernes salta también el sábado", () => {
@@ -1283,6 +1285,10 @@ export interface MatrixGenerationOptions {
       const signature = cellSignature({
         cell,
         recipe,
+        scope,
+        area,
+        scopeLeafIndex: flatScope?.leafIndex,
+        areaLeafIndex: flatArea?.leafIndex,
         startDate: plan.startDate,
         calendarKey,
       });
@@ -1871,7 +1877,8 @@ git commit -m "feat(matriz): edicion en lote de celdas seleccionadas"
 - Produces:
   - `export function duplicateAreaNode(plan: MatrixPlan, areaId: string, editedAt: string): MatrixPlan`
   - `export function duplicateScopeNode(plan: MatrixPlan, scopeId: string, editedAt: string): MatrixPlan`
-  - `export function createAreaRange(plan: MatrixPlan, input: { pattern: string; from: number; to: number; type?: string; parentId?: string }, editedAt: string): MatrixPlan`
+  - `export function createAreaRange(plan: MatrixPlan, input: { pattern: string; from: number; to: number; type?: string }, editedAt: string): MatrixPlan`
+  - (`parentId` figuraba en una versión anterior de este contrato y se retiró: ningún consumidor lo pasa y el cuerpo de la función nunca lo usó. Las ubicaciones nuevas se crean en la raíz.)
 
 - [ ] **Step 1: Write the failing test**
 
