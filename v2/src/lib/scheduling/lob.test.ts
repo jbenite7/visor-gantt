@@ -488,6 +488,47 @@ describe("generateAutomaticLOBFromTasks", () => {
     expect(result.units).toHaveLength(4);
   });
 
+  it("no confunde el sótano 1 con el piso 1: los dos dan '1' en el texto crudo", () => {
+    const baseTask = {
+      duration: 3,
+      progress: 0,
+      isCritical: false,
+      isMilestone: false,
+      isSummary: false,
+      outlineLevel: 1,
+      dependencies: [],
+    };
+
+    const result = generateAutomaticLOBFromTasks([
+      {
+        ...baseTask,
+        id: 1,
+        name: "Mampostería Sótano 2",
+        start: new Date("2026-08-01"),
+        finish: new Date("2026-08-03"),
+      },
+      {
+        ...baseTask,
+        id: 2,
+        name: "Mampostería Piso 1",
+        start: new Date("2026-08-04"),
+        finish: new Date("2026-08-06"),
+      },
+      {
+        ...baseTask,
+        id: 3,
+        name: "Mampostería Sótano 1",
+        start: new Date("2026-08-02"),
+        finish: new Date("2026-08-04"),
+      },
+    ]);
+
+    expect(result.units).toHaveLength(3);
+    expect(result.activities).toHaveLength(1);
+    // El orden de abajo arriba: sótano 2, luego sótano 1, luego piso 1.
+    expect(result.activities[0].taskIds).toEqual([1, 3, 2]);
+  });
+
   it("uses matrix line-of-balance rhythm when generated tasks have collapsed dates", () => {
     const baseTask = {
       duration: 2,

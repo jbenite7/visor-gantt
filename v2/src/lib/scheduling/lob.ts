@@ -10,7 +10,7 @@ import type { GanttTask } from "@/components/gantt/types";
 import type { MatrixPlan } from "@/types/matrix";
 import { classifyActivityFamily, type ActivityFamilyResult } from "./activityFamily";
 import { UNIT_PATTERNS, buildWbsBreadcrumb } from "./unitPatterns";
-import { extractLocation } from "./detection/location";
+import { extractLocation, formatLocationLabel } from "./detection/location";
 
 // ── Layout types ──────────────────────────────────────────────────
 
@@ -453,7 +453,9 @@ function normalizeText(value: string): string {
 function detectUnit(name: string): { label: string; key: string; index: number } | null {
   const location = extractLocation(name);
   if (!location) return null;
-  return { label: location.label, key: location.raw, index: location.value };
+  // La clave debe distinguir «Sótano 1» de «Piso 1»: los dos dan el texto
+  // crudo «1», y con él uno de los dos desaparecía del análisis.
+  return { label: location.label, key: formatLocationLabel(location), index: location.value };
 }
 
 function normalizeActivityName(name: string): string {
