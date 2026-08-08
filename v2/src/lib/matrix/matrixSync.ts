@@ -1,5 +1,6 @@
 import type { GanttTask } from "@/components/gantt/types";
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
+import type { ProjectCalendar } from "@/types/calendar";
 import type {
   MatrixPlan,
   MatrixSyncConflict,
@@ -18,6 +19,11 @@ interface ApplyMatrixUpdateInput {
    * elegir.
    */
   resolutions?: Record<string, ConflictResolution>;
+  /**
+   * El calendario del proyecto. Es opcional a propósito: sin él la matriz
+   * mantiene su regla histórica y ningún plan ya guardado cambia de fechas.
+   */
+  calendar?: ProjectCalendar;
 }
 
 interface ApplyMatrixUpdateResult {
@@ -49,8 +55,11 @@ function isAfter(a?: string, b?: string): boolean {
   return new Date(a).getTime() > new Date(b).getTime();
 }
 
-function buildPreviousExpectedMap(plan: MatrixPlan): Map<string, GanttTask> {
-  const expected = generateScheduleFromMatrix(plan);
+function buildPreviousExpectedMap(
+  plan: MatrixPlan,
+  calendar?: ProjectCalendar,
+): Map<string, GanttTask> {
+  const expected = generateScheduleFromMatrix(plan, { calendar });
   return new Map(
     expected.tasks
       .map((task) => [sourceKey(task), task] as const)
@@ -111,8 +120,11 @@ function mergeGeneratedTask(
 function detectConflicts(
   currentTasks: GanttTask[],
   currentPlan: MatrixPlan,
+  calendar?: ProjectCalendar,
 ): MatrixSyncConflict[] {
-  const expectedBySource = buildPreviousExpectedMap(currentPlan);
+  // La comparación tiene que usar la misma regla de fechas que la generación;
+  // si no, cada aplicación con calendario inventaría conflictos que no existen.
+  const expectedBySource = buildPreviousExpectedMap(currentPlan, calendar);
   const conflicts: MatrixSyncConflict[] = [];
 
   for (const task of currentTasks) {
@@ -190,14 +202,15 @@ export function applyMatrixUpdate({
   currentPlan,
   nextPlan,
   resolutions = {},
+  calendar,
 }: ApplyMatrixUpdateInput): ApplyMatrixUpdateResult {
   const previousBySource = new Map(
     tasks
       .map((task) => [sourceKey(task), task] as const)
       .filter((entry): entry is [string, GanttTask] => entry[0] != null),
   );
-  const generated = generateScheduleFromMatrix(nextPlan);
-  const conflicts = detectConflicts(tasks, currentPlan);
+  const generated = generateScheduleFromMatrix(nextPlan, { calendar });
+  const conflicts = detectConflicts(tasks, currentPlan, calendar);
   const taskById = new Map(tasks.map((task) => [task.id, task]));
 
   const mergedGenerated = generated.tasks.map((task) => {
@@ -356,11 +369,12 @@ function upsertActivityOverride(
 export function syncMatrixPlanFromTasks(
   plan: MatrixPlan,
   tasks: GanttTask[],
+  calendar?: ProjectCalendar,
 ): MatrixPlan {
   const taskIdsByCell = new Map<string, (string | number)[]>();
   const ganttEditedTasksByCell = new Map<string, GanttTask[]>();
   /** Lo que la matriz había calculado, para saber si la obra se desvió. */
-  const expectedBySource = buildPreviousExpectedMap(plan);
+  const expectedBySource = buildPreviousExpectedMap(plan, calendar);
   const observedDurationByCell = new Map<string, number>();
 
   for (const task of tasks) {

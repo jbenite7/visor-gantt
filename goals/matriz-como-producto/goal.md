@@ -1,6 +1,6 @@
 ---
 tipo: goal
-estado: fases 1 y 2 cerradas; fase 3 pendiente del carril A
+estado: cerrado
 fecha: 2026-08-07
 areas: [matriz, cronograma, producto]
 carril: B
@@ -58,9 +58,27 @@ La revisión final cazó tres cosas que ninguna revisión por tarea podía ver:
 - una **caché que no cacheaba**: firmaba cada celda y generaba todo igual, añadiendo coste en cada tecla.
   Retirada.
 
-**La Fase 3 sigue bloqueada por el carril A** y es lo único pendiente: la matriz en el menú, el aviso al
-salir con cambios sin aplicar, el calendario del proyecto cableado, el `ConflictChooser` montado y el
-borrado de ubicación con `runUndoable`.
+**Fase 3 ejecutada (2026-08-08)**, en cuanto el carril A fusionó. Dos de sus cinco puntos ya los había
+hecho el propio carril A —la matriz en el menú y el aviso al salir—, así que quedaron tres, más un cuarto
+que salió al ejecutarlos:
+
+- el **calendario del proyecto** llega al generador, con aviso si desplaza las fechas más de tres días;
+- los **conflictos se muestran** con las dos versiones y el usuario elige cuál gana;
+- **borrar una ubicación** avisa de cuántas tareas se lleva, deja elegir y se puede deshacer;
+- y el cuarto: la vista previa usaba el calendario y **lo aplicado no**, así que prometían fechas distintas.
+  Cerrado pasando el calendario a las dos llamadas del motor —la que genera y la que compara—, porque con
+  una sola aparecerían conflictos inventados en cada aplicación.
+
+La revisión de la fase cazó además una **pérdida silenciosa de trabajo** que el implementador había
+anotado como cosmética: si el cronograma cambiaba mientras el usuario decidía en el diálogo de conflictos,
+los conflictos nuevos se resolvían solos a favor de la matriz y **una edición hecha en obra se pisaba sin
+preguntar**. Ahora se recalcula antes de aplicar y, si la lista cambió, no se aplica nada y se vuelve a
+preguntar.
+
+**El menú quedó en 11 entradas**, el número que el usuario decidió el 2026-08-08, con Last Planner dentro
+de Observaciones.
+
+Suite completa: **1317 tests en 141 suites**, lint limpio, tipos filtrados vacíos y `next build` correcto.
 
 ## Condición de hecho
 

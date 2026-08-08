@@ -2032,3 +2032,342 @@ describe("deshacer un alta de asignación no borra de más (M14)", () => {
     await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(2));
   });
 });
+
+describe("la matriz y el calendario del proyecto (M26)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  async function abrirMatriz() {
+    fireEvent.click(screen.getByTestId("command-palette-open"));
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "matriz" },
+    });
+    fireEvent.keyDown(window, { key: "Enter" });
+    await screen.findByTestId("matrix-editor");
+  }
+
+  test("el calendario del proyecto llega al editor y avisa antes de aplicar", async () => {
+    const matrixPlan = createSingleCellMatrixPlan();
+    const generated = generateScheduleFromMatrix(matrixPlan);
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Calendario"
+        tasks={generated.tasks}
+        matrixPlan={matrixPlan}
+        calendar={{
+          timeZone: "America/Bogota",
+          workDays: [1],
+          startHour: "08:00",
+          endHour: "17:00",
+          hoursPerDay: 8,
+          nonWorkingDays: [],
+          dateOverrides: [],
+        }}
+      />,
+    );
+
+    await abrirMatriz();
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    expect(screen.getByTestId("matrix-calendar-warning")).toBeInTheDocument();
+  });
+
+  test("con el calendario por defecto no se supera el umbral y se aplica directo", async () => {
+    const matrixPlan = createSingleCellMatrixPlan();
+    const generated = generateScheduleFromMatrix(matrixPlan);
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Calendario por defecto"
+        tasks={generated.tasks}
+        matrixPlan={matrixPlan}
+      />,
+    );
+
+    await abrirMatriz();
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    expect(screen.queryByTestId("matrix-calendar-warning")).not.toBeInTheDocument();
+  });
+});
+
+describe("los conflictos de la matriz los decide el usuario (M26)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  async function renderConConflicto() {
+    const matrixPlan = createSingleCellMatrixPlan();
+    const renombrada = {
+      ...makeLinkedMatrixTask(),
+      name: "Formaleta como se llama en obra",
+    };
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Conflictos"
+        tasks={[renombrada]}
+        matrixPlan={matrixPlan}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("command-palette-open"));
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "matriz" },
+    });
+    fireEvent.keyDown(window, { key: "Enter" });
+    await screen.findByTestId("matrix-editor");
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    return { renombrada };
+  }
+
+  test("con conflictos no se aplica a ciegas: se pregunta", async () => {
+    await renderConConflicto();
+
+    expect(await screen.findByTestId("conflict-chooser")).toBeInTheDocument();
+  });
+
+  test("elegir «Gantt» conserva el nombre puesto en obra", async () => {
+    jest.useFakeTimers();
+    const { renombrada } = await renderConConflicto();
+
+    fireEvent.click(
+      await screen.findByLabelText(
+        `Conservar lo del Gantt en el nombre de ${renombrada.id}`,
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar con estas decisiones" }));
+
+    expect(screen.queryByTestId("conflict-chooser")).not.toBeInTheDocument();
+
+    await flushAutosave();
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    expect(
+      latestSavedProject().tasks.find((task) => task.id === renombrada.id)?.name,
+    ).toBe("Formaleta como se llama en obra");
+  }, 20_000);
+
+  test("«No aplicar» deja el cronograma como estaba", async () => {
+    const { renombrada } = await renderConConflicto();
+
+    fireEvent.click(await screen.findByRole("button", { name: "No aplicar" }));
+
+    expect(screen.queryByTestId("conflict-chooser")).not.toBeInTheDocument();
+
+    // Lo que importa no es que el diálogo se cierre, sino que la tarea siga
+    // llamándose como la puso la obra.
+    fireEvent.click(screen.getByTestId("sidebar-view-gantt"));
+    const fila = document.querySelector(`[data-task-id="${renombrada.id}"]`);
+    if (!fila) throw new Error("Se esperaba la fila de la tarea renombrada");
+    expect(within(fila as HTMLElement).getByText(renombrada.name)).toBeInTheDocument();
+  });
+});
+
+describe("borrar una ubicación de la matriz se puede deshacer (M26)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  async function abrirUbicaciones(matrixPlan: MatrixPlan, tasks: GanttTask[]) {
+    jest.useFakeTimers();
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Ubicaciones"
+        tasks={tasks}
+        matrixPlan={matrixPlan}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("command-palette-open"));
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "matriz" },
+    });
+    fireEvent.keyDown(window, { key: "Enter" });
+    await flushAutosave();
+    screen.getByTestId("matrix-editor");
+    fireEvent.click(screen.getByRole("button", { name: "Ubicaciones" }));
+    mockedSaveProject.mockClear();
+  }
+
+  function tareasGuardadasDePiso1(): number {
+    return latestSavedProject().tasks.filter(
+      (task) => task.matrixSource?.areaId === "piso-1",
+    ).length;
+  }
+
+  test("borrar también las tareas las quita del cronograma y Ctrl+Z las devuelve", async () => {
+    const matrixPlan = createSingleCellMatrixPlan();
+    const generated = generateScheduleFromMatrix(matrixPlan);
+    const generadas = generated.tasks.filter((task) => task.matrixSource);
+    expect(generadas.length).toBeGreaterThan(0);
+
+    await abrirUbicaciones(matrixPlan, generated.tasks);
+
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Piso 1" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Borrar también sus tareas" }),
+    );
+
+    await flushAutosave();
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    expect(tareasGuardadasDePiso1()).toBe(0);
+
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+
+    await flushAutosave();
+    await waitFor(() => expect(tareasGuardadasDePiso1()).toBe(generadas.length));
+  }, 20_000);
+
+  test("conservarlas deja las tareas en el cronograma, sueltas de la matriz", async () => {
+    const matrixPlan = createSingleCellMatrixPlan();
+    const generated = generateScheduleFromMatrix(matrixPlan);
+    const generadas = generated.tasks.filter((task) => task.matrixSource);
+
+    await abrirUbicaciones(matrixPlan, generated.tasks);
+
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Piso 1" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Conservarlas en el cronograma" }),
+    );
+
+    await flushAutosave();
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+
+    // Siguen en el cronograma, pero ya no cuelgan de la matriz.
+    const guardadas = latestSavedProject().tasks;
+    expect(guardadas.filter((task) => generadas.some((t) => t.id === task.id))).toHaveLength(
+      generadas.length,
+    );
+    expect(tareasGuardadasDePiso1()).toBe(0);
+  }, 20_000);
+});
+
+describe("el diálogo de conflictos no se queda viejo (M26)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  /** Dos actividades: así una tarea puede tener conflicto y la otra no. */
+  function planDeDosTareas(): MatrixPlan {
+    const plan = createSingleCellMatrixPlan();
+    return {
+      ...plan,
+      recipes: [
+        {
+          ...plan.recipes[0],
+          activities: [
+            ...plan.recipes[0].activities,
+            {
+              id: "acero",
+              name: "Acero",
+              productivityPerDay: 50,
+              defaultQuantity: 100,
+              unit: "kg",
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  function renombrar(task: GanttTask, nombre: string): GanttTask {
+    return { ...task, name: nombre };
+  }
+
+  async function abrirMatriz() {
+    fireEvent.click(screen.getByTestId("sidebar-view-matrix"));
+    await screen.findByTestId("matrix-editor");
+  }
+
+  test("si los conflictos cambiaron mientras decidía, no se aplica y se vuelve a preguntar", async () => {
+    const matrixPlan = planDeDosTareas();
+    const generadas = generateScheduleFromMatrix(matrixPlan).tasks.filter(
+      (task) => !task.isSummary,
+    );
+    expect(generadas).toHaveLength(2);
+    const [uno, dos] = generadas;
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Conflictos vivos"
+        tasks={generateScheduleFromMatrix(matrixPlan).tasks.map((task) =>
+          task.isSummary
+            ? task
+            : renombrar(task, `${task.name} (obra)`),
+        )}
+        matrixPlan={matrixPlan}
+      />,
+    );
+
+    // La segunda vuelve a llamarse como la matriz: su conflicto desaparece.
+    const filaDos = document.querySelector(`[data-task-id="${dos.id}"]`);
+    if (!filaDos) throw new Error("Se esperaba la fila de la segunda tarea");
+    const celdas = within(filaDos as HTMLElement).getAllByTestId("editable-cell");
+    fireEvent.doubleClick(celdas[0]);
+    const input = activeEditableInput();
+    fireEvent.change(input, { target: { value: dos.name } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await abrirMatriz();
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    // Solo la primera tiene conflicto.
+    expect(
+      await screen.findByTestId(`conflict-${uno.id}-name`),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId(`conflict-${dos.id}-name`),
+    ).not.toBeInTheDocument();
+
+    // El cronograma cambia por debajo: Ctrl+Z devuelve el nombre de obra.
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar con estas decisiones" }));
+
+    // No se aplica: se vuelve a preguntar con el conflicto que había aparecido.
+    expect(await screen.findByTestId("conflicts-changed")).toBeInTheDocument();
+    expect(screen.getByTestId("conflict-chooser")).toBeInTheDocument();
+    expect(screen.getByTestId(`conflict-${dos.id}-name`)).toBeInTheDocument();
+  }, 20_000);
+
+  test("salir de la matriz cierra el diálogo, no lo deja esperando", async () => {
+    const matrixPlan = createSingleCellMatrixPlan();
+    const generated = generateScheduleFromMatrix(matrixPlan);
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Cambio de vista"
+        tasks={generated.tasks.map((task) =>
+          task.isSummary ? task : { ...task, name: `${task.name} (obra)` },
+        )}
+        matrixPlan={matrixPlan}
+      />,
+    );
+
+    await abrirMatriz();
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+    expect(await screen.findByTestId("conflict-chooser")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("sidebar-view-gantt"));
+    await abrirMatriz();
+
+    expect(screen.queryByTestId("conflict-chooser")).not.toBeInTheDocument();
+  }, 20_000);
+});
