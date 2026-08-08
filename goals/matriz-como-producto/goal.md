@@ -55,7 +55,9 @@ Este proyecto la convierte en producto: **que sirva para armar la obra, y que ap
    elige cuál gana.
 6. Una matriz de **1200 celdas** se edita sin bloquear la pantalla.
 7. La matriz está **en el menú**, dentro de «Trabajo», y avisa al salir con cambios sin aplicar.
-8. Suite completa, lint, `tsc` filtrado vacío, `next build` y comprobación en navegador sobre la ruta de
+8. Borrar una ubicación que ya generó tareas **avisa de cuántas son, deja elegir** entre borrarlas o
+   conservarlas en el cronograma, y **se puede deshacer**.
+9. Suite completa, lint, `tsc` filtrado vacío, `next build` y comprobación en navegador sobre la ruta de
    la matriz.
 
 ## Restricciones
