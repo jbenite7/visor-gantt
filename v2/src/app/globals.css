@@ -3370,3 +3370,8 @@ h6 {
   font-family: inherit;
   font-size: var(--gantt-toolbar-meta-size);
 }
+
+/* ── Lo destructivo se distingue de lo frecuente (E34) ── */
+.gantt-project-toolbar__button--danger:not(:disabled) {
+  color: var(--aia-alert-main);
+}

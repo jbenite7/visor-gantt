@@ -160,9 +160,10 @@ export default function ProjectToolbar({
 
       {/* ─── 4. Editing Tools (center-right) ─── */}
       <div className="gantt-project-toolbar__group">
-        {/* Add Task */}
+        {/* Agregar tarea */}
         <button
           type="button"
+          data-testid="toolbar-add"
           onClick={onAddTask}
           disabled={!onAddTask}
           title={t(locale, "addTask")}
@@ -171,15 +172,20 @@ export default function ProjectToolbar({
           <Plus className="gantt-project-toolbar__icon" aria-hidden />
         </button>
 
-        {/* Delete Task */}
+        {/* Separador: lo destructivo no puede estar pegado a lo frecuente (E34) */}
+        <div className="gantt-project-toolbar__mini-divider" />
+
+        {/* Eliminar tarea — con etiqueta de texto, no solo icono */}
         <button
           type="button"
+          data-testid="toolbar-delete"
           onClick={onDeleteTask}
           disabled={!hasSelection}
           title={t(locale, "deleteSelectedTasks")}
-          className="gantt-project-toolbar__button gantt-project-toolbar__button--icon"
+          className="gantt-project-toolbar__button gantt-project-toolbar__button--text gantt-project-toolbar__button--danger"
         >
           <Trash2 className="gantt-project-toolbar__icon" aria-hidden />
+          <span>{locale === "en" ? "Delete" : "Eliminar"}</span>
         </button>
 
         {onOpenObservations && (
@@ -204,12 +210,15 @@ export default function ProjectToolbar({
           </>
         )}
 
-        {(canUndo || canRedo) && (
-          <>
-            <div className="gantt-project-toolbar__mini-divider" />
+        {/*
+          Antes el grupo entero desaparecía sin historial, y la barra se
+          reordenaba bajo el dedo del usuario. Ahora se apagan (E15).
+        */}
+        <div className="gantt-project-toolbar__mini-divider" />
 
             <button
               type="button"
+              data-testid="toolbar-undo"
               onClick={onUndo}
               disabled={!canUndo}
               title={`${t(locale, "undo")} (Ctrl+Z)`}
@@ -220,6 +229,7 @@ export default function ProjectToolbar({
 
             <button
               type="button"
+              data-testid="toolbar-redo"
               onClick={onRedo}
               disabled={!canRedo}
               title={`${t(locale, "redo")} (Ctrl+Shift+Z)`}
@@ -227,8 +237,7 @@ export default function ProjectToolbar({
             >
               <Redo2 className="gantt-project-toolbar__icon" aria-hidden />
             </button>
-          </>
-        )}
+          
       </div>
 
       <div className="gantt-project-toolbar__divider" />
