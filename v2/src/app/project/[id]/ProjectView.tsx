@@ -16,7 +16,6 @@ import type { BudgetItem, BudgetMapping } from "@/types/budget";
 import type { Baseline } from "@/types/baseline";
 import type { MatrixPlan } from "@/types/matrix";
 import type {
-import ScheduleSkeleton from "@/components/gantt/ScheduleSkeleton";
   AssignmentColumnSettings,
   MppAssignmentColumn,
   MppCustomFieldDefinition,
@@ -26,6 +25,7 @@ import ScheduleSkeleton from "@/components/gantt/ScheduleSkeleton";
   TaskColumnSettings,
 } from "@/types/mppColumns";
 import type { UISettings } from "@/types/ui";
+import ScheduleSkeleton from "@/components/gantt/ScheduleSkeleton";
 
 interface SerializedTask {
   id: string | number;
