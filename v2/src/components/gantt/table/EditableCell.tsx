@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
+
+/** Lo que dura el destello de «cambio aceptado» sobre la celda. */
+const ACCEPTED_FLASH_MS = 350;
 
 export type EditableCellType =
   | "text"
@@ -44,14 +47,23 @@ export default function EditableCell({
   step: stepOverride,
 }: EditableCellProps) {
   const [isEditing, setIsEditing] = useState(false);
+  /** Confirmación de que el cambio entró: se apaga sola (E44). */
+  const [accepted, setAccepted] = useState(false);
   const [editValue, setEditValue] = useState(String(value));
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
 
   const commit = useCallback((nextValue: string = editValue) => {
     setIsEditing(false);
     setEditValue(nextValue);
+    setAccepted(true);
     onCommit(nextValue);
   }, [editValue, onCommit]);
+
+  useEffect(() => {
+    if (!accepted) return;
+    const id = setTimeout(() => setAccepted(false), ACCEPTED_FLASH_MS);
+    return () => clearTimeout(id);
+  }, [accepted]);
 
   const cancel = useCallback(() => {
     setIsEditing(false);
@@ -145,8 +157,19 @@ export default function EditableCell({
       className="gantt-editable-cell"
       data-align={align}
       data-read-only={readOnly}
+      data-accepted={accepted}
+      tabIndex={readOnly ? undefined : 0}
       onDoubleClick={handleDoubleClick}
-      title={readOnly ? undefined : "Doble clic para editar"}
+      onKeyDown={(event) => {
+        // Enter y F2 abren la edición, como en una hoja de cálculo: la tabla
+        // tiene que poder recorrerse y editarse sin soltar el teclado (E37).
+        if (readOnly) return;
+        if (event.key === "Enter" || event.key === "F2") {
+          event.preventDefault();
+          setIsEditing(true);
+        }
+      }}
+      title={readOnly ? undefined : "Doble clic o Enter para editar"}
       data-testid="editable-cell"
     >
       {prefix}

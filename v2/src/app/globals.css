@@ -3278,3 +3278,31 @@ h6 {
 [data-testid="editable-cell"][data-read-only="true"] {
   color: var(--color-text-muted);
 }
+
+/* ── La celda editable se reconoce antes de tocarla (E37) ── */
+.gantt-editable-cell[data-read-only="false"]:hover,
+.gantt-editable-cell[data-read-only="false"]:focus-visible {
+  outline: var(--border-width-hairline) dashed var(--color-hairline);
+  outline-offset: -1px;
+  cursor: text;
+}
+
+/* ── Y confirma cuando el cambio entra (E44) ── */
+@keyframes gantt-cell-accepted {
+  from {
+    background-color: var(--aia-corp-xlight);
+  }
+  to {
+    background-color: var(--color-transparent);
+  }
+}
+
+.gantt-editable-cell[data-accepted="true"] {
+  animation: gantt-cell-accepted 350ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gantt-editable-cell[data-accepted="true"] {
+    animation: none;
+  }
+}
