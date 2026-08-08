@@ -35,6 +35,7 @@ import ColumnHeader from "./ColumnHeader";
 import ColumnSelector from "./ColumnSelector";
 import type { ColumnConfig } from "./ColumnSelector";
 import GanttRow from "./GanttRow";
+import type { ProjectCalendar } from "@/types/calendar";
 import DependencyPanel from "@/components/gantt/dependencies/DependencyPanel";
 
 interface TaskBudgetData {
@@ -55,6 +56,8 @@ interface GanttTableProps {
     value: unknown
   ) => void;
   /** Motivo por el que una edición se rechazó, para anunciarlo al usuario. */
+  /** Calendario del proyecto: decide qué días cuentan al editar el fin. */
+  calendar?: ProjectCalendar;
   /** Actividades movidas por la última edición aceptada (E31). */
   changedTaskIds?: (string | number)[];
   onInvalidEdit?: (reason: string) => void;
@@ -243,6 +246,7 @@ export default function GanttTable({
   selectedTaskIds,
   onTaskSelect,
   onUpdateTask,
+  calendar,
   changedTaskIds,
   onInvalidEdit,
   onResetColumns,
@@ -1214,6 +1218,7 @@ export default function GanttTable({
                 task={task}
                 index={index}
                 isChanged={changedTaskIds?.includes(task.id) ?? false}
+                calendar={calendar}
                 rowNumber={index + 1}
                 isSelected={selectedTaskIds?.includes(task.id) ?? false}
                 onSelect={onTaskSelect}

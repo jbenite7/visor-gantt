@@ -1,5 +1,7 @@
 "use client";
 
+import { DEFAULT_PROJECT_CALENDAR, type ProjectCalendar } from "@/types/calendar";
+import { durationFromFinish } from "@/lib/gantt/finishEditing";
 import type { GanttTask, GanttDependency } from "@/components/gantt/types";
 import WBSExpand from "./WBSExpand";
 import EditableCell from "./EditableCell";
@@ -24,6 +26,8 @@ interface GanttRowProps {
   index: number;
   /** Se movió con la última edición: se resalta un momento (E31). */
   isChanged?: boolean;
+  /** Calendario del proyecto: decide qué días cuentan al editar el fin. */
+  calendar?: ProjectCalendar;
   rowNumber: number;
   onSelect?: (taskId: string | number, ctrlKey: boolean) => void;
   isSelected: boolean;
@@ -280,6 +284,7 @@ export default function GanttRow({
   task,
   index,
   isChanged,
+  calendar = DEFAULT_PROJECT_CALENDAR,
   rowNumber,
   onSelect,
   isSelected,
@@ -432,16 +437,27 @@ export default function GanttRow({
             displayValue={formatCompactDate(task.finish)}
             type="date"
             align="left"
-            readOnly
+            readOnly={derivado}
             onCommit={(val) => {
+              // Escribir el fin no mueve la tarea: cambia su duración, como en
+              // MS Project. El fin sigue siendo un dato calculado.
               const parsed = parseDateInput(val, {
                 notBefore: task.start,
                 notBeforeLabel: "el inicio de la tarea",
               });
-              if (parsed.ok) {
-                onUpdateTask!(task.id, "finish", parsed.value);
-              } else {
+              if (!parsed.ok) {
                 onInvalidEdit?.(parsed.reason);
+                return;
+              }
+              const nuevaDuracion = durationFromFinish(
+                task,
+                parsed.value,
+                calendar,
+              );
+              if (nuevaDuracion.ok) {
+                onUpdateTask!(task.id, "duration", nuevaDuracion.duration);
+              } else {
+                onInvalidEdit?.(nuevaDuracion.reason);
               }
             }}
           />

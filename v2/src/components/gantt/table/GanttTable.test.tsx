@@ -1214,21 +1214,18 @@ describe("restablecer columnas es una acción aparte (E24)", () => {
 });
 
 describe("lo calculado no se edita (E27)", () => {
-  test("la fecha de fin no entra en edición con doble clic", () => {
+  test("la fecha de fin se edita, pero lo que cambia es la duración", () => {
+    // Decidido en el Bloque B: escribir el fin no mueve la tarea, cambia
+    // cuánto dura. El fin sigue siendo un dato que calcula el motor.
+    const onUpdateTask = jest.fn();
     render(
-      <GanttTable
-        tasks={[makeTask({ id: 1 })]}
-        onUpdateTask={jest.fn()}
-      />,
+      <GanttTable tasks={[makeTask({ id: 1 })]} onUpdateTask={onUpdateTask} />,
     );
 
     const fin = screen.getByTestId("cell-finish-1");
     fireEvent.doubleClick(fin.querySelector('[data-testid="editable-cell"]')!);
 
-    expect(fin.querySelector("input")).toBeNull();
-    expect(
-      fin.querySelector('[data-testid="editable-cell"]'),
-    ).toHaveAttribute("data-read-only", "true");
+    expect(fin.querySelector("input")).not.toBeNull();
   });
 
   test("una fila resumen no deja editar la duración", () => {
@@ -1454,5 +1451,82 @@ describe("las filas afectadas por la última edición se resaltan (E31)", () => 
       "data-changed",
       "false",
     );
+  });
+});
+
+describe("editar el fin cambia la duración (Bloque B)", () => {
+  test("escribir un fin más lejano sube la duración, no mueve la tarea", () => {
+    const onUpdateTask = jest.fn();
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({
+            id: 1,
+            start: new Date("2026-01-05"),
+            finish: new Date("2026-01-09"),
+            duration: 5,
+          }),
+        ]}
+        onUpdateTask={onUpdateTask}
+        onInvalidEdit={jest.fn()}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-finish-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "2026-01-12" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onUpdateTask).toHaveBeenCalledWith(1, "duration", 7);
+    expect(onUpdateTask).not.toHaveBeenCalledWith(
+      1,
+      "finish",
+      expect.anything(),
+    );
+  });
+
+  test("un fin en domingo se rechaza explicando, sin tocar la tarea", () => {
+    const onUpdateTask = jest.fn();
+    const onInvalidEdit = jest.fn();
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({
+            id: 1,
+            start: new Date("2026-01-05"),
+            finish: new Date("2026-01-09"),
+            duration: 5,
+          }),
+        ]}
+        onUpdateTask={onUpdateTask}
+        onInvalidEdit={onInvalidEdit}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-finish-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "2026-01-11" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onUpdateTask).not.toHaveBeenCalled();
+    expect(onInvalidEdit).toHaveBeenCalledWith(
+      expect.stringMatching(/no se trabaja/i),
+    );
+  });
+
+  test("el fin de una fila resumen sigue sin editarse: lo calculan sus hijas", () => {
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1, isSummary: true })]}
+        onUpdateTask={jest.fn()}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-finish-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+
+    expect(celda.querySelector("input")).toBeNull();
   });
 });

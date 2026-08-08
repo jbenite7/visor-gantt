@@ -1693,6 +1693,7 @@ function GanttViewInner({
                       onUpdateTask={updateTask}
                       onInvalidEdit={reportInvalidEdit}
                       changedTaskIds={lastChange?.taskIds ?? []}
+                      calendar={calendar}
                       mppTaskColumns={mppTaskColumns}
                       customFieldDefinitions={calculatedMpp.customFieldDefinitions}
                       columnSettings={taskColumnSettings}
