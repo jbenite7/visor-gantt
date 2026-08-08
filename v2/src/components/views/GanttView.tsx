@@ -250,7 +250,7 @@ function GanttViewInner({
   const [observationPanelTaskId, setObservationPanelTaskId] = useState<
     string | number | null
   >(null);
-  const [assignments] = useState<Assignment[]>(initialAssignments);
+  const [assignments, setAssignments] = useState<Assignment[]>(initialAssignments);
   const [resourceSubView, setResourceSubView] = useState<"sheet" | "assignments" | "usage" | "budget" | "mapping">("sheet");
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>(initialBudgetItems);
   const [budgetMappings, setBudgetMappings] =
@@ -944,6 +944,55 @@ function GanttViewInner({
       undo: () => setResourceColumnSettings(previous),
     });
   }, [locale, resourceColumnSettings, runUndoable]);
+
+  /**
+   * Alta y baja de asignaciones, por el historial como el resto de lo
+   * destructivo desde E24. Sin esto, quien arma el proyecto en la app no podía
+   * asignar a nadie (M14).
+   */
+  const handleCreateAssignment = useCallback(
+    (assignment: Assignment) => {
+      runUndoable({
+        description: "Recurso asignado a la actividad",
+        execute: () => setAssignments((prev) => [...prev, assignment]),
+        undo: () =>
+          setAssignments((prev) =>
+            prev.filter(
+              (a) =>
+                !(
+                  a.taskId === assignment.taskId &&
+                  a.resourceId === assignment.resourceId
+                ),
+            ),
+          ),
+      });
+    },
+    [runUndoable],
+  );
+
+  const handleDeleteAssignment = useCallback(
+    (assignment: Assignment) => {
+      const index = assignments.findIndex(
+        (a) =>
+          a.taskId === assignment.taskId &&
+          a.resourceId === assignment.resourceId,
+      );
+      if (index === -1) return;
+
+      runUndoable({
+        description: "Asignación de recurso eliminada",
+        execute: () =>
+          setAssignments((prev) => prev.filter((_, i) => i !== index)),
+        undo: () =>
+          setAssignments((prev) => {
+            const next = [...prev];
+            next.splice(index, 0, assignment);
+            return next;
+          }),
+      });
+    },
+    [assignments, runUndoable],
+  );
 
   const handleResetAssignmentColumns = useCallback(() => {
     const previous = assignmentColumnSettings;
@@ -1959,6 +2008,8 @@ function GanttViewInner({
                     locale={locale}
                     onColumnSettingsChange={setAssignmentColumnSettings}
                     onResetColumns={handleResetAssignmentColumns}
+                    onCreateAssignment={handleCreateAssignment}
+                    onDeleteAssignment={handleDeleteAssignment}
                     onLocaleChange={(nextLocale: UILocale) =>
                       setUISettings({ locale: nextLocale })
                     }

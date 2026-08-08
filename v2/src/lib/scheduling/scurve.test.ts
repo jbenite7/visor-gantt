@@ -225,11 +225,12 @@ describe("computeEarnedValueSCurve", () => {
   // -------------------------------------------------------------------------
   // 7. Empty input
   // -------------------------------------------------------------------------
-  it("returns empty points with CPI/SPI=1 when no tasks are given", () => {
+  it("returns empty points and no indices when no tasks are given", () => {
+    // Antes devolvía 1, que el tablero leía como «todo en orden» (M1).
     const result = computeEarnedValueSCurve([], [], []);
     expect(result.points).toEqual([]);
-    expect(result.cpi).toBe(1);
-    expect(result.spi).toBe(1);
+    expect(result.cpi).toBeNull();
+    expect(result.spi).toBeNull();
   });
 
   // -------------------------------------------------------------------------
