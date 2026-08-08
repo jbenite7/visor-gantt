@@ -66,3 +66,17 @@ sección «Decisiones del Bloque D». No se reabren.
 
 - [spec](../../docs/superpowers/specs/2026-08-07-no-perder-trabajo-design.md) — el diseño
 - [plan](../../docs/superpowers/plans/2026-08-07-no-perder-trabajo.md) — el plan de ejecución TDD
+
+## Cerrado 2026-08-08
+
+Ejecutado y fusionado a `claude/suspicious-joliot-8f08ea`. Las seis piezas están en pie y verificadas en
+navegador: anotar dispara el guardado **a los 60 ms**, la línea base activa dibuja en el Gantt principal,
+borrarla es deshacible con `Ctrl+Z`, y cerrar con trabajo pendiente pregunta.
+
+**Dos defectos que solo aparecieron al verificar, no al diseñar:**
+- El grupo de línea base de la barra estaba en `display: none` sin ninguna regla que lo reactivara: el control
+  que el inventario llamó «el más visible» no se veía en ninguna anchura.
+- Un guardado fallido dejaba el proyecto marcado como limpio, así que el aviso al cerrar dejaba pasar trabajo
+  que se iba a perder.
+
+Evidencia en [docs/EXPERIMENTS.md](../../docs/EXPERIMENTS.md), tarjeta «P1 · No perder trabajo».

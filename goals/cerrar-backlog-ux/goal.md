@@ -65,3 +65,17 @@ Cuatro entregas, cada una desplegable por separado:
 
 - [spec](../../docs/superpowers/specs/2026-08-07-cerrar-backlog-ux-design.md) — el diseño
 - [plan](../../docs/superpowers/plans/2026-08-07-cerrar-backlog-ux.md) — el plan de ejecución TDD
+
+## Cerrado 2026-08-08
+
+Ejecutado y fusionado a `claude/suspicious-joliot-8f08ea`. Los 27 experimentos quedan **cerrados o
+descartados con motivo escrito**: cero en `backlog`.
+
+**936 tests unitarios** (710 de partida) y **50 E2E en Chromium** en verde, con base de datos y microservicio
+de análisis reales. `eslint` sin errores, `tsc --noEmit` filtrado vacío, `next build` correcto.
+
+**Cuatro defectos encontrados leyendo o verificando, no diseñando**, y **seis más** que salieron de la
+revisión independiente del carril — entre ellos uno serio: el modo Simple borraba las columnas del `.mpp` al
+guardar. Todos corregidos con test.
+
+Evidencia en [docs/EXPERIMENTS.md](../../docs/EXPERIMENTS.md), tarjeta «P2 · Cerrar el backlog de UX».
