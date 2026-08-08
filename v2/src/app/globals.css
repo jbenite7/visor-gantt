@@ -3273,3 +3273,8 @@ h6 {
 .import-summary-banner__warnings {
   flex-basis: 100%;
 }
+
+/* ── Lo que calcula el motor se distingue de lo que se edita (E27) ── */
+[data-testid="editable-cell"][data-read-only="true"] {
+  color: var(--color-text-muted);
+}

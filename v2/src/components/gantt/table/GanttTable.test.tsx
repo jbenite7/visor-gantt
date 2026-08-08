@@ -1212,3 +1212,68 @@ describe("restablecer columnas es una acción aparte (E24)", () => {
     expect(onColumnSettingsChange).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("lo calculado no se edita (E27)", () => {
+  test("la fecha de fin no entra en edición con doble clic", () => {
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1 })]}
+        onUpdateTask={jest.fn()}
+      />,
+    );
+
+    const fin = screen.getByTestId("cell-finish-1");
+    fireEvent.doubleClick(fin.querySelector('[data-testid="editable-cell"]')!);
+
+    expect(fin.querySelector("input")).toBeNull();
+    expect(
+      fin.querySelector('[data-testid="editable-cell"]'),
+    ).toHaveAttribute("data-read-only", "true");
+  });
+
+  test("una fila resumen no deja editar la duración", () => {
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({ id: 1, isSummary: true }),
+          makeTask({ id: 2 }),
+        ]}
+        onUpdateTask={jest.fn()}
+      />,
+    );
+
+    const duracion = screen.getByTestId("cell-duration-1");
+    fireEvent.doubleClick(
+      duracion.querySelector('[data-testid="editable-cell"]')!,
+    );
+
+    expect(duracion.querySelector("input")).toBeNull();
+  });
+
+  test("una tarea normal sí deja editar la duración: no se rompe lo que servía", () => {
+    render(<GanttTable tasks={[makeTask({ id: 2 })]} onUpdateTask={jest.fn()} />);
+
+    const duracion = screen.getByTestId("cell-duration-2");
+    fireEvent.doubleClick(
+      duracion.querySelector('[data-testid="editable-cell"]')!,
+    );
+
+    expect(duracion.querySelector("input")).not.toBeNull();
+  });
+
+  test("la fila resumen tampoco deja editar el avance ni las predecesoras", () => {
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1, isSummary: true })]}
+        onUpdateTask={jest.fn()}
+      />,
+    );
+
+    for (const columna of ["progress", "predecessors", "start"]) {
+      const celda = screen.getByTestId(`cell-${columna}-1`);
+      expect(
+        celda.querySelector('[data-testid="editable-cell"]'),
+      ).toHaveAttribute("data-read-only", "true");
+    }
+  });
+});

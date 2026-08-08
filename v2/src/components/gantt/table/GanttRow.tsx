@@ -270,18 +270,26 @@ export default function GanttRow({
   const canEdit = !!onUpdateTask;
 
   const renderCell = (column: ColumnConfig) => {
+    /** Identificador estable por celda, para poder apuntar a una en las pruebas. */
+    const testId = `cell-${column.key}-${task.id}`;
+    /**
+     * Una fila resumen es la suma de sus hijas: el motor la recalcula en cuanto
+     * cambia cualquiera. Dejarla editable es prometer un control que el
+     * siguiente recálculo deshace (E27).
+     */
+    const derivado = task.isSummary;
     switch (column.key) {
       case "id":
-        return <td key={column.key} {...cellAttributes("right")}>{taskRowId(task, rowNumber)}</td>;
+        return <td key={column.key} {...cellAttributes("right")} data-testid={testId}>{taskRowId(task, rowNumber)}</td>;
       case "uniqueId":
-        return <td key={column.key} {...cellAttributes("right")}>{formatUniqueId(task, rowNumber)}</td>;
+        return <td key={column.key} {...cellAttributes("right")} data-testid={testId}>{formatUniqueId(task, rowNumber)}</td>;
       case "wbs":
-        return <td key={column.key} {...cellAttributes()}>{task.wbs ?? ""}</td>;
+        return <td key={column.key} {...cellAttributes()} data-testid={testId}>{task.wbs ?? ""}</td>;
       case "name":
         return (
           <td
             key={column.key}
-            {...cellAttributes("left", "gantt-row-cell--name")}
+            {...cellAttributes("left", "gantt-row-cell--name")} data-testid={testId}
             data-summary={task.isSummary}
             data-critical={task.isCritical}
           >
@@ -321,19 +329,20 @@ export default function GanttRow({
         return (
           <td
             key={column.key}
-            {...cellAttributes("center", "gantt-row-cell--critical")}
+            {...cellAttributes("center", "gantt-row-cell--critical")} data-testid={testId}
             data-critical={task.isCritical}
           >
             {task.isSummary ? t(locale, "yes") : ""}
           </td>
         );
       case "duration":
-        return <td key={column.key} {...cellAttributes("right")}>
+        return <td key={column.key} {...cellAttributes("right")} data-testid={testId}>
         {canEdit ? (
           <EditableCell
             value={task.duration}
             type="number"
             align="right"
+            readOnly={derivado}
             min={task.isMilestone ? 0 : MIN_TASK_DURATION}
             step={1}
             onCommit={(val) => {
@@ -352,13 +361,14 @@ export default function GanttRow({
         )}
       </td>;
       case "start":
-        return <td key={column.key} {...cellAttributes("left", "gantt-row-cell--date")}>
+        return <td key={column.key} {...cellAttributes("left", "gantt-row-cell--date")} data-testid={testId}>
         {canEdit ? (
           <EditableCell
             value={toISODate(task.start)}
             displayValue={formatCompactDate(task.start)}
             type="date"
             align="left"
+            readOnly={derivado}
             onCommit={(val) => {
               const parsed = parseDateInput(val);
               if (parsed.ok) {
@@ -373,13 +383,14 @@ export default function GanttRow({
         )}
       </td>;
       case "finish":
-        return <td key={column.key} {...cellAttributes("left", "gantt-row-cell--date")}>
+        return <td key={column.key} {...cellAttributes("left", "gantt-row-cell--date")} data-testid={testId}>
         {canEdit ? (
           <EditableCell
             value={toISODate(task.finish)}
             displayValue={formatCompactDate(task.finish)}
             type="date"
             align="left"
+            readOnly
             onCommit={(val) => {
               const parsed = parseDateInput(val, {
                 notBefore: task.start,
@@ -398,7 +409,7 @@ export default function GanttRow({
       </td>;
       case "predecessors": {
         const predecessorValue = formatDependencies(task.dependencies, allTasks);
-        return <td key={column.key} {...cellAttributes("left", "gantt-row-cell--predecessors")}>
+        return <td key={column.key} {...cellAttributes("left", "gantt-row-cell--predecessors")} data-testid={testId}>
         {canEdit ? (
           <div className="gantt-row-dependencies">
             <div className="gantt-row-dependencies__editor">
@@ -407,6 +418,7 @@ export default function GanttRow({
                 displayValue={renderDependencyDisplay(predecessorValue, locale)}
                 type="text"
                 align="left"
+                readOnly={derivado}
                 onCommit={(val) => {
                   const deps = parsePredecessors(val, task.id, allTasks);
                   onUpdateTask!(task.id, "dependencies", deps);
@@ -426,13 +438,14 @@ export default function GanttRow({
       </td>;
       }
       case "progress":
-        return <td key={column.key} {...cellAttributes("right")}>
+        return <td key={column.key} {...cellAttributes("right")} data-testid={testId}>
         {canEdit ? (
           <EditableCell
             value={progress}
             displayValue={formatProgressNumber(progress)}
             type="slider"
             align="right"
+            readOnly={derivado}
             sliderDisplayValue={formatProgressValue}
             onCommit={(val) => {
               const parsed = parseProgressInput(val);
@@ -451,20 +464,20 @@ export default function GanttRow({
         return (
           <td
             key={column.key}
-            {...cellAttributes("center", "gantt-row-cell--critical")}
+            {...cellAttributes("center", "gantt-row-cell--critical")} data-testid={testId}
             data-critical={task.isCritical}
           >
             {task.isCritical ? t(locale, "yes") : ""}
           </td>
         );
       case "budgetedCost":
-        return <td key={column.key} {...cellAttributes("right")}>
+        return <td key={column.key} {...cellAttributes("right")} data-testid={testId}>
         {budgetedCost !== undefined && budgetedCost > 0
           ? FORMAT_CURRENCY.format(budgetedCost)
           : "\u2014"}
       </td>;
       case "actualCost":
-        return <td key={column.key} {...cellAttributes("right")}>
+        return <td key={column.key} {...cellAttributes("right")} data-testid={testId}>
         {actualCost !== undefined && actualCost > 0
           ? FORMAT_CURRENCY.format(actualCost)
           : "\u2014"}
@@ -472,7 +485,7 @@ export default function GanttRow({
       case "variance":
         return <td
         key={column.key}
-        {...cellAttributes("right", "gantt-row-cell--variance")}
+        {...cellAttributes("right", "gantt-row-cell--variance")} data-testid={testId}
         data-variance={
           variance === undefined || variance === 0
             ? "neutral"
@@ -488,7 +501,7 @@ export default function GanttRow({
           const sourceKey = column.sourceKey ?? column.key.replace(/^mpp(?::task)?:/, "");
           const value = getMppCellValue(task, column);
           return (
-            <td key={column.key} {...cellAttributes(column.align)}>
+            <td key={column.key} {...cellAttributes(column.align)} data-testid={testId}>
               <EditableCell
                 value={getMppEditValue(value, column.dataType)}
                 type={mppEditableCellType(column.dataType)}
@@ -502,13 +515,13 @@ export default function GanttRow({
         }
         if (column.dataType === "date") {
           return (
-            <td key={column.key} {...cellAttributes(column.align, "gantt-row-cell--date")}>
+            <td key={column.key} {...cellAttributes(column.align, "gantt-row-cell--date")} data-testid={testId}>
               {formatGenericValue(getMppCellValue(task, column), column.dataType, locale)}
             </td>
           );
         }
         return (
-          <td key={column.key} {...cellAttributes(column.align)}>
+          <td key={column.key} {...cellAttributes(column.align)} data-testid={testId}>
             {formatGenericValue(getMppCellValue(task, column), column.dataType, locale)}
           </td>
         );
