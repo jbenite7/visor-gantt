@@ -489,3 +489,37 @@ describe("getTaskActualCost", () => {
     expect(resultForT2).toBe(300);
   });
 });
+
+describe("sin datos no se inventa un semáforo verde (M1)", () => {
+  test("sin tareas, SPI y CPI no valen 1: valen nada", () => {
+    const r = computeEarnedValueSCurve([], [], []);
+
+    expect(r.spi).toBeNull();
+    expect(r.cpi).toBeNull();
+  });
+
+  test("sin mapeos de presupuesto tampoco se inventan", () => {
+    const r = computeEarnedValueSCurve(
+      [
+        {
+          id: 1,
+          name: "Excavación",
+          start: new Date("2026-01-05"),
+          finish: new Date("2026-01-09"),
+          duration: 5,
+          progress: 0,
+          isCritical: false,
+          isMilestone: false,
+          isSummary: false,
+          outlineLevel: 1,
+          dependencies: [],
+        },
+      ],
+      [],
+      [],
+    );
+
+    expect(r.spi).toBeNull();
+    expect(r.cpi).toBeNull();
+  });
+});

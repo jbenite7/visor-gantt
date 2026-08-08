@@ -534,8 +534,16 @@ function GanttViewInner({
         budgetMappings,
         scheduleIssues,
         bottlenecks,
+        statusDate: initialStatusDate,
       }),
-    [bottlenecks, budgetItems, budgetMappings, calculatedTasks, scheduleIssues],
+    [
+      bottlenecks,
+      budgetItems,
+      budgetMappings,
+      calculatedTasks,
+      scheduleIssues,
+      initialStatusDate,
+    ],
   );
   const matrixEditorKey = useMemo(
     () =>
@@ -1812,7 +1820,10 @@ function GanttViewInner({
           )}
 
           {activeView === "executive" && (
-            <ExecutivePlanningDashboard summary={executiveSummary} />
+            <ExecutivePlanningDashboard
+              summary={executiveSummary}
+              onNavigate={setActiveView}
+            />
           )}
 
           {activeView === "tracking" && (
