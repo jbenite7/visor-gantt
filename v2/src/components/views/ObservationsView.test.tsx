@@ -119,3 +119,92 @@ describe("todas las observaciones del proyecto en un sitio", () => {
     expect(screen.getByText(/Cuadrilla 2/)).toBeInTheDocument();
   });
 });
+
+describe("el compromiso semanal vive aquí, no en otra entrada del menú", () => {
+  test("hay dos pestañas: lo anotado y lo comprometido", () => {
+    render(
+      <ObservationsView
+        observations={[obs(1, "Falta acero")]}
+        tasks={[]}
+        onToggle={jest.fn()}
+        onDelete={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("observations-tab-registro")).toBeInTheDocument();
+    expect(screen.getByTestId("observations-tab-compromiso")).toBeInTheDocument();
+  });
+
+  test("de entrada se ve el registro, que es a lo que se viene", () => {
+    render(
+      <ObservationsView
+        observations={[obs(1, "Falta acero")]}
+        tasks={[]}
+        onToggle={jest.fn()}
+        onDelete={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Falta acero")).toBeInTheDocument();
+    expect(screen.queryByTestId("last-planner-view")).not.toBeInTheDocument();
+  });
+
+  test("la pestaña de compromiso monta el Last Planner", async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        generatedAt: "2026-08-08T12:00:00.000Z",
+        windowStart: "2026-08-10",
+        windowEnd: "2026-08-23",
+        weeks: [],
+        summary: {
+          totalCommitments: 0,
+          constrainedCommitments: 0,
+          criticalCommitments: 0,
+        },
+      }),
+    })) as unknown as typeof fetch;
+
+    render(
+      <ObservationsView
+        observations={[obs(1, "Falta acero")]}
+        tasks={[
+          {
+            id: 1,
+            name: "Excavación",
+            start: new Date("2026-08-10"),
+            finish: new Date("2026-08-14"),
+            duration: 5,
+            progress: 0,
+            isCritical: false,
+            isMilestone: false,
+            isSummary: false,
+            outlineLevel: 1,
+            dependencies: [],
+          },
+        ]}
+        onToggle={jest.fn()}
+        onDelete={jest.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("observations-tab-compromiso"));
+
+    expect(await screen.findByTestId("last-planner-view")).toBeInTheDocument();
+  });
+
+  test("sin observaciones el estado vacío sigue explicando el loop", () => {
+    render(
+      <ObservationsView
+        observations={[]}
+        tasks={[]}
+        onToggle={jest.fn()}
+        onDelete={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("observations-empty")).toBeInTheDocument();
+    // Pero el compromiso semanal sigue alcanzable: no depende de haber anotado.
+    expect(screen.getByTestId("observations-tab-compromiso")).toBeInTheDocument();
+  });
+});

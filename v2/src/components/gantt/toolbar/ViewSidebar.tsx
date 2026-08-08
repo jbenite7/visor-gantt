@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   Layers3,
   Grid3x3,
-  ClipboardList,
   MessageSquare,
 } from "lucide-react";
 import type { ViewType } from "./viewTypes";
@@ -32,6 +31,12 @@ interface ViewTab {
  * Agrupadas por intención —lo que haces hoy, lo que analizas, lo que
  * configuras— se recorren de un vistazo (E14).
  */
+/**
+ * Once entradas: las nueve que dejó el recorte, la Matriz que vuelve del
+ * atajo y Observaciones. El menú se recortó de 14 a 9 con esfuerzo y crece
+ * por acumulación de decisiones razonables sueltas: el número se cuenta
+ * a conciencia cada vez que se toca esta lista.
+ */
 const VIEW_GROUPS: { id: ViewGroupId; labelEs: string; labelEn: string }[] = [
   { id: "trabajo", labelEs: "Trabajo", labelEn: "Work" },
   { id: "analisis", labelEs: "Análisis", labelEn: "Analysis" },
@@ -42,9 +47,9 @@ const VIEW_TABS: ViewTab[] = [
   { id: "gantt", labelEs: "Gantt", labelEn: "Gantt", icon: BarChart3, group: "trabajo" },
   // La Matriz volvió al menú: solo se llegaba por ⌘K, que es como no existir (M27).
   { id: "matrix", labelEs: "Matriz", labelEn: "Matrix", icon: Grid3x3, group: "trabajo" },
-  // El compromiso semanal: la API llevaba tiempo construida y sin quien la
-  // llamara, así que la función existía sin ser alcanzable (M26).
-  { id: "lastPlanner", labelEs: "Compromiso", labelEn: "Commitment", icon: ClipboardList, group: "trabajo" },
+  // Observaciones lleva dentro el compromiso semanal: una restricción de Last
+  // Planner es una observación con responsable y fecha, así que son pestañas
+  // de la misma vista y el menú no gana una puerta más (M26).
   { id: "observaciones", labelEs: "Observaciones", labelEn: "Observations", icon: MessageSquare, group: "trabajo" },
   { id: "calendario", labelEs: "Calendario", labelEn: "Calendar", icon: CalendarDays, group: "trabajo" },
   { id: "executive", labelEs: "Ejecutivo", labelEn: "Executive", icon: LayoutDashboard, group: "analisis" },

@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { Download, Trash2 } from "lucide-react";
+import type { GanttTask } from "@/components/gantt/types";
+import LastPlannerView from "./LastPlannerView";
 import {
   observationsToCsv,
   observationsToLpsCsv,
@@ -9,9 +12,15 @@ import {
 
 interface ObservationsViewProps {
   observations: Observation[];
+  /** El compromiso semanal se arma con las actividades del cronograma. */
+  tasks: GanttTask[];
+  /** Fecha de corte en ISO, para el compromiso. */
+  statusDate?: string;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
 }
+
+type Pestana = "registro" | "compromiso";
 
 function formatDay(iso: string): string {
   const fecha = new Date(iso);
@@ -27,11 +36,22 @@ function formatDay(iso: string): string {
  * revista: quien llega el lunes quiere ver todo lo pendiente de la obra sin ir
  * tarea por tarea. Es la vista que tenía el visor 1.0.
  */
+/**
+ * Lo anotado y lo comprometido, en la misma pantalla.
+ *
+ * Una restricción de Last Planner **es** una observación con responsable y
+ * fecha —el CSV de compromisos sale de aquí mismo—, así que son dos vistas de
+ * lo mismo, no dos entradas del menú. El menú se recortó de 14 a 9 con
+ * esfuerzo: cada puerta nueva hay que justificarla.
+ */
 export default function ObservationsView({
   observations,
+  tasks,
+  statusDate,
   onToggle,
   onDelete,
 }: ObservationsViewProps) {
+  const [pestana, setPestana] = useState<Pestana>("registro");
   const pendientes = observations.filter((o) => o.status === "pending");
   const atendidas = observations.filter((o) => o.status === "done");
 
@@ -52,12 +72,50 @@ export default function ObservationsView({
     URL.revokeObjectURL(url);
   };
 
+  const pestanas = (
+    <div className="apple-segmented m-5 mb-0 inline-flex">
+      {(
+        [
+          ["registro", "Observaciones"],
+          ["compromiso", "Compromiso semanal"],
+        ] as const
+      ).map(([id, etiqueta]) => (
+        <button
+          key={id}
+          type="button"
+          data-testid={`observations-tab-${id}`}
+          data-active={pestana === id}
+          aria-pressed={pestana === id}
+          onClick={() => setPestana(id)}
+          className="gantt-typical-unit-mode rounded-md px-3 py-1 text-sm font-semibold"
+        >
+          {etiqueta}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (pestana === "compromiso") {
+    return (
+      <div
+        data-testid="observations-view"
+        className="apple-module flex h-full flex-col overflow-auto"
+      >
+        {pestanas}
+        <div className="min-h-0 flex-1">
+          <LastPlannerView tasks={tasks} statusDate={statusDate} />
+        </div>
+      </div>
+    );
+  }
+
   if (observations.length === 0) {
     return (
       <div
         data-testid="observations-view"
         className="apple-module h-full overflow-auto"
       >
+        {pestanas}
         <div
           data-testid="observations-empty"
           className="apple-section m-5 flex min-h-64 flex-col items-center justify-center gap-2 px-6 text-center text-sm text-[var(--color-text-muted)]"
@@ -122,6 +180,7 @@ export default function ObservationsView({
       data-testid="observations-view"
       className="apple-module h-full overflow-auto"
     >
+      {pestanas}
       <div className="apple-module-header flex flex-wrap items-center justify-between gap-4 px-5 py-4">
         <div>
           <h2 className="text-base font-semibold text-[var(--color-text-strong)]">

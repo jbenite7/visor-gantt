@@ -26,7 +26,6 @@ const LineOfBalance = dynamic(() => import("@/components/charts/LineOfBalance"),
 const SCurveView = dynamic(() => import("@/components/views/SCurveView"), { loading: ViewLoading });
 const CalendarSettingsView = dynamic(() => import("@/components/views/CalendarSettingsView"), { loading: ViewLoading });
 const ProblemsView = dynamic(() => import("@/components/views/ProblemsView"), { loading: ViewLoading });
-const LastPlannerView = dynamic(() => import("@/components/views/LastPlannerView"), { loading: ViewLoading });
 const ObservationsView = dynamic(() => import("@/components/views/ObservationsView"), { loading: ViewLoading });
 const CalendarView = dynamic(() => import("@/components/views/CalendarView"), { loading: ViewLoading });
 const MatrixEditorView = dynamic(() => import("@/components/views/MatrixEditorView"), { loading: ViewLoading });
@@ -2077,16 +2076,11 @@ function GanttViewInner({
             />
           )}
 
-          {activeView === "lastPlanner" && (
-            <LastPlannerView
-              tasks={calculatedTasks}
-              statusDate={initialStatusDate}
-            />
-          )}
-
           {activeView === "observaciones" && (
             <ObservationsView
               observations={observations}
+              tasks={calculatedTasks}
+              statusDate={initialStatusDate}
               onToggle={toggleObservation}
               onDelete={deleteObservation}
             />

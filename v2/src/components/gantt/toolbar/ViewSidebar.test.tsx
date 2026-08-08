@@ -7,9 +7,9 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import ViewSidebar from "./ViewSidebar";
 
 describe("ViewSidebar tras el recorte (C1-C5)", () => {
-  test("muestra 10 vistas: las 9 del recorte más la Matriz que vuelve", () => {
+  test("muestra 11 vistas: las 9 del recorte, la Matriz que vuelve y Observaciones", () => {
     render(<ViewSidebar activeView="gantt" onViewChange={jest.fn()} />);
-    expect(screen.getAllByRole("tab")).toHaveLength(12);
+    expect(screen.getAllByRole("tab")).toHaveLength(11);
   });
 
   test("las vistas absorbidas ya no son entradas del menú", () => {
@@ -87,7 +87,6 @@ describe("el menú se puede recorrer sin conocer atajos (E14, M27)", () => {
     for (const id of [
       "gantt",
       "matrix",
-      "lastPlanner",
       "observaciones",
       "executive",
       "resources",
@@ -100,6 +99,14 @@ describe("el menú se puede recorrer sin conocer atajos (E14, M27)", () => {
     ]) {
       expect(screen.getByTestId(`sidebar-view-${id}`)).toBeInTheDocument();
     }
+  });
+
+  test("el compromiso semanal no abre otra puerta: vive dentro de Observaciones", () => {
+    // Una restricción de Last Planner es una observación con responsable y
+    // fecha: agrupa lo que ya estaba junto, y el menú no vuelve a crecer.
+    render(<ViewSidebar activeView="gantt" onViewChange={jest.fn()} />);
+
+    expect(screen.queryByTestId("sidebar-view-lastPlanner")).not.toBeInTheDocument();
   });
 
   test("la barra se anuncia como lista de pestañas", () => {
