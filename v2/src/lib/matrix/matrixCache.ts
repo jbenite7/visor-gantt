@@ -1,4 +1,4 @@
-import type { ActivityRecipe, MatrixCell } from "@/types/matrix";
+import type { ActivityRecipe, AreaNode, MatrixCell, ScopeNode } from "@/types/matrix";
 import type { ProjectCalendar } from "@/types/calendar";
 
 /**
@@ -11,11 +11,21 @@ import type { ProjectCalendar } from "@/types/calendar";
 export function cellSignature({
   cell,
   recipe,
+  scope,
+  area,
+  scopeLeafIndex,
+  areaLeafIndex,
   startDate,
   calendarKey,
 }: {
   cell: MatrixCell;
   recipe: ActivityRecipe | undefined;
+  /** El nombre entra en la firma porque `buildTaskName` lo usa para el nombre de la tarea. */
+  scope?: ScopeNode;
+  area?: AreaNode;
+  /** El orden de los hermanos decide el desfase y el encadenado entre ubicaciones. */
+  scopeLeafIndex?: number;
+  areaLeafIndex?: number;
   startDate: string;
   calendarKey: string;
 }): string {
@@ -36,6 +46,11 @@ export function cellSignature({
     recipe?.locationChaining ?? null,
     startDate,
     calendarKey,
+    scope?.name,
+    area?.name,
+    scope?.locationChaining ?? null,
+    scopeLeafIndex,
+    areaLeafIndex,
   ]);
 }
 
