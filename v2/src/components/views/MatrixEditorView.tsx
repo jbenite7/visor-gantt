@@ -18,11 +18,33 @@ import type {
   MatrixActivityOverride,
   MatrixCell,
   MatrixPlan,
+  MatrixTemplate,
   ScopeNode,
 } from "@/types/matrix";
-import { createDefaultMatrixPlan } from "@/lib/matrix/templates";
-import { applyBulkCellEdit, type CellTarget } from "@/lib/matrix/bulk";
+import {
+  createDefaultMatrixPlan,
+  createMatrixPlanFromTemplate,
+} from "@/lib/matrix/templates";
+import {
+  applyBulkCellEdit,
+  createAreaRange,
+  duplicateAreaNode,
+  type CellTarget,
+} from "@/lib/matrix/bulk";
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
+import { approveCellFeedback, dismissCellFeedback } from "@/lib/matrix/feedback";
+import { templateFromPlan } from "@/lib/matrix/templateCatalog";
+import {
+  planFromProposal,
+  proposeMatrixFromTasks,
+  type MatrixProposal,
+  type ProposalAcceptance,
+} from "@/lib/matrix/matrixProposal";
+import FeedbackPanel from "@/components/matrix/FeedbackPanel";
+import LocationBulkActions from "@/components/matrix/LocationBulkActions";
+import ProposalReview from "@/components/matrix/ProposalReview";
+import RecipeEditor from "@/components/matrix/RecipeEditor";
+import TemplatePicker from "@/components/matrix/TemplatePicker";
 import {
   canAddChild,
   getAreaLeaves,
@@ -55,7 +77,13 @@ interface SelectedCellRef {
   areaId: string;
 }
 
-type MatrixEditorMode = "scopes" | "locations" | "matrix";
+type MatrixEditorMode =
+  | "scopes"
+  | "locations"
+  | "matrix"
+  | "recipes"
+  | "plantillas"
+  | "rendimientos";
 
 const matrixInputClass =
   "rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] px-2 py-1 text-sm";
@@ -282,6 +310,9 @@ export default function MatrixEditorView({
   const [notice, setNotice] = useState<string | null>(null);
   const [newScopeName, setNewScopeName] = useState("");
   const [newAreaName, setNewAreaName] = useState("");
+  const [ownTemplates, setOwnTemplates] = useState<MatrixTemplate[]>([]);
+  const [proposal, setProposal] = useState<MatrixProposal | null>(null);
+  const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
   const [selectedCell, setSelectedCell] = useState<SelectedCellRef | null>(() => {
     if (!matrixPlan) return null;
     const firstScope = getScopeLeaves(matrixPlan.scopeTree)[0]?.node;
@@ -401,6 +432,12 @@ export default function MatrixEditorView({
     selectedRecipe?.activities.flatMap((activity) =>
       activityAlerts(activity, getOverride(selectedMatrixCell, activity)),
     ) ?? [];
+
+  // La receta que se edita: la elegida a mano, o la de la celda seleccionada.
+  const recipeInEditor =
+    draft?.recipes.find((recipe) => recipe.id === editingRecipeId) ??
+    selectedRecipe ??
+    draft?.recipes[0];
 
   const createDraft = () => {
     const firstTaskStart = tasks[0]?.start.toISOString().slice(0, 10);
@@ -714,6 +751,73 @@ export default function MatrixEditorView({
     });
   };
 
+  const duplicateLocation = (areaId: string) => {
+    if (!draft) return;
+    applyNextDraft(duplicateAreaNode(draft, areaId, new Date().toISOString()));
+  };
+
+  const createLocationRange = (input: {
+    pattern: string;
+    from: number;
+    to: number;
+    type: string;
+  }) => {
+    if (!draft) return;
+    applyNextDraft(createAreaRange(draft, input, new Date().toISOString()));
+  };
+
+  const replaceRecipe = (recipe: ActivityRecipe) => {
+    if (!draft) return;
+    setDraft({
+      ...draft,
+      recipes: draft.recipes.map((item) => (item.id === recipe.id ? recipe : item)),
+    });
+  };
+
+  const pickTemplate = (template: MatrixTemplate) => {
+    if (!draft) return;
+    setProposal(null);
+    applyNextDraft(
+      createMatrixPlanFromTemplate({
+        template,
+        id: draft.id,
+        name: draft.name,
+        startDate: draft.startDate,
+      }),
+    );
+  };
+
+  const saveAsTemplate = () => {
+    if (!draft) return;
+    const template = templateFromPlan(draft, draft.name);
+    setOwnTemplates((current) => [
+      ...current.filter((item) => item.id !== template.id),
+      template,
+    ]);
+  };
+
+  const acceptProposal = (acceptance: ProposalAcceptance) => {
+    if (!draft || !proposal) return;
+    const next = planFromProposal(proposal, acceptance, {
+      id: draft.id,
+      name: draft.name,
+      startDate: draft.startDate,
+      editedAt: new Date().toISOString(),
+    });
+    setProposal(null);
+    applyNextDraft(next);
+  };
+
+  const approveFeedback = (cellId: string) => {
+    if (!draft) return;
+    setDraft(approveCellFeedback(draft, cellId, new Date().toISOString()));
+  };
+
+  const dismissFeedback = (cellId: string) => {
+    if (!draft) return;
+    setDraft(dismissCellFeedback(draft, cellId, new Date().toISOString()));
+  };
+
   const renderScopeTree = (nodes: ScopeNode[], depth = 1): ReactNode =>
     nodes.map((node) => {
       const isLeaf = !node.children || node.children.length === 0;
@@ -973,6 +1077,9 @@ export default function MatrixEditorView({
           ["scopes", "Alcances"],
           ["locations", "Ubicaciones"],
           ["matrix", "Matriz"],
+          ["recipes", "Recetas"],
+          ["plantillas", "Plantillas"],
+          ["rendimientos", "Rendimientos"],
         ].map(([mode, label]) => (
           <button
             key={mode}
@@ -1066,8 +1173,69 @@ export default function MatrixEditorView({
             </div>
           )}
         </div>
+      ) : activeMode === "recipes" ? (
+        <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3">
+          <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
+            Receta a editar
+            <select
+              className={matrixInputClass}
+              value={recipeInEditor?.id ?? ""}
+              onChange={(event) => setEditingRecipeId(event.target.value)}
+            >
+              {draft.recipes.map((recipe) => (
+                <option key={recipe.id} value={recipe.id}>
+                  {recipe.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {recipeInEditor ? (
+            <RecipeEditor recipe={recipeInEditor} onChange={replaceRecipe} />
+          ) : (
+            <div className="apple-section px-3 py-6 text-sm text-[var(--color-text-muted)]">
+              Sin recetas. Elige una plantilla para partir de recetas ya armadas.
+            </div>
+          )}
+        </div>
+      ) : activeMode === "plantillas" ? (
+        <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3">
+          <button
+            type="button"
+            onClick={saveAsTemplate}
+            className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold"
+          >
+            Guardar como plantilla
+          </button>
+          {proposal ? (
+            <ProposalReview
+              proposal={proposal}
+              onAccept={acceptProposal}
+              onCancel={() => setProposal(null)}
+            />
+          ) : (
+            <TemplatePicker
+              ownTemplates={ownTemplates}
+              canGenerateFromSchedule={tasks.length > 0}
+              onPickTemplate={pickTemplate}
+              onGenerateFromSchedule={() => setProposal(proposeMatrixFromTasks(tasks))}
+            />
+          )}
+        </div>
+      ) : activeMode === "rendimientos" ? (
+        <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3">
+          <FeedbackPanel
+            plan={draft}
+            onApprove={approveFeedback}
+            onDismiss={dismissFeedback}
+          />
+        </div>
       ) : activeMode === "locations" ? (
         <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3">
+          <LocationBulkActions
+            locations={areas.map((area) => ({ id: area.id, name: area.name }))}
+            onDuplicate={duplicateLocation}
+            onCreateRange={createLocationRange}
+          />
           {draft.areas.length > 0 ? (
             renderAreaTree(draft.areas)
           ) : (
