@@ -1721,6 +1721,10 @@ function GanttViewInner({
               selectedTaskIds={selectedTaskIds}
               onTaskSelect={handleTaskSelect}
               onTaskClick={onTaskClick}
+              baselines={baselines}
+              activeBaselineId={activeBaselineId}
+              onSaveBaseline={handleSaveBaseline}
+              onSelectBaseline={setActiveBaselineId}
             />
           )}
 
