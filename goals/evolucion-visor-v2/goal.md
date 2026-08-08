@@ -44,7 +44,11 @@ Gantt (celdas calculadas, validación que explica, tiradores visibles, arrastre 
 pulido (menú agrupado, chip de filtro con contador, destructivas separadas, esqueleto de carga) y
 exportaciones honestas (renombrar «Excel» y «PDF», CSV real, **conectar la API de Last Planner**).
 
-### P3 · Motor de detección
+### P3 · Motor de detección — *diseñado (2026-08-07)*
+📄 [`goals/motor-deteccion/goal.md`](../motor-deteccion/goal.md) ·
+[spec](../../docs/superpowers/specs/2026-08-07-motor-deteccion-design.md) ·
+[plan, 14 tareas](../../docs/superpowers/plans/2026-08-07-motor-deteccion.md)
+
 El motor que reconoce piso y sistema en los nombres de tarea **falló en 44 de 239 tareas** de un archivo real.
 Portar de PDC V2 (`lps-aia`) su extractor de ubicación —que cubre `Etapa`, `Zona`, `Sector`, `Tramo`,
 `mezanine`, códigos `P01`/`S1` y sótanos como negativos— y su **cascada**: diccionario → nombre exacto →
@@ -53,7 +57,11 @@ similitud de palabras. Más un **diccionario que se llena con las correcciones d
 Va aparte porque **mejora tres módulos a la vez** (Línea de Balance, Unidad Típica y el generador de matrices)
 y ninguno rinde hasta que esto funcione.
 
-### P4 · La matriz como producto
+### P4 · La matriz como producto — *diseñado (2026-08-07)*
+📄 [`goals/matriz-como-producto/goal.md`](../matriz-como-producto/goal.md) ·
+[spec](../../docs/superpowers/specs/2026-08-07-matriz-como-producto-design.md) ·
+[plan, 26 tareas en 3 fases](../../docs/superpowers/plans/2026-08-07-matriz-como-producto.md)
+
 Editor completo de recetas, plantillas de fábrica y propias, **generador de matrices desde un `.mpp`**,
 dependencias reales piso a piso configurables por alcance, calendario del proyecto en vez del propio,
 panel para aprobar rendimientos observados, conflictos visibles con elección, duplicar y crear N ubicaciones,
