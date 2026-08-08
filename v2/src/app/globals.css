@@ -3375,3 +3375,8 @@ h6 {
 .gantt-project-toolbar__button--danger:not(:disabled) {
   color: var(--aia-alert-main);
 }
+
+/* ── La dependencia que el filtro escondía, en contexto (E7) ── */
+.gantt-row[data-filtered-context="true"] {
+  opacity: 0.5;
+}

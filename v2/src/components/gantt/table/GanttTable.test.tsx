@@ -1530,3 +1530,85 @@ describe("editar el fin cambia la duración (Bloque B)", () => {
     expect(celda.querySelector("input")).toBeNull();
   });
 });
+
+describe("el filtro no esconde nada a escondidas (E7)", () => {
+  test("el chip dice cuántas tareas quedaron fuera", () => {
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({ id: 1, isCritical: true }),
+          makeTask({ id: 2 }),
+          makeTask({ id: 3 }),
+        ]}
+        taskFilter={{ type: "critical", text: "" }}
+        onTaskFilterChange={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("gantt-task-filter-count")).toHaveTextContent(
+      "2 ocultas",
+    );
+  });
+
+  test("sin filtro, el contador no habla de ocultas", () => {
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1 }), makeTask({ id: 2 })]}
+        taskFilter={{ type: "all", text: "" }}
+        onTaskFilterChange={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("gantt-task-filter-count")).not.toHaveTextContent(
+      /ocultas/,
+    );
+  });
+
+  test("sin filtro no hay chip que quitar", () => {
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1 })]}
+        taskFilter={{ type: "all", text: "" }}
+        onTaskFilterChange={jest.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("gantt-task-filter-clear")).not.toBeInTheDocument();
+  });
+
+  test("una tarea oculta de la que depende una visible se muestra atenuada", () => {
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({ id: 1 }),
+          makeTask({
+            id: 2,
+            isCritical: true,
+            dependencies: [{ from: 1, to: 2, type: "FS" }],
+          }),
+        ]}
+        taskFilter={{ type: "critical", text: "" }}
+        onTaskFilterChange={jest.fn()}
+      />,
+    );
+
+    const fila = screen.getByTestId("cell-id-1").closest("tr");
+    expect(fila).toHaveAttribute("data-filtered-context", "true");
+  });
+
+  test("una tarea oculta de la que no depende nadie no se cuela", () => {
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({ id: 1 }),
+          makeTask({ id: 2, isCritical: true }),
+          makeTask({ id: 3 }),
+        ]}
+        taskFilter={{ type: "critical", text: "" }}
+        onTaskFilterChange={jest.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("cell-id-3")).not.toBeInTheDocument();
+  });
+});

@@ -530,9 +530,38 @@ export default function GanttTable({
     () => filterTasks(tasks, taskFilter),
     [tasks, taskFilter],
   );
+
+  /**
+   * Una tarea filtrada de la que depende algo visible se sigue mostrando, en
+   * gris: si no, la flecha de dependencia muere en el vacío y el plan parece
+   * roto (E7).
+   */
+  const contextTaskIds = useMemo(() => {
+    const visibles = new Set(filteredTasks.map((task) => task.id));
+    const contexto = new Set<string | number>();
+
+    for (const task of filteredTasks) {
+      for (const dep of task.dependencies ?? []) {
+        if (!visibles.has(dep.from)) contexto.add(dep.from);
+      }
+    }
+
+    return contexto;
+  }, [filteredTasks]);
+
+  const tasksWithContext = useMemo(() => {
+    if (contextTaskIds.size === 0) return filteredTasks;
+    const extra = tasks.filter((task) => contextTaskIds.has(task.id));
+    // Se conserva el orden del cronograma: el contexto no se apila al final.
+    const incluidos = new Set([
+      ...filteredTasks.map((task) => task.id),
+      ...extra.map((task) => task.id),
+    ]);
+    return tasks.filter((task) => incluidos.has(task.id));
+  }, [contextTaskIds, filteredTasks, tasks]);
   const visibleTasks = useMemo(
-    () => getVisibleTasks(filteredTasks, collapsedTaskIds),
-    [filteredTasks, collapsedTaskIds],
+    () => getVisibleTasks(tasksWithContext, collapsedTaskIds),
+    [tasksWithContext, collapsedTaskIds],
   );
   const levelButtons = useMemo(() => {
     const maxLevel = Math.max(1, ...tasks.map((task) => task.outlineLevel || 1));
@@ -1032,7 +1061,9 @@ export default function GanttTable({
               data-testid="gantt-task-filter-count"
               className="gantt-table-toolbar__count"
             >
-              {visibleTasks.length} / {tasks.length}
+              {hasActiveTaskFilter
+                ? `${tasks.length - filteredTasks.length} ocultas de ${tasks.length}`
+                : `${visibleTasks.length} / ${tasks.length}`}
             </span>
             {hasActiveTaskFilter && (
               <button
@@ -1218,6 +1249,7 @@ export default function GanttTable({
                 task={task}
                 index={index}
                 isChanged={changedTaskIds?.includes(task.id) ?? false}
+                isFilteredContext={contextTaskIds.has(task.id)}
                 calendar={calendar}
                 rowNumber={index + 1}
                 isSelected={selectedTaskIds?.includes(task.id) ?? false}

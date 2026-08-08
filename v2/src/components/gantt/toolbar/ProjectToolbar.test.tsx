@@ -22,6 +22,13 @@ function renderToolbar(
       onAddTask={jest.fn()}
       onDeleteTask={jest.fn()}
       hasSelection={false}
+      projectName="Obra"
+      projectStart={new Date("2026-01-05")}
+      projectFinish={new Date("2026-03-01")}
+      taskCount={8}
+      durationDays={40}
+      averageProgress={20}
+      dependencyCount={5}
       {...extra}
     />,
   );

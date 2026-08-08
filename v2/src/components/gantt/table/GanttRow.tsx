@@ -26,6 +26,8 @@ interface GanttRowProps {
   index: number;
   /** Se movió con la última edición: se resalta un momento (E31). */
   isChanged?: boolean;
+  /** Está fuera del filtro pero algo visible depende de ella (E7). */
+  isFilteredContext?: boolean;
   /** Calendario del proyecto: decide qué días cuentan al editar el fin. */
   calendar?: ProjectCalendar;
   rowNumber: number;
@@ -284,6 +286,7 @@ export default function GanttRow({
   task,
   index,
   isChanged,
+  isFilteredContext,
   calendar = DEFAULT_PROJECT_CALENDAR,
   rowNumber,
   onSelect,
@@ -603,6 +606,7 @@ export default function GanttRow({
       data-selected={isSelected}
       data-summary={task.isSummary}
       data-changed={Boolean(isChanged)}
+      data-filtered-context={Boolean(isFilteredContext)}
       data-stripe={index % 2 === 0 ? "even" : "odd"}
       data-draggable={draggable}
       data-dragging={isDragging}
