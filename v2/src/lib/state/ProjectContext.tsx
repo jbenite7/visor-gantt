@@ -212,7 +212,11 @@ export interface ProjectContextValue {
   runUndoable: (action: UndoableAction) => void;
   // Observaciones de obra
   observations: Observation[];
-  addObservation: (taskId: string | number, text: string) => void;
+  addObservation: (
+    taskId: string | number,
+    text: string,
+    responsible?: string,
+  ) => void;
   toggleObservation: (id: string) => void;
   deleteObservation: (id: string) => void;
   lastAction: LastAction | null;
@@ -728,7 +732,7 @@ export function ProjectProvider({
   const [observations, setObservations] = useState<Observation[]>(initialObservations);
 
   const addObservation = useCallback(
-    (taskId: string | number, text: string) => {
+    (taskId: string | number, text: string, responsible?: string) => {
       const task = tasks.find((t) => t.id === taskId);
       const created = createObservation({
         id: `obs-${nextActionToken()}-${taskId}`,
@@ -736,6 +740,7 @@ export function ProjectProvider({
         taskName: task?.name ?? String(taskId),
         wbs: task?.wbs,
         text,
+        responsible,
         createdAt: new Date().toISOString(),
       });
       if (!created) return;

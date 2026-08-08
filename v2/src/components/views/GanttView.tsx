@@ -26,6 +26,8 @@ const LineOfBalance = dynamic(() => import("@/components/charts/LineOfBalance"),
 const SCurveView = dynamic(() => import("@/components/views/SCurveView"), { loading: ViewLoading });
 const CalendarSettingsView = dynamic(() => import("@/components/views/CalendarSettingsView"), { loading: ViewLoading });
 const ProblemsView = dynamic(() => import("@/components/views/ProblemsView"), { loading: ViewLoading });
+const LastPlannerView = dynamic(() => import("@/components/views/LastPlannerView"), { loading: ViewLoading });
+const ObservationsView = dynamic(() => import("@/components/views/ObservationsView"), { loading: ViewLoading });
 const CalendarView = dynamic(() => import("@/components/views/CalendarView"), { loading: ViewLoading });
 const MatrixEditorView = dynamic(() => import("@/components/views/MatrixEditorView"), { loading: ViewLoading });
 const TypicalUnitView = dynamic(() => import("@/components/views/TypicalUnitView"), { loading: ViewLoading });
@@ -1692,7 +1694,9 @@ function GanttViewInner({
           taskId={observationPanelTask.id}
           taskName={observationPanelTask.name}
           observations={observations}
-          onAdd={(text) => addObservation(observationPanelTask.id, text)}
+          onAdd={(text, responsible) =>
+            addObservation(observationPanelTask.id, text, responsible)
+          }
           onToggle={toggleObservation}
           onDelete={deleteObservation}
           onClose={() => setObservationPanelTaskId(null)}
@@ -2002,6 +2006,21 @@ function GanttViewInner({
               tasks={calculatedTasks}
               budgetMappings={budgetMappings}
               budgetItems={budgetItems}
+            />
+          )}
+
+          {activeView === "lastPlanner" && (
+            <LastPlannerView
+              tasks={calculatedTasks}
+              statusDate={initialStatusDate}
+            />
+          )}
+
+          {activeView === "observaciones" && (
+            <ObservationsView
+              observations={observations}
+              onToggle={toggleObservation}
+              onDelete={deleteObservation}
             />
           )}
 

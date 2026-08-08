@@ -15,6 +15,12 @@ export interface Observation {
   taskName: string;
   wbs?: string;
   text: string;
+  /**
+   * Quién responde por la restricción. Opcional: en obra se anota primero y se
+   * asigna después. Sin él, el CSV de Last Planner sale con la columna vacía y
+   * una restricción sin responsable no compromete a nadie (M32).
+   */
+  responsible?: string;
   status: ObservationStatus;
   createdAt: string;
 }
@@ -30,10 +36,13 @@ export function createObservation(input: {
   taskName: string;
   wbs?: string;
   text: string;
+  responsible?: string;
   createdAt: string;
 }): Observation | null {
   const text = input.text.trim();
   if (!text) return null;
+
+  const responsible = input.responsible?.trim();
 
   return {
     id: input.id,
@@ -41,6 +50,7 @@ export function createObservation(input: {
     taskName: input.taskName,
     wbs: input.wbs,
     text,
+    ...(responsible ? { responsible } : {}),
     status: "pending",
     createdAt: input.createdAt,
   };
@@ -106,7 +116,14 @@ export function observationsToCsv(observations: Observation[]): string {
 /** Formato del template Last Planner: cada observación pendiente es una restricción. */
 export function observationsToLpsCsv(observations: Observation[]): string {
   const rows = observations.map((o) =>
-    [o.taskName, o.wbs ?? "", o.text, statusLabel(o.status), "", isoDay(o.createdAt)]
+    [
+      o.taskName,
+      o.wbs ?? "",
+      o.text,
+      statusLabel(o.status),
+      o.responsible ?? "",
+      isoDay(o.createdAt),
+    ]
       .map(csvCell)
       .join(","),
   );

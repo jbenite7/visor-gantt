@@ -9,7 +9,7 @@ import ViewSidebar from "./ViewSidebar";
 describe("ViewSidebar tras el recorte (C1-C5)", () => {
   test("muestra 10 vistas: las 9 del recorte más la Matriz que vuelve", () => {
     render(<ViewSidebar activeView="gantt" onViewChange={jest.fn()} />);
-    expect(screen.getAllByRole("tab")).toHaveLength(10);
+    expect(screen.getAllByRole("tab")).toHaveLength(12);
   });
 
   test("las vistas absorbidas ya no son entradas del menú", () => {
@@ -87,6 +87,8 @@ describe("el menú se puede recorrer sin conocer atajos (E14, M27)", () => {
     for (const id of [
       "gantt",
       "matrix",
+      "lastPlanner",
+      "observaciones",
       "executive",
       "resources",
       "lob",
