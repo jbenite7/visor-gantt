@@ -14,24 +14,24 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | E2 | Estado de error propio en la home, distinto del vacío, con reintento | #3 | 4 | 9 | 10 | 8 | **9,0** | Un fallo de DB muestra el estado de error, no «No hay proyectos guardados» | **shipped 2026-08-05** |
 | E3 | Resolver `/upload`: sesión exigida antes de aceptar el archivo | #1 | 4 | 10 | 9 | 5 | **8,0** | 0 importaciones que terminan en «No autenticado» tras el parseo | **shipped 2026-08-05** |
 | E4 | Progreso en la importación + timeout + cancelar | #4 | 3 | 9 | 8 | 5 | **7,3** | La espera muestra fase y segundos, y se puede cancelar de verdad | **shipped 2026-08-06** — se retiraron las dos fases que `fetch` no puede conocer y se añadió el tiempo transcurrido |
-| E5 | Mapear errores del parser a mensajes qué/por qué/cómo; detalle técnico solo a logs | #5, #23 | 3 | 8 | 9 | 7 | **8,0** | 0 stack traces visibles en la UI; los 6 errores del flujo pasan el checklist qué/por qué/cómo | backlog |
+| E5 | Mapear errores del parser a mensajes qué/por qué/cómo; detalle técnico solo a logs | #5, #23 | 3 | 8 | 9 | 7 | **8,0** | 0 stack traces visibles en la UI; los 6 errores del flujo pasan el checklist qué/por qué/cómo | **shipped 2026-08-08** — `humanParserError` traduce lo que devuelve el microservicio; el detalle técnico queda en el registro del servidor |
 | E6 | Estados vacíos en tabla y Gantt con acción de salida | #9 | 3 | 8 | 9 | 8 | **8,3** | 0 pantallas en blanco — **verificado en navegador** | **shipped 2026-08-05** |
-| E7 | Chip de filtro activo siempre visible y removible («Solo ruta crítica ×») | #10 | 3 | 8 | 8 | 8 | **8,0** | Al aplicar el preset «Dirección», el chip aparece; 0 casos de tareas ocultas sin indicador | backlog |
+| E7 | Chip de filtro activo siempre visible y removible («Solo ruta crítica ×») | #10 | 3 | 8 | 8 | 8 | **8,0** | Al aplicar el preset «Dirección», el chip aparece; 0 casos de tareas ocultas sin indicador | **shipped 2026-08-08** — el contador dice cuántas esconde («2 ocultas de 3»), y la tarea filtrada de la que algo visible depende se muestra atenuada |
 | E8 | Panel «Ayuda de esta vista» por pantalla | #12 | 3 | 8 | 8 | 6 | **7,3** | Todas las vistas alcanzables (13) tienen ayuda accesible sin `Cmd+K` | **shipped 2026-08-06** |
-| E9 | Login: conservar el correo al fallar, validar en el campo, códigos de error en vez de texto en la URL | #6, #8 | 3 | 7 | 9 | 7 | **7,7** | El correo sobrevive a un intento fallido; `/login?error=<texto>` ya no pinta texto arbitrario | backlog |
-| E10 | Salida para usuario bloqueado (recuperación o contacto de admin) y mensajes sin jerga de `.env` | #7 | 3 | 7 | 8 | 6 | **7,0** | Existe una ruta de recuperación desde `/login`; 0 menciones de `.env` en pantallas de usuario | backlog |
-| E11 | Anunciar formato y límite de 50 MB junto al botón de subida | #13 | 3 | 6 | 9 | 9 | **8,0** | Caída de los rechazos por tamaño (medido en logs de `import-mpp`) | backlog |
+| E9 | Login: conservar el correo al fallar, validar en el campo, códigos de error en vez de texto en la URL | #6, #8 | 3 | 7 | 9 | 7 | **7,7** | El correo sobrevive a un intento fallido; `/login?error=<texto>` ya no pinta texto arbitrario | **shipped 2026-08-08** — el error viaja como código, no como texto; el correo sobrevive. Verificado en navegador |
+| E10 | Salida para usuario bloqueado (recuperación o contacto de admin) y mensajes sin jerga de `.env` | #7 | 3 | 7 | 8 | 6 | **7,0** | Existe una ruta de recuperación desde `/login`; 0 menciones de `.env` en pantallas de usuario | **shipped 2026-08-08** — salida hacia quien administra el proyecto, sin jerga de servidor |
+| E11 | Anunciar formato y límite de 50 MB junto al botón de subida | #13 | 3 | 6 | 9 | 9 | **8,0** | Caída de los rechazos por tamaño (medido en logs de `import-mpp`) | **shipped 2026-08-08** — «Archivo de MS Project (.mpp), hasta 50 MB» junto al botón |
 | E12 | Feedback de undo («Deshecho: <acción>») | #11 | 3 | 7 | 8 | 7 | **7,3** | El mensaje aparece en cada undo | **shipped 2026-08-06** (falta el aviso al llegar al tope de 50) |
 | E13 | Indicador de guardado permanente con hora del último guardado | #20 | 2 | 6 | 8 | 7 | **7,0** | Visible al abrir y con la hora tras guardar | **shipped 2026-08-06** |
-| E14 | Agrupar las 14 vistas por intención y renombrar «Cuellos» → «Cuellos de botella»; icono propio | #16 | 2 | 7 | 7 | 6 | **6,7** | Tiempo para encontrar una vista concreta en prueba con 5 usuarios | backlog |
-| E15 | Etiquetas de texto en acciones destructivas; deshabilitar undo/redo en vez de desmontarlos | #15 | 2 | 6 | 8 | 8 | **7,3** | 0 controles destructivos solo-icono; la barra no se reordena | backlog |
-| E16 | Skeleton al abrir un proyecto | #14 | 2 | 5 | 8 | 8 | **7,0** | LCP percibido en `/project/[id]` (se cierra con Fase 8) | backlog |
-| E17 | Borrar los componentes muertos (`MPPUploader`, `ViewSwitcher`) o adoptarlos; una sola lista de vistas | #21 | 2 | 5 | 9 | 8 | **7,3** | 0 componentes de UI sin importador; la lista de vistas vive en un solo archivo | backlog |
-| E18 | Retorno al destino original tras login (`?next=`) y aviso de sesión expirada | #18 | 2 | 6 | 8 | 7 | **7,0** | Un enlace directo a `/project/<id>` sin sesión vuelve a ese proyecto tras entrar | backlog |
-| E19 | Alinear etiqueta y semántica de los botones de nivel WBS; un solo tipo de control | #17 | 2 | 5 | 8 | 7 | **6,7** | «L1» aplica nivel 1; el control no cambia de tipo según el proyecto | backlog |
-| E20 | Documentar atajos (`Cmd+K` en el botón) y hoja de atajos | #19 | 2 | 5 | 8 | 8 | **7,0** | Uso de la paleta de comandos por sesión | backlog |
-| E21 | Normalizar tildes y unificar cadenas duplicadas entre capas | #23 | 1 | 3 | 9 | 9 | **7,0** | 0 cadenas de UI sin tildes | backlog |
-| E22 | «Nuevo Proyecto» como `<Link>`; roles ARIA de la barra de vistas | #24, #25 | 1 | 3 | 9 | 9 | **7,0** | Auditoría de accesibilidad sin errores de rol en esa barra | backlog |
+| E14 | Agrupar las 14 vistas por intención y renombrar «Cuellos» → «Cuellos de botella»; icono propio | #16 | 2 | 7 | 7 | 6 | **6,7** | Tiempo para encontrar una vista concreta en prueba con 5 usuarios | **shipped 2026-08-08** — menú agrupado en Trabajo · Análisis · Ajustes, con la Matriz de vuelta |
+| E15 | Etiquetas de texto en acciones destructivas; deshabilitar undo/redo en vez de desmontarlos | #15 | 2 | 6 | 8 | 8 | **7,3** | 0 controles destructivos solo-icono; la barra no se reordena | **shipped 2026-08-08** — Deshacer/Rehacer dejan de desmontarse; «Eliminar» con etiqueta de texto |
+| E16 | Skeleton al abrir un proyecto | #14 | 2 | 5 | 8 | 8 | **7,0** | LCP percibido en `/project/[id]` (se cierra con Fase 8) | **shipped 2026-08-08** — `ScheduleSkeleton` con forma de tabla y gantt, en vez del texto «Cargando» |
+| E17 | Borrar los componentes muertos (`MPPUploader`, `ViewSwitcher`) o adoptarlos; una sola lista de vistas | #21 | 2 | 5 | 9 | 8 | **7,3** | 0 componentes de UI sin importador; la lista de vistas vive en un solo archivo | **shipped 2026-08-08** — `MPPUploader` borrado; un test vigila que no vuelva |
+| E18 | Retorno al destino original tras login (`?next=`) y aviso de sesión expirada | #18 | 2 | 6 | 8 | 7 | **7,0** | Un enlace directo a `/project/<id>` sin sesión vuelve a ese proyecto tras entrar | **shipped 2026-08-08** — guard en `/project/[id]` con `?motivo=sesion-expirada` y retorno al destino |
+| E19 | Alinear etiqueta y semántica de los botones de nivel WBS; un solo tipo de control | #17 | 2 | 5 | 8 | 7 | **6,7** | «L1» aplica nivel 1; el control no cambia de tipo según el proyecto | **shipped 2026-08-08** — «L1» aplica el nivel 1; siempre botones. De paso, un resumen colapsado dentro de otro ya no se muestra |
+| E20 | Documentar atajos (`Cmd+K` en el botón) y hoja de atajos | #19 | 2 | 5 | 8 | 8 | **7,0** | Uso de la paleta de comandos por sesión | **shipped 2026-08-08** — `⌘K` visible en el botón; comandos de exportación y configuración añadidos |
+| E21 | Normalizar tildes y unificar cadenas duplicadas entre capas | #23 | 1 | 3 | 9 | 9 | **7,0** | 0 cadenas de UI sin tildes | **shipped 2026-08-08** — barrido con test que distingue el copy de los códigos y las palabras clave |
+| E22 | «Nuevo Proyecto» como `<Link>`; roles ARIA de la barra de vistas | #24, #25 | 1 | 3 | 9 | 9 | **7,0** | Auditoría de accesibilidad sin errores de rol en esa barra | **shipped 2026-08-08** — «Nuevo proyecto» como `<Link>`; la barra de vistas es `role="tablist"` |
 
 ### Añadidos en Fase 9 (steve-jobs-design-review)
 
@@ -40,14 +40,14 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | E48 | 404 propio: en español, con marca y salida a los cronogramas | F5 / back-of-fence | 2 | 6 | 10 | 9 | **8,3** | 0 páginas de sistema en inglés — **verificado en navegador** | **shipped 2026-08-05** |
 | E49 | El vacío de «Unidad Típica» enseña qué es un sistema repetido con ejemplo de obra | F3 | 2 | 7 | 9 | 9 | **8,3** | Los estados vacíos explican el concepto, no solo la condición técnica | **shipped 2026-08-05** |
 | E50 | **Cortes C1-C6**: de 14 vistas a 9 | PRODUCT.md cut list | 3 | 9 | 7 | 4 | **6,7** | Nº de vistas en la barra ≤ 9 — **9 verificado en navegador** | **shipped 2026-08-06** |
-| E51 | Bajar de 6 pasos a 2 hasta el valor (abrir `.mpp` sin cuenta, modo lectura) | PRODUCT.md F1 | 3 | 10 | 8 | 4 | **7,3** | Pasos desde llegar hasta ver el cronograma ≤ 3 | backlog |
+| E51 | Bajar de 6 pasos a 2 hasta el valor (abrir `.mpp` sin cuenta, modo lectura) | PRODUCT.md F1 | 3 | 10 | 8 | 4 | **7,3** | Pasos desde llegar hasta ver el cronograma ≤ 3 | **descartado 2026-08-08** — descartado en firme por el usuario el 2026-08-06: abrir un `.mpp` sin cuenta no se hace |
 
 ### Añadidos en Fase 8 (high-perf-browser)
 
 | # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
 |---|---|---|---|---|---|---|---|---|---|
 | E46 | Carga diferida de las 17 vistas (`next/dynamic`) en vez de importarlas todas en el bundle inicial | #47 | 3 | 9 | 10 | 8 | **9,0** | INP al cambiar de vista < 200 ms — **584 → 184 ms verificado** | **shipped 2026-08-05** |
-| E47 | Medición de campo (RUM) sobre proyectos reales de 300+ tareas | #47-49 | 2 | 8 | 7 | 4 | **6,3** | INP/LCP/CLS reales, no de laboratorio en localhost | backlog |
+| E47 | Medición de campo (RUM) sobre proyectos reales de 300+ tareas | #47-49 | 2 | 8 | 7 | 4 | **6,3** | INP/LCP/CLS reales, no de laboratorio en localhost | **descartado 2026-08-08** — necesita usuarios reales sobre proyectos en obra, no código |
 
 ### Añadidos en Fase 6 (made-to-stick)
 
@@ -60,16 +60,16 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
 |---|---|---|---|---|---|---|---|---|---|
 | E43 | **Momento firma**: loop de observaciones con badge sobre la barra (`!` pendiente / ✓ atendida) + registro + export CSV/LPS | CUSTOMER.md, DESTILACION §2 | 3 | 10 | 8 | 4 | **7,3** | Nº de observaciones creadas/atendidas por semana | **shipped 2026-08-05** |
-| E44 | Micro-confirmación al aplicar una edición válida (flash sutil en la celda/barra afectada) | inventario F5 | 2 | 6 | 8 | 8 | **7,3** | Toda edición aceptada tiene feedback <100 ms sobre el elemento tocado | backlog |
+| E44 | Micro-confirmación al aplicar una edición válida (flash sutil en la celda/barra afectada) | inventario F5 | 2 | 6 | 8 | 8 | **7,3** | Toda edición aceptada tiene feedback <100 ms sobre el elemento tocado | **shipped 2026-08-08** — destello de 350 ms en la celda al aceptar, con `prefers-reduced-motion` |
 
 ### Añadidos en Fase 4 (refactoring-ui)
 
 | # | Cambio | Origen | Sev | I | C | E | ICE | Métrica pre-comprometida | Estado |
 |---|---|---|---|---|---|---|---|---|---|
 | E39 | Señal no cromática de ruta crítica (trama+borde en barra, ▲ en tabla) | #42 | 3 | 8 | 9 | 7 | **8,0** | La criticidad se distingue en escala de grises — **verificado en navegador** | **shipped 2026-08-05** |
-| E40 | Columna Pred. como dato («2FS+4d»), editar solo al interactuar | #43 | 2 | 7 | 8 | 7 | **7,3** | El blur test lo gana el dato, no el botón | backlog |
-| E41 | Encabezados claros (small-caps gris); el oscuro solo en una franja | #44 | 2 | 6 | 8 | 8 | **7,3** | Blur test: los datos pesan más que los encabezados | backlog |
-| E42 | Cinta de iconos agrupada con etiquetas de grupo y overflow «⋯» | #45 | 2 | 7 | 8 | 6 | **7,0** | 0 botones sin agrupar; tiempo-a-encontrar en prueba con 5 usuarios | backlog |
+| E40 | Columna Pred. como dato («2FS+4d»), editar solo al interactuar | #43 | 2 | 7 | 8 | 7 | **7,3** | El blur test lo gana el dato, no el botón | **shipped 2026-08-08** — el dato manda; el control aparece al señalar la fila |
+| E41 | Encabezados claros (small-caps gris); el oscuro solo en una franja | #44 | 2 | 6 | 8 | 8 | **7,3** | Blur test: los datos pesan más que los encabezados | **descartado 2026-08-08** — el encabezado oscuro es marca deliberada y el grilleo del 2026-08-06 no lo incluyó en el Bloque C. Se reabre solo si una revisión en frío lo señala |
+| E42 | Cinta de iconos agrupada con etiquetas de grupo y overflow «⋯» | #45 | 2 | 7 | 8 | 6 | **7,0** | 0 botones sin agrupar; tiempo-a-encontrar en prueba con 5 usuarios | **shipped 2026-08-08** — las etiquetas de grupo estaban escritas pero ocultas por CSS: ahora se ven desde 64rem |
 | E38a | ✅ Barra de vistas legible: 10 px, 2 líneas, 4.5 rem | #41/#46 | 2 | — | — | — | — | 0 etiquetas truncadas (verificado en navegador) | **shipped 2026-08-05** |
 
 ### Añadidos en Fase 3 (design-everyday-things)
@@ -80,23 +80,71 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | E24 | Llevar al historial recursos, presupuesto, mapeos, plan matricial y columnas | #27 | 4 | 9 | 9 | 5 | **7,7** | Toda acción destructiva es deshacible o confirmada | **shipped 2026-08-06** — cerrado: borrar/editar recurso y partida, import CSV, mapeos, aplicar y sincronizar matriz, y restablecer columnas |
 | E25 | Renderizar `calendarIssues` junto al editor de calendario | #28 | 4 | 8 | 10 | 8 | **8,7** | Un calendario inválido muestra el motivo | **shipped 2026-08-05** |
 | E26 | Restringir la entrada: `min=1`, `step=1`, validar `finish >= start`, unificar duración mínima | #30 | 3 | 9 | 10 | 9 | **9,3** | Imposible introducir duración negativa o fin anterior al inicio | **shipped 2026-08-05** |
-| E27 | Marcar en solo lectura lo que calcula el motor (`finish`, filas resumen) usando el `readOnly` existente | #31 | 3 | 8 | 9 | 8 | **8,3** | 0 celdas derivadas editables | backlog |
-| E28 | Validar en el campo y explicar el rechazo; no convertir texto en `0` ni borrar dependencias en silencio | #29 | 3 | 9 | 9 | 6 | **8,0** | 0 descartes mudos en los 6 campos editables | backlog |
-| E29 | Handles de resize visibles y pista permanente de conexión de dependencias | #32 | 3 | 8 | 8 | 7 | **7,7** | Usuarios nuevos descubren arrastre y enlace sin ayuda (prueba con 5) | backlog |
-| E30 | Snapear el fantasma de arrastre y mostrar la fecha destino durante el gesto | #33 | 3 | 8 | 9 | 7 | **8,0** | El preview coincide con el resultado; 0 «saltos» al soltar | backlog |
-| E31 | Resumen de impacto tras editar: resaltar afectadas usando el `changedTaskIds` que ya se calcula | #35 | 3 | 9 | 8 | 6 | **7,7** | El usuario identifica qué se movió sin comparar de memoria | backlog |
+| E27 | Marcar en solo lectura lo que calcula el motor (`finish`, filas resumen) usando el `readOnly` existente | #31 | 3 | 8 | 9 | 8 | **8,3** | 0 celdas derivadas editables | **shipped 2026-08-08** — filas resumen en solo lectura y en gris; el fin pasa a editar la duración |
+| E28 | Validar en el campo y explicar el rechazo; no convertir texto en `0` ni borrar dependencias en silencio | #29 | 3 | 9 | 9 | 6 | **8,0** | 0 descartes mudos en los 6 campos editables | **shipped 2026-08-08** — predecesoras mal escritas explican el formato; los campos MPP dejan de convertir en `0` |
+| E29 | Handles de resize visibles y pista permanente de conexión de dependencias | #32 | 3 | 8 | 8 | 7 | **7,7** | Usuarios nuevos descubren arrastre y enlace sin ayuda (prueba con 5) | **shipped 2026-08-08** — los tiradores se pintan al pasar por la barra o al seleccionarla |
+| E30 | Snapear el fantasma de arrastre y mostrar la fecha destino durante el gesto | #33 | 3 | 8 | 9 | 7 | **8,0** | El preview coincide con el resultado; 0 «saltos» al soltar | **shipped 2026-08-08** — la sombra dice la fecha destino durante el gesto |
+| E31 | Resumen de impacto tras editar: resaltar afectadas usando el `changedTaskIds` que ya se calcula | #35 | 3 | 9 | 8 | 6 | **7,7** | El usuario identifica qué se movió sin comparar de memoria | **shipped 2026-08-08** — `lastChange` sale del contexto: recuento y resaltado, más avisos de fin de obra y ruta crítica |
 | E32 | Resumen post-importación (N tareas, dependencias, recursos) | #36 | 3 | 8 | 9 | 7 | **8,0** | El usuario ve qué se importó al aterrizar en el proyecto | **shipped 2026-08-06** |
-| E33 | Canal de advertencias del parseo (empezando por las columnas descartadas sobre 120) | #37 | 3 | 7 | 9 | 6 | **7,3** | Las pérdidas silenciosas se anuncian; `WarningList` vivo o borrado | backlog |
-| E34 | Separar lo destructivo de lo frecuente: divisor + etiqueta de texto en toolbar y matriz | #38 | 3 | 8 | 9 | 9 | **8,7** | «Eliminar» nunca es adyacente a «Agregar» sin separación | backlog |
-| E35 | Anunciar el tipo de dependencia durante el arrastre y permitir corregirlo al soltar | #34 | 3 | 7 | 8 | 6 | **7,0** | 0 dependencias creadas con un tipo que el usuario no eligió | backlog |
-| E36 | Modo Simple/Avanzado: que haga lo que promete, o eliminarlo | #39 | 2 | 6 | 8 | 7 | **7,0** | El modo cambia algo perceptible además de un desplegable | backlog |
-| E37 | Significante visual de celda editable + entrada en edición por teclado (Enter/F2), sin tooltip en inglés | #40 | 2 | 6 | 9 | 8 | **7,7** | La tabla es editable con teclado; 0 textos en inglés en UI española | backlog |
+| E33 | Canal de advertencias del parseo (empezando por las columnas descartadas sobre 120) | #37 | 3 | 7 | 9 | 6 | **7,3** | Las pérdidas silenciosas se anuncian; `WarningList` vivo o borrado | **shipped 2026-08-08** — `WarningList` conectado al resumen; solo se listan las que caen por el tope de 120 |
+| E34 | Separar lo destructivo de lo frecuente: divisor + etiqueta de texto en toolbar y matriz | #38 | 3 | 8 | 9 | 9 | **8,7** | «Eliminar» nunca es adyacente a «Agregar» sin separación | **shipped 2026-08-08** — separador entre Agregar y Eliminar, con etiqueta de texto en el destructivo |
+| E35 | Anunciar el tipo de dependencia durante el arrastre y permitir corregirlo al soltar | #34 | 3 | 7 | 8 | 6 | **7,0** | 0 dependencias creadas con un tipo que el usuario no eligió | **shipped 2026-08-08** — el arrastre anuncia el tipo real; **FF y SF pasan de inalcanzables a creables** |
+| E36 | Modo Simple/Avanzado: que haga lo que promete, o eliminarlo | #39 | 2 | 6 | 8 | 7 | **7,0** | El modo cambia algo perceptible además de un desplegable | **shipped 2026-08-08** — Simple esconde las columnas MPP; por defecto solo en la primera visita |
+| E37 | Significante visual de celda editable + entrada en edición por teclado (Enter/F2), sin tooltip en inglés | #40 | 2 | 6 | 9 | 8 | **7,7** | La tabla es editable con teclado; 0 textos en inglés en UI española | **shipped 2026-08-08** — señal al pasar por encima y entrada en edición con Enter o F2 |
 | E38 | Etiquetas completas en la barra de vistas y encabezados de tabla | #41 | 2 | 6 | 9 | 8 | **7,7** | 0 etiquetas truncadas a 1280 px de ancho | **parcial** — barra hecha (E38a); encabezados comprimidos de la tabla siguen open (tienen sistema responsivo propio con abreviaturas) |
 
 **Orden recomendado de ejecución:** ~~E1, E2, E3~~ → ~~E23, E25, E26~~ (hechos) →
 E5, E6, E7, E11, E34 (alto ICE, baratos) → E24, E27, E28, E30, E32 → el resto.
 
 ## Experiment Cards
+
+### P2 · Cerrar el backlog de UX — shipped 2026-08-08
+
+**Hipótesis:** el problema dominante no era lo que faltaba, sino lo construido que nadie podía alcanzar y los
+controles que no hacían lo que decía su nombre. Cerrar los 27 pendientes en cuatro entregas desplegables.
+
+**Qué cambió, por entrega:**
+- **A · La entrada.** El error del login viaja como código —`?error=credenciales`— y ya no como texto
+  falsificable; el correo sobrevive al intento fallido; guard en `/project/[id]` con motivo y retorno;
+  límite de 50 MB anunciado antes de elegir archivo; errores del analizador traducidos con el detalle
+  técnico solo en el registro; `WarningList` conectado al resumen de importación.
+- **B · Tabla y Gantt.** Filas resumen en solo lectura; **editar el fin cambia la duración** (el motor lo
+  soportó limpiamente: no hizo falta la salida degradada); nada se descarta en silencio; celda editable
+  reconocible y abrible con Enter o F2; tiradores visibles y fecha destino durante el arrastre; recuento y
+  resaltado de lo que se movió, más avisos de fin de obra y ruta crítica; modo Simple que esconde de verdad.
+- **C · Pulido.** Menú agrupado con la Matriz de vuelta; paleta tolerante a erratas con `⌘K` visible; barra
+  que no se reordena; chip de filtro que dice cuántas esconde; «L1» que aplica el nivel 1; esqueleto de
+  carga; barrido de tildes vigilado por un test.
+- **D · Lo inalcanzable.** CSV real con las observaciones dentro; **la API de Last Planner tiene por fin
+  quien la llame**, con vista propia; Observaciones con vista de proyecto y responsable opcional; la matriz
+  avisa antes de perder el borrador; el tablero ejecutivo dice «aún no hay datos» en vez de verde, muestra la
+  fecha de corte y lleva a su detalle; alta y baja de asignaciones con aviso de sobrecarga.
+
+**Cuatro defectos encontrados leyendo o verificando, no diseñando:**
+1. **FF y SF eran inalcanzables**: `onDepEnd` se llamaba siempre con `"left"`, así que el gesto solo podía
+   crear FS y SS. Ahora los puntos del destino cierran el vínculo con su propio borde.
+2. **Un resumen colapsado dentro de otro colapsado seguía mostrándose**: en `getVisibleTasks`, la rama de
+   «es un resumen cerrado» iba antes que la de «está dentro de algo cerrado».
+3. **Las etiquetas de grupo de la cinta estaban escritas pero ocultas por CSS** desde siempre.
+4. **La primera versión de «columnas descartadas» mentía**: listaba campos que sí se importan (nombre,
+   inicio, fin). Solo son descartadas las que caen por el tope de 120.
+
+**Dos cambios de comportamiento visibles, dichos aquí para que no sorprendan:**
+- **Uso de Recursos marca más celdas sobreasignadas que antes.** Al unificar la definición gana el umbral
+  diario, el que ya usaba Problemas y tiene tests. Es más estricto, y es el resultado correcto: dos pestañas
+  que se contradicen es peor que una que avisa de más.
+- **Un `/login?error=<texto>` guardado en un marcador deja de pintar nada.** Es el punto del arreglo.
+
+**Evidencia:** 925 tests unitarios en verde (710 de partida), **50 E2E en Chromium** (1 saltado por diseño:
+el de producción exige `PRODUCTION_SSH_HOST`), `eslint` sin errores, `tsc --noEmit` filtrado vacío,
+`next build` correcto. **Verificado en navegador** con base de datos y microservicio reales: menú agrupado,
+Compromiso semanal llamando a la API, Observaciones, tablero con fecha de corte y señales que navegan a
+Problemas, y el login conservando el correo con el error bajo el campo.
+
+**Anotado, no hecho:** M10 (corregir clasificaciones ambiguas de la Línea de Balance) y la productividad real
+de Unidad Típica dependen del carril B (motor de detección y cantidades de la matriz). La Tarea 27 hace solo
+el renombrado a «Ritmo (1/día)», que es lo que decidió el grilleo.
+
 
 ### P1 · No perder trabajo — shipped 2026-08-07
 
