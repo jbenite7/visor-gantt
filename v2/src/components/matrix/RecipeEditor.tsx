@@ -33,6 +33,16 @@ export default function RecipeEditor({ recipe, onChange }: RecipeEditorProps) {
   const nameOf = (id: string) =>
     recipe.activities.find((activity) => activity.id === id)?.name ?? id;
 
+  const activityIds = recipe.activities.map((activity) => activity.id);
+  // Si la receta cambia desde fuera y la actividad elegida desaparece, el
+  // desplegable debe reflejarlo, no seguir apuntando a un fantasma.
+  const effectivePredecessor = activityIds.includes(predecessor)
+    ? predecessor
+    : activityIds[0] ?? "";
+  const effectiveSuccessor = activityIds.includes(successor)
+    ? successor
+    : activityIds[1] ?? activityIds[0] ?? "";
+
   const handleAdd = () => {
     const trimmed = newName.trim();
     if (!trimmed) {
@@ -52,8 +62,8 @@ export default function RecipeEditor({ recipe, onChange }: RecipeEditorProps) {
 
   const handleLink = () => {
     const { recipe: next, rejectedReason } = setRecipeDependency(recipe, {
-      predecessorActivityId: predecessor,
-      successorActivityId: successor,
+      predecessorActivityId: effectivePredecessor,
+      successorActivityId: effectiveSuccessor,
       type: "FS",
     });
     if (rejectedReason) {
@@ -62,6 +72,16 @@ export default function RecipeEditor({ recipe, onChange }: RecipeEditorProps) {
     }
     setError(null);
     onChange(next);
+  };
+
+  const handleMove = (activityId: string, toIndex: number) => {
+    setError(null);
+    onChange(moveRecipeActivity(recipe, activityId, toIndex));
+  };
+
+  const handleRemove = (activityId: string) => {
+    setError(null);
+    onChange(removeRecipeActivity(recipe, activityId));
   };
 
   return (
@@ -87,21 +107,18 @@ export default function RecipeEditor({ recipe, onChange }: RecipeEditorProps) {
               <button
                 type="button"
                 disabled={index === 0}
-                onClick={() => onChange(moveRecipeActivity(recipe, activity.id, index - 1))}
+                onClick={() => handleMove(activity.id, index - 1)}
               >
                 {`Subir ${activity.name}`}
               </button>
               <button
                 type="button"
                 disabled={index === recipe.activities.length - 1}
-                onClick={() => onChange(moveRecipeActivity(recipe, activity.id, index + 1))}
+                onClick={() => handleMove(activity.id, index + 1)}
               >
                 {`Bajar ${activity.name}`}
               </button>
-              <button
-                type="button"
-                onClick={() => onChange(removeRecipeActivity(recipe, activity.id))}
-              >
+              <button type="button" onClick={() => handleRemove(activity.id)}>
                 {`Quitar ${activity.name}`}
               </button>
             </span>
@@ -128,7 +145,7 @@ export default function RecipeEditor({ recipe, onChange }: RecipeEditorProps) {
           Actividad anterior
           <select
             className={inputClass}
-            value={predecessor}
+            value={effectivePredecessor}
             onChange={(event) => setPredecessor(event.target.value)}
           >
             {recipe.activities.map((activity) => (
@@ -142,7 +159,7 @@ export default function RecipeEditor({ recipe, onChange }: RecipeEditorProps) {
           Actividad siguiente
           <select
             className={inputClass}
-            value={successor}
+            value={effectiveSuccessor}
             onChange={(event) => setSuccessor(event.target.value)}
           >
             {recipe.activities.map((activity) => (

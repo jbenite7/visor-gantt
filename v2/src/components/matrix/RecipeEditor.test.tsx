@@ -107,4 +107,33 @@ describe("RecipeEditor", () => {
       "Columnas → Losa",
     );
   });
+
+  test("si la actividad elegida desaparece de la receta, el desplegable deja de mostrarla", () => {
+    const { rerender } = render(<RecipeEditor recipe={receta()} onChange={jest.fn()} />);
+
+    const sinLosa: ActivityRecipe = {
+      ...receta(),
+      activities: [{ id: "columnas", name: "Columnas", productivityPerDay: 2, unit: "un" }],
+      dependencies: [],
+    };
+    rerender(<RecipeEditor recipe={sinLosa} onChange={jest.fn()} />);
+
+    const anterior = screen.getByLabelText("Actividad anterior") as HTMLSelectElement;
+    const siguiente = screen.getByLabelText("Actividad siguiente") as HTMLSelectElement;
+    expect(anterior.value).toBe("columnas");
+    expect(siguiente.value).toBe("columnas");
+    expect(screen.queryByText("Losa", { selector: "option" })).not.toBeInTheDocument();
+  });
+
+  test("una acción exitosa borra un error anterior", () => {
+    const onChange = jest.fn();
+    render(<RecipeEditor recipe={receta()} onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Agregar actividad" }));
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Quitar Losa" }));
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });
