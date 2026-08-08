@@ -135,7 +135,14 @@ controles que no hacían lo que decía su nombre. Cerrar los 27 pendientes en cu
   que se contradicen es peor que una que avisa de más.
 - **Un `/login?error=<texto>` guardado en un marcador deja de pintar nada.** Es el punto del arreglo.
 
-**Evidencia:** 925 tests unitarios en verde (710 de partida), **50 E2E en Chromium** (1 saltado por diseño:
+**Verificado contra `main` en `f62e050`** (P3, el motor de detección del carril B, ya fusionado): la rama
+se puso al día con `git merge main` antes de entregar. `TypicalUnitView.tsx` es el único archivo de
+producción que tocaron los dos carriles y git lo unió sin conflicto de texto, que es el caso peligroso: se
+revisó a mano y el resultado es coherente —su etiqueta de nivel ya formateada («Piso 01», «Sótano 1») con
+nuestro renombrado a «Ritmo (1/día)»—. Comprobado también en navegador.
+
+**Evidencia:** 1.105 tests unitarios en verde (710 de partida; 941 del carril A más los del motor de
+detección), **50 E2E en Chromium** (1 saltado por diseño:
 el de producción exige `PRODUCTION_SSH_HOST`), `eslint` sin errores, `tsc --noEmit` filtrado vacío,
 `next build` correcto. **Verificado en navegador** con base de datos y microservicio reales: menú agrupado,
 Compromiso semanal llamando a la API, Observaciones, tablero con fecha de corte y señales que navegan a

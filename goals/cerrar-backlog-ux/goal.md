@@ -71,7 +71,8 @@ Cuatro entregas, cada una desplegable por separado:
 Ejecutado y fusionado a `claude/suspicious-joliot-8f08ea`. Los 27 experimentos quedan **cerrados o
 descartados con motivo escrito**: cero en `backlog`.
 
-**936 tests unitarios** (710 de partida) y **50 E2E en Chromium** en verde, con base de datos y microservicio
+**1.105 tests unitarios** y **50 E2E en Chromium** en verde tras poner la rama al día con `main` en
+`f62e050` (el motor de detección del carril B), con base de datos y microservicio
 de análisis reales. `eslint` sin errores, `tsc --noEmit` filtrado vacío, `next build` correcto.
 
 **Cuatro defectos encontrados leyendo o verificando, no diseñando**, y **seis más** que salieron de la
