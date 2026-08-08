@@ -141,6 +141,22 @@ el de producción exige `PRODUCTION_SSH_HOST`), `eslint` sin errores, `tsc --noE
 Compromiso semanal llamando a la API, Observaciones, tablero con fecha de corte y señales que navegan a
 Problemas, y el login conservando el correo con el error bajo el campo.
 
+**Decisiones tomadas sobre la marcha, que no estaban en las 103 del grilleo:**
+
+| Decisión | Por qué | ¿Reversible? |
+|---|---|---|
+| **Gana el umbral diario** al unificar «sobreasignado» (el grilleo decidió unificar, no cuál) | Es el que ya alimenta Problemas y tiene tests, y en obra el problema es el día concreto en que faltan manos, no el promedio de la semana. **Consecuencia visible: Uso de Recursos marca más celdas en rojo que antes** | Sí: es una llamada a `detectOverallocation` |
+| **Los cuatro tipos de vínculo pasan a ser alcanzables** (FF y SF no se podían crear) | El gesto prometía elegir borde y siempre cerraba igual; anunciar el tipo durante el arrastre presupone que hay tipos que elegir | Sí |
+| **TSV para copiar, CSV para descargar** | El tabulador gana en el portapapeles (se pega sin diálogo) y el `;` gana en el archivo (doble clic abre bien en configuración regional colombiana) | Sí |
+| **Sin tope de líneas base** | Con nombre al guardar y opción de borrar, la gestión ya está cubierta | Sí |
+| **`devIndicators: false`** en `next.config.ts` | El distintivo de desarrollo se sitúa donde termina el menú y bloqueaba el clic en «Configuración» en los E2E. Es chrome de desarrollo, no del producto | Sí |
+| **El menú queda en 11 entradas** | Decisión del usuario del 2026-08-08: el compromiso semanal vive **dentro** de Observaciones, porque una restricción de Last Planner es una observación con responsable y fecha. Verificado contando en navegador | Sí |
+
+**Sobre el test inestable:** `HomeMppUploadAction › rejects oversized files inline` fallaba 2 de cada 3
+corridas **en paralelo** (nunca en `--runInBand` ni en aislamiento). Es el conocido, no uno nuevo:
+materializaba 50 MB reales en memoria y agotaba el timeout de 5 s bajo carga. El componente solo lee
+`file.size`, así que el tamaño se declara. Cuatro corridas en paralelo seguidas, 941 en verde.
+
 **Anotado, no hecho:** M10 (corregir clasificaciones ambiguas de la Línea de Balance) y la productividad real
 de Unidad Típica dependen del carril B (motor de detección y cantidades de la matriz). La Tarea 27 hace solo
 el renombrado a «Ritmo (1/día)», que es lo que decidió el grilleo.
