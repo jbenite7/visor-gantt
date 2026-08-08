@@ -1,8 +1,12 @@
 import {
   applyMatrixUpdate,
+  applyMatrixUpdate as aplicar,
   syncMatrixPlanFromTasks,
 } from "@/lib/matrix/matrixSync";
-import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
+import {
+  generateScheduleFromMatrix,
+  generateScheduleFromMatrix as generar,
+} from "@/lib/matrix/matrixGenerator";
 import type { GanttTask } from "@/components/gantt/types";
 import type { MatrixPlan } from "@/types/matrix";
 
@@ -216,10 +220,6 @@ describe("matrixSync", () => {
   });
 });
 
-import { applyMatrixUpdate as aplicar } from "./matrixSync";
-import { generateScheduleFromMatrix as generar } from "./matrixGenerator";
-import type { MatrixPlan } from "@/types/matrix";
-
 function planSimple(): MatrixPlan {
   return {
     id: "p-conflicto",
@@ -312,5 +312,30 @@ describe("applyMatrixUpdate · conflictos con elección", () => {
     const tarea = result.tasks.find((task) => task.matrixSource)!;
 
     expect(tarea.name).toBe(tareaOriginal.name);
+  });
+
+  test("elegir el Gantt solo para la duración trae también el inicio y el fin, para que cuadren entre sí", () => {
+    const plan = planSimple();
+    const { tasks } = generar(plan);
+    const tareaOriginal = tasks.find((task) => task.matrixSource)!;
+    const editadasEnGantt = tasks.map((task) => {
+      if (task.isSummary) return task;
+      const nuevoInicio = new Date(task.start.getTime() + 3 * 24 * 60 * 60 * 1000);
+      const nuevoFin = new Date(task.finish.getTime() + 3 * 24 * 60 * 60 * 1000);
+      return { ...task, start: nuevoInicio, finish: nuevoFin, duration: task.duration + 2 };
+    });
+    const tareaEditada = editadasEnGantt.find((task) => task.matrixSource)!;
+
+    const result = aplicar({
+      tasks: editadasEnGantt,
+      currentPlan: plan,
+      nextPlan: plan,
+      resolutions: { [`${tareaOriginal.id}::duration`]: "gantt" },
+    });
+    const tarea = result.tasks.find((task) => task.matrixSource)!;
+
+    expect(tarea.duration).toBe(tareaEditada.duration);
+    expect(tarea.start.getTime()).toBe(tareaEditada.start.getTime());
+    expect(tarea.finish.getTime()).toBe(tareaEditada.finish.getTime());
   });
 });

@@ -204,19 +204,29 @@ export function applyMatrixUpdate({
     const merged = mergeGeneratedTask(task, previousBySource);
     let result = merged;
 
-    for (const conflict of conflicts) {
-      if (conflict.taskId !== merged.id) continue;
-      if (resolutions[`${conflict.taskId}::${conflict.field}`] !== "gantt") continue;
-
-      const fromGantt = taskById.get(conflict.taskId);
-      if (!fromGantt) continue;
-
-      if (conflict.field === "name") result = { ...result, name: fromGantt.name };
-      if (conflict.field === "duration") {
-        result = { ...result, duration: fromGantt.duration };
+    // El inicio, el fin y la duración de una tarea describen una sola cosa:
+    // su horario. Si el usuario elige «gantt» para cualquiera de los tres,
+    // se toman los tres del Gantt juntos; mezclarlos entre dos fuentes
+    // produciría una tarea que dice dos cosas distintas sobre sí misma.
+    const scheduleFromGantt = (["duration", "start", "finish"] as const).some(
+      (field) => resolutions[`${merged.id}::${field}`] === "gantt",
+    );
+    if (scheduleFromGantt) {
+      const fromGantt = taskById.get(merged.id);
+      if (fromGantt) {
+        result = {
+          ...result,
+          start: fromGantt.start,
+          finish: fromGantt.finish,
+          duration: fromGantt.duration,
+        };
       }
-      if (conflict.field === "start") result = { ...result, start: fromGantt.start };
-      if (conflict.field === "finish") result = { ...result, finish: fromGantt.finish };
+    }
+
+    // `name` es independiente del horario.
+    if (resolutions[`${merged.id}::name`] === "gantt") {
+      const fromGantt = taskById.get(merged.id);
+      if (fromGantt) result = { ...result, name: fromGantt.name };
     }
 
     return result;
