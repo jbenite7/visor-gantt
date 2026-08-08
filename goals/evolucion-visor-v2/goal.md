@@ -27,8 +27,8 @@ botón, una comparación con línea base que nunca se dibuja, la matriz fuera de
 
 ## Los cinco proyectos
 
-### P1 · No perder trabajo — *urgente*
-> Diseñado el 2026-08-07: [goal](../no-perder-trabajo/goal.md) ·
+### P1 · No perder trabajo — ✅ *cerrado el 2026-08-08*
+> Diseñado el 2026-08-07, ejecutado y fusionado el 2026-08-08: [goal](../no-perder-trabajo/goal.md) ·
 > [spec](../../docs/superpowers/specs/2026-08-07-no-perder-trabajo-design.md) ·
 > [plan](../../docs/superpowers/plans/2026-08-07-no-perder-trabajo.md)
 
@@ -41,8 +41,8 @@ Dos bugs de pérdida de datos confirmados en código:
 Incluye: guardado inmediato de observaciones, unificación de líneas base con dibujo en el Gantt principal,
 nombrar y borrar líneas base, aviso al cerrar con cambios pendientes, y que «Reintentar» sea un botón real.
 
-### P2 · Cerrar el backlog de UX
-> Diseñado el 2026-08-07: [goal](../cerrar-backlog-ux/goal.md) ·
+### P2 · Cerrar el backlog de UX — ✅ *cerrado el 2026-08-08*
+> Diseñado el 2026-08-07, ejecutado y fusionado el 2026-08-08: [goal](../cerrar-backlog-ux/goal.md) ·
 > [spec](../../docs/superpowers/specs/2026-08-07-cerrar-backlog-ux-design.md) ·
 > [plan](../../docs/superpowers/plans/2026-08-07-cerrar-backlog-ux.md)
 
@@ -79,7 +79,7 @@ a la vez colisionan en cada tarea.
 
 | Carril | Proyectos | ¿Toca `GanttView.tsx`? |
 |---|---|---|
-| **A** | P1 → P2 | Sí, ambos |
+| **A** | P1 → P2 | Sí, ambos — **cerrado el 2026-08-08** |
 | **B** | P3 → núcleo de P4 | **No** (P3 no lo toca en ninguna línea; P4 solo al cablear) |
 
 **Reglas de coordinación:**

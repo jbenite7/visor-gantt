@@ -1,6 +1,6 @@
 ---
 tipo: goal
-estado: abierto
+estado: cerrado
 fecha: 2026-08-07
 areas: [datos, cronograma, ux]
 carril: A
