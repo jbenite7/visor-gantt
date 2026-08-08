@@ -98,6 +98,37 @@ E5, E6, E7, E11, E34 (alto ICE, baratos) → E24, E27, E28, E30, E32 → el rest
 
 ## Experiment Cards
 
+### P1 · No perder trabajo — shipped 2026-08-07
+
+**Hipótesis:** los dos bugs de pérdida de datos del inventario (M24 observaciones, M13 líneas base) no son
+pulido: son la razón por la que alguien deja de confiar en la app. Cerrarlos antes que nada.
+
+**Qué cambió:**
+- **M24 · Observaciones al instante.** Efecto propio, separado del temporizado: anotar, atender o borrar
+  cancela el temporizador y guarda ya. Antes `observations` no estaba en las dependencias del efecto
+  (`GanttView.tsx:1202-1216`) y solo persistía si otra cosa disparaba el guardado.
+- **M13 · Un solo sistema de líneas base.** `TrackingGanttView` deja de tener `useState` propio y pasa a
+  componente controlado. `GanttChart` gana `showBaseline` y dibuja la barra fantasma, así que la comparación
+  se ve donde se pulsa el botón. Nuevo `BaselineMenu`: nombre al guardar, y borrar deshacible con `Ctrl+Z`.
+- **M33 · Aviso al cerrar** solo si hay algo pendiente, decidido por `shouldWarnBeforeUnload`.
+- **«Reintentar»** pasa de ser parte del texto del indicador a un botón de verdad.
+
+**Dos defectos encontrados durante la verificación en navegador, no en el diseño:**
+1. **El grupo de línea base estaba en `display: none`** sin ninguna regla que lo reactivara: el control que el
+   inventario llamó «el más visible» no se veía en ninguna anchura. Ahora aparece desde 64rem.
+2. **Un guardado fallido dejaba `isDirtyRef` limpio**, así que el aviso al cerrar dejaba pasar trabajo que se
+   iba a perder. Corregido con un test que reproduce el caso a los 4 s, cuando el indicador ya volvió a su
+   estado normal.
+
+**Evidencia:** 743 tests en verde (710 de partida, 33 nuevos), `eslint` limpio,
+`tsc --noEmit` filtrado vacío, `next build` correcto. **Verificado en navegador** (`/gantt-demo`): anotar una
+observación dispara el guardado a los **60 ms** —no a los 750— y pinta el badge; guardar «Antes de la lluvia»
+dibuja **8 barras fantasma** en el Gantt principal; borrarla las quita y `Ctrl+Z` las devuelve; cerrar sin
+cambios no pregunta y con trabajo pendiente sí.
+
+**Pendiente anotado:** no se impone tope de líneas base (MS Project permite 11). Se decide si el uso lo pide.
+
+
 ### E43 · Momento firma: el estado de la obra, encima del plan — shipped 2026-08-05
 
 **Hipótesis:** lo que hacía volver a diario al visor 1.0 no era una vista, era el loop de anotar sobre la

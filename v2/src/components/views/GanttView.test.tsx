@@ -1139,12 +1139,17 @@ describe("GanttView", () => {
 
     mockedSaveProject.mockClear();
 
-    fireEvent.click(screen.getByTitle("Guardar línea base"));
+    fireEvent.click(screen.getByTestId("baseline-save-open"));
+    fireEvent.change(screen.getByTestId("baseline-name-input"), {
+      target: { value: "Antes de la lluvia" },
+    });
+    fireEvent.click(screen.getByTestId("baseline-save-confirm"));
 
     await flushAutosave();
 
     await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
     expect(latestSavedProject().baselines).toHaveLength(1);
+    expect(latestSavedProject().baselines[0].name).toBe("Antes de la lluvia");
     expect(latestSavedProject().baselines[0].tasks[0]).toEqual(
       expect.objectContaining({
         taskId: 1,
@@ -1330,5 +1335,352 @@ describe("restablecer columnas se puede deshacer (E24)", () => {
     expect(
       await screen.findByText(/deshecho: columnas del cronograma restablecidas/i),
     ).toBeInTheDocument();
+  });
+});
+
+describe("las observaciones no se pierden (M24)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("anotar guarda al instante, sin esperar al temporizador", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Obra con observaciones"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByTestId("editable-cell")[0]);
+    fireEvent.click(screen.getByTestId("open-observations"));
+
+    fireEvent.change(screen.getByTestId("observation-text"), {
+      target: { value: "Falta acero de refuerzo en el eje 3" },
+    });
+
+    mockedSaveProject.mockClear();
+    fireEvent.click(screen.getByTestId("observation-save"));
+
+    // Sin avanzar ni un milisegundo: el guardado tiene que haber salido ya.
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockedSaveProject).toHaveBeenCalled();
+    expect(latestSavedProject().observations).toEqual([
+      expect.objectContaining({
+        taskId: 1,
+        text: "Falta acero de refuerzo en el eje 3",
+        status: "pending",
+      }),
+    ]);
+  });
+
+  test("atender una observación también guarda al instante", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Obra con observaciones"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+        observations={[
+          {
+            id: "obs-1",
+            taskId: 1,
+            taskName: "Excavación",
+            text: "Falta acero",
+            status: "pending",
+            createdAt: "2026-08-07T08:00:00.000Z",
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByTestId("editable-cell")[0]);
+    fireEvent.click(screen.getByTestId("open-observations"));
+
+    mockedSaveProject.mockClear();
+    fireEvent.click(screen.getByTestId("observation-toggle-obs-1"));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockedSaveProject).toHaveBeenCalled();
+    expect(latestSavedProject().observations[0].status).toBe("done");
+  });
+
+  test("abrir el proyecto con observaciones ya guardadas no dispara un guardado", async () => {
+    jest.useFakeTimers();
+
+    mockedSaveProject.mockClear();
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Obra con observaciones"
+        tasks={[makeTask({ id: 1 })]}
+        observations={[
+          {
+            id: "obs-1",
+            taskId: 1,
+            taskName: "Excavación",
+            text: "Falta acero",
+            status: "pending",
+            createdAt: "2026-08-07T08:00:00.000Z",
+          },
+        ]}
+      />,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockedSaveProject).not.toHaveBeenCalled();
+  });
+});
+
+describe("aviso al cerrar con cambios pendientes (M33)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("sin tocar nada, cerrar no pregunta", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  test("tras editar y antes de que guarde, cerrar pregunta", async () => {
+    jest.useFakeTimers();
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+      />,
+    );
+
+    const cells = screen.getAllByTestId("editable-cell");
+    fireEvent.doubleClick(cells[0]);
+    const input = screen.getByDisplayValue("Excavación");
+    fireEvent.change(input, { target: { value: "Excavación manual" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+});
+
+describe("reintentar el guardado es un botón", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("aparece solo cuando falla y vuelve a guardar al pulsarlo", async () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    expect(screen.queryByTestId("save-retry")).not.toBeInTheDocument();
+
+    mockedSaveProject.mockResolvedValueOnce({
+      success: false,
+      error: "sin conexión",
+    });
+
+    // La app ofrece «Guardar ahora» desde la paleta de comandos.
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    fireEvent.click(screen.getByText("Guardar ahora"));
+
+    const retry = await screen.findByTestId("save-retry");
+    expect(retry.tagName).toBe("BUTTON");
+    expect(retry).toHaveTextContent("Reintentar");
+
+    mockedSaveProject.mockClear();
+    mockedSaveProject.mockResolvedValueOnce({ success: true, id: "1" });
+    fireEvent.click(retry);
+
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.queryByTestId("save-retry")).not.toBeInTheDocument(),
+    );
+  });
+});
+
+describe("la línea base se dibuja donde se guarda (M13)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("al guardar y seleccionar una línea base, el Gantt principal la dibuja", async () => {
+    const { container } = render(
+      <GanttView
+        projectId="1"
+        projectName="Obra"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+      />,
+    );
+
+    expect(container.querySelector("g.baseline-bars")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("baseline-save-open"));
+    fireEvent.click(screen.getByTestId("baseline-save-confirm"));
+
+    await waitFor(() =>
+      expect(container.querySelector("g.baseline-bars")).toBeInTheDocument(),
+    );
+    expect(container.querySelectorAll("g.baseline-bars rect")).toHaveLength(1);
+  });
+
+  test("una línea base cargada del proyecto no se dibuja hasta seleccionarla", () => {
+    const { container } = render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        baselines={[
+          {
+            id: "bl-1",
+            name: "Línea base 1",
+            createdAt: new Date("2026-08-01"),
+            tasks: [
+              {
+                taskId: 1,
+                baselineStart: createProjectDate("2026-01-05"),
+                baselineFinish: createProjectDate("2026-01-10"),
+                baselineDuration: 5,
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(container.querySelector("g.baseline-bars")).not.toBeInTheDocument();
+  });
+});
+
+describe("borrar una línea base es deshacible (M13)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("Ctrl+Z devuelve la línea base borrada", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        baselines={[
+          {
+            id: "bl-1",
+            name: "Antes de la lluvia",
+            createdAt: new Date("2026-08-01"),
+            tasks: [
+              {
+                taskId: 1,
+                baselineStart: createProjectDate("2026-01-05"),
+                baselineFinish: createProjectDate("2026-01-10"),
+                baselineDuration: 5,
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("baseline-menu-open"));
+    fireEvent.click(screen.getByTestId("baseline-delete-bl-1"));
+
+    expect(screen.queryByTestId("baseline-menu-open")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("baseline-menu-open")).toBeInTheDocument(),
+    );
+  });
+});
+
+describe("un guardado fallido deja el trabajo pendiente (M33)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("si el guardado falla, cerrar sigue preguntando", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+      />,
+    );
+
+    mockedSaveProject.mockResolvedValueOnce({
+      success: false,
+      error: "sin conexión",
+    });
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    fireEvent.click(screen.getByText("Guardar ahora"));
+
+    await screen.findByTestId("save-retry");
+
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  test("y sigue preguntando cuando el indicador ya volvió a su estado normal", async () => {
+    jest.useFakeTimers();
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+      />,
+    );
+
+    mockedSaveProject.mockResolvedValueOnce({
+      success: false,
+      error: "sin conexión",
+    });
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    fireEvent.click(screen.getByText("Guardar ahora"));
+
+    // El indicador vuelve a «idle» a los 3 s: el trabajo sigue sin guardarse.
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(4000);
+    });
+
+    expect(screen.queryByTestId("save-retry")).not.toBeInTheDocument();
+
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
   });
 });

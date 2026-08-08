@@ -143,6 +143,12 @@
   --gantt-topbar-font-size: 0.75rem;
   --gantt-toolbar-info-width: 15.5rem;
   --gantt-toolbar-project-info-display: none;
+  /**
+   * El grupo de línea base estaba en `none` sin ninguna regla que lo
+   * reactivara: el control que el inventario llamó «el más visible» no se veía
+   * en ninguna anchura (M13). En pantallas estrechas sigue oculto y se llega
+   * por la vista Seguimiento, que tiene los mismos controles.
+   */
   --gantt-toolbar-baseline-display: none;
   --gantt-toolbar-group-padding-inline: 0.5rem;
   --gantt-toolbar-divider-height: 1.5rem;
@@ -975,7 +981,10 @@ h6 {
 }
 
 .gantt-project-toolbar__baseline-option {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gantt-aux-panel-button-padding-block);
   width: 100%;
   border: 0;
   background: var(--color-transparent);
@@ -1102,6 +1111,12 @@ h6 {
   background: var(--color-bg-elevated);
   box-shadow: var(--shadow-lg);
   padding: var(--gantt-planning-dropdown-menu-padding);
+}
+
+@media (min-width: 64rem) {
+  :root {
+    --gantt-toolbar-baseline-display: flex;
+  }
 }
 
 @media (max-width: 48rem) {
@@ -3207,4 +3222,40 @@ h6 {
   font-size: 1.125rem;
   line-height: 1;
   padding: 0 0.25rem;
+}
+
+/* ── Línea base: nombrar al guardar y borrar (M13) ── */
+.gantt-project-toolbar__baseline-name {
+  min-width: 0;
+  width: var(--gantt-toolbar-info-width);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: var(--gantt-topbar-font-size);
+  padding: var(--gantt-aux-panel-button-padding-block) var(--gantt-aux-panel-button-padding-inline);
+}
+
+.gantt-project-toolbar__baseline-option-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: var(--color-transparent);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.gantt-project-toolbar__baseline-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gantt-aux-panel-button-padding-block);
+  flex: 0 0 auto;
+  border: 0;
+  background: var(--color-transparent);
+  color: var(--aia-alert-main);
+  cursor: pointer;
+  font: inherit;
 }

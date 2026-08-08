@@ -46,6 +46,7 @@ import type { BudgetItem, BudgetMapping as BudgetMappingType } from "@/types/bud
 import type { ProjectCalendar } from "@/types/calendar";
 import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
 import type { Baseline } from "@/types/baseline";
+import { applyBaselineToTasks, saveBaseline } from "@/lib/scheduling/baseline";
 import type { MatrixPlan } from "@/types/matrix";
 import type {
   AssignmentColumnSettings,
@@ -99,6 +100,7 @@ import {
 } from "@/lib/gantt/roleViewPresets";
 import { normalizeTaskStructure } from "@/lib/gantt/taskStructure";
 import { saveStatusLabel } from "@/lib/gantt/saveStatusLabel";
+import { shouldWarnBeforeUnload } from "@/lib/gantt/pendingChanges";
 import { buildExecutivePlanningSummary } from "@/lib/gantt/executiveDashboard";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -295,6 +297,12 @@ function GanttViewInner({
   );
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  /**
+   * Espejo del estado de guardado para el aviso al cerrar. Va en un ref
+   * porque `beforeunload` se registra una sola vez y consulta al dispararse:
+   * marcar estado desde el efecto de autoguardado encadenaría renders.
+   */
+  const saveStatusRef = useRef<SaveStatus>("idle");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [projectId, setProjectId] = useState<string | undefined>(initialProjectId);
   const [projectName] = useState<string>(initialProjectName ?? "Sin título");
@@ -304,6 +312,7 @@ function GanttViewInner({
   const [commandQuery, setCommandQuery] = useState("");
   const isDirtyRef = useRef(false);
   const didMountSaveStateRef = useRef(false);
+  const didMountObservationsRef = useRef(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const commandInputRef = useRef<HTMLInputElement>(null);
   const previousActiveViewRef = useRef<ViewType | null>(null);
@@ -545,23 +554,64 @@ function GanttViewInner({
   }, [deleteTasks, selectedTaskIds]);
 
   /* ── Save Baseline handler ── */
-  const handleSaveBaseline = useCallback(() => {
-    const baselineNumber = baselines.length + 1;
-    const newBaseline: Baseline = {
-      id: `bl-${Date.now()}`,
-      name: `Baseline ${baselineNumber}`,
-      createdAt: new Date(),
-      tasks: calculatedTasks.map((t) => ({
-        taskId: t.id,
-        baselineStart: new Date(t.start),
-        baselineFinish: new Date(t.finish),
-        baselineDuration: t.duration,
-        baselineCost: t.cost,
-      })),
-    };
-    setBaselines((prev) => [...prev, newBaseline]);
-    setActiveBaselineId(newBaseline.id);
-  }, [baselines.length, calculatedTasks]);
+  const handleSaveBaseline = useCallback(
+    (name: string) => {
+      const nueva = saveBaseline(calculatedTasks, name);
+      setBaselines((prev) => [...prev, nueva]);
+      setActiveBaselineId(nueva.id);
+    },
+    [calculatedTasks],
+  );
+
+  /**
+   * Borrar una línea base pasa por el historial, como el resto de lo
+   * destructivo desde E24: una foto del plan aprobado no se pierde por un clic.
+   */
+  const handleDeleteBaseline = useCallback(
+    (id: string) => {
+      const index = baselines.findIndex((b) => b.id === id);
+      if (index === -1) return;
+      const removed = baselines[index];
+      const wasActive = activeBaselineId === id;
+
+      runUndoable({
+        description: `Línea base «${removed.name}» eliminada`,
+        execute: () => {
+          setBaselines((prev) => prev.filter((b) => b.id !== id));
+          if (wasActive) setActiveBaselineId(undefined);
+        },
+        undo: () => {
+          setBaselines((prev) => {
+            const next = [...prev];
+            next.splice(index, 0, removed);
+            return next;
+          });
+          if (wasActive) setActiveBaselineId(id);
+        },
+      });
+    },
+    [activeBaselineId, baselines, runUndoable],
+  );
+
+  const activeBaseline = useMemo(
+    () => baselines.find((b) => b.id === activeBaselineId) ?? null,
+    [baselines, activeBaselineId],
+  );
+
+  /**
+   * El botón «Línea base» está en la barra principal: la comparación tiene que
+   * verse aquí, no solo dentro de Seguimiento (M13).
+   *
+   * Solo para dibujar: los campos baseline* son derivados y no se persisten
+   * dentro de cada tarea.
+   */
+  const tasksForChart = useMemo(
+    () =>
+      activeBaseline
+        ? applyBaselineToTasks(calculatedTasks, activeBaseline)
+        : calculatedTasks,
+    [activeBaseline, calculatedTasks],
+  );
 
   /* ── Select Baseline handler ── */
   const handleSelectBaseline = useCallback((id: string) => {
@@ -861,11 +911,16 @@ function GanttViewInner({
     });
   }, [assignmentColumnSettings, locale, runUndoable]);
 
+  const updateSaveStatus = useCallback((status: SaveStatus) => {
+    saveStatusRef.current = status;
+    setSaveStatus(status);
+  }, []);
+
   const doSave = useCallback(async () => {
     if (!isDirtyRef.current) return;
 
     isDirtyRef.current = false;
-    setSaveStatus("saving");
+    updateSaveStatus("saving");
 
     try {
       const data: ProjectData = {
@@ -896,18 +951,22 @@ function GanttViewInner({
       const result = await saveProject(data);
       if (result.success) {
         setProjectId(result.id);
-        setSaveStatus("saved");
+        updateSaveStatus("saved");
         setLastSavedAt(new Date());
-        setTimeout(() => setSaveStatus("idle"), 2000);
+        setTimeout(() => updateSaveStatus("idle"), 2000);
       } else {
-        setSaveStatus("error");
-        setTimeout(() => setSaveStatus("idle"), 3000);
+        // Lo que no llegó al servidor sigue pendiente: si no se vuelve a marcar
+        // sucio, el aviso al cerrar deja pasar un trabajo que se va a perder.
+        isDirtyRef.current = true;
+        updateSaveStatus("error");
+        setTimeout(() => updateSaveStatus("idle"), 3000);
       }
     } catch {
-      setSaveStatus("error");
-      setTimeout(() => setSaveStatus("idle"), 3000);
+      isDirtyRef.current = true;
+      updateSaveStatus("error");
+      setTimeout(() => updateSaveStatus("idle"), 3000);
     }
-  }, [projectId, projectName, initialStatusDate, calculatedTasks, calculatedResources, calculatedAssignments, budgetItems, budgetMappings, baselines, calendar, syncedMatrixPlan, mppTaskColumns, mppResourceColumns, mppAssignmentColumns, calculatedMpp.customFieldDefinitions, calculatedMpp.engineVersion, calculatedMpp.calculatedAt, taskColumnSettings, resourceColumnSettings, assignmentColumnSettings, uiSettings, planningAuditEvents, observations]);
+  }, [projectId, projectName, initialStatusDate, calculatedTasks, calculatedResources, calculatedAssignments, budgetItems, budgetMappings, baselines, calendar, syncedMatrixPlan, mppTaskColumns, mppResourceColumns, mppAssignmentColumns, calculatedMpp.customFieldDefinitions, calculatedMpp.engineVersion, calculatedMpp.calculatedAt, taskColumnSettings, resourceColumnSettings, assignmentColumnSettings, uiSettings, planningAuditEvents, observations, updateSaveStatus]);
 
   // Use a ref to avoid the interval effect depending on doSave's reference
   const doSaveRef = useRef(doSave);
@@ -1215,6 +1274,48 @@ function GanttViewInner({
     projectName,
   ]);
 
+  /**
+   * Las observaciones se guardan al instante, sin pasar por el temporizador.
+   *
+   * Anotar en obra es un acto único: no hay nada que agrupar, y quien anota
+   * cierra la pestaña a los dos segundos. Esperar 750 ms era exactamente la
+   * ventana en la que se perdía lo escrito (M24).
+   */
+  useEffect(() => {
+    if (!didMountObservationsRef.current) {
+      didMountObservationsRef.current = true;
+      return;
+    }
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    isDirtyRef.current = true;
+    void doSaveRef.current();
+  }, [observations]);
+
+  /**
+   * Preguntar antes de cerrar, pero solo si hay algo que perder: un diálogo
+   * que sale siempre es un diálogo que nadie lee.
+   */
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      const hayQuePerder = shouldWarnBeforeUnload({
+        hasPendingChanges: isDirtyRef.current,
+        saveStatus: saveStatusRef.current,
+      });
+      if (!hayQuePerder) return;
+
+      // El navegador no deja personalizar el texto; solo pedir la confirmación.
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
+
   useEffect(
     () => () => {
       if (autoSaveTimerRef.current) {
@@ -1257,6 +1358,8 @@ function GanttViewInner({
           activeBaselineId={activeBaselineId}
           onSaveBaseline={handleSaveBaseline}
           onSelectBaseline={handleSelectBaseline}
+          onDeleteBaseline={handleDeleteBaseline}
+          proposedBaselineName={`Línea base ${baselines.length + 1}`}
           locale={locale}
         />
         <span
@@ -1267,6 +1370,16 @@ function GanttViewInner({
         >
           {saveStatusLabel(saveStatus, lastSavedAt)}
         </span>
+        {saveStatus === "error" && (
+          <button
+            type="button"
+            data-testid="save-retry"
+            onClick={handleManualSave}
+            className="apple-button-secondary inline-flex h-[var(--gantt-topbar-control-height)] shrink-0 items-center rounded-[var(--radius-lg)] px-[var(--gantt-topbar-control-padding-inline)] text-[length:var(--gantt-topbar-font-size)] font-semibold"
+          >
+            Reintentar
+          </button>
+        )}
         <label
           className="apple-button-secondary gantt-role-view inline-flex h-[var(--gantt-topbar-control-height)] shrink-0 items-center gap-[var(--gantt-topbar-gap)] rounded-[var(--radius-lg)] px-[var(--gantt-topbar-control-padding-inline)] text-[length:var(--gantt-topbar-font-size)] font-semibold"
           title={
@@ -1549,7 +1662,8 @@ function GanttViewInner({
                   }
                   right={
                     <GanttChart
-                      tasks={calculatedTasks}
+                      tasks={tasksForChart}
+                      showBaseline={Boolean(activeBaseline)}
                       observations={observations}
                       calendar={calendar}
                       scale={scale}
@@ -1611,6 +1725,10 @@ function GanttViewInner({
               selectedTaskIds={selectedTaskIds}
               onTaskSelect={handleTaskSelect}
               onTaskClick={onTaskClick}
+              baselines={baselines}
+              activeBaselineId={activeBaselineId}
+              onSaveBaseline={handleSaveBaseline}
+              onSelectBaseline={setActiveBaselineId}
             />
           )}
 

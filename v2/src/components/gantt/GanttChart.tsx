@@ -51,6 +51,8 @@ interface GanttChartProps {
   onDragStart?: (taskId: string | number, e: React.MouseEvent) => void;
   /** Resize interaction state (from useResizeBar). */
   resizeState?: ResizeState;
+  /** Dibuja la línea base activa como barra fantasma detrás de cada barra. */
+  showBaseline?: boolean;
   /** Called when user mousedowns on a resize handle. */
   onResizeStart?: (
     taskId: string | number,
@@ -69,6 +71,9 @@ const DEFAULT_CONFIG: GanttConfig = {
   summaryColor: "var(--aia-arch-main)",
   milestoneColor: "var(--aia-warn-main)",
 };
+
+const BASELINE_BAR_HEIGHT = 6;
+const BASELINE_BAR_OFFSET_Y = 4;
 
 const LABEL_HEIGHT = 20;
 const LABEL_GAP = 6;
@@ -105,6 +110,7 @@ export default function GanttChart({
   onDragStart,
   resizeState,
   onResizeStart,
+  showBaseline = false,
 }: GanttChartProps) {
   const { depState, onDepStart, onDepMove, onDepEnd } =
     useCreateDependency(onCreateDependency);
@@ -267,6 +273,39 @@ export default function GanttChart({
               strokeDasharray="5,5"
               pointerEvents="none"
             />
+          )}
+
+          {/* ── Layer 5b: Línea base (detrás de las barras reales) ── */}
+          {showBaseline && (
+            <g
+              className="baseline-bars"
+              transform={`translate(0, ${finalConfig.headerHeight})`}
+              pointerEvents="none"
+            >
+              {tasks.map((task, i) => {
+                if (!task.baselineStart || !task.baselineFinish) return null;
+
+                const x = getDatePosition(task.baselineStart, fittedViewport);
+                const width = getTaskWidth(
+                  task.baselineStart,
+                  task.baselineFinish,
+                  fittedViewport,
+                );
+
+                return (
+                  <rect
+                    key={`baseline-${task.id}`}
+                    x={x}
+                    y={i * finalConfig.rowHeight + BASELINE_BAR_OFFSET_Y}
+                    width={Math.max(width, 1)}
+                    height={BASELINE_BAR_HEIGHT}
+                    rx={2}
+                    fill="var(--color-text-muted)"
+                    opacity={0.35}
+                  />
+                );
+              })}
+            </g>
           )}
 
           {/* ── Layer 6: Task Bars ── */}

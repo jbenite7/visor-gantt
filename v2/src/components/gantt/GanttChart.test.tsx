@@ -132,3 +132,69 @@ describe("GanttChart labels", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("comparación con la línea base en el Gantt principal (M13)", () => {
+  const withBaseline = task({
+    id: 1,
+    name: "Excavación",
+    start: new Date("2026-01-08"),
+    finish: new Date("2026-01-12"),
+    baselineStart: new Date("2026-01-05"),
+    baselineFinish: new Date("2026-01-09"),
+    baselineDuration: 5,
+  });
+
+  test("sin activar la comparación no se dibuja nada nuevo", () => {
+    const { container } = render(<GanttChart tasks={[withBaseline]} />);
+
+    expect(container.querySelector("g.baseline-bars")).not.toBeInTheDocument();
+  });
+
+  test("con la comparación activa dibuja una barra fantasma por tarea", () => {
+    const { container } = render(
+      <GanttChart tasks={[withBaseline]} showBaseline />,
+    );
+
+    const layer = container.querySelector("g.baseline-bars");
+    expect(layer).toBeInTheDocument();
+    expect(layer!.querySelectorAll("rect")).toHaveLength(1);
+  });
+
+  test("la barra fantasma va detrás de la barra real", () => {
+    const { container } = render(
+      <GanttChart tasks={[withBaseline]} showBaseline />,
+    );
+
+    const baseline = container.querySelector("g.baseline-bars");
+    const tasks = container.querySelector("g.tasks");
+    expect(baseline!.compareDocumentPosition(tasks!)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  test("una tarea sin línea base no aporta barra fantasma", () => {
+    const { container } = render(
+      <GanttChart tasks={[withBaseline, task({ id: 2 })]} showBaseline />,
+    );
+
+    expect(container.querySelectorAll("g.baseline-bars rect")).toHaveLength(1);
+  });
+
+  test("la barra fantasma ocupa las fechas de la línea base, no las reales", () => {
+    const { container } = render(
+      <GanttChart tasks={[withBaseline]} showBaseline />,
+    );
+
+    const ghost = container.querySelector<SVGRectElement>(
+      "g.baseline-bars rect",
+    )!;
+    const real = container.querySelector<SVGRectElement>(
+      'g.tasks [data-testid="task-bar"]',
+    );
+
+    // La línea base empieza 3 días antes que lo real: queda a la izquierda.
+    expect(Number(ghost.getAttribute("x"))).toBeLessThan(
+      Number(real?.getAttribute("x") ?? Number.POSITIVE_INFINITY),
+    );
+  });
+});

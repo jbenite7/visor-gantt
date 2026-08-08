@@ -14,7 +14,7 @@ function timeOfDay(at: Date): string {
  */
 export function saveStatusLabel(status: SaveStatus, lastSavedAt: Date | null): string {
   if (status === "saving") return "Guardando…";
-  if (status === "error") return "No se pudo guardar. Reintentar";
+  if (status === "error") return "No se pudo guardar";
 
   if (lastSavedAt) return `Guardado a las ${timeOfDay(lastSavedAt)}`;
   return "Guardado automático activo";

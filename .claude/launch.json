@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "visor-gantt",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:e2e"
+      ],
+      "cwd": "v2",
+      "port": 3000
+    }
+  ]
+}
