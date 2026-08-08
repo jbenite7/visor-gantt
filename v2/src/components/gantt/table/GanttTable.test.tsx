@@ -1277,3 +1277,145 @@ describe("lo calculado no se edita (E27)", () => {
     }
   });
 });
+
+describe("ningún dato se descarta sin decirlo (E28)", () => {
+  const columnaNumerica = {
+    key: "mpp:Cost1",
+    fieldId: "COST_1",
+    sourceKey: "Cost1",
+    labelEn: "Cost 1",
+    labelEs: "Costo unitario",
+    dataType: "number" as const,
+    group: "custom" as const,
+    isCustom: true,
+    isCore: false,
+    isEditable: true,
+  };
+
+  test("vaciar un campo numérico lo deja vacío, no lo convierte en cero", () => {
+    const onUpdateTask = jest.fn();
+    const onInvalidEdit = jest.fn();
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1, mppFields: { Cost1: 1000 } })]}
+        mppTaskColumns={[columnaNumerica]}
+        columnSettings={{
+          visible: ["id", "name", "mpp:Cost1"],
+          widths: {},
+          labelLocale: "es",
+        }}
+        onUpdateTask={onUpdateTask}
+        onInvalidEdit={onInvalidEdit}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-mpp:Cost1-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    // Un `input[type=number]` ya impide teclear letras: lo que sí llegaba al
+    // guardado era el campo vacío, que se convertía en 0 en silencio.
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onUpdateTask).toHaveBeenCalledWith(1, "mppFields:Cost1", null);
+    expect(onUpdateTask).not.toHaveBeenCalledWith(1, "mppFields:Cost1", 0);
+  });
+
+  test("un número válido sí se guarda: no se rompe lo que servía", () => {
+    const onUpdateTask = jest.fn();
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1, mppFields: { Cost1: 1000 } })]}
+        mppTaskColumns={[columnaNumerica]}
+        columnSettings={{
+          visible: ["id", "name", "mpp:Cost1"],
+          widths: {},
+          labelLocale: "es",
+        }}
+        onUpdateTask={onUpdateTask}
+        onInvalidEdit={jest.fn()}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-mpp:Cost1-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "2500" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onUpdateTask).toHaveBeenCalledWith(1, "mppFields:Cost1", 2500);
+  });
+
+  test("una predecesora mal escrita explica el formato en vez de desaparecer", () => {
+    const onUpdateTask = jest.fn();
+    const onInvalidEdit = jest.fn();
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1 }), makeTask({ id: 2 })]}
+        onUpdateTask={onUpdateTask}
+        onInvalidEdit={onInvalidEdit}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-predecessors-2");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "la primera" } });
+    fireEvent.blur(input);
+
+    expect(onUpdateTask).not.toHaveBeenCalled();
+    expect(onInvalidEdit).toHaveBeenCalledWith(
+      expect.stringMatching(/1FS|formato/i),
+    );
+  });
+
+  test("una predecesora bien escrita sigue funcionando", () => {
+    const onUpdateTask = jest.fn();
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1 }), makeTask({ id: 2 })]}
+        onUpdateTask={onUpdateTask}
+        onInvalidEdit={jest.fn()}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-predecessors-2");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "1FS+2" } });
+    fireEvent.blur(input);
+
+    expect(onUpdateTask).toHaveBeenCalledWith(
+      2,
+      "dependencies",
+      expect.arrayContaining([
+        expect.objectContaining({ from: 1, to: 2, type: "FS", lag: 2 }),
+      ]),
+    );
+  });
+
+  test("borrar todas las predecesoras sigue siendo posible", () => {
+    const onUpdateTask = jest.fn();
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({ id: 1 }),
+          makeTask({
+            id: 2,
+            dependencies: [{ from: 1, to: 2, type: "FS" }],
+          }),
+        ]}
+        onUpdateTask={onUpdateTask}
+        onInvalidEdit={jest.fn()}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-predecessors-2");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+
+    expect(onUpdateTask).toHaveBeenCalledWith(2, "dependencies", []);
+  });
+});

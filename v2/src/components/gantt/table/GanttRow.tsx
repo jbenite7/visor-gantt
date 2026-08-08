@@ -9,6 +9,7 @@ import {
   MIN_TASK_DURATION,
   parseDateInput,
   parseDurationInput,
+  parseNumericFieldInput,
   parseProgressInput,
 } from "@/lib/gantt/editValidation";
 import type { ColumnConfig } from "./ColumnSelector";
@@ -117,32 +118,52 @@ function formatUniqueId(task: GanttTask, fallback: number): number {
  * - type: FS, SS, FF, SF
  * - lag: optional days or percentage (e.g. +5d, -2d, +50%)
  */
+/**
+ * Lo que no se entiende se dice. Antes, un `continue` mudo dejaba la tarea sin
+ * predecesoras y sin ninguna señal de que algo se había descartado (E28).
+ */
 function parsePredecessors(
   raw: string,
   targetId: string | number,
   tasks: GanttTask[],
-): GanttDependency[] {
-  if (!raw.trim()) return [];
+):
+  | { ok: true; value: GanttDependency[] }
+  | { ok: false; reason: string } {
+  if (!raw.trim()) return { ok: true, value: [] };
 
   const parts = raw.split(",").map((s) => s.trim()).filter(Boolean);
   const result: GanttDependency[] = [];
+  const noReconocidos: string[] = [];
 
   for (const entry of parts) {
     const match = entry.match(
       /^(\S+?)(FS|SS|FF|SF)(?:([+-]\d+(?:\.\d+)?)(d|%)?)?$/i
     );
-    if (!match) continue;
+    if (!match) {
+      noReconocidos.push(entry);
+      continue;
+    }
 
     const rawFrom = isNaN(Number(match[1])) ? match[1] : Number(match[1]);
     const source = findTaskByRowId(tasks, rawFrom);
-    if (!source) continue;
+    if (!source) {
+      noReconocidos.push(entry);
+      continue;
+    }
     const type = match[2].toUpperCase() as GanttDependency["type"];
     const { lag, lagUnit } = parseDependencyLagText(match[3], match[4]);
 
     result.push({ from: source.id, to: targetId, type, lag, lagUnit });
   }
 
-  return result;
+  if (noReconocidos.length > 0) {
+    return {
+      ok: false,
+      reason: `No entendimos «${noReconocidos.join(", ")}». Escribe el número de la actividad y el tipo de vínculo, por ejemplo 1FS+2.`,
+    };
+  }
+
+  return { ok: true, value: result };
 }
 
 const FORMAT_CURRENCY = new Intl.NumberFormat("es-CO", {
@@ -204,14 +225,32 @@ function getMppEditValue(value: unknown, dataType: string | undefined): string |
   return value == null ? "" : String(value);
 }
 
-function parseMppEditValue(raw: string, dataType: string | undefined): unknown {
-  if (dataType === "date") return raw ? createProjectDate(raw).toISOString() : "";
-  if (["number", "currency", "duration"].includes(dataType ?? "")) {
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed : 0;
+/**
+ * Convertía en `0` cualquier texto que no fuera número, en silencio: quien
+ * escribía «pendiente» en un costo veía cero y creía que lo había guardado.
+ * Ahora rechaza explicando, con el mismo validador que usa el resto (E28).
+ */
+function parseMppEditValue(
+  raw: string,
+  dataType: string | undefined,
+): { ok: true; value: unknown } | { ok: false; reason: string } {
+  if (dataType === "date") {
+    return {
+      ok: true,
+      value: raw ? createProjectDate(raw).toISOString() : "",
+    };
   }
-  if (dataType === "boolean") return ["true", "1", "yes", "si", "sí"].includes(raw.toLowerCase());
-  return raw;
+  if (["number", "currency", "duration"].includes(dataType ?? "")) {
+    const parsed = parseNumericFieldInput(raw);
+    return parsed.ok ? { ok: true, value: parsed.value } : parsed;
+  }
+  if (dataType === "boolean") {
+    return {
+      ok: true,
+      value: ["true", "1", "yes", "si", "sí"].includes(raw.toLowerCase()),
+    };
+  }
+  return { ok: true, value: raw };
 }
 
 function mppEditableCellType(dataType: string | undefined): "text" | "number" | "date" {
@@ -420,8 +459,12 @@ export default function GanttRow({
                 align="left"
                 readOnly={derivado}
                 onCommit={(val) => {
-                  const deps = parsePredecessors(val, task.id, allTasks);
-                  onUpdateTask!(task.id, "dependencies", deps);
+                  const parsed = parsePredecessors(val, task.id, allTasks);
+                  if (parsed.ok) {
+                    onUpdateTask!(task.id, "dependencies", parsed.value);
+                  } else {
+                    onInvalidEdit?.(parsed.reason);
+                  }
                 }}
               />
             </div>
@@ -507,7 +550,12 @@ export default function GanttRow({
                 type={mppEditableCellType(column.dataType)}
                 align={column.align}
                 onCommit={(val) => {
-                  onUpdateTask!(task.id, `mppFields:${sourceKey}`, parseMppEditValue(val, column.dataType));
+                  const parsed = parseMppEditValue(val, column.dataType);
+                  if (parsed.ok) {
+                    onUpdateTask!(task.id, `mppFields:${sourceKey}`, parsed.value);
+                  } else {
+                    onInvalidEdit?.(parsed.reason);
+                  }
                 }}
               />
             </td>
