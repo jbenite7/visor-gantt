@@ -103,7 +103,8 @@ describe("GanttTable", () => {
     );
 
     expect(screen.getAllByTestId("gantt-row")).toHaveLength(1);
-    expect(screen.getByTestId("gantt-task-filter-count")).toHaveTextContent("1 / 3");
+    // El contador dice cuántas esconde, que es el dato que preocupa (E7).
+    expect(screen.getByTestId("gantt-task-filter-count")).toHaveTextContent("2 ocultas de 3");
 
     fireEvent.click(screen.getByTestId("gantt-task-filter-clear"));
     expect(onTaskFilterChange).toHaveBeenCalledWith({ text: "", type: "all" });

@@ -1062,7 +1062,11 @@ export default function GanttTable({
               className="gantt-table-toolbar__count"
             >
               {hasActiveTaskFilter
-                ? `${tasks.length - filteredTasks.length} ocultas de ${tasks.length}`
+                ? `${tasks.length - filteredTasks.length} ${
+                    tasks.length - filteredTasks.length === 1
+                      ? "oculta"
+                      : "ocultas"
+                  } de ${tasks.length}`
                 : `${visibleTasks.length} / ${tasks.length}`}
             </span>
             {hasActiveTaskFilter && (

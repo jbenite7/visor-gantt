@@ -342,7 +342,7 @@ describe("GanttView", () => {
       target: { value: "critical" },
     });
 
-    expect(screen.getByTestId("gantt-task-filter-count")).toHaveTextContent("1 / 2");
+    expect(screen.getByTestId("gantt-task-filter-count")).toHaveTextContent("1 oculta de 2");
 
     await flushAutosave();
 
