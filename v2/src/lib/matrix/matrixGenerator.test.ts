@@ -1,5 +1,6 @@
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
 import { generateScheduleFromMatrix as generarPlan } from "@/lib/matrix/matrixGenerator";
+import { createMatrixCache } from "@/lib/matrix/matrixCache";
 import { recalculateSchedule } from "@/lib/scheduling/scheduleEngine";
 import type { MatrixPlan } from "@/types/matrix";
 import { DEFAULT_MATRIX_TEMPLATE, createDefaultMatrixPlan } from "@/lib/matrix/templates";
@@ -587,5 +588,53 @@ describe("generateScheduleFromMatrix · ritmo piso a piso", () => {
     const sucesora = tasks.find((task) => task.id === primera.to)!;
 
     expect(sucesora.dependencies.some((item) => item.from === primera.from)).toBe(true);
+  });
+});
+
+describe("generateScheduleFromMatrix · caché de celdas", () => {
+  test("la primera pasada no acierta ninguna: todas son nuevas", () => {
+    const cache = createMatrixCache();
+    generarPlan(planDeTresPisos({ mode: "paralelo" }), { cache });
+
+    expect(cache.hits).toBe(0);
+    expect(cache.misses).toBe(3);
+  });
+
+  test("regenerar sin cambios acierta todas", () => {
+    const cache = createMatrixCache();
+    const plan = planDeTresPisos({ mode: "paralelo" });
+    generarPlan(plan, { cache });
+    generarPlan(plan, { cache });
+
+    expect(cache.hits).toBe(3);
+    expect(cache.misses).toBe(3);
+  });
+
+  test("editar una celda solo falla en esa", () => {
+    const cache = createMatrixCache();
+    const plan = planDeTresPisos({ mode: "paralelo" });
+    generarPlan(plan, { cache });
+
+    const editado = {
+      ...plan,
+      cells: plan.cells.map((cell) =>
+        cell.areaId === "piso-2" ? { ...cell, quantity: 99 } : cell,
+      ),
+    };
+    generarPlan(editado, { cache });
+
+    expect(cache.hits).toBe(2);
+    expect(cache.misses).toBe(4);
+  });
+
+  test("el cronograma sale igual con caché que sin ella", () => {
+    const plan = planDeTresPisos({ mode: "encadenado" });
+    const conCache = generarPlan(plan, { cache: createMatrixCache() });
+    const sinCache = generarPlan(plan);
+
+    expect(conCache.tasks.map((task) => task.id)).toEqual(
+      sinCache.tasks.map((task) => task.id),
+    );
+    expect(conCache.dependencies).toEqual(sinCache.dependencies);
   });
 });

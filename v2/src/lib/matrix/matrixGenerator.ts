@@ -5,6 +5,11 @@ import {
   matrixNextWorkDay,
 } from "./matrixCalendar";
 import { resolveChaining } from "./matrixChaining";
+import {
+  calendarKeyOf,
+  cellSignature,
+  type MatrixGenerationCache,
+} from "./matrixCache";
 import type {
   ActivityRecipe,
   AreaNode,
@@ -22,6 +27,11 @@ export interface MatrixGenerationOptions {
    * el domingo, que es lo que hacía antes de que existiera esta opción.
    */
   calendar?: ProjectCalendar;
+  /**
+   * Contabilidad de qué celdas cambiaron desde la generación anterior. No
+   * cambia el resultado: sirve para que el editor repinte solo lo que cambió.
+   */
+  cache?: MatrixGenerationCache;
 }
 
 interface FlatScope {
@@ -288,6 +298,8 @@ export function generateScheduleFromMatrix(
   options: MatrixGenerationOptions = {},
 ): MatrixGenerationResult {
   const { calendar } = options;
+  const cache = options.cache;
+  const calendarKey = cache ? calendarKeyOf(calendar) : "";
   const baseStart = createDate(plan.startDate);
   const scopeById = indexScopes(plan.scopeTree);
   const areaById = indexAreas(plan.areas);
@@ -340,6 +352,25 @@ export function generateScheduleFromMatrix(
     const area = areaById.get(cell.areaId);
     const recipeId = cell.recipeId ?? scope?.defaultRecipeId;
     const recipe = recipeId ? recipeById.get(recipeId) : undefined;
+
+    if (cache) {
+      const signature = cellSignature({
+        cell,
+        recipe,
+        scope,
+        area,
+        scopeLeafIndex: flatScope?.leafIndex,
+        areaLeafIndex: flatArea?.leafIndex,
+        startDate: plan.startDate,
+        calendarKey,
+      });
+      if (cache.signatures.get(cell.id) === signature) {
+        cache.hits += 1;
+      } else {
+        cache.misses += 1;
+        cache.signatures.set(cell.id, signature);
+      }
+    }
 
     if (!scope) {
       issues.push(
