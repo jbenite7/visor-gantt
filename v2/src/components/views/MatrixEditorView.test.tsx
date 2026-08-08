@@ -358,7 +358,7 @@ describe("MatrixEditorView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Alcances" }));
     fireEvent.click(screen.getByRole("button", { name: "Agregar hijo a Nivel 10" }));
-    expect(screen.getByText("Maximo 10 niveles de jerarquia.")).toBeInTheDocument();
+    expect(screen.getByText("Máximo 10 niveles de jerarquía.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Eliminar Nivel 9" }));
     expect(window.confirm).toHaveBeenCalledWith(

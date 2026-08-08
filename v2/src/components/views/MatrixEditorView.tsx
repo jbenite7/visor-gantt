@@ -469,7 +469,7 @@ export default function MatrixEditorView({
     if (!draft) return;
     setNotice(null);
     if (!canAddChild(draft.scopeTree, parentId)) {
-      setNotice("Maximo 10 niveles de jerarquia.");
+      setNotice("Máximo 10 niveles de jerarquía.");
       return;
     }
     const parent = findScope(draft.scopeTree, parentId);
@@ -519,7 +519,7 @@ export default function MatrixEditorView({
     if (!draft) return;
     setNotice(null);
     if (!canAddChild(draft.areas, parentId)) {
-      setNotice("Maximo 10 niveles de jerarquia.");
+      setNotice("Máximo 10 niveles de jerarquía.");
       return;
     }
     const parent = findArea(draft.areas, parentId);

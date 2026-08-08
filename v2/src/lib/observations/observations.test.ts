@@ -97,7 +97,7 @@ describe("exportación", () => {
     const csv = observationsToCsv([obs({ text: "Revisar acero, viga y losa" })]);
     const [header, row] = csv.split("\n");
 
-    expect(header).toBe("ID Actividad,WBS,Tarea,Observacion,Estado,Fecha");
+    expect(header).toBe("ID Actividad,WBS,Tarea,Observación,Estado,Fecha");
     expect(row).toContain('"Revisar acero, viga y losa"');
     expect(row).toContain("Pendiente");
   });
@@ -110,7 +110,7 @@ describe("exportación", () => {
   test("el CSV de Last Planner usa sus propias columnas de restricción", () => {
     const csv = observationsToLpsCsv([obs()]);
     expect(csv.split("\n")[0]).toBe(
-      "Actividad,WBS,Restriccion,Estado,Responsable,Fecha compromiso",
+      "Actividad,WBS,Restricción,Estado,Responsable,Fecha compromiso",
     );
   });
 });

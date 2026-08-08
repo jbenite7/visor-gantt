@@ -100,7 +100,7 @@ export function observationsToCsv(observations: Observation[]): string {
       .join(","),
   );
 
-  return ["ID Actividad,WBS,Tarea,Observacion,Estado,Fecha", ...rows].join("\n");
+  return ["ID Actividad,WBS,Tarea,Observación,Estado,Fecha", ...rows].join("\n");
 }
 
 /** Formato del template Last Planner: cada observación pendiente es una restricción. */
@@ -112,7 +112,7 @@ export function observationsToLpsCsv(observations: Observation[]): string {
   );
 
   return [
-    "Actividad,WBS,Restriccion,Estado,Responsable,Fecha compromiso",
+    "Actividad,WBS,Restricción,Estado,Responsable,Fecha compromiso",
     ...rows,
   ].join("\n");
 }
