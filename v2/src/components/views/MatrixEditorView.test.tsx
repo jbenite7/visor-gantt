@@ -382,3 +382,80 @@ describe("MatrixEditorView", () => {
     );
   });
 });
+
+function renderEditor() {
+  const onApplyMatrixPlan = jest.fn();
+  const plan = createDefaultMatrixPlan({
+    id: "p1",
+    name: "Torre",
+    startDate: "2026-03-02",
+  });
+  render(
+    <MatrixEditorView
+      matrixPlan={plan}
+      tasks={[]}
+      onApplyMatrixPlan={onApplyMatrixPlan}
+      onSyncFromGantt={jest.fn()}
+    />,
+  );
+  return { plan, onApplyMatrixPlan };
+}
+
+describe("MatrixEditorView · selección de varias celdas", () => {
+  test("sin selección múltiple no aparece el panel de lote", () => {
+    renderEditor();
+
+    expect(screen.queryByTestId("matrix-bulk-panel")).not.toBeInTheDocument();
+  });
+
+  test("marcar dos celdas abre el panel de lote con el recuento", () => {
+    const { plan } = renderEditor();
+    const [primera, segunda] = plan.cells;
+
+    fireEvent.click(screen.getByTestId(`matrix-cell-select-${primera.id}`));
+    fireEvent.click(screen.getByTestId(`matrix-cell-select-${segunda.id}`));
+
+    expect(screen.getByTestId("matrix-bulk-panel")).toHaveTextContent(
+      "2 celdas seleccionadas",
+    );
+  });
+
+  test("seleccionar una fila entera marca todas sus celdas", () => {
+    const { plan } = renderEditor();
+    const scopeId = plan.scopeTree[0].children![0].id;
+
+    fireEvent.click(screen.getByTestId(`matrix-select-row-${scopeId}`));
+
+    const enLaFila = plan.cells.filter((cell) => cell.scopeId === scopeId).length;
+    expect(screen.getByTestId("matrix-bulk-panel")).toHaveTextContent(
+      `${enLaFila} celdas seleccionadas`,
+    );
+  });
+
+  test("desactivar en lote aplica el cambio a las celdas marcadas", () => {
+    const { plan, onApplyMatrixPlan } = renderEditor();
+    const [primera, segunda] = plan.cells;
+
+    fireEvent.click(screen.getByTestId(`matrix-cell-select-${primera.id}`));
+    fireEvent.click(screen.getByTestId(`matrix-cell-select-${segunda.id}`));
+    fireEvent.click(screen.getByRole("button", { name: "Desactivar las seleccionadas" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    const aplicado = onApplyMatrixPlan.mock.calls.at(-1)![0];
+    expect(aplicado.cells.find((cell: { id: string }) => cell.id === primera.id).active).toBe(
+      false,
+    );
+    expect(aplicado.cells.find((cell: { id: string }) => cell.id === segunda.id).active).toBe(
+      false,
+    );
+  });
+
+  test("limpiar la selección cierra el panel", () => {
+    const { plan } = renderEditor();
+
+    fireEvent.click(screen.getByTestId(`matrix-cell-select-${plan.cells[0].id}`));
+    fireEvent.click(screen.getByRole("button", { name: "Quitar la selección" }));
+
+    expect(screen.queryByTestId("matrix-bulk-panel")).not.toBeInTheDocument();
+  });
+});

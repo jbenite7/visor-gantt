@@ -21,6 +21,7 @@ import type {
   ScopeNode,
 } from "@/types/matrix";
 import { createDefaultMatrixPlan } from "@/lib/matrix/templates";
+import { applyBulkCellEdit, type CellTarget } from "@/lib/matrix/bulk";
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
 import {
   canAddChild,
@@ -291,6 +292,34 @@ export default function MatrixEditorView({
   );
   const scopes = useMemo(() => scopeLeaves.map((leaf) => leaf.node), [scopeLeaves]);
   const areas = useMemo(() => areaLeaves.map((leaf) => leaf.node), [areaLeaves]);
+
+  const [selection, setSelection] = useState<CellTarget[]>([]);
+
+  const isSelected = (scopeId: string, areaId: string) =>
+    selection.some((target) => target.scopeId === scopeId && target.areaId === areaId);
+
+  const toggleSelection = (scopeId: string, areaId: string) =>
+    setSelection((current) =>
+      isSelected(scopeId, areaId)
+        ? current.filter(
+            (target) => !(target.scopeId === scopeId && target.areaId === areaId),
+          )
+        : [...current, { scopeId, areaId }],
+    );
+
+  const selectRow = (scopeId: string) =>
+    setSelection(areas.map((area) => ({ scopeId, areaId: area.id })));
+
+  const selectColumn = (areaId: string) =>
+    setSelection(scopes.map((scope) => ({ scopeId: scope.id, areaId })));
+
+  const applyToSelection = (patch: Parameters<typeof applyBulkCellEdit>[2]) => {
+    setDraft((current) =>
+      current
+        ? applyBulkCellEdit(current, selection, patch, new Date().toISOString())
+        : current,
+    );
+  };
   const cellsByPair = useMemo(() => {
     const map = new Map<string, MatrixCell>();
     draft?.cells.forEach((cell) => map.set(cellKey(cell.scopeId, cell.areaId), cell));
@@ -993,6 +1022,50 @@ export default function MatrixEditorView({
       ) : (
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] overflow-hidden">
         <div className="min-h-0 overflow-auto">
+        {selection.length > 0 && (
+          <div
+            data-testid="matrix-bulk-panel"
+            className="apple-section flex flex-wrap items-center gap-2 p-2 text-sm"
+          >
+            <span>{`${selection.length} celdas seleccionadas`}</span>
+            <button type="button" onClick={() => applyToSelection({ active: true })}>
+              Activar las seleccionadas
+            </button>
+            <button type="button" onClick={() => applyToSelection({ active: false })}>
+              Desactivar las seleccionadas
+            </button>
+            <label className="flex items-center gap-1 text-xs">
+              Cantidad
+              <input
+                type="number"
+                className={matrixInputClass}
+                onBlur={(event) =>
+                  applyToSelection({ quantity: Number(event.target.value) })
+                }
+              />
+            </label>
+            <label className="flex items-center gap-1 text-xs">
+              Receta
+              <select
+                className={matrixInputClass}
+                defaultValue=""
+                onChange={(event) =>
+                  event.target.value && applyToSelection({ recipeId: event.target.value })
+                }
+              >
+                <option value="">Sin cambiar</option>
+                {draft?.recipes.map((recipe) => (
+                  <option key={recipe.id} value={recipe.id}>
+                    {recipe.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="button" onClick={() => setSelection([])}>
+              Quitar la selección
+            </button>
+          </div>
+        )}
           <table className="apple-table min-w-full text-sm">
             <thead className="sticky top-0 z-10">
               <tr>
@@ -1005,6 +1078,14 @@ export default function MatrixEditorView({
                     className="text-left px-3 py-2 font-semibold"
                   >
                     {area.name}
+                    <button
+                      type="button"
+                      data-testid={`matrix-select-column-${area.id}`}
+                      onClick={() => selectColumn(area.id)}
+                      className="ml-2 text-xs text-[var(--color-text-muted)]"
+                    >
+                      Seleccionar columna
+                    </button>
                   </th>
                 ))}
               </tr>
@@ -1035,6 +1116,14 @@ export default function MatrixEditorView({
                     >
                       {scope.name}
                     </button>
+                    <button
+                      type="button"
+                      data-testid={`matrix-select-row-${scope.id}`}
+                      onClick={() => selectRow(scope.id)}
+                      className="ml-2 text-xs text-[var(--color-text-muted)]"
+                    >
+                      Seleccionar fila
+                    </button>
                   </th>
                   {areas.map((area) => {
                     const cell = cellsByPair.get(cellKey(scope.id, area.id));
@@ -1048,12 +1137,21 @@ export default function MatrixEditorView({
                       0,
                     );
                     const quantitySummary = formatQuantitySummary(overrides);
-                    const isSelected =
+                    const isFocused =
                       selectedCell?.scopeId === scope.id &&
                       selectedCell.areaId === area.id;
 
                     return (
                       <td key={area.id} className="bg-[var(--color-bg-elevated)] px-3 py-2 align-top">
+                        {cell && (
+                          <input
+                            type="checkbox"
+                            data-testid={`matrix-cell-select-${cell.id}`}
+                            aria-label={`Seleccionar ${scope.name} en ${area.name}`}
+                            checked={isSelected(scope.id, area.id)}
+                            onChange={() => toggleSelection(scope.id, area.id)}
+                          />
+                        )}
                         <button
                           type="button"
                           onClick={() =>
@@ -1061,7 +1159,7 @@ export default function MatrixEditorView({
                           }
                           className="w-full text-left rounded-lg border px-3 py-2 shadow-sm"
                           style={{
-                            borderColor: isSelected
+                            borderColor: isFocused
                               ? "var(--aia-corp-main)"
                               : "var(--color-hairline)",
                             background: cell?.active
