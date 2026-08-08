@@ -106,6 +106,18 @@ export const LOCATION_PATTERNS: LocationPattern[] = [
     valueOf: (match) => -Number(match[1]),
   },
   {
+    label: "Módulo",
+    // Decimal a propósito: 1.1 y 1.2 son submódulos del módulo 1, y como
+    // enteros se fundirían en uno.
+    regex: /\bMODULO\s*[-#:]?\s*(\d+(?:\.\d+)?)\b/i,
+    valueOf: (match) => Number(match[1]),
+  },
+  {
+    label: "Edificio",
+    regex: /\bEDIFICIO\s*[-#:]?\s*(\d+)\b/i,
+    valueOf: (match) => Number(match[1]),
+  },
+  {
     label: "Eje",
     // Dos etiquetas alrededor del separador: un guion decorativo no basta.
     regex: /\bEJES?\b\s*[-#:]?\s*([A-Z]{0,3}\d{0,3}|[A-Z])\s*(?:-|\bA\b)\s*([A-Z]{0,3}\d{0,3}|[A-Z])\b/i,

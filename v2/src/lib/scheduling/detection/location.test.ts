@@ -230,8 +230,8 @@ describe("extractLocation · la ubicación puede ser un tramo", () => {
 
 describe("extractLocation · ejes (nombres reales de la Estación 16)", () => {
   test("un rango de ejes da un tramo con principio y fin", () => {
-    const eje = extractLocation("Módulo 1.1 (Ejes A-D)");
-    expect(eje?.span).toEqual({ rawFrom: "A", rawTo: "D", from: 1, to: 4 });
+    const eje = extractLocation("Lucarnas (Ejes DB4-DB8)");
+    expect(eje?.span).toEqual({ rawFrom: "DB4", rawTo: "DB8", from: 4, to: 8 });
   });
 
   test("el rango también con la palabra en singular", () => {
@@ -244,11 +244,21 @@ describe("extractLocation · ejes (nombres reales de la Estación 16)", () => {
   });
 
   test("un rango entre familias distintas se admite y conserva los dos textos", () => {
-    // «Ejes J-DB08» cruza dos rejillas. El dato lo dice; ordenarlas entre sí
-    // es problema de quien las dibuje, no del extractor.
-    const eje = extractLocation("Módulo 2.2 (Ejes J-DB08)");
+    // Fragmento de «Módulo 2.2 (Ejes J-DB08)», un nombre real del archivo. En
+    // el nombre entero gana el módulo; aquí se prueba solo la parte del eje,
+    // que cruza dos rejillas. El dato lo dice; ordenarlas entre sí es
+    // problema de quien las dibuje, no del extractor.
+    const eje = extractLocation("Ejes J-DB08");
     expect(eje?.span?.rawFrom).toBe("J");
     expect(eje?.span?.rawTo).toBe("DB08");
+  });
+
+  test("cuando el nombre trae módulo y eje, gana el módulo", () => {
+    // El módulo es la unidad de producción; el eje dice dónde está ese módulo.
+    const match = extractLocation("Módulo 1.1 (Ejes A-D)");
+    expect(match?.label).toBe("Módulo");
+    expect(match?.value).toBe(1.1);
+    expect(match?.span).toBeUndefined();
   });
 
   test("el rango numérico también: «Eje 3-H» es un caso real del archivo", () => {
@@ -270,5 +280,43 @@ describe("extractLocation · ejes (nombres reales de la Estación 16)", () => {
   test("un guion decorativo no convierte un eje suelto en rango", () => {
     // Exige dos etiquetas alrededor del separador, no una sola.
     expect(extractLocation("Losa aérea - Eje D")?.span).toBeUndefined();
+  });
+});
+
+describe("extractLocation · módulo y edificio", () => {
+  test("el módulo admite decimal, porque 1.1 y 1.2 son submódulos del 1", () => {
+    expect(extractLocation("Módulo 1.1 (Ejes A-D)")).toMatchObject({
+      label: "Módulo",
+      raw: "1.1",
+      value: 1.1,
+    });
+    expect(extractLocation("Modulo 2.2")?.value).toBe(2.2);
+  });
+
+  test("el módulo gana al eje: es la unidad de producción de esa obra", () => {
+    // «Módulo 1.1 (Ejes A-D)» tiene los dos. El módulo es donde se trabaja;
+    // el eje dice dónde está ese módulo.
+    expect(extractLocation("Módulo 1.1 (Ejes A-D)")?.label).toBe("Módulo");
+  });
+
+  test("un módulo entero también", () => {
+    expect(extractLocation("Excavación Módulo 3")?.value).toBe(3);
+  });
+
+  test("el edificio resuelve por su número", () => {
+    expect(extractLocation("Inicio de obra Edificio 1 (Sur)")).toMatchObject({
+      label: "Edificio",
+      value: 1,
+    });
+    expect(extractLocation("Edificio 2 (Norte)")?.value).toBe(2);
+  });
+
+  test("«EDIFICIO DESCENDENTE» no es una ubicación: no lleva número", () => {
+    expect(extractLocation("EDIFICIO DESCENDENTE")).toBeNull();
+  });
+
+  test("los ejes de obra vertical siguen intactos", () => {
+    expect(extractLocation("LOSA AÉREA PISO 5")?.label).toBe("Piso");
+    expect(extractLocation("COLUMNAS SÓTANO 3")?.value).toBe(-3);
   });
 });
