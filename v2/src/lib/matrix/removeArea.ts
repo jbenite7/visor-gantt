@@ -1,6 +1,6 @@
 import type { GanttTask } from "@/components/gantt/types";
-import type { MatrixPlan } from "@/types/matrix";
-import { getAreaLeaves, removeAreaNode } from "./tree";
+import type { AreaNode, MatrixPlan } from "@/types/matrix";
+import { getAreaNodeIds, removeAreaNode } from "./tree";
 
 /**
  * Qué hacer con las tareas que una ubicación ya había generado cuando se
@@ -20,10 +20,26 @@ export interface AreaRemovalPreview {
   message: string;
 }
 
-function areaTaskIds(tasks: GanttTask[], areaId: string): (string | number)[] {
+/** Las tareas de una ubicación y de todas las que agrupa. */
+function areaTaskIds(
+  plan: MatrixPlan,
+  tasks: GanttTask[],
+  areaId: string,
+): (string | number)[] {
+  const ids = new Set(getAreaNodeIds(plan.areas, areaId));
   return tasks
-    .filter((task) => task.matrixSource?.areaId === areaId)
+    .filter((task) => task.matrixSource && ids.has(task.matrixSource.areaId))
     .map((task) => task.id);
+}
+
+/** Busca el nodo en cualquier profundidad del árbol, no solo entre las hojas. */
+function findAreaNode(nodes: AreaNode[], areaId: string): AreaNode | undefined {
+  for (const node of nodes) {
+    if (node.id === areaId) return node;
+    const found = node.children ? findAreaNode(node.children, areaId) : undefined;
+    if (found) return found;
+  }
+  return undefined;
 }
 
 export function describeAreaRemoval(
@@ -31,9 +47,10 @@ export function describeAreaRemoval(
   tasks: GanttTask[],
   areaId: string,
 ): AreaRemovalPreview {
-  const area = getAreaLeaves(plan.areas).find((leaf) => leaf.node.id === areaId)?.node;
-  const taskIds = area ? areaTaskIds(tasks, areaId) : [];
-  const cellCount = plan.cells.filter((cell) => cell.areaId === areaId).length;
+  const subtreeIds = new Set(getAreaNodeIds(plan.areas, areaId));
+  const area = subtreeIds.size > 0 ? findAreaNode(plan.areas, areaId) : undefined;
+  const taskIds = area ? areaTaskIds(plan, tasks, areaId) : [];
+  const cellCount = plan.cells.filter((cell) => subtreeIds.has(cell.areaId)).length;
   const areaName = area?.name ?? areaId;
 
   return {
@@ -53,10 +70,10 @@ export function removeAreaWithTasks(
   areaId: string,
   policy: OrphanTaskPolicy,
 ): { matrixPlan: MatrixPlan; tasks: GanttTask[] } {
-  const exists = getAreaLeaves(plan.areas).some((leaf) => leaf.node.id === areaId);
+  const exists = getAreaNodeIds(plan.areas, areaId).length > 0;
   if (!exists) return { matrixPlan: plan, tasks };
 
-  const affected = new Set(areaTaskIds(tasks, areaId));
+  const affected = new Set(areaTaskIds(plan, tasks, areaId));
 
   const nextTasks =
     policy === "borrar"

@@ -66,6 +66,51 @@ const tareas: GanttTask[] = [
   { ...matrixTask("suelta", "piso-1", "c1"), matrixSource: undefined },
 ];
 
+function planJerarquico(): MatrixPlan {
+  return {
+    id: "p1",
+    name: "Torre",
+    startDate: "2026-03-02",
+    scopeTree: [{ id: "estructura", name: "Estructura", type: "Disciplina" }],
+    areas: [
+      {
+        id: "torre-a",
+        name: "Torre A",
+        type: "Torre",
+        children: [
+          { id: "piso-1a", name: "Piso 1", type: "Piso" },
+          { id: "piso-2a", name: "Piso 2", type: "Piso" },
+        ],
+      },
+    ],
+    recipes: [{ id: "r1", name: "Estructura", activities: [], dependencies: [] }],
+    cells: [
+      {
+        id: "c1a",
+        scopeId: "estructura",
+        areaId: "piso-1a",
+        recipeId: "r1",
+        active: true,
+        generatedTaskIds: ["mx-1a", "mx-2a"],
+      },
+      {
+        id: "c2a",
+        scopeId: "estructura",
+        areaId: "piso-2a",
+        recipeId: "r1",
+        active: true,
+        generatedTaskIds: ["mx-3a"],
+      },
+    ],
+  };
+}
+
+const tareasJerarquicas: GanttTask[] = [
+  matrixTask("mx-1a", "piso-1a", "c1a"),
+  matrixTask("mx-2a", "piso-1a", "c1a"),
+  matrixTask("mx-3a", "piso-2a", "c2a"),
+];
+
 describe("describeAreaRemoval", () => {
   test("cuenta las celdas y las tareas que se llevaría por delante", () => {
     const preview = describeAreaRemoval(plan(), tareas, "piso-1");
@@ -92,6 +137,15 @@ describe("describeAreaRemoval", () => {
 
   test("una ubicación que no existe no inventa un aviso", () => {
     expect(describeAreaRemoval(plan(), tareas, "fantasma").taskIds).toEqual([]);
+  });
+
+  test("una ubicación que agrupa otras cuenta las tareas de todo el subárbol", () => {
+    const preview = describeAreaRemoval(planJerarquico(), tareasJerarquicas, "torre-a");
+
+    expect(preview.taskIds).toEqual(["mx-1a", "mx-2a", "mx-3a"]);
+    expect(preview.message).not.toBe(
+      "«Torre A» no tiene tareas en el cronograma. Se puede borrar sin más.",
+    );
   });
 });
 
@@ -136,5 +190,27 @@ describe("removeAreaWithTasks", () => {
 
     expect(result.matrixPlan.areas).toHaveLength(2);
     expect(result.tasks).toHaveLength(4);
+  });
+
+  test("borrar una ubicación que agrupa otras quita la rama entera, sus celdas y sus tareas", () => {
+    const result = removeAreaWithTasks(planJerarquico(), tareasJerarquicas, "torre-a", "borrar");
+
+    expect(result.matrixPlan.areas).toEqual([]);
+    expect(result.matrixPlan.cells).toEqual([]);
+    expect(result.tasks).toEqual([]);
+  });
+
+  test("conservar sobre una ubicación que agrupa otras suelta las tareas de sus dos pisos", () => {
+    const result = removeAreaWithTasks(
+      planJerarquico(),
+      tareasJerarquicas,
+      "torre-a",
+      "conservar",
+    );
+
+    expect(result.tasks.map((task) => task.id)).toEqual(["mx-1a", "mx-2a", "mx-3a"]);
+    result.tasks.forEach((task) => {
+      expect(task.matrixSource).toBeUndefined();
+    });
   });
 });
