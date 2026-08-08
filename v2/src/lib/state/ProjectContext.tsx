@@ -217,6 +217,8 @@ export interface ProjectContextValue {
   deleteObservation: (id: string) => void;
   lastAction: LastAction | null;
   lastRejection: LastRejection | null;
+  /** Qué actividades movió la última edición aceptada. */
+  lastChange: { taskIds: (string | number)[]; token: number } | null;
   /** Anuncia el motivo por el que una entrada del usuario no se aceptó. */
   reportInvalidEdit: (reason: string) => void;
   // Undo / Redo
@@ -307,6 +309,14 @@ export function ProjectProvider({
   );
   const [scale, setScale] = useState<GanttScale>("day");
   const [lastRejection, setLastRejection] = useState<LastRejection | null>(null);
+  /**
+   * Qué se movió con la última edición. `changedTaskIds` ya se calculaba, pero
+   * solo alimentaba el registro de auditoría: nadie lo veía en pantalla (E31).
+   */
+  const [lastChange, setLastChange] = useState<{
+    taskIds: (string | number)[];
+    token: number;
+  } | null>(null);
   const history = useHistory(50);
 
   const reportInvalidEdit = useCallback((reason: string) => {
@@ -314,6 +324,11 @@ export function ProjectProvider({
   }, []);
 
   /** Publica el motivo del rechazo para que la UI pueda mostrarlo donde el usuario está mirando. */
+  const publishChange = useCallback((taskIds: (string | number)[]) => {
+    if (taskIds.length === 0) return;
+    setLastChange({ taskIds, token: nextActionToken() });
+  }, []);
+
   const rejectWith = useCallback(
     (issues: { message?: string }[], fallback: string) => {
       const first = issues.find((issue) => issue.message)?.message;
@@ -345,6 +360,7 @@ export function ProjectProvider({
             createdAt: new Date().toISOString(),
           }),
         );
+        publishChange(changedTaskIds(tasks, result.tasks));
       }
     },
     [calendar, rejectWith, tasks],
@@ -366,11 +382,13 @@ export function ProjectProvider({
 
       setLastRejection(null);
       const next = result.tasks;
+      const movidas = changedTaskIds(previous, next);
+      publishChange(movidas);
       const auditEvent: PlanningAuditEvent = {
         id: auditEventId(),
         kind: inferAuditKind(description),
         summary: description,
-        taskIds: changedTaskIds(previous, next),
+        taskIds: movidas,
         createdAt: new Date().toISOString(),
       };
       const command: Command = {
@@ -873,6 +891,7 @@ export function ProjectProvider({
       deleteObservation,
       lastAction,
       lastRejection,
+      lastChange,
       reportInvalidEdit,
       undo: undoWithAnnounce,
       redo: redoAndClearUndoNotice,
@@ -912,6 +931,7 @@ export function ProjectProvider({
       deleteObservation,
       lastAction,
       lastRejection,
+      lastChange,
       reportInvalidEdit,
       redoAndClearUndoNotice,
       history,

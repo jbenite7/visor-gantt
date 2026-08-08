@@ -55,6 +55,8 @@ interface GanttTableProps {
     value: unknown
   ) => void;
   /** Motivo por el que una edición se rechazó, para anunciarlo al usuario. */
+  /** Actividades movidas por la última edición aceptada (E31). */
+  changedTaskIds?: (string | number)[];
   onInvalidEdit?: (reason: string) => void;
   /**
    * Restablecer columnas borra la configuración del usuario, así que el padre
@@ -241,6 +243,7 @@ export default function GanttTable({
   selectedTaskIds,
   onTaskSelect,
   onUpdateTask,
+  changedTaskIds,
   onInvalidEdit,
   onResetColumns,
   budgetMappings,
@@ -1210,6 +1213,7 @@ export default function GanttTable({
                 key={task.id}
                 task={task}
                 index={index}
+                isChanged={changedTaskIds?.includes(task.id) ?? false}
                 rowNumber={index + 1}
                 isSelected={selectedTaskIds?.includes(task.id) ?? false}
                 onSelect={onTaskSelect}

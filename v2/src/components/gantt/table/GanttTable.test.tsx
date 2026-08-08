@@ -1419,3 +1419,40 @@ describe("ningún dato se descarta sin decirlo (E28)", () => {
     expect(onUpdateTask).toHaveBeenCalledWith(2, "dependencies", []);
   });
 });
+
+describe("las filas afectadas por la última edición se resaltan (E31)", () => {
+  test("la fila que se movió queda marcada", () => {
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1 }), makeTask({ id: 2 })]}
+        changedTaskIds={[2]}
+      />,
+    );
+
+    const filas = screen.getAllByTestId("gantt-row");
+    expect(filas[1]).toHaveAttribute("data-changed", "true");
+  });
+
+  test("las que no se movieron no se marcan", () => {
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1 }), makeTask({ id: 2 })]}
+        changedTaskIds={[2]}
+      />,
+    );
+
+    expect(screen.getAllByTestId("gantt-row")[0]).toHaveAttribute(
+      "data-changed",
+      "false",
+    );
+  });
+
+  test("sin edición reciente, ninguna fila se marca", () => {
+    render(<GanttTable tasks={[makeTask({ id: 1 })]} />);
+
+    expect(screen.getAllByTestId("gantt-row")[0]).toHaveAttribute(
+      "data-changed",
+      "false",
+    );
+  });
+});

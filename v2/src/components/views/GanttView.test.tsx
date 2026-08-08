@@ -1684,3 +1684,68 @@ describe("un guardado fallido deja el trabajo pendiente (M33)", () => {
     expect(event.defaultPrevented).toBe(true);
   });
 });
+
+describe("se ve qué se movió y cuánto (E31)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("tras editar, la app dice cuántas actividades se movieron", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[
+          makeTask({ id: 1, name: "Excavación", duration: 2 }),
+          makeTask({
+            id: 2,
+            name: "Cimentación",
+            dependencies: [{ from: 1, to: 2, type: "FS" }],
+          }),
+        ]}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-duration-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "8" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(await screen.findByTestId("impact-summary")).toHaveTextContent(
+      /actividades se movieron/i,
+    );
+  });
+
+  test("al abrir el proyecto no hay recuento que mostrar", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    expect(screen.queryByTestId("impact-summary")).not.toBeInTheDocument();
+  });
+
+  test("si el fin de obra se corre, se avisa sin que nadie lo pida", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[
+          makeTask({ id: 1, name: "Excavación", duration: 2 }),
+          makeTask({
+            id: 2,
+            name: "Cimentación",
+            dependencies: [{ from: 1, to: 2, type: "FS" }],
+          }),
+        ]}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-duration-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "20" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(await screen.findByTestId("deep-change-finish")).toHaveTextContent(
+      /el fin de obra se corrió/i,
+    );
+  });
+});

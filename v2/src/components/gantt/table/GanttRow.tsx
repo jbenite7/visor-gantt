@@ -22,6 +22,8 @@ import { parseDependencyLagText } from "@/lib/gantt/dependencyLag";
 interface GanttRowProps {
   task: GanttTask;
   index: number;
+  /** Se movió con la última edición: se resalta un momento (E31). */
+  isChanged?: boolean;
   rowNumber: number;
   onSelect?: (taskId: string | number, ctrlKey: boolean) => void;
   isSelected: boolean;
@@ -277,6 +279,7 @@ function cellAttributes(
 export default function GanttRow({
   task,
   index,
+  isChanged,
   rowNumber,
   onSelect,
   isSelected,
@@ -583,6 +586,7 @@ export default function GanttRow({
       className="gantt-row"
       data-selected={isSelected}
       data-summary={task.isSummary}
+      data-changed={Boolean(isChanged)}
       data-stripe={index % 2 === 0 ? "even" : "odd"}
       data-draggable={draggable}
       data-dragging={isDragging}

@@ -3306,3 +3306,40 @@ h6 {
     animation: none;
   }
 }
+
+/* ── Lo que se movió con la última edición, y su recuento (E31) ── */
+@keyframes gantt-row-changed {
+  from {
+    background-color: var(--aia-warn-xlight);
+  }
+  to {
+    background-color: var(--color-transparent);
+  }
+}
+
+.gantt-row[data-changed="true"] {
+  animation: gantt-row-changed 1.6s ease-out;
+}
+
+.gantt-impact-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gantt-topbar-gap);
+  padding: var(--gantt-aux-panel-button-padding-block)
+    var(--gantt-toolbar-group-padding-inline);
+  border-bottom: var(--border-width-hairline) solid var(--color-hairline);
+  color: var(--color-text-muted);
+  font-size: var(--gantt-topbar-font-size);
+}
+
+.gantt-impact-strip [data-testid^="deep-change-"] {
+  color: var(--aia-warn-main);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gantt-row[data-changed="true"] {
+    animation: none;
+  }
+}

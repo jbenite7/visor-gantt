@@ -101,6 +101,7 @@ import {
 import { normalizeTaskStructure } from "@/lib/gantt/taskStructure";
 import { saveStatusLabel } from "@/lib/gantt/saveStatusLabel";
 import { shouldWarnBeforeUnload } from "@/lib/gantt/pendingChanges";
+import { detectDeepChanges } from "@/lib/gantt/deepChanges";
 import { buildExecutivePlanningSummary } from "@/lib/gantt/executiveDashboard";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -214,6 +215,7 @@ function GanttViewInner({
     deleteTasks,
     lastAction,
     lastRejection,
+    lastChange,
     reportInvalidEdit,
     runUndoable,
     observations,
@@ -592,6 +594,24 @@ function GanttViewInner({
     },
     [activeBaselineId, baselines, runUndoable],
   );
+
+  /**
+   * Foto de las tareas antes del último recálculo, para poder decir si se
+   * movió el fin de obra o cambió la ruta crítica.
+   */
+  const previousTasksRef = useRef(calculatedTasks);
+  const deepChange = useMemo(() => {
+    const anterior = previousTasksRef.current;
+    if (!lastChange) return null;
+    return detectDeepChanges(anterior, calculatedTasks);
+    // Se recalcula solo cuando hay una edición nueva: `lastChange.token` cambia
+    // una vez por edición aceptada.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastChange?.token]);
+
+  useEffect(() => {
+    previousTasksRef.current = calculatedTasks;
+  }, [calculatedTasks]);
 
   const activeBaseline = useMemo(
     () => baselines.find((b) => b.id === activeBaselineId) ?? null,
@@ -1595,6 +1615,28 @@ function GanttViewInner({
       <UndoToast action={lastAction} onUndo={undo} locale={locale} />
       <RejectionToast rejection={lastRejection} locale={locale} />
 
+      {lastChange && (
+        <div className="gantt-impact-strip" key={lastChange.token}>
+          <span data-testid="impact-summary" role="status">
+            {lastChange.taskIds.length === 1
+              ? "1 actividad se movió"
+              : `${lastChange.taskIds.length} actividades se movieron`}
+          </span>
+          {deepChange?.projectFinishMoved != null && (
+            <span data-testid="deep-change-finish" role="status">
+              {deepChange.projectFinishMoved > 0
+                ? `El fin de obra se corrió ${deepChange.projectFinishMoved} días`
+                : `El fin de obra se adelantó ${Math.abs(deepChange.projectFinishMoved)} días`}
+            </span>
+          )}
+          {deepChange?.criticalPathChanged && (
+            <span data-testid="deep-change-critical" role="status">
+              La ruta crítica cambió de actividades
+            </span>
+          )}
+        </div>
+      )}
+
       {helpOpen && (
         <ViewHelpPanel view={activeView} onClose={() => setHelpOpen(false)} />
       )}
@@ -1634,6 +1676,7 @@ function GanttViewInner({
                       onTaskSelect={handleTaskSelect}
                       onUpdateTask={updateTask}
                       onInvalidEdit={reportInvalidEdit}
+                      changedTaskIds={lastChange?.taskIds ?? []}
                       mppTaskColumns={mppTaskColumns}
                       customFieldDefinitions={calculatedMpp.customFieldDefinitions}
                       columnSettings={taskColumnSettings}
