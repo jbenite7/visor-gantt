@@ -85,4 +85,25 @@ describe("describeDraftChanges", () => {
   test("sin borrador no hay cambios que perder", () => {
     expect(describeDraftChanges(undefined, plan()).hasChanges).toBe(false);
   });
+
+  test("borrar una celda cuenta como cambio: es lo que más fácil se pierde", () => {
+    const applied = plan();
+    const draft = { ...applied, cells: [] };
+
+    const result = describeDraftChanges(draft, applied);
+
+    expect(result.hasChanges).toBe(true);
+    expect(result.changedCellCount).toBe(1);
+    expect(result.message).toBe("Hay 1 celda con cambios sin aplicar.");
+  });
+
+  test("una celda editada y otra borrada suman dos", () => {
+    const applied = {
+      ...plan(),
+      cells: [plan().cells[0], { ...plan().cells[0], id: "c2", areaId: "piso-2" }],
+    };
+    const draft = { ...applied, cells: [{ ...applied.cells[0], quantity: 99 }] };
+
+    expect(describeDraftChanges(draft, applied).changedCellCount).toBe(2);
+  });
 });

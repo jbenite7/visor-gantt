@@ -57,9 +57,17 @@ export function describeDraftChanges(
   const appliedByCellId = new Map(
     applied.cells.map((cell) => [cell.id, cellFingerprint(cell)]),
   );
-  const changedCellCount = draft.cells.filter(
+  const draftIds = new Set(draft.cells.map((cell) => cell.id));
+
+  const changed = draft.cells.filter(
     (cell) => appliedByCellId.get(cell.id) !== cellFingerprint(cell),
   ).length;
+  // Una celda borrada no tiene representante en el borrador: si solo
+  // miráramos hacia un lado, borrar pasaría por «no hay cambios» y el
+  // usuario perdería el borrado sin aviso.
+  const removed = applied.cells.filter((cell) => !draftIds.has(cell.id)).length;
+
+  const changedCellCount = changed + removed;
 
   if (changedCellCount === 0) {
     return { hasChanges: false, changedCellCount: 0, message: "No hay cambios sin aplicar." };
