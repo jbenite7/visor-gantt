@@ -1,13 +1,18 @@
 import type { GanttTask } from "@/components/gantt/types";
 import { classifyActivityFamily, type ActivityFamilyResult } from "./activityFamily";
-import { extractUnitLabel, buildWbsBreadcrumb, UNIT_PATTERNS } from "./unitPatterns";
+import { buildWbsBreadcrumb, UNIT_PATTERNS } from "./unitPatterns";
+import { resolveTaskLocation } from "./detection/taskLocation";
+import { formatLocationLabel } from "./detection/location";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export interface TypicalUnitActivity {
   taskId: string | number;
   name: string;
+  /** Texto del nivel, para mostrar: «Piso 3», «Cubierta». */
   level: string;
+  /** Número ordenable del nivel. Los sótanos son negativos. */
+  levelValue: number;
   system: string;
   durationDays: number;
   productivity: number;
@@ -38,12 +43,27 @@ function durationDays(task: GanttTask): number {
   return Math.max(1, Math.floor((finish.getTime() - start.getTime()) / MS_PER_DAY) + 1);
 }
 
-function extractLevel(task: GanttTask): string | null {
-  const source = `${task.wbs ?? ""} ${task.name}`;
-  const match = extractUnitLabel(source);
-  if (match) return match.value;
+/**
+ * Nivel de una tarea, usando el motor de detección: mira el nombre, luego
+ * las tareas padre y luego el WBS. Antes solo miraba el nombre y perdía toda
+ * la mampostería y el aseo, que cuelgan de un padre llamado «SÓTANO 2».
+ */
+function extractLevel(
+  task: GanttTask,
+  tasks: GanttTask[],
+): { level: string; levelValue: number } | null {
+  const resolved = resolveTaskLocation(task, tasks);
+  if (resolved.location) {
+    return {
+      level: formatLocationLabel(resolved.location),
+      levelValue: resolved.location.value,
+    };
+  }
   const parts = task.wbs?.split(".");
-  if (parts && parts.length >= 3) return parts[parts.length - 2];
+  if (parts && parts.length >= 3) {
+    const fallback = parts[parts.length - 2];
+    return { level: fallback, levelValue: Number(fallback) };
+  }
   return null;
 }
 
@@ -69,13 +89,14 @@ export function analyzeTypicalUnits(tasks: GanttTask[]): TypicalUnitAnalysis {
   const activities = tasks
     .filter((task) => !task.isSummary && !task.isMilestone)
     .map((task): TypicalUnitActivity | null => {
-      const level = extractLevel(task);
+      const level = extractLevel(task, tasks);
       if (!level) return null;
       const days = durationDays(task);
       return {
         taskId: task.id,
         name: task.name,
-        level,
+        level: level.level,
+        levelValue: level.levelValue,
         system: systemName(task),
         durationDays: days,
         productivity: 1 / days,
@@ -122,7 +143,12 @@ export function analyzeTypicalUnits(tasks: GanttTask[]): TypicalUnitAnalysis {
         taskCount: items.length,
         averageDurationDays: totalDuration / items.length,
         averageProductivity: totalProductivity / items.length,
-        activities: items.sort((a, b) => a.level.localeCompare(b.level, "es", { numeric: true })),
+        activities: items.sort((a, b) => {
+          if (Number.isFinite(a.levelValue) && Number.isFinite(b.levelValue)) {
+            return a.levelValue - b.levelValue;
+          }
+          return a.level.localeCompare(b.level, "es", { numeric: true });
+        }),
         family,
       };
     })

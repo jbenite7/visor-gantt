@@ -60,7 +60,11 @@ describe("analyzeTypicalUnits", () => {
         taskCount: 3,
       }),
     ]);
-    expect(analysis.groups[0].activities.map((a) => a.level)).toEqual(["1", "2", "3"]);
+    expect(analysis.groups[0].activities.map((a) => a.level)).toEqual([
+      "Torre 1",
+      "Torre 2",
+      "Torre 3",
+    ]);
   });
 
   test("detecta niveles con la etiqueta Apartamento (ganada al unificar UNIT_PATTERNS)", () => {
@@ -105,7 +109,11 @@ describe("analyzeTypicalUnits", () => {
     expect(analysis.groups).toEqual([
       expect.objectContaining({ system: "estructura", levelCount: 3, taskCount: 3 }),
     ]);
-    expect(analysis.groups[0].activities.map((a) => a.level)).toEqual(["1", "2", "3"]);
+    expect(analysis.groups[0].activities.map((a) => a.level)).toEqual([
+      "Piso 1",
+      "Piso 2",
+      "Piso 3",
+    ]);
   });
 
   // Decision: dropping the lone "p" pattern was intentional to avoid false
@@ -143,5 +151,72 @@ describe("el estado vacío enseña, no solo informa (F3)", () => {
     // entender qué tendría que traer su cronograma para que esta vista sirva.
     expect(analysis.insufficientReason).toMatch(/piso|nivel/i);
     expect(analysis.insufficientReason).toMatch(/ejemplo|por ejemplo/i);
+  });
+});
+
+describe("analyzeTypicalUnits · sótanos y orden físico", () => {
+  test("los sótanos ya no se pierden: son niveles como cualquier otro", () => {
+    const analysis = analyzeTypicalUnits([
+      task({ id: 1, name: "Mampostería Sótano 3", wbs: "1.1.1" }),
+      task({ id: 2, name: "Mampostería Sótano 2", wbs: "1.1.2" }),
+      task({ id: 3, name: "Mampostería Sótano 1", wbs: "1.1.3" }),
+    ]);
+
+    expect(analysis.groups).toHaveLength(1);
+    expect(analysis.groups[0].levelCount).toBe(3);
+  });
+
+  test("el orden es el físico: sótano 3 primero, cubierta al final", () => {
+    const analysis = analyzeTypicalUnits([
+      task({ id: 1, name: "Pintura Piso 12", wbs: "1.1" }),
+      task({ id: 2, name: "Pintura Sótano 1", wbs: "1.2" }),
+      task({ id: 3, name: "Pintura Piso 1", wbs: "1.3" }),
+      task({ id: 4, name: "Pintura Cubierta", wbs: "1.4" }),
+    ]);
+
+    expect(analysis.groups[0].activities.map((item) => item.levelValue)).toEqual([
+      -1, 1, 12, 900,
+    ]);
+  });
+
+  test("un sótano y un piso con el mismo número son dos niveles, no uno", () => {
+    // Los dos dan `raw` = «3». Si la etiqueta fuera solo el número, el Set
+    // que cuenta niveles los fundiría y la vista perdería un piso sin avisar.
+    const analysis = analyzeTypicalUnits([
+      task({ id: 1, name: "Pintura Sótano 3", wbs: "1.1" }),
+      task({ id: 2, name: "Pintura Piso 3", wbs: "1.2" }),
+      task({ id: 3, name: "Pintura Piso 4", wbs: "1.3" }),
+    ]);
+
+    expect(analysis.groups[0].levelCount).toBe(3);
+    expect(analysis.groups[0].activities.map((item) => item.level)).toEqual([
+      "Sótano 3",
+      "Piso 3",
+      "Piso 4",
+    ]);
+  });
+
+  test("la cubierta se nombra, no se numera", () => {
+    const analysis = analyzeTypicalUnits([
+      task({ id: 1, name: "Pintura Piso 1", wbs: "1.1" }),
+      task({ id: 2, name: "Pintura Piso 2", wbs: "1.2" }),
+      task({ id: 3, name: "Pintura Cubierta", wbs: "1.3" }),
+    ]);
+
+    expect(analysis.groups[0].activities.at(-1)?.level).toBe("Cubierta");
+  });
+
+  test("la ubicación heredada de la tarea padre también cuenta", () => {
+    const analysis = analyzeTypicalUnits([
+      task({ id: 1, name: "SOTANO 1", wbs: "1.1", outlineLevel: 1 }),
+      task({ id: 2, name: "SOTANO 2", wbs: "1.2", outlineLevel: 1 }),
+      task({ id: 3, name: "SOTANO 3", wbs: "1.3", outlineLevel: 1 }),
+      task({ id: 4, name: "Muro en ladrillo", wbs: "1.1.1", outlineLevel: 2 }),
+      task({ id: 5, name: "Muro en ladrillo", wbs: "1.2.1", outlineLevel: 2 }),
+      task({ id: 6, name: "Muro en ladrillo", wbs: "1.3.1", outlineLevel: 2 }),
+    ]);
+
+    const grupo = analysis.groups.find((item) => item.system === "muro en ladrillo");
+    expect(grupo?.levelCount).toBe(3);
   });
 });
