@@ -14,9 +14,13 @@ jest.mock("next/navigation", () => ({
 
 function selectFile(name: string, size = 3) {
   const input = screen.getByLabelText("Seleccionar archivo .mpp");
-  const file = new File(["x".repeat(size)], name, {
+  const file = new File(["x".repeat(Math.min(size, 3))], name, {
     type: "application/octet-stream",
   });
+  // El componente solo lee `file.size`. Materializar 50 MB de verdad tardaba
+  // más de los 5 s del test en cuanto la suite corría en paralelo, y hacía
+  // fallar esta prueba una de cada dos veces sin que nada estuviera roto.
+  Object.defineProperty(file, "size", { value: size });
   fireEvent.change(input, { target: { files: [file] } });
 }
 
