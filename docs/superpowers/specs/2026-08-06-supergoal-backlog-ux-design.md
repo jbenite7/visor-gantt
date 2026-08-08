@@ -1,6 +1,7 @@
 # Supergoal «Cerrar el backlog de UX» — diseño
 
-> **Aprobado tras 68 decisiones de grilleo (2026-08-06).** Inventario de 16 módulos completo.
+> **103 decisiones de grilleo (2026-08-06).** Inventario de 16 módulos completo.
+> ⚠️ **El alcance resultante excede con mucho el de un supergoal de UX** — ver «Magnitud real» al final.
 
 Fecha: 2026-08-06. Origen: los 27 experimentos que quedaron vivos en [EXPERIMENTS.md](../../EXPERIMENTS.md)
 tras entregar el plan anterior, más el inventario funcional completo que el usuario pidió añadir.
@@ -246,7 +247,70 @@ que es el inverso de la duración.
 Eso cambia la naturaleza del supergoal: no es solo pulir 27 pendientes, es **decidir qué de lo ya construido
 se conecta, se renombra o se retira**.
 
-## Cierre
+## Bloque E — Programación matricial (10 decisiones)
+
+El módulo más potente y el peor conectado. Decisiones:
+
+| Qué | Decisión |
+|---|---|
+| Ritmo piso a piso | Generar **dependencias reales** entre ubicaciones, **configurable por alcance** (estructura encadena; acabados de torres distintas pueden ir en paralelo). Hoy es un desfase fijo: si el piso 1 se atrasa, el 2 no se mueve |
+| Calendario | La matriz usa el **calendario del proyecto** (festivos, jornada), no su propio «salta domingos». Y avisa si al aplicarlo las fechas se desplazan mucho |
+| Plantillas | Plantillas de fábrica por tipo de obra **y** poder guardar la tuya. Además, **generador de plantillas a partir de un `.mpp` cargado**: propone alcances, ubicaciones, recetas y rendimientos, y tú revisas antes de aceptar |
+| Recetas | **Editor completo**: añadir, quitar y reordenar actividades, y definir cómo se encadenan |
+| Rendimiento observado | **Panel para aprobar** los rendimientos reales que la app ya calcula y hoy nadie ve. Cierra el ciclo: la próxima torre se programa con los datos de la anterior |
+| Conflictos al aplicar | **Mostrarlos y elegir cuál gana**, tarea por tarea. Hoy se detectan, se descartan y se resuelve en silencio con «gana el más reciente» |
+| Duplicar | Duplicar ubicación o alcance con sus celdas **y crear N ubicaciones de golpe** («pisos 1 a 20») |
+| Edición en lote | **Seleccionar varias celdas** (o fila/columna) y aplicarles receta, cantidad o activación |
+| Escala | Debe aguantar **más de 1000 celdas**: dejar de recalcular en cada tecla y dibujar solo lo visible |
+
+## Bloque F — Motor de detección (2 decisiones)
+
+El motor que reconoce piso y sistema en los nombres de tarea falló en **44 de 239 tareas** de un archivo real.
+PDC V2 tiene dos piezas mejores, medidas: 820 filas, 2 sin resolver.
+
+- **Portar ambas ideas a visor-gantt**, dejando preparada la opción de llamarlo por API más adelante: su
+  extractor de ubicación (cubre `Etapa`, `Zona`, `Sector`, `Tramo`, `mezanine`, códigos `P01`/`S1` y
+  **sótanos como negativos** para poder ordenarlos) y su **cascada**: diccionario → nombre exacto → similitud.
+- **Diccionario que se llena con las correcciones del usuario**, probado antes que el automático. Su código
+  documenta por qué: el emparejamiento ingenuo por nombre acierta **1 de 820** en este dominio, y el texto
+  engaña («carpintería metálica» se parece a «carpintería en madera» y no son lo mismo).
+
+## Bloque G — Módulos analíticos (25 decisiones)
+
+**Tablero ejecutivo**: capas desplegables en la misma pantalla con enfoque de *data storytelling*; titular en
+lenguaje llano **y** el índice técnico debajo; flecha de tendencia **y** minigráfica de evolución; al ponerse
+en rojo, explica la causa, enlaza al detalle **y** avisa del cambio de estado.
+
+**Curva S**: las tres pestañas importan por igual; el avance real sale de lo reportado **y** se admiten curvas
+por tipo de actividad; **fecha de corte seleccionable con los cortes marcados** en el gráfico; **proyección
+con escenarios optimista y pesimista**; detalle por punto **y** comparación contra línea base.
+
+**Línea de Balance**: mejorar la detección **y** poder asignar ubicación a mano; la línea real sale del avance
+reportado; **avisar de choques y esperas, y proponer cómo resolverlos**; umbral del 20% explicado y ajustable;
+las correcciones de clasificación **se recuerdan**.
+
+**Unidad Típica**: sirve para las tres cosas (comparar rendimiento, validar coherencia y fijar ritmo objetivo);
+**destacar el piso anómalo y ofrecer gráfico por sistema**; mínimo de niveles explicado y bajable a 2; saltar
+al Gantt **y** ver el detalle sin salir; cantidades desde la matriz **y** capturables sin ella.
+
+**Diagrama de Red**: inversión alta — leyenda, aviso de ciclos en pantalla, filtro de ruta crítica, búsqueda,
+**minimapa**, panel de detalle **y creación de dependencias arrastrando**. Sin reorganización manual: la
+posición automática significa el orden lógico y moverla lo rompería.
+
+## Magnitud real ⚠️
+
+Este documento empezó como «cerrar 27 pendientes de UX». Tras 103 decisiones contiene, entre otras cosas:
+un editor de recetas, un generador de matrices desde `.mpp`, un motor de detección nuevo con diccionario que
+aprende, escenarios What-If reales, proyección con escenarios en la Curva S, un tablero por capas con
+historial de cortes, virtualización para 1000+ celdas, dependencias reales piso a piso, un editor de
+dependencias en el diagrama de red, alta de asignaciones con avisos de sobrecarga, una vista de observaciones
+y la unificación de líneas base.
+
+**Eso no es un supergoal de UX: es la hoja de ruta de un producto.** Intentarlo como un solo plan produciría
+un documento irrevisable y un frente de trabajo que tardaría meses en dar algo desplegable.
+
+La estructura por bloques desplegables sigue siendo válida, pero el número de bloques y su tamaño deben
+decidirse antes de escribir plan alguno. Ver la propuesta de partición presentada al usuario el 2026-08-06.
 
 1. **Barrido único de limpieza**: tildes, código muerto (`MPPUploader`), roles ARIA. Agrupado al final para
    que no ensucie los diffs de los bloques de fondo.
