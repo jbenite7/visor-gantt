@@ -10,6 +10,19 @@ export interface ImportSummary {
   tasks: number;
   dependencies: number;
   resources: number;
+  /**
+   * Columnas del `.mpp` que no entraron. La importación ligera se queda en
+   * 120 columnas: callarlo hace creer que se importó todo (E33).
+   */
+  discardedColumns: string[];
+}
+
+function columnList(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0);
 }
 
 function count(raw: string | undefined): number | null {
@@ -28,6 +41,7 @@ export function parseImportSummary(
     tasks,
     dependencies: count(params.dependencias) ?? 0,
     resources: count(params.recursos) ?? 0,
+    discardedColumns: columnList(params.descartadas),
   };
 }
 

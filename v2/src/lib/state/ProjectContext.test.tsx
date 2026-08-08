@@ -539,3 +539,93 @@ describe("rehacer limpia el aviso de deshecho", () => {
     expect(ctx!.lastAction?.kind).not.toBe("undone");
   });
 });
+
+describe("el impacto de una edición se puede ver (E31)", () => {
+  test("editar una tarea publica qué tareas se movieron, no solo cuál se tocó", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider
+        initialTasks={[
+          task({ id: 1, duration: 2 }),
+          task({
+            id: 2,
+            duration: 2,
+            dependencies: [{ from: 1, to: 2, type: "FS" }],
+          }),
+          task({ id: 3, duration: 2 }),
+        ]}
+      >
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.updateTask(1, "duration", 8));
+
+    expect(ctx!.lastChange).not.toBeNull();
+    // La 1 cambia y arrastra a la 2, que depende de ella.
+    expect(ctx!.lastChange!.taskIds).toEqual(expect.arrayContaining([1, 2]));
+  });
+
+  test("renombrar una tarea suelta solo la resalta a ella", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider
+        initialTasks={[
+          task({ id: 1, duration: 2 }),
+          task({ id: 2, duration: 2 }),
+        ]}
+      >
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.updateTask(2, "name", "Excavación manual"));
+
+    expect(ctx!.lastChange!.taskIds).toEqual([2]);
+  });
+
+  test("dos ediciones seguidas se distinguen por el token", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1, duration: 2 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.updateTask(1, "duration", 4));
+    const primero = ctx!.lastChange!.token;
+    act(() => ctx!.updateTask(1, "duration", 6));
+
+    expect(ctx!.lastChange!.token).not.toBe(primero);
+  });
+
+  test("al abrir el proyecto no hay ningún cambio que resaltar", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1, duration: 2 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    expect(ctx!.lastChange).toBeNull();
+  });
+
+  test("una edición rechazada no publica cambios", () => {
+    let ctx: ProjectContextValue | undefined;
+
+    render(
+      <ProjectProvider initialTasks={[task({ id: 1, duration: 2 })]}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    act(() => ctx!.reportInvalidEdit("La duración mínima es 1 día."));
+
+    expect(ctx!.lastChange).toBeNull();
+  });
+});
+

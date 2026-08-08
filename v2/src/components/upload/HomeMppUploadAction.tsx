@@ -17,10 +17,10 @@ function abortMessage(reason: unknown): string {
 function validateMppFile(file: File): string | null {
   const extension = `.${file.name.split(".").pop()?.toLowerCase()}`;
   if (extension !== ".mpp") {
-    return "Selecciona un archivo Microsoft Project con extension .mpp";
+    return "Selecciona un archivo de Microsoft Project con extensión .mpp";
   }
   if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-    return `El archivo supera el maximo de ${MAX_FILE_SIZE_MB} MB`;
+    return `El archivo supera el máximo de ${MAX_FILE_SIZE_MB} MB`;
   }
   return null;
 }
@@ -139,6 +139,13 @@ export default function HomeMppUploadAction({
         <Upload size={16} aria-hidden />
         {isProcessing ? "Importando…" : "Subir Archivo .mpp"}
       </button>
+
+      <p
+        data-testid="upload-limits"
+        className="text-sm text-[var(--color-text-muted)]"
+      >
+        Archivo de MS Project (.mpp), hasta 50 MB.
+      </p>
       {isProcessing && (
         <span className="gantt-import-phase" data-testid="import-phase">
           {phase === "parsing" && "Analizando el cronograma…"}

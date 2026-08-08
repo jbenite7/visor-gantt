@@ -194,8 +194,10 @@ test("importa un MPP real y genera programacion matricial automatica con paridad
   expect(response.status()).toBe(303);
 
   const location = response.headers().location;
-  expect(location).toMatch(/\/project\/\d+$/);
-  const projectId = location?.match(/\/project\/(\d+)$/)?.[1];
+  // La importación llega con el resumen en la URL desde E32 (tareas,
+  // dependencias, recursos y, si las hay, columnas descartadas).
+  expect(location).toMatch(/\/project\/\d+(\?.*)?$/);
+  const projectId = location?.match(/\/project\/(\d+)/)?.[1];
   expect(projectId).toBeTruthy();
 
   const runProjectName = e2eProjectName(IMPORTED_PROJECT_NAME);

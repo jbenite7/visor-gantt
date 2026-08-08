@@ -342,7 +342,7 @@ describe("GanttView", () => {
       target: { value: "critical" },
     });
 
-    expect(screen.getByTestId("gantt-task-filter-count")).toHaveTextContent("1 / 2");
+    expect(screen.getByTestId("gantt-task-filter-count")).toHaveTextContent("1 oculta de 2");
 
     await flushAutosave();
 
@@ -361,7 +361,7 @@ describe("GanttView", () => {
         projectId="1"
         projectName="Presets por rol"
         tasks={[
-          makeTask({ id: 1, name: "Ruta critica", isCritical: true, cost: 1000 }),
+          makeTask({ id: 1, name: "Ruta crítica", isCritical: true, cost: 1000 }),
           makeTask({ id: 2, name: "Actividad normal", cost: 500 }),
         ]}
       />,
@@ -404,7 +404,7 @@ describe("GanttView", () => {
         projectId="1"
         projectName="Preset persistido"
         tasks={[
-          makeTask({ id: 1, name: "Ruta critica", isCritical: true }),
+          makeTask({ id: 1, name: "Ruta crítica", isCritical: true }),
           makeTask({ id: 2, name: "Actividad normal" }),
         ]}
         uiSettings={{
@@ -429,7 +429,7 @@ describe("GanttView", () => {
         projectId="1"
         projectName="Modo simple"
         tasks={[
-          makeTask({ id: 1, name: "Ruta critica", isCritical: true }),
+          makeTask({ id: 1, name: "Ruta crítica", isCritical: true }),
           makeTask({ id: 2, name: "Actividad normal" }),
         ]}
       />,
@@ -460,7 +460,7 @@ describe("GanttView", () => {
         projectId="1"
         projectName="Modo simple persistido"
         tasks={[
-          makeTask({ id: 1, name: "Ruta critica", isCritical: true }),
+          makeTask({ id: 1, name: "Ruta crítica", isCritical: true }),
           makeTask({ id: 2, name: "Actividad normal" }),
         ]}
         uiSettings={{
@@ -711,6 +711,10 @@ describe("GanttView", () => {
 
     mockedSaveProject.mockClear();
 
+    // El control aparece al señalar la fila (E40).
+    fireEvent.mouseEnter(
+      screen.getByTestId("cell-predecessors-2").closest("tr")!,
+    );
     fireEvent.click(screen.getByTestId("dependency-popover-open-2"));
     fireEvent.change(screen.getByTestId("dependency-search"), {
       target: { value: "Predecesora" },
@@ -1682,5 +1686,349 @@ describe("un guardado fallido deja el trabajo pendiente (M33)", () => {
     window.dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(true);
+  });
+});
+
+describe("se ve qué se movió y cuánto (E31)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("tras editar, la app dice cuántas actividades se movieron", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[
+          makeTask({ id: 1, name: "Excavación", duration: 2 }),
+          makeTask({
+            id: 2,
+            name: "Cimentación",
+            dependencies: [{ from: 1, to: 2, type: "FS" }],
+          }),
+        ]}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-duration-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "8" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(await screen.findByTestId("impact-summary")).toHaveTextContent(
+      /actividades se movieron/i,
+    );
+  });
+
+  test("al abrir el proyecto no hay recuento que mostrar", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    expect(screen.queryByTestId("impact-summary")).not.toBeInTheDocument();
+  });
+
+  test("si el fin de obra se corre, se avisa sin que nadie lo pida", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[
+          makeTask({ id: 1, name: "Excavación", duration: 2 }),
+          makeTask({
+            id: 2,
+            name: "Cimentación",
+            dependencies: [{ from: 1, to: 2, type: "FS" }],
+          }),
+        ]}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-duration-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "20" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(await screen.findByTestId("deep-change-finish")).toHaveTextContent(
+      /el fin de obra se corrió/i,
+    );
+  });
+});
+
+describe("el modo Simple esconde lo avanzado de verdad (E36)", () => {
+  const columnaMpp = {
+    key: "mpp:Cost1",
+    fieldId: "COST_1",
+    sourceKey: "Cost1",
+    labelEn: "Cost 1",
+    labelEs: "Costo unitario",
+    dataType: "number" as const,
+    group: "custom" as const,
+    isCustom: true,
+    isCore: false,
+    isEditable: true,
+  };
+
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("en modo Simple no se ven las columnas importadas del .mpp", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        mppTaskColumns={[columnaMpp]}
+        taskColumnSettings={{
+          visible: ["id", "name", "mpp:Cost1"],
+          widths: {},
+          labelLocale: "es",
+        }}
+        uiSettings={{
+          locale: "es",
+          interactionMode: "simple",
+          taskFilter: { text: "", type: "all" },
+        }}
+      />,
+    );
+
+    expect(screen.queryByText("Costo unitario")).not.toBeInTheDocument();
+  });
+
+  test("y al pasar a Avanzado vuelven, sin perder nada", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        mppTaskColumns={[columnaMpp]}
+        taskColumnSettings={{
+          visible: ["id", "name", "mpp:Cost1"],
+          widths: {},
+          labelLocale: "es",
+        }}
+        uiSettings={{
+          locale: "es",
+          interactionMode: "simple",
+          taskFilter: { text: "", type: "all" },
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("interaction-mode-advanced"));
+
+    expect(screen.getByText("Costo unitario")).toBeInTheDocument();
+  });
+
+  test("un proyecto que ya tiene historial arranca en Avanzado, no en Simple", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        planningAuditEvents={[
+          {
+            id: "ev-1",
+            kind: "taskEdit",
+            summary: "Duración de Excavación",
+            taskIds: [1],
+            createdAt: "2026-08-01T10:00:00.000Z",
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByTestId("interaction-mode-advanced")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+  });
+});
+
+describe("la paleta de comandos se deja encontrar (E20, M36)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("el botón enseña el atajo, para que se aprenda solo", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    expect(screen.getByTestId("command-palette-open")).toHaveTextContent("⌘K");
+  });
+
+  test("una errata al teclear sigue encontrando el comando", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "cruva" },
+    });
+
+    // Acotado a la paleta: «Curva S» también es una entrada del menú lateral.
+    expect(
+      within(screen.getByTestId("command-palette")).getByText(/curva s/i),
+    ).toBeInTheDocument();
+  });
+
+  test("lo que no existe sigue sin aparecer: tolerar no es adivinar", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "zzzzzz" },
+    });
+
+    expect(screen.getByText(/no hay comandos coincidentes/i)).toBeInTheDocument();
+  });
+
+  test("la paleta conoce la exportación y la configuración", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+
+    const paleta = within(screen.getByTestId("command-palette"));
+    expect(paleta.getByText("Configuración")).toBeInTheDocument();
+    expect(paleta.getByText(/exportar el cronograma/i)).toBeInTheDocument();
+  });
+
+  test("la Matriz sigue en la paleta además de estar en el menú", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+
+    expect(
+      within(screen.getByTestId("command-palette")).getByText(/matriz/i),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("el modo Simple no borra lo que esconde (E36)", () => {
+  const columnaMpp = {
+    key: "mpp:Cost1",
+    fieldId: "COST_1",
+    sourceKey: "Cost1",
+    labelEn: "Cost 1",
+    labelEs: "Costo unitario",
+    dataType: "number" as const,
+    group: "custom" as const,
+    isCustom: true,
+    isCore: false,
+    isEditable: true,
+  };
+
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("guardar en modo Simple conserva las columnas del .mpp", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Importado"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+        mppTaskColumns={[columnaMpp]}
+        uiSettings={{
+          locale: "es",
+          interactionMode: "simple",
+          taskFilter: { text: "", type: "all" },
+        }}
+      />,
+    );
+
+    mockedSaveProject.mockClear();
+
+    // Cualquier edición dispara el autoguardado.
+    const celda = screen.getByTestId("cell-duration-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "8" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await flushAutosave();
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+
+    // Esconderlas de la tabla no puede borrarlas del proyecto.
+    expect(latestSavedProject().mppTaskColumns).toEqual([
+      expect.objectContaining({ key: "mpp:Cost1" }),
+    ]);
+  });
+});
+
+describe("el aviso al cerrar no se queda encendido de más (M28)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("salir de la matriz sin aplicar deja de contar como trabajo pendiente", async () => {
+    render(
+      <GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-matrix"));
+    await screen.findByRole("button", { name: /Crear matriz/i });
+    fireEvent.click(screen.getByRole("button", { name: /Crear matriz/i }));
+
+    // Volver al Gantt desmonta el editor: el borrador se pierde, así que ya no
+    // hay nada pendiente por lo que preguntar al cerrar.
+    fireEvent.click(screen.getByTestId("sidebar-view-gantt"));
+    await screen.findByTestId("gantt-view");
+
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+  });
+});
+
+describe("deshacer un alta de asignación no borra de más (M14)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("con dos asignaciones iguales, Ctrl+Z quita solo la última", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+        resources={[
+          { uid: 7, name: "Cuadrilla 2", type: "work", rate: 20, availability: 100 },
+        ]}
+        assignments={[{ taskId: 1, resourceId: 7, units: 20, cost: 0 }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+    fireEvent.click(await screen.findByRole("button", { name: /Asignaciones/i }));
+
+    // Se crea una segunda del mismo par: nada lo impide hoy.
+    fireEvent.click(await screen.findByTestId("assignment-add"));
+    fireEvent.change(screen.getByTestId("assignment-task"), {
+      target: { value: "1" },
+    });
+    fireEvent.change(screen.getByTestId("assignment-resource"), {
+      target: { value: "7" },
+    });
+    fireEvent.click(screen.getByTestId("assignment-confirm"));
+
+    // Dos asignaciones del mismo par, más la fila de encabezado.
+    await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(3));
+    // eslint-disable-next-line no-console
+    console.log("FILAS TRAS CREAR", screen.getAllByRole("row").length);
+
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+
+    await new Promise((r) => setTimeout(r, 100));
+    // eslint-disable-next-line no-console
+    console.log("FILAS TRAS DESHACER", screen.getAllByRole("row").length);
+    // Deshacer quita una, no las dos.
+    await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(2));
   });
 });

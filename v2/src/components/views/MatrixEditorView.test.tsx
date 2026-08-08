@@ -270,10 +270,10 @@ describe("MatrixEditorView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Ubicaciones" }));
     fireEvent.click(screen.getByRole("button", { name: "Agregar hijo a Piso 1" }));
-    fireEvent.change(screen.getByLabelText("Nombre ubicacion Nueva sub-ubicacion"), {
+    fireEvent.change(screen.getByLabelText("Nombre ubicación Nueva sub-ubicación"), {
       target: { value: "Apto 101" },
     });
-    fireEvent.change(screen.getByLabelText("Tipo ubicacion Apto 101"), {
+    fireEvent.change(screen.getByLabelText("Tipo ubicación Apto 101"), {
       target: { value: "Unidad" },
     });
 
@@ -358,7 +358,7 @@ describe("MatrixEditorView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Alcances" }));
     fireEvent.click(screen.getByRole("button", { name: "Agregar hijo a Nivel 10" }));
-    expect(screen.getByText("Maximo 10 niveles de jerarquia.")).toBeInTheDocument();
+    expect(screen.getByText("Máximo 10 niveles de jerarquía.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Eliminar Nivel 9" }));
     expect(window.confirm).toHaveBeenCalledWith(
@@ -380,5 +380,83 @@ describe("MatrixEditorView", () => {
         expect.objectContaining({ scopeId: "nivel-10" }),
       ]),
     );
+  });
+});
+
+describe("el borrador de la matriz no se pierde sin avisar (M28)", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  function renderConPlan(
+    extra: Partial<React.ComponentProps<typeof MatrixEditorView>> = {},
+  ) {
+    const matrixPlan = createDefaultMatrixPlan({
+      id: "matrix-borrador",
+      name: "Matriz",
+      startDate: "2026-01-05",
+    });
+
+    render(
+      <MatrixEditorView
+        matrixPlan={matrixPlan}
+        tasks={[]}
+        onApplyMatrixPlan={jest.fn()}
+        onSyncFromGantt={jest.fn()}
+        {...extra}
+      />,
+    );
+  }
+
+  test("«Deshacer» pasa a llamarse «Descartar cambios»", () => {
+    renderConPlan();
+
+    expect(screen.getByTestId("matrix-discard")).toHaveTextContent(
+      "Descartar cambios",
+    );
+  });
+
+  test("sin cambios, descartar no pregunta nada", () => {
+    const confirmar = jest.spyOn(window, "confirm").mockReturnValue(true);
+    renderConPlan();
+
+    fireEvent.click(screen.getByTestId("matrix-discard"));
+
+    expect(confirmar).not.toHaveBeenCalled();
+  });
+
+  test("con cambios, descartar pide confirmación y dice cuántos se pierden", () => {
+    const confirmar = jest.spyOn(window, "confirm").mockReturnValue(false);
+    renderConPlan();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Activar todas las celdas/i }),
+    );
+    fireEvent.click(screen.getByTestId("matrix-discard"));
+
+    expect(confirmar).toHaveBeenCalledWith(expect.stringMatching(/cambio/i));
+  });
+
+  test("si el usuario dice que no, el borrador sigue ahí", () => {
+    jest.spyOn(window, "confirm").mockReturnValue(false);
+    renderConPlan();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Activar todas las celdas/i }),
+    );
+    fireEvent.click(screen.getByTestId("matrix-discard"));
+
+    expect(screen.getByTestId("matrix-dirty")).toBeInTheDocument();
+  });
+
+  test("el borrador sucio se anuncia al proyecto, para el aviso al cerrar", () => {
+    const onDirtyChange = jest.fn();
+    renderConPlan({ onDirtyChange });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Activar todas las celdas/i }),
+    );
+
+    expect(onDirtyChange).toHaveBeenCalledWith(true);
   });
 });

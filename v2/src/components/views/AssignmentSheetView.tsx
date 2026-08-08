@@ -16,6 +16,11 @@ import type {
   MppCustomFieldDefinition,
 } from "@/types/mppColumns";
 import type { UILocale } from "@/types/ui";
+import {
+  createAssignment,
+  detectOverallocation,
+  wouldOverallocate,
+} from "@/lib/scheduling/assignments";
 
 interface AssignmentSheetViewProps {
   assignments: Assignment[];
@@ -29,6 +34,12 @@ interface AssignmentSheetViewProps {
   /** Restablecer columnas borra la configuración del usuario: el padre puede hacerlo deshacible. */
   onResetColumns?: () => void;
   onLocaleChange?: (locale: UILocale) => void;
+  /**
+   * Alta y baja de asignaciones. Sin ellas, quien arma el proyecto en la app
+   * —sin importar un `.mpp`— tenía esta pestaña vacía para siempre (M14).
+   */
+  onCreateAssignment?: (assignment: Assignment) => void;
+  onDeleteAssignment?: (assignment: Assignment) => void;
 }
 
 const thStyle: React.CSSProperties = {
@@ -64,6 +75,8 @@ export default function AssignmentSheetView({
   onColumnSettingsChange,
   onResetColumns,
   onLocaleChange,
+  onCreateAssignment,
+  onDeleteAssignment,
 }: AssignmentSheetViewProps) {
   const labels =
     locale === "en"
@@ -87,6 +100,11 @@ export default function AssignmentSheetView({
           cost: "Costo",
           empty: "No hay asignaciones importadas.",
         };
+  const [formularioAbierto, setFormularioAbierto] = useState(false);
+  const [nuevaTarea, setNuevaTarea] = useState("");
+  const [nuevoRecurso, setNuevoRecurso] = useState("");
+  const [nuevasUnidades, setNuevasUnidades] = useState(100);
+
   const [localColumnSettings, setLocalColumnSettings] = useState<AssignmentColumnSettings>(
     normalizeAssignmentColumnSettings(columnSettings, locale),
   );
@@ -186,6 +204,30 @@ export default function AssignmentSheetView({
     });
   }, [extraColumns, locale, updateColumnSettings, onResetColumns]);
 
+  const candidata: Assignment | null =
+    nuevaTarea && nuevoRecurso
+      ? createAssignment(
+          Number.isNaN(Number(nuevaTarea)) ? nuevaTarea : Number(nuevaTarea),
+          Number(nuevoRecurso),
+          nuevasUnidades,
+          resources,
+          tasks,
+        )
+      : null;
+
+  /** Avisar antes de crear, no después de que Problemas lo descubra (M19). */
+  const avisoSobrecarga = candidata
+    ? wouldOverallocate(assignments, resources, tasks, candidata)
+    : null;
+
+  const sobrecargados = useMemo(() => {
+    const marcados = new Set<number>();
+    for (const resultado of detectOverallocation(assignments, resources, tasks)) {
+      if (resultado.isOverallocated) marcados.add(resultado.resourceId);
+    }
+    return marcados;
+  }, [assignments, resources, tasks]);
+
   return (
     <div data-testid="assignment-sheet-view" className="apple-module flex h-full flex-col">
       <div className="apple-subtoolbar">
@@ -193,6 +235,16 @@ export default function AssignmentSheetView({
           {assignments.length} {labels.assignments}
         </span>
         <div style={{ flex: 1 }} />
+        {onCreateAssignment && !formularioAbierto && (
+          <button
+            type="button"
+            data-testid="assignment-add"
+            onClick={() => setFormularioAbierto(true)}
+            className="apple-button-secondary rounded-[var(--radius-lg)] px-3 py-1 text-sm font-semibold"
+          >
+            Asignar recurso
+          </button>
+        )}
         {extraColumns.length > 0 && (
           <ColumnSelector
             columns={extraColumns}
@@ -205,6 +257,98 @@ export default function AssignmentSheetView({
           />
         )}
       </div>
+
+      {formularioAbierto && onCreateAssignment && (
+        <div className="apple-section m-3 flex flex-wrap items-end gap-3 p-3">
+          <label className="flex flex-col gap-1 text-sm">
+            Actividad
+            <select
+              data-testid="assignment-task"
+              value={nuevaTarea}
+              onChange={(event) => setNuevaTarea(event.target.value)}
+              className="gantt-project-toolbar__baseline-name"
+            >
+              <option value="">Elige una actividad</option>
+              {tasks
+                .filter((task) => !task.isSummary)
+                .map((task) => (
+                  <option key={String(task.id)} value={String(task.id)}>
+                    {task.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm">
+            Recurso
+            <select
+              data-testid="assignment-resource"
+              value={nuevoRecurso}
+              onChange={(event) => setNuevoRecurso(event.target.value)}
+              className="gantt-project-toolbar__baseline-name"
+            >
+              <option value="">Elige un recurso</option>
+              {resources.map((resource) => (
+                <option key={resource.uid} value={String(resource.uid)}>
+                  {resource.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm">
+            Dedicación (%)
+            <input
+              type="number"
+              min={1}
+              max={100}
+              step={1}
+              data-testid="assignment-units"
+              value={nuevasUnidades}
+              onChange={(event) =>
+                setNuevasUnidades(Number(event.target.value) || 0)
+              }
+              className="gantt-project-toolbar__baseline-name"
+            />
+          </label>
+
+          <button
+            type="button"
+            data-testid="assignment-confirm"
+            disabled={!candidata}
+            onClick={() => {
+              if (!candidata) return;
+              onCreateAssignment(candidata);
+              setFormularioAbierto(false);
+              setNuevaTarea("");
+              setNuevoRecurso("");
+            }}
+            className="apple-button-primary rounded-[var(--radius-lg)] px-3 py-1.5 text-sm font-semibold"
+          >
+            Asignar
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFormularioAbierto(false)}
+            className="apple-button-secondary rounded-[var(--radius-lg)] px-3 py-1.5 text-sm font-semibold"
+          >
+            Cancelar
+          </button>
+
+          {avisoSobrecarga && (
+            <p
+              data-testid="assignment-overload-warning"
+              role="status"
+              className="basis-full text-sm text-[var(--aia-warn-main)]"
+            >
+              Con esta asignación, {avisoSobrecarga.resourceName} queda
+              sobrecargado: ya tiene trabajo ese día. Puedes asignarlo igual y
+              resolverlo después.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="flex-1 min-h-0 overflow-auto">
         <table className="apple-table" style={{ width: "100%", tableLayout: "fixed" }}>
@@ -224,6 +368,11 @@ export default function AssignmentSheetView({
                   {locale === "en" ? column.labelEn ?? column.label : column.labelEs ?? column.label}
                 </th>
               ))}
+              {onDeleteAssignment && (
+                <th style={{ ...thStyle, width: 90 }}>
+                  {locale === "en" ? "Remove" : "Quitar"}
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -233,7 +382,18 @@ export default function AssignmentSheetView({
               const rowId = String(assignment.mppFields?.__rowId ?? `${taskKey}:${resourceKey}:${index}`);
               const stripeBg = index % 2 === 0 ? "var(--color-bg-elevated)" : "var(--color-bg-surface-secondary)";
               return (
-                <tr key={rowId} style={{ background: stripeBg, borderLeft: "3px solid transparent" }}>
+                <tr
+                  key={rowId}
+                  {...(sobrecargados.has(assignment.resourceId)
+                    ? { "data-testid": "assignment-overloaded" }
+                    : {})}
+                  style={{
+                    background: stripeBg,
+                    borderLeft: sobrecargados.has(assignment.resourceId)
+                      ? "3px solid var(--aia-alert-main)"
+                      : "3px solid transparent",
+                  }}
+                >
                   <td style={{ ...tdStyle, width: 110 }}>{taskKey}</td>
                   <td style={tdStyle}>{taskNames.get(taskKey) ?? "-"}</td>
                   <td style={{ ...tdStyle, width: 120 }}>{resourceKey}</td>
@@ -258,6 +418,27 @@ export default function AssignmentSheetView({
                       </td>
                     );
                   })}
+                  {onDeleteAssignment && (
+                    <td style={{ ...tdStyle, width: 90 }}>
+                      <button
+                        type="button"
+                        data-testid="assignment-delete"
+                        onClick={() => {
+                          if (
+                            !window.confirm(
+                              `Se va a quitar «${resourceNames.get(resourceKey) ?? resourceKey}» de «${taskNames.get(taskKey) ?? taskKey}». ¿Seguro?`,
+                            )
+                          ) {
+                            return;
+                          }
+                          onDeleteAssignment(assignment);
+                        }}
+                        className="gantt-project-toolbar__button gantt-project-toolbar__button--danger"
+                      >
+                        Quitar
+                      </button>
+                    </td>
+                  )}
                 </tr>
               );
             })}

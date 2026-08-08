@@ -204,3 +204,29 @@ export function createAssignment(
 
   return { taskId, resourceId, units, cost };
 }
+
+/**
+ * ¿Esta asignación nueva va a sobrecargar al recurso?
+ *
+ * Se responde llamando a `detectOverallocation` sobre la lista con la
+ * candidata añadida: así hay una sola definición de «sobreasignado» por
+ * construcción, y no por disciplina. Antes, Uso de Recursos usaba un umbral
+ * semanal propio y Problemas uno diario, y las dos pestañas podían
+ * contradecirse (M18).
+ */
+export function wouldOverallocate(
+  assignments: Assignment[],
+  resources: Resource[],
+  tasks: GanttTask[],
+  candidate: Assignment,
+): OverallocationResult | null {
+  const conCandidata = [...assignments, candidate];
+
+  return (
+    detectOverallocation(conCandidata, resources, tasks).find(
+      (resultado) =>
+        resultado.isOverallocated &&
+        resultado.resourceId === candidate.resourceId,
+    ) ?? null
+  );
+}

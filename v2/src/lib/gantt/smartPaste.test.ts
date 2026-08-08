@@ -68,7 +68,7 @@ describe("tasksToExcelTsv", () => {
   test("exports an Excel-friendly TSV that smart paste can import back", () => {
     const result = tasksToExcelTsv([
       {
-        ...task(1, "Capitulo"),
+        ...task(1, "Capítulo"),
         isSummary: true,
         outlineLevel: 1,
         wbs: "1",
@@ -90,11 +90,11 @@ describe("tasksToExcelTsv", () => {
     expect(result.split("\n")[0]).toBe(
       "Actividad\tInicio\tFin\tDuración\t% completado\tNivel\tEDT\tPredecesoras\tRecursos\tCosto",
     );
-    expect(result).toContain("Capitulo\t2026-01-05\t2026-01-05\t1\t33.33\t1\t1\t\tCuadrilla A\t");
+    expect(result).toContain("Capítulo\t2026-01-05\t2026-01-05\t1\t33.33\t1\t1\t\tCuadrilla A\t");
     expect(result).toContain("Formaleta\t2026-01-05\t2026-01-07\t3\t25\t2\t1.1\t1FS+2d\t\t1200000");
 
     const imported = insertTasksFromSmartPaste([], result);
-    expect(imported.map((item) => item.name)).toEqual(["Capitulo", "Formaleta"]);
+    expect(imported.map((item) => item.name)).toEqual(["Capítulo", "Formaleta"]);
     expect(result).toContain("\t33.33\t");
     expect(imported[1]).toEqual(expect.objectContaining({ duration: 3, outlineLevel: 2 }));
   });

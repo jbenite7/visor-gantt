@@ -3,10 +3,18 @@
 import { redirect } from "next/navigation";
 import { loginWithPassword, logoutCurrentSession } from "@/lib/auth/session";
 import { safeNextPath } from "@/lib/auth/nextPath";
+import type { LoginErrorCode } from "@/lib/auth/loginErrors";
 
-function loginErrorUrl(message: string, next: string): string {
-  const params = new URLSearchParams({ error: message });
+function loginErrorUrl(
+  code: LoginErrorCode,
+  next: string,
+  correo: string,
+): string {
+  const params = new URLSearchParams({ error: code });
   if (next) params.set("next", next);
+  // El correo lo acaba de escribir quien entra: devolverlo ahorra teclearlo
+  // otra vez, y no es un dato que la URL revele a nadie más.
+  if (correo) params.set("correo", correo);
   return `/login?${params.toString()}`;
 }
 
@@ -17,7 +25,7 @@ export async function loginAction(formData: FormData): Promise<void> {
   const result = await loginWithPassword(email, password);
 
   if (!result.success) {
-    redirect(loginErrorUrl(result.error ?? "No se pudo iniciar sesión", next));
+    redirect(loginErrorUrl(result.code ?? "credenciales", next, email));
   }
 
   redirect(next || "/");

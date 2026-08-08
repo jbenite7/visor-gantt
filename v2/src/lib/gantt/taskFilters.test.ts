@@ -28,7 +28,7 @@ describe("task filters", () => {
 
   test("filters by text, WBS and task type", () => {
     const tasks = [
-      task({ id: 1, name: "Capitulo", isSummary: true, wbs: "1" }),
+      task({ id: 1, name: "Capítulo", isSummary: true, wbs: "1" }),
       task({ id: 2, name: "Cimentacion", isCritical: true, wbs: "1.1" }),
       task({ id: 3, name: "Hito contractual", isMilestone: true, wbs: "1.2" }),
       task({ id: 4, name: "Pintura", wbs: "2.1" }),

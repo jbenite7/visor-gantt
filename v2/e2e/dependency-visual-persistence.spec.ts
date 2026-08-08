@@ -248,6 +248,9 @@ test("persiste dependencias creadas desde popover y panel lateral tras recargar"
   await page.goto(`/project/${projectId}`);
   await expect(page.getByTestId("gantt-view")).toBeVisible();
 
+  // El control de predecesoras aparece al pasar por la fila (E40): el dato se
+  // lee siempre, el botón solo cuando se va a usar.
+  await page.getByTestId("cell-predecessors-2").hover();
   await page.getByTestId("dependency-popover-open-2").click();
   await page.getByTestId("dependency-search").fill("Cimentacion");
   await page.getByTestId("dependency-type-select").selectOption("FF");

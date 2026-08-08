@@ -12,7 +12,7 @@ interface ObservationPanelProps {
   taskId: string | number;
   taskName: string;
   observations: Observation[];
-  onAdd: (text: string) => void;
+  onAdd: (text: string, responsible?: string) => void;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
@@ -32,13 +32,15 @@ export default function ObservationPanel({
   onClose,
 }: ObservationPanelProps) {
   const [text, setText] = useState("");
+  const [responsible, setResponsible] = useState("");
   const forTask = observations.filter((o) => o.taskId === taskId);
   const canSave = text.trim().length > 0;
 
   const save = () => {
     if (!canSave) return;
-    onAdd(text);
+    onAdd(text, responsible);
     setText("");
+    setResponsible("");
   };
 
   // El registro se comparte con el equipo: por eso el export vive junto a la lista.
@@ -127,6 +129,14 @@ export default function ObservationPanel({
               save();
             }
           }}
+        />
+        <input
+          data-testid="observation-responsible"
+          value={responsible}
+          placeholder="Responsable (opcional)"
+          aria-label="Responsable de la observación"
+          onChange={(event) => setResponsible(event.target.value)}
+          className="gantt-observation-panel__responsible"
         />
         <button
           type="button"

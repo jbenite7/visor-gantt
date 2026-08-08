@@ -441,15 +441,16 @@ test("captura auditoria visual final desktop y mobile", async ({ page }) => {
     await expect(page.getByTestId("gantt-view")).toBeVisible();
     await capture(page, viewport, "project-gantt");
 
+    // Seguimiento, Hoja de Tareas y Diagrama de Red salieron del menú con el
+    // recorte C1: se llegan por la vista guardada por rol y por la paleta.
     const viewCaptures = [
       ["executive", "project-executive"],
-      ["tracking", "project-tracking"],
-      ["taskSheet", "project-task-sheet"],
-      ["network", "project-network"],
+      ["matrix", "project-matrix"],
+      ["calendario", "project-calendar-view"],
       ["resources", "project-resources"],
       ["lob", "project-line-of-balance"],
-      ["matrix", "project-matrix"],
       ["scurve", "project-scurve"],
+      ["unidadTipica", "project-typical-unit"],
       ["bottlenecks", "project-bottlenecks"],
       ["settings", "project-calendar"],
     ] as const;

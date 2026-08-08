@@ -1,4 +1,6 @@
-import { insertAt, removeWhere, replaceWhere } from "./undoableCollections";
+import { insertAt, removeWhere, replaceWhere,
+  removeAt,
+} from "./undoableCollections";
 
 describe("insertAt / removeWhere (E24)", () => {
   test("devuelve el elemento a su posición original", () => {
@@ -52,5 +54,40 @@ describe("replaceWhere (E24: editar también se deshace)", () => {
   test("si nada coincide devuelve una copia igual", () => {
     const items = [{ id: 1, n: "a" }];
     expect(replaceWhere(items, (i) => i.id === 9, { id: 9, n: "x" })).toEqual(items);
+  });
+});
+
+describe("quitar por identidad, no por parecido", () => {
+  test("removeAt quita solo la de esa posición, aunque haya iguales", () => {
+    const duplicadas = [
+      { taskId: 1, resourceId: 7 },
+      { taskId: 1, resourceId: 7 },
+      { taskId: 2, resourceId: 7 },
+    ];
+
+    expect(removeAt(duplicadas, 1)).toEqual([
+      { taskId: 1, resourceId: 7 },
+      { taskId: 2, resourceId: 7 },
+    ]);
+  });
+
+  test("una posición fuera de rango no toca la lista", () => {
+    const lista = [{ id: 1 }];
+
+    expect(removeAt(lista, 5)).toEqual(lista);
+    expect(removeAt(lista, -1)).toEqual(lista);
+  });
+
+  test("no modifica la lista original", () => {
+    const lista = [{ id: 1 }, { id: 2 }];
+    removeAt(lista, 0);
+
+    expect(lista).toHaveLength(2);
+  });
+
+  test("quitar la última y volver a insertarla la deja donde estaba", () => {
+    const lista = [{ id: 1 }, { id: 2 }, { id: 3 }];
+
+    expect(insertAt(removeAt(lista, 2), 2, { id: 3 })).toEqual(lista);
   });
 });

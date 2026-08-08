@@ -5,7 +5,10 @@
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import ExecutivePlanningDashboard from "./ExecutivePlanningDashboard";
-import type { ExecutivePlanningSummary } from "@/lib/gantt/executiveDashboard";
+import {
+  buildExecutivePlanningSummary,
+  type ExecutivePlanningSummary,
+} from "@/lib/gantt/executiveDashboard";
 
 describe("ExecutivePlanningDashboard", () => {
   test("renders KPIs and triple-constraint signals", () => {
@@ -87,5 +90,63 @@ describe("ExecutivePlanningDashboard", () => {
 
     expect(print).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("executive-report-export-status")).toHaveTextContent("Listo para PDF");
+  });
+});
+
+describe("el tablero informa bien o dice que no sabe (M1, M3, M8)", () => {
+  const vacio = buildExecutivePlanningSummary({
+    tasks: [],
+    budgetItems: [],
+    budgetMappings: [],
+    scheduleIssues: [],
+    bottlenecks: [],
+  });
+
+  test("un proyecto vacío muestra «aún no hay datos», no «Controlado»", () => {
+    render(<ExecutivePlanningDashboard summary={vacio} />);
+
+    expect(screen.getByTestId("executive-no-data")).toHaveTextContent(
+      /aún no hay datos/i,
+    );
+    expect(screen.queryByText("Controlado")).not.toBeInTheDocument();
+  });
+
+  test("muestra a qué día corresponden las cifras", () => {
+    render(
+      <ExecutivePlanningDashboard
+        summary={{ ...vacio, statusDate: "2026-08-07" }}
+      />,
+    );
+
+    expect(screen.getByTestId("executive-status-date")).toHaveTextContent(
+      "07/08/2026",
+    );
+  });
+
+  test("sin fecha de corte lo dice, en vez de callarlo", () => {
+    render(<ExecutivePlanningDashboard summary={vacio} />);
+
+    expect(screen.getByTestId("executive-status-date")).toHaveTextContent(
+      /sin fecha de corte/i,
+    );
+  });
+
+  test("cada señal lleva a su detalle", () => {
+    const onNavigate = jest.fn();
+    render(
+      <ExecutivePlanningDashboard summary={vacio} onNavigate={onNavigate} />,
+    );
+
+    fireEvent.click(screen.getAllByTestId("executive-signal")[0]);
+
+    expect(onNavigate).toHaveBeenCalled();
+  });
+
+  test("sin forma de navegar, las tarjetas no fingen ser botones", () => {
+    render(<ExecutivePlanningDashboard summary={vacio} />);
+
+    expect(screen.getAllByTestId("executive-signal")[0].tagName).not.toBe(
+      "BUTTON",
+    );
   });
 });

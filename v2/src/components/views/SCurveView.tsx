@@ -146,7 +146,9 @@ export default function SCurveView({
 
   const evIndices = useMemo(
     () =>
-      evData.points.length > 0
+      // Sin puntos no hay índices; y si los hubiera sin poder calcularlos,
+      // tampoco se inventan (M1).
+      evData.points.length > 0 && evData.cpi !== null && evData.spi !== null
         ? [
             { label: "CPI", value: evData.cpi },
             { label: "SPI", value: evData.spi },

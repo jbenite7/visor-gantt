@@ -11,6 +11,16 @@ export function removeWhere<T>(items: T[], match: (item: T) => boolean): T[] {
   return items.filter((item) => !match(item));
 }
 
+/**
+ * Quita por posición, no por parecido. Dos asignaciones del mismo recurso a la
+ * misma actividad son indistinguibles por sus campos: filtrarlas por igualdad
+ * se lleva las dos, y deshacer un alta borraría también la que ya estaba.
+ */
+export function removeAt<T>(items: T[], index: number): T[] {
+  if (index < 0 || index >= items.length) return [...items];
+  return [...items.slice(0, index), ...items.slice(index + 1)];
+}
+
 export function insertAt<T>(items: T[], index: number, item: T): T[] {
   const position = Math.max(0, Math.min(index, items.length));
   return [...items.slice(0, position), item, ...items.slice(position)];

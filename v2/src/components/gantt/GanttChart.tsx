@@ -20,6 +20,7 @@ import TimescaleHeader from "./timescale/TimescaleHeader";
 import DependencyArrow from "./arrows/DependencyArrow";
 import { calculateArrowPath, getArrowDirection } from "./arrows/ArrowPath";
 import { useCreateDependency } from "./interaction";
+import { depTypeLabel, inferDepType } from "./interaction/useCreateDependency";
 import type { DragState } from "./interaction/useDragBar";
 import type { ResizeState } from "./interaction/useResizeBar";
 import {
@@ -112,7 +113,7 @@ export default function GanttChart({
   onResizeStart,
   showBaseline = false,
 }: GanttChartProps) {
-  const { depState, onDepStart, onDepMove, onDepEnd } =
+  const { depState, onDepStart, onDepMove, onDepEnd, onDepHoverEdge } =
     useCreateDependency(onCreateDependency);
   const containerRef = useRef<HTMLDivElement>(null);
   const [clientToday, setClientToday] = useState<Date | null>(null);
@@ -377,6 +378,8 @@ export default function GanttChart({
                       color={color}
                       isSelected={selectedTaskIds?.includes(task.id) ?? false}
                       onDepStart={onDepStart}
+                      onDepEnd={onDepEnd}
+                      onDepHoverEdge={onDepHoverEdge}
                       isDepHovered={depState.hoverTaskId === task.id}
                       viewport={fittedViewport}
                       onDragStart={onDragStart}
@@ -451,7 +454,12 @@ export default function GanttChart({
                 fromTaskIndex * finalConfig.rowHeight + finalConfig.rowHeight / 2;
               const toX = depState.mouseX;
               const toY = depState.mouseY - finalConfig.headerHeight;
-              const type = depState.fromEdge === "right" ? "FS" : "SS";
+              // El tipo real lo decide el borde de destino, no solo el de
+              // origen: adivinarlo dejaba FF y SF fuera del alcance (E35).
+              const type = inferDepType(
+                depState.fromEdge,
+                depState.hoverEdge ?? "left",
+              );
               const d = calculateArrowPath(
                 fromX,
                 fromY,
@@ -482,6 +490,15 @@ export default function GanttChart({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
+                  <text
+                    data-testid="dep-preview-type"
+                    x={toX + 10}
+                    y={toY - 8}
+                    fontSize={10}
+                    fill="var(--color-text-muted)"
+                  >
+                    {type} · {depTypeLabel(type)}
+                  </text>
                   <polygon
                     points={arrowPoints}
                     fill="var(--aia-corp-main)"

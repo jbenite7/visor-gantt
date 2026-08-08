@@ -58,3 +58,32 @@ describe("TypicalUnitView", () => {
     ).toBeInTheDocument();
   });
 });
+
+const tasksConSistemaRepetido = [
+  task({ id: 1, name: "Instalacion hidraulica piso 1", wbs: "1.1" }),
+  task({ id: 2, name: "Instalacion hidraulica piso 2", wbs: "1.2" }),
+  task({ id: 3, name: "Instalacion hidraulica piso 3", wbs: "1.3" }),
+];
+
+describe("las etiquetas no prometen lo que el número no es (M2)", () => {
+  test("el indicador se llama Ritmo, con su unidad real", () => {
+    render(<TypicalUnitView tasks={tasksConSistemaRepetido} />);
+
+    expect(screen.getByText(/ritmo \(1\/día\)/i)).toBeInTheDocument();
+  });
+
+  test("ya no dice «unidades/día», que no existen sin cantidad de obra", () => {
+    render(<TypicalUnitView tasks={tasksConSistemaRepetido} />);
+
+    expect(screen.queryByText(/unidades\/día/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Productividad$/)).not.toBeInTheDocument();
+  });
+
+  test("explica de dónde sale el número", () => {
+    render(<TypicalUnitView tasks={tasksConSistemaRepetido} />);
+
+    expect(screen.getByTestId("ritmo-nota")).toHaveTextContent(
+      /inverso de la duración/i,
+    );
+  });
+});

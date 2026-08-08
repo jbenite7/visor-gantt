@@ -29,7 +29,7 @@ describe("executive report export", () => {
       [
         "Seccion,Indicador,Valor,Detalle,Estado,Recomendacion",
         "KPI,Avance,45.0%,SPI 0.82,warning,",
-        'Triple restriccion,Cronograma,schedule,"2 tareas criticas, SPI 0.82",warning,Priorizar restricciones.',
+        'Triple restricción,Cronograma,schedule,"2 tareas criticas, SPI 0.82",warning,Priorizar restricciones.',
       ].join("\n"),
     );
   });

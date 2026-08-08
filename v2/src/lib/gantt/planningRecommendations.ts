@@ -166,7 +166,7 @@ export function buildPlanningRecommendations(tasks: GanttTask[]): PlanningRecomm
         taskIds: [task.id],
         title: `${task.name} supera su fecha limite por ${daysLate}d.`,
         detail: "La fecha limite importada desde MS Project queda antes del fin calculado actual.",
-        action: "Revisa ruta critica, restricciones o recuperacion antes de confirmar el cronograma.",
+        action: "Revisa ruta crítica, restricciones o recuperación antes de confirmar el cronograma.",
         priority: SEVERITY_WEIGHT[severity] + 35,
       };
       recommendations.set(recommendation.id, recommendation);
