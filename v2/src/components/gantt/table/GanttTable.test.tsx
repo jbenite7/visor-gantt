@@ -1655,3 +1655,25 @@ describe("los niveles WBS hacen lo que dicen (E19)", () => {
     expect(screen.getAllByTestId("expand-level-button")).toHaveLength(4);
   });
 });
+
+describe("las exportaciones dicen lo que hacen (M25)", () => {
+  test("descargar entrega un CSV, no un TSV", () => {
+    render(
+      <GanttTable tasks={[makeTask({ id: 1 })]} observations={[]} />,
+    );
+
+    expect(screen.getByTestId("excel-download-export")).toHaveAttribute(
+      "title",
+      expect.stringMatching(/CSV/),
+    );
+  });
+
+  test("copiar dice que es para pegar en Excel, que es lo que hace", () => {
+    render(<GanttTable tasks={[makeTask({ id: 1 })]} observations={[]} />);
+
+    expect(screen.getByTestId("excel-copy-export")).toHaveAttribute(
+      "title",
+      expect.stringMatching(/pegar en Excel/i),
+    );
+  });
+});

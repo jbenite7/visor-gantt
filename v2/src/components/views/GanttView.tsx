@@ -1724,6 +1724,7 @@ function GanttViewInner({
                       onInvalidEdit={reportInvalidEdit}
                       changedTaskIds={lastChange?.taskIds ?? []}
                       calendar={calendar}
+                      observations={observations}
                       mppTaskColumns={mppTaskColumns}
                       customFieldDefinitions={calculatedMpp.customFieldDefinitions}
                       columnSettings={taskColumnSettings}
@@ -1756,6 +1757,7 @@ function GanttViewInner({
                       showBaseline={Boolean(activeBaseline)}
                       observations={observations}
                       calendar={calendar}
+                      observations={observations}
                       scale={scale}
                       selectedTaskIds={selectedTaskIds}
                       onTaskSelect={handleTaskSelect}

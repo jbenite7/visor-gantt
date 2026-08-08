@@ -24,7 +24,11 @@ import type { MppCustomFieldDefinition, MppTaskColumn, TaskColumnSettings } from
 import type { TaskFilterSettings, TaskFilterType, UILocale } from "@/types/ui";
 import { t } from "@/lib/i18n";
 import { filterTasks, normalizeTaskFilter } from "@/lib/gantt/taskFilters";
-import { exportedScheduleFileName, tasksToExcelTsv } from "@/lib/gantt/scheduleExchange";
+import {
+  exportedScheduleFileName,
+  tasksToCsv,
+  tasksToExcelTsv,
+} from "@/lib/gantt/scheduleExchange";
 import { getMppColumnLabel } from "@/lib/mpp/fieldLabels";
 import { inspectMppField } from "@/lib/mpp/fieldInspector";
 import {
@@ -36,6 +40,7 @@ import ColumnSelector from "./ColumnSelector";
 import type { ColumnConfig } from "./ColumnSelector";
 import GanttRow from "./GanttRow";
 import type { ProjectCalendar } from "@/types/calendar";
+import type { Observation } from "@/lib/observations/observations";
 import DependencyPanel from "@/components/gantt/dependencies/DependencyPanel";
 
 interface TaskBudgetData {
@@ -60,6 +65,8 @@ interface GanttTableProps {
   calendar?: ProjectCalendar;
   /** Actividades movidas por la última edición aceptada (E31). */
   changedTaskIds?: (string | number)[];
+  /** Observaciones del proyecto: viajan en el CSV del cronograma (M31). */
+  observations?: Observation[];
   onInvalidEdit?: (reason: string) => void;
   /**
    * Restablecer columnas borra la configuración del usuario, así que el padre
@@ -250,6 +257,7 @@ export default function GanttTable({
   onUpdateTask,
   calendar,
   changedTaskIds,
+  observations,
   onInvalidEdit,
   onResetColumns,
   budgetMappings,
@@ -636,6 +644,10 @@ export default function GanttTable({
     setBulkProgressOpen(false);
   }, [bulkProgressValue, canBulkEditProgress, onUpdateTask, selectedTasks]);
 
+  const csvText = useMemo(
+    () => tasksToCsv(visibleTasks, observations ?? []),
+    [visibleTasks, observations],
+  );
   const exportText = useMemo(
     () => tasksToExcelTsv(visibleTasks),
     [visibleTasks],
@@ -651,7 +663,10 @@ export default function GanttTable({
   }, [exportText]);
 
   const handleDownloadExport = useCallback(() => {
-    const blob = new Blob([exportText], { type: "text/tab-separated-values;charset=utf-8" });
+    // La marca de orden de bytes hace que Excel abra el CSV con las tildes bien.
+    const blob = new Blob([`\ufeff${csvText}`], {
+      type: "text/csv;charset=utf-8",
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -659,7 +674,7 @@ export default function GanttTable({
     link.click();
     URL.revokeObjectURL(url);
     setExportStatus("downloaded");
-  }, [exportText]);
+  }, [csvText]);
 
   const handleRowDragStart = useCallback(
     (taskId: string | number, event: React.DragEvent<HTMLTableRowElement>) => {
@@ -947,8 +962,16 @@ export default function GanttTable({
         <button
           type="button"
           data-testid="excel-copy-export"
-          title={effectiveLocale === "en" ? "Copy visible schedule for Excel" : "Copiar cronograma visible para Excel"}
-          aria-label={effectiveLocale === "en" ? "Copy visible schedule for Excel" : "Copiar cronograma visible para Excel"}
+          title={
+            effectiveLocale === "en"
+              ? "Copy the visible schedule to paste into Excel"
+              : "Copiar el cronograma visible para pegar en Excel"
+          }
+          aria-label={
+            effectiveLocale === "en"
+              ? "Copy the visible schedule to paste into Excel"
+              : "Copiar el cronograma visible para pegar en Excel"
+          }
           disabled={visibleTasks.length === 0}
           className="gantt-table-toolbar__icon-button"
           onClick={() => void handleCopyExport()}
@@ -958,8 +981,16 @@ export default function GanttTable({
         <button
           type="button"
           data-testid="excel-download-export"
-          title={effectiveLocale === "en" ? "Download visible schedule as TSV" : "Descargar cronograma visible como TSV"}
-          aria-label={effectiveLocale === "en" ? "Download visible schedule as TSV" : "Descargar cronograma visible como TSV"}
+          title={
+            effectiveLocale === "en"
+              ? "Download the visible schedule as CSV"
+              : "Descargar el cronograma visible en CSV"
+          }
+          aria-label={
+            effectiveLocale === "en"
+              ? "Download the visible schedule as CSV"
+              : "Descargar el cronograma visible en CSV"
+          }
           disabled={visibleTasks.length === 0}
           className="gantt-table-toolbar__icon-button"
           onClick={handleDownloadExport}

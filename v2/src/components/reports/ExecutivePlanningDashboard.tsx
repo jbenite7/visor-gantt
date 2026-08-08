@@ -103,7 +103,7 @@ export default function ExecutivePlanningDashboard({
             title="Copiar reporte ejecutivo para Excel"
           >
             <ClipboardCopy size={14} aria-hidden />
-            Copiar Excel
+            Copiar para Excel
           </button>
           <button
             type="button"
@@ -120,10 +120,10 @@ export default function ExecutivePlanningDashboard({
             data-testid="executive-report-print"
             className="apple-button-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
             onClick={handlePrint}
-            title="Imprimir o guardar como PDF"
+            title="Abre el diálogo de impresión del navegador, desde donde puedes guardar en PDF"
           >
             <FileText size={14} aria-hidden />
-            PDF
+            Imprimir o PDF
           </button>
           {exportStatus !== "idle" && (
             <span
