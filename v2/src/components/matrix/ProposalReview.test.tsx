@@ -3,7 +3,7 @@
  */
 
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import ProposalReview from "./ProposalReview";
 import type { MatrixProposal } from "@/lib/matrix/matrixProposal";
 
@@ -130,6 +130,63 @@ describe("ProposalReview", () => {
       "no repite ninguna actividad",
     );
     expect(screen.getByRole("button", { name: "Crear la matriz" })).toBeDisabled();
+  });
+
+  test("una ubicación y un alcance con el mismo id no comparten casilla", () => {
+    const onAccept = jest.fn();
+    const proposal: MatrixProposal = {
+      ...propuesta(),
+      locations: [
+        {
+          id: "compartido",
+          name: "Piso 1",
+          type: "Piso",
+          order: 1,
+          taskCount: 2,
+          evidence: "«Piso 1» aparece en 2 tareas del cronograma.",
+        },
+      ],
+      scopes: [
+        {
+          id: "compartido",
+          name: "Mampostería",
+          locationIds: ["compartido"],
+          evidence: "«Mampostería» se programa en 1 ubicaciones.",
+        },
+      ],
+      recipes: [],
+    };
+
+    render(<ProposalReview proposal={proposal} onAccept={onAccept} onCancel={jest.fn()} />);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Piso 1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear la matriz" }));
+
+    expect(onAccept).toHaveBeenCalledWith({
+      locationIds: [],
+      scopeIds: ["compartido"],
+      recipeIds: [],
+    });
+  });
+
+  test("desmarcar un alcance deja fuera también su receta", () => {
+    const onAccept = jest.fn();
+    render(
+      <ProposalReview proposal={propuesta()} onAccept={onAccept} onCancel={jest.fn()} />,
+    );
+
+    fireEvent.click(
+      within(screen.getByTestId("proposal-scopes")).getByRole("checkbox", {
+        name: "Mampostería",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Crear la matriz" }));
+
+    expect(onAccept).toHaveBeenCalledWith({
+      locationIds: ["piso-1", "piso-2"],
+      scopeIds: [],
+      recipeIds: [],
+    });
   });
 
   test("cancelar avisa sin construir nada", () => {

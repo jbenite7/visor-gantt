@@ -23,16 +23,21 @@ export default function ProposalReview({
 }: ProposalReviewProps) {
   const [rejected, setRejected] = useState<Set<string>>(new Set());
 
-  const toggle = (id: string) =>
+  type Group = "location" | "scope" | "recipe";
+
+  const key = (group: Group, id: string) => `${group}:${id}`;
+
+  const toggle = (group: Group, id: string) =>
     setRejected((current) => {
       const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const itemKey = key(group, id);
+      if (next.has(itemKey)) next.delete(itemKey);
+      else next.add(itemKey);
       return next;
     });
 
-  const accepted = <T extends { id: string }>(items: T[]) =>
-    items.filter((item) => !rejected.has(item.id)).map((item) => item.id);
+  const accepted = <T extends { id: string }>(group: Group, items: T[]) =>
+    items.filter((item) => !rejected.has(key(group, item.id))).map((item) => item.id);
 
   const isEmpty =
     proposal.locations.length === 0 &&
@@ -40,6 +45,7 @@ export default function ProposalReview({
     proposal.recipes.length === 0;
 
   const renderGroup = (
+    group: Group,
     title: string,
     items: Array<{ id: string; name: string; evidence: string }>,
     testId: string,
@@ -53,8 +59,8 @@ export default function ProposalReview({
               <input
                 type="checkbox"
                 aria-label={item.name}
-                checked={!rejected.has(item.id)}
-                onChange={() => toggle(item.id)}
+                checked={!rejected.has(key(group, item.id))}
+                onChange={() => toggle(group, item.id)}
               />
               <span>
                 {item.name}
@@ -75,9 +81,9 @@ export default function ProposalReview({
         {proposal.summary}
       </p>
 
-      {renderGroup("Ubicaciones", proposal.locations, "proposal-locations")}
-      {renderGroup("Alcances", proposal.scopes, "proposal-scopes")}
-      {renderGroup("Recetas", proposal.recipes, "proposal-recipes")}
+      {renderGroup("location", "Ubicaciones", proposal.locations, "proposal-locations")}
+      {renderGroup("scope", "Alcances", proposal.scopes, "proposal-scopes")}
+      {renderGroup("recipe", "Recetas", proposal.recipes, "proposal-recipes")}
 
       <div className="flex gap-2">
         <button
@@ -85,9 +91,15 @@ export default function ProposalReview({
           disabled={isEmpty}
           onClick={() =>
             onAccept({
-              locationIds: accepted(proposal.locations),
-              scopeIds: accepted(proposal.scopes),
-              recipeIds: accepted(proposal.recipes),
+              locationIds: accepted("location", proposal.locations),
+              scopeIds: accepted("scope", proposal.scopes),
+              recipeIds: proposal.recipes
+                .filter(
+                  (recipe) =>
+                    !rejected.has(key("recipe", recipe.id)) &&
+                    !rejected.has(key("scope", recipe.scopeId)),
+                )
+                .map((recipe) => recipe.id),
             })
           }
         >
