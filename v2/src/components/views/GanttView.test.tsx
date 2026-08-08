@@ -1488,3 +1488,38 @@ describe("aviso al cerrar con cambios pendientes (M33)", () => {
     expect(event.defaultPrevented).toBe(true);
   });
 });
+
+describe("reintentar el guardado es un botón", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("aparece solo cuando falla y vuelve a guardar al pulsarlo", async () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    expect(screen.queryByTestId("save-retry")).not.toBeInTheDocument();
+
+    mockedSaveProject.mockResolvedValueOnce({
+      success: false,
+      error: "sin conexión",
+    });
+
+    // La app ofrece «Guardar ahora» desde la paleta de comandos.
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    fireEvent.click(screen.getByText("Guardar ahora"));
+
+    const retry = await screen.findByTestId("save-retry");
+    expect(retry.tagName).toBe("BUTTON");
+    expect(retry).toHaveTextContent("Reintentar");
+
+    mockedSaveProject.mockClear();
+    mockedSaveProject.mockResolvedValueOnce({ success: true, id: "1" });
+    fireEvent.click(retry);
+
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.queryByTestId("save-retry")).not.toBeInTheDocument(),
+    );
+  });
+});

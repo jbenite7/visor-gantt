@@ -296,7 +296,12 @@ function GanttViewInner({
   );
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
-  const [hasPendingChanges, setHasPendingChanges] = useState(false);
+  /**
+   * Espejo del estado de guardado para el aviso al cerrar. Va en un ref
+   * porque `beforeunload` se registra una sola vez y consulta al dispararse:
+   * marcar estado desde el efecto de autoguardado encadenaría renders.
+   */
+  const saveStatusRef = useRef<SaveStatus>("idle");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [projectId, setProjectId] = useState<string | undefined>(initialProjectId);
   const [projectName] = useState<string>(initialProjectName ?? "Sin título");
@@ -864,12 +869,16 @@ function GanttViewInner({
     });
   }, [assignmentColumnSettings, locale, runUndoable]);
 
+  const updateSaveStatus = useCallback((status: SaveStatus) => {
+    saveStatusRef.current = status;
+    setSaveStatus(status);
+  }, []);
+
   const doSave = useCallback(async () => {
     if (!isDirtyRef.current) return;
 
     isDirtyRef.current = false;
-    setHasPendingChanges(false);
-    setSaveStatus("saving");
+    updateSaveStatus("saving");
 
     try {
       const data: ProjectData = {
@@ -900,20 +909,18 @@ function GanttViewInner({
       const result = await saveProject(data);
       if (result.success) {
         setProjectId(result.id);
-        setSaveStatus("saved");
+        updateSaveStatus("saved");
         setLastSavedAt(new Date());
-        setTimeout(() => setSaveStatus("idle"), 2000);
+        setTimeout(() => updateSaveStatus("idle"), 2000);
       } else {
-        setHasPendingChanges(true);
-        setSaveStatus("error");
-        setTimeout(() => setSaveStatus("idle"), 3000);
+        updateSaveStatus("error");
+        setTimeout(() => updateSaveStatus("idle"), 3000);
       }
     } catch {
-      setHasPendingChanges(true);
-      setSaveStatus("error");
-      setTimeout(() => setSaveStatus("idle"), 3000);
+      updateSaveStatus("error");
+      setTimeout(() => updateSaveStatus("idle"), 3000);
     }
-  }, [projectId, projectName, initialStatusDate, calculatedTasks, calculatedResources, calculatedAssignments, budgetItems, budgetMappings, baselines, calendar, syncedMatrixPlan, mppTaskColumns, mppResourceColumns, mppAssignmentColumns, calculatedMpp.customFieldDefinitions, calculatedMpp.engineVersion, calculatedMpp.calculatedAt, taskColumnSettings, resourceColumnSettings, assignmentColumnSettings, uiSettings, planningAuditEvents, observations]);
+  }, [projectId, projectName, initialStatusDate, calculatedTasks, calculatedResources, calculatedAssignments, budgetItems, budgetMappings, baselines, calendar, syncedMatrixPlan, mppTaskColumns, mppResourceColumns, mppAssignmentColumns, calculatedMpp.customFieldDefinitions, calculatedMpp.engineVersion, calculatedMpp.calculatedAt, taskColumnSettings, resourceColumnSettings, assignmentColumnSettings, uiSettings, planningAuditEvents, observations, updateSaveStatus]);
 
   // Use a ref to avoid the interval effect depending on doSave's reference
   const doSaveRef = useRef(doSave);
@@ -1192,7 +1199,6 @@ function GanttViewInner({
     }
 
     isDirtyRef.current = true;
-    setHasPendingChanges(true);
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
     }
@@ -1240,7 +1246,6 @@ function GanttViewInner({
       autoSaveTimerRef.current = null;
     }
     isDirtyRef.current = true;
-    setHasPendingChanges(true);
     void doSaveRef.current();
   }, [observations]);
 
@@ -1249,9 +1254,13 @@ function GanttViewInner({
    * que sale siempre es un diálogo que nadie lee.
    */
   useEffect(() => {
-    if (!shouldWarnBeforeUnload({ hasPendingChanges, saveStatus })) return;
-
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      const hayQuePerder = shouldWarnBeforeUnload({
+        hasPendingChanges: isDirtyRef.current,
+        saveStatus: saveStatusRef.current,
+      });
+      if (!hayQuePerder) return;
+
       // El navegador no deja personalizar el texto; solo pedir la confirmación.
       event.preventDefault();
       event.returnValue = "";
@@ -1259,7 +1268,7 @@ function GanttViewInner({
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [hasPendingChanges, saveStatus]);
+  }, []);
 
   useEffect(
     () => () => {
@@ -1313,6 +1322,16 @@ function GanttViewInner({
         >
           {saveStatusLabel(saveStatus, lastSavedAt)}
         </span>
+        {saveStatus === "error" && (
+          <button
+            type="button"
+            data-testid="save-retry"
+            onClick={handleManualSave}
+            className="apple-button-secondary inline-flex h-[var(--gantt-topbar-control-height)] shrink-0 items-center rounded-[var(--radius-lg)] px-[var(--gantt-topbar-control-padding-inline)] text-[length:var(--gantt-topbar-font-size)] font-semibold"
+          >
+            Reintentar
+          </button>
+        )}
         <label
           className="apple-button-secondary gantt-role-view inline-flex h-[var(--gantt-topbar-control-height)] shrink-0 items-center gap-[var(--gantt-topbar-gap)] rounded-[var(--radius-lg)] px-[var(--gantt-topbar-control-padding-inline)] text-[length:var(--gantt-topbar-font-size)] font-semibold"
           title={
