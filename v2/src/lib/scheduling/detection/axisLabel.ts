@@ -47,6 +47,19 @@ export function parseAxisLabel(raw: string): AxisLabel | null {
 }
 
 /**
+ * El orden entre familias, declarado a mano.
+ *
+ * No se ordena por el nombre de la familia porque «#» no es un nombre: es un
+ * centinela inventado aquí para los ejes numerados. Ordenarlo como texto
+ * dejaría el resultado a merced de un carácter elegido al azar.
+ */
+function familyRank(family: string): number {
+  if (family === "") return 0; // las letras sueltas: la rejilla principal
+  if (family === "#") return 2; // los ejes numerados, al final
+  return 1; // las series con prefijo («DB»), en medio
+}
+
+/**
  * Ordena por familia y luego por índice.
  *
  * Comparar «A» con «03» no significa nada, y esto no finge que sí: agrupa por
@@ -54,6 +67,11 @@ export function parseAxisLabel(raw: string): AxisLabel | null {
  * geometría real de la obra.
  */
 export function compareAxisLabels(a: AxisLabel, b: AxisLabel): number {
-  if (a.family !== b.family) return a.family < b.family ? -1 : 1;
+  if (a.family !== b.family) {
+    const rank = familyRank(a.family) - familyRank(b.family);
+    if (rank !== 0) return rank;
+    // Dos series con prefijo distinto: por nombre, que aquí sí es un nombre.
+    return a.family < b.family ? -1 : 1;
+  }
   return a.index - b.index;
 }
