@@ -113,19 +113,14 @@ export async function POST(request: NextRequest) {
   destination.searchParams.set("dependencias", String(dependencyCount));
   destination.searchParams.set("recursos", String(projectData.resources.length));
 
-  // La importación ligera se queda en las primeras 120 columnas. Decir cuáles
-  // quedaron fuera evita creer que entró todo el archivo (E33).
-  const columnasDescartadas = (parsedProject.availableColumns ?? [])
-    .filter(
-      (nombre) =>
-        !projectData.mppTaskColumns?.some(
-          (columna) =>
-            columna.labelEs === nombre ||
-            columna.labelEn === nombre ||
-            columna.key === nombre ||
-            columna.sourceKey === nombre,
-        ),
-    )
+  // La importación ligera se queda en las primeras 120 columnas del archivo.
+  // Solo son «descartadas» las que caen por ese tope: los campos propios del
+  // cronograma (nombre, inicio, fin…) entran siempre, aunque no figuren en la
+  // lista de columnas MPP (E33).
+  const columnasOfrecidas = parsedProject.mppTaskColumns ?? [];
+  const columnasDescartadas = columnasOfrecidas
+    .slice(projectData.mppTaskColumns?.length ?? columnasOfrecidas.length)
+    .map((columna) => columna.labelEs || columna.labelEn || columna.key)
     .slice(0, 40);
   if (columnasDescartadas.length > 0) {
     destination.searchParams.set("descartadas", columnasDescartadas.join(","));

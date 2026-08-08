@@ -14,5 +14,9 @@ test("muestra el formulario de acceso en español", async ({ page }) => {
   await expect(page.getByLabel("Correo")).toBeVisible();
   await expect(page.getByLabel("Contraseña")).toBeVisible();
   await expect(page.getByRole("button", { name: "Entrar" })).toBeVisible();
-  await expect(page.getByText("Microsoft 365 no está configurado")).toBeVisible();
+  // El copy lo reescribió E45: se avisa de que no está disponible todavía,
+  // sin hablar de configuración de servidor.
+  await expect(
+    page.getByText("Entrar con Microsoft 365 no está disponible todavía"),
+  ).toBeVisible();
 });

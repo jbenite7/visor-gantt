@@ -55,20 +55,50 @@ type ProjectModule = {
   id: string;
   label: string;
   testId: string;
+  /**
+   * Cómo se llega hoy. El recorte C1 sacó tres vistas del menú sin quitarlas
+   * del producto: se alcanzan por la paleta de comandos o por la vista rol.
+   */
+  access?: "sidebar" | "palette" | "rolePreset";
+  /** Comando de la paleta, cuando `access` es "palette". */
+  command?: string;
 };
 
 const PROJECT_MODULES: ProjectModule[] = [
   { id: "gantt", label: "Gantt", testId: "gantt-view" },
   { id: "executive", label: "Ejecutivo", testId: "executive-planning-dashboard" },
-  { id: "tracking", label: "Seguimiento", testId: "tracking-gantt-view" },
-  { id: "taskSheet", label: "Hoja Tareas", testId: "task-sheet-view" },
-  { id: "network", label: "Diagrama Red", testId: "network-diagram-view" },
+  {
+    id: "tracking",
+    label: "Seguimiento",
+    testId: "tracking-gantt-view",
+    access: "rolePreset",
+  },
+  {
+    id: "taskSheet",
+    label: "Hoja Tareas",
+    testId: "task-sheet-view",
+    access: "palette",
+    command: "Hoja de Tareas",
+  },
+  {
+    id: "network",
+    label: "Diagrama Red",
+    testId: "network-diagram-view",
+    access: "palette",
+    command: "Diagrama de Red",
+  },
   { id: "resources", label: "Recursos", testId: "resource-sheet-view" },
   { id: "lob", label: "Línea Balance", testId: "line-of-balance" },
   { id: "matrix", label: "Matriz", testId: "matrix-editor" },
   { id: "scurve", label: "Curva S", testId: "s-curve-view" },
   { id: "bottlenecks", label: "Cuellos", testId: "bottlenecks-view" },
-  { id: "conflictos", label: "Conflictos", testId: "conflicts-view" },
+  {
+    id: "conflictos",
+    label: "Conflictos",
+    testId: "conflicts-view",
+    access: "palette",
+    command: "Conflictos",
+  },
   { id: "unidadTipica", label: "Unidad Típica", testId: "typical-unit-view" },
   { id: "calendario", label: "Calendario", testId: "calendar-view" },
   { id: "settings", label: "Configuración", testId: "calendar-settings-view" },
@@ -213,11 +243,23 @@ async function validateProjectModule(
   logger: EvidenceLogger,
 ) {
   await expect(page.getByTestId("view-sidebar")).toBeVisible({ timeout: 30_000 });
-  await page.getByTestId(`sidebar-view-${projectModule.id}`).click();
-  await expect(page.getByTestId(`sidebar-view-${projectModule.id}`)).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+
+  if (projectModule.access === "rolePreset") {
+    await page
+      .getByTestId("role-view-preset-select")
+      .selectOption(projectModule.id);
+  } else if (projectModule.access === "palette") {
+    await page.getByTestId("command-palette-open").click();
+    await page
+      .getByTestId("command-palette-input")
+      .fill(projectModule.command ?? projectModule.label);
+    await page.keyboard.press("Enter");
+  } else {
+    await page.getByTestId(`sidebar-view-${projectModule.id}`).click();
+    await expect(
+      page.getByTestId(`sidebar-view-${projectModule.id}`),
+    ).toHaveAttribute("aria-selected", "true");
+  }
   await expect(page.getByTestId(projectModule.testId)).toBeVisible({ timeout: 30_000 });
   await exerciseProjectModuleTools(page, projectModule);
   await expect(page.locator("body")).not.toContainText(/application error|runtime error/i);
