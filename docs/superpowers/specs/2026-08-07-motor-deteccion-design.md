@@ -221,7 +221,7 @@ estación de metro), habla otro idioma. Contado sobre sus **300 tareas / 104 nom
 | `Piso` | 15 |
 | `Edificio` | 7 |
 | `Torre` | 5 — **y las cinco son «torregrúa»**, la máquina |
-| `Nivel` | 4 |
+| `Nivel` | 4 — **pero ninguna es ubicación**: son «nivelación hasta nivel superior» |
 | `Sótano`, `Cubierta`, abscisa | 0 |
 
 Sus tareas se llaman `Módulo 1.1 (Ejes A-D)`, `Edificio 1 (Sur)`, `Construcción Losa Aérea (Eje D-H)`,
@@ -241,7 +241,11 @@ Qué significa exactamente, sin exagerar en ninguna dirección:
   tareas de transición entre dos niveles, con el eje dentro. El extractor devuelve el primer número y
   descarta el resto en silencio.
 
-**No se amplía el alcance aquí.** Nada de esto está en las 103 decisiones del grilleo, y añadir a ciegas una
+**Resuelto el 2026-08-08.** El usuario confirmó que la obra lineal es una línea real de trabajo, así que
+esto dejó de ser un límite y pasó a ser un proyecto: **P3b**, con su goal, su spec y su plan
+(`goals/obra-lineal/goal.md`). Este apartado se conserva porque es la medición que lo justificó.
+
+**No se amplió el alcance aquí.** Nada de esto está en las 103 decisiones del grilleo, y añadir a ciegas una
 segunda gramática —módulo, edificio, eje, abscisa— sería inventar requisitos. Lo que sí se hace es dejarlo
 escrito: quien ejecute este plan debe saber que «el motor funciona» significa **«funciona en obra
 vertical»**, y el usuario puede decidir después si quiere una segunda familia de patrones para
