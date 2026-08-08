@@ -20,6 +20,7 @@ export interface DetectionProvider {
     task: GanttTask,
     tasks: GanttTask[],
     dictionary?: DetectionDictionary,
+    nameByWbs?: Map<string, string>,
   ): TaskLocationResult;
   systemOf(input: {
     name: string;
@@ -31,8 +32,8 @@ export interface DetectionProvider {
 
 export const localDetectionProvider: DetectionProvider = {
   id: "local",
-  locationOf: (task, tasks, dictionary) =>
-    resolveTaskLocation(task, tasks, dictionary),
+  locationOf: (task, tasks, dictionary, nameByWbs) =>
+    resolveTaskLocation(task, tasks, dictionary, nameByWbs),
   systemOf: (input) => resolveSystem(input),
 };
 

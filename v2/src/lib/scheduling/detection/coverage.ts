@@ -1,6 +1,7 @@
 import type { GanttTask } from "@/components/gantt/types";
 import type { DetectionDictionary } from "./dictionary";
 import { getDetectionProvider } from "./provider";
+import { buildWbsNameMap } from "@/lib/scheduling/unitPatterns";
 import type { TaskLocationScope } from "./taskLocation";
 
 /**
@@ -30,9 +31,11 @@ export function summarizeDetection(
   const provider = getDetectionProvider();
   const byScope: Record<TaskLocationScope, number> = { ...EMPTY_BY_SCOPE };
   let withLocation = 0;
+  // Una sola vez para todo el cronograma: antes se reconstruía por tarea.
+  const nameByWbs = buildWbsNameMap(tasks);
 
   for (const task of tasks) {
-    const result = provider.locationOf(task, tasks, dictionary);
+    const result = provider.locationOf(task, tasks, dictionary, nameByWbs);
     byScope[result.scope] += 1;
     if (result.location) withLocation += 1;
   }

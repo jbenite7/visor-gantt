@@ -1,6 +1,6 @@
 import type { GanttTask } from "@/components/gantt/types";
 import { classifyActivityFamily, type ActivityFamilyResult } from "./activityFamily";
-import { buildWbsBreadcrumb, UNIT_PATTERNS } from "./unitPatterns";
+import { buildWbsBreadcrumb, buildWbsNameMap, UNIT_PATTERNS } from "./unitPatterns";
 import { resolveTaskLocation } from "./detection/taskLocation";
 import { formatLocationLabel } from "./detection/location";
 
@@ -51,8 +51,9 @@ function durationDays(task: GanttTask): number {
 function extractLevel(
   task: GanttTask,
   tasks: GanttTask[],
+  nameByWbs: Map<string, string>,
 ): { level: string; levelValue: number } | null {
-  const resolved = resolveTaskLocation(task, tasks);
+  const resolved = resolveTaskLocation(task, tasks, undefined, nameByWbs);
   if (resolved.location) {
     return {
       level: formatLocationLabel(resolved.location),
@@ -86,10 +87,14 @@ export function analyzeTypicalUnits(tasks: GanttTask[]): TypicalUnitAnalysis {
     taskById.set(task.id, task);
   }
 
+  // El índice de nombres por WBS se construye una sola vez: se consulta una
+  // vez por tarea y reconstruirlo cada vez volvía cuadrático el análisis.
+  const nameByWbs = buildWbsNameMap(tasks);
+
   const activities = tasks
     .filter((task) => !task.isSummary && !task.isMilestone)
     .map((task): TypicalUnitActivity | null => {
-      const level = extractLevel(task, tasks);
+      const level = extractLevel(task, tasks, nameByWbs);
       if (!level) return null;
       const days = durationDays(task);
       return {
@@ -134,7 +139,7 @@ export function analyzeTypicalUnits(tasks: GanttTask[]): TypicalUnitAnalysis {
           dependencies: [],
         },
         representativeTask
-          ? { breadcrumb: buildWbsBreadcrumb(representativeTask.wbs, tasks) }
+          ? { breadcrumb: buildWbsBreadcrumb(representativeTask.wbs, tasks, nameByWbs) }
           : undefined,
       );
       return {

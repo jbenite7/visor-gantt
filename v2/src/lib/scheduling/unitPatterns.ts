@@ -38,20 +38,37 @@ export function extractUnitLabel(text: string): UnitMatch | null {
  * Moved here from `lob.ts` so it can be reused by `typicalUnit.ts`
  * without duplicating the implementation.
  */
-export function buildWbsBreadcrumb(wbs: string | undefined, tasks: GanttTask[]): string[] {
+export function buildWbsBreadcrumb(
+  wbs: string | undefined,
+  tasks: GanttTask[],
+  nameByWbs?: Map<string, string>,
+): string[] {
   const parts = wbs?.split(".").map((part) => part.trim()).filter(Boolean) ?? [];
   if (parts.length <= 1) return [];
 
-  const nameByWbs = new Map<string, string>();
-  for (const task of tasks) {
-    if (task.wbs) nameByWbs.set(task.wbs, task.name);
-  }
+  const names = nameByWbs ?? buildWbsNameMap(tasks);
 
   const breadcrumb: string[] = [];
   for (let depth = 1; depth < parts.length; depth += 1) {
     const ancestorWbs = parts.slice(0, depth).join(".");
-    const name = nameByWbs.get(ancestorWbs);
+    const name = names.get(ancestorWbs);
     if (name) breadcrumb.push(name);
   }
   return breadcrumb;
+}
+
+/**
+ * Índice de nombre por código WBS.
+ *
+ * Se saca aparte porque `buildWbsBreadcrumb` se llama **una vez por tarea**
+ * desde Unidad Típica y desde la cobertura: reconstruir el mapa en cada
+ * llamada convertía el análisis en cuadrático (medido: ~1 s con 4000 tareas).
+ * Quien recorre todas las tareas lo construye una sola vez y lo pasa.
+ */
+export function buildWbsNameMap(tasks: GanttTask[]): Map<string, string> {
+  const nameByWbs = new Map<string, string>();
+  for (const task of tasks) {
+    if (task.wbs) nameByWbs.set(task.wbs, task.name);
+  }
+  return nameByWbs;
 }

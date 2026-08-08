@@ -37,6 +37,11 @@ export const MEZZANINE_LOCATION_VALUE = 0.5;
 const numeric = (match: RegExpMatchArray): number => Number(match[1]);
 const letterToNumber = (match: RegExpMatchArray): number =>
   match[1].toUpperCase().charCodeAt(0) - "A".charCodeAt(0) + 1;
+/**
+ * Número de un texto que puede llevar letra pegada: «302A» es el
+ * apartamento 302 de la nomenclatura, no otro número.
+ */
+const leadingNumber = (match: RegExpMatchArray): number => Number.parseInt(match[1], 10);
 
 /**
  * Patrones en orden de prioridad: gana el primero que acierta.
@@ -69,6 +74,11 @@ export const LOCATION_PATTERNS: LocationPattern[] = [
     valueOf: numeric,
   },
   {
+    label: "Etapa",
+    regex: /\b(?:ETAPA|FASE)\s*[-#:]?\s*([A-Z])\b/i,
+    valueOf: letterToNumber,
+  },
+  {
     label: "Sótano",
     regex: /\bS[OÓ]TANO\s*[-#:]?\s*(\d+)\b/i,
     valueOf: (match) => -Number(match[1]),
@@ -86,11 +96,18 @@ export const LOCATION_PATTERNS: LocationPattern[] = [
     valueOf: letterToNumber,
   },
   { label: "Zona", regex: /\bZONA\s*[-#:]?\s*(\d+)\b/i, valueOf: numeric },
+  { label: "Zona", regex: /\bZONA\s*[-#:]?\s*([A-Z])\b/i, valueOf: letterToNumber },
   { label: "Sector", regex: /\bSECTOR\s*[-#:]?\s*(\d+)\b/i, valueOf: numeric },
+  { label: "Sector", regex: /\bSECTOR\s*[-#:]?\s*([A-Z])\b/i, valueOf: letterToNumber },
   {
     label: "Tramo",
     regex: /\b(?:TRAMO|FRENTE)\s*[-#:]?\s*(\d+)\b/i,
     valueOf: numeric,
+  },
+  {
+    label: "Tramo",
+    regex: /\b(?:TRAMO|FRENTE)\s*[-#:]?\s*([A-Z])\b/i,
+    valueOf: letterToNumber,
   },
   {
     label: "Lote",
@@ -98,11 +115,20 @@ export const LOCATION_PATTERNS: LocationPattern[] = [
     valueOf: numeric,
   },
   {
+    label: "Lote",
+    regex: /\b(?:LOTE|MANZANA)\s*[-#:]?\s*([A-Z])\b/i,
+    valueOf: letterToNumber,
+  },
+  {
     label: "Apartamento",
-    regex: /\b(?:APARTAMENTO|APTO|UNIDAD)\s*[-#:]?\s*(\d+)\b/i,
-    valueOf: numeric,
+    // El sufijo de letra es nomenclatura de obra: el «302A» y el «302B» son
+    // dos apartamentos del piso 3. Se guarda entero en `raw` y se ordena por
+    // la parte numérica.
+    regex: /\b(?:APARTAMENTO|APTO|UNIDAD)\s*[-#:]?\s*(\d+[A-Z]?)\b/i,
+    valueOf: leadingNumber,
   },
   { label: "Zona", regex: /\b[AÁ]REA\s*[A-Z]-(\d+)\b/i, valueOf: numeric },
+  { label: "Zona", regex: /\b[AÁ]REA\s*[-#:]?\s*(\d+)\b/i, valueOf: numeric },
   {
     label: "Piso",
     regex: /\b(MEZ+ANINE)\b/i,

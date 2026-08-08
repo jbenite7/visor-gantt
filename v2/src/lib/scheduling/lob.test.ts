@@ -666,42 +666,62 @@ describe("generateAutomaticLOBFromTasks", () => {
   });
 });
 
-import { generateLOBFromTasks } from "./lob";
-import { extractLocation } from "./detection/location";
-
 describe("Línea de Balance · ubicación con el motor nuevo", () => {
-  test("un sótano da un índice negativo, para que la línea baje", () => {
-    expect(extractLocation("COLUMNAS SÓTANO 2")?.value).toBe(-2);
+  const hoja = (
+    id: number,
+    name: string,
+    wbs: string,
+    start: string,
+    finish: string,
+  ): GanttTask => ({
+    id,
+    name,
+    wbs,
+    start: new Date(start),
+    finish: new Date(finish),
+    duration: 5,
+    progress: 0,
+    isCritical: false,
+    isMilestone: false,
+    isSummary: false,
+    outlineLevel: 3,
+    dependencies: [],
   });
 
-  test("las actividades de sótano ya no quedan fuera del análisis", () => {
-    const { mappings } = generateLOBFromTasks(
-      [
-        {
-          id: 1,
-          name: "MAMPOSTERÍA SÓTANO 1",
-          start: new Date("2026-01-05T08:00:00"),
-          finish: new Date("2026-01-09T17:00:00"),
-          duration: 5,
-          progress: 0,
-          isCritical: false,
-          isMilestone: false,
-          isSummary: false,
-          outlineLevel: 1,
-          dependencies: [],
-          wbs: "1.1",
-        },
-      ],
-      [{ activityName: "Mampostería", taskIds: [1], unitLabel: "Sótano" }],
-    );
-
-    expect(mappings).toHaveLength(1);
-    expect(mappings[0].unitLabel).toBe("Sótano");
+  const resumen = (id: number, name: string, wbs: string): GanttTask => ({
+    ...hoja(id, name, wbs, "2026-01-05", "2026-01-09"),
+    isSummary: true,
+    outlineLevel: 2,
   });
 
-  test("el índice de la unidad respeta el orden físico, no el texto", () => {
-    const nombres = ["MAMPOSTERÍA SÓTANO 2", "MAMPOSTERÍA PISO 1", "MAMPOSTERÍA CUBIERTA"];
-    const indices = nombres.map((name) => extractLocation(name)!.value);
-    expect(indices).toEqual([-2, 1, 900]);
+  it("los sótanos entran en el análisis y se dibujan por debajo del piso 1", () => {
+    const result = generateAutomaticLOBFromTasks([
+      hoja(1, "Mampostería Sótano 2", "1.1", "2026-01-05", "2026-01-09"),
+      hoja(2, "Mampostería Sótano 1", "1.2", "2026-01-12", "2026-01-16"),
+      hoja(3, "Mampostería Piso 1", "1.3", "2026-01-19", "2026-01-23"),
+      hoja(4, "Mampostería Cubierta", "1.4", "2026-01-26", "2026-01-30"),
+    ]);
+
+    expect(result.activities).toHaveLength(1);
+    // De abajo arriba: sótano 2, sótano 1, piso 1, cubierta.
+    expect(result.activities[0].taskIds).toEqual([1, 2, 3, 4]);
+    expect(result.units.map((unit) => unit.unitIndex)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("una hoja sin ubicación en su nombre hereda la del padre «SÓTANO n»", () => {
+    // Es el caso de la mampostería y el aseo del archivo real: la hoja se
+    // llama solo «MURO EN LADRILLO» y el piso lo pone la tarea padre.
+    const result = generateAutomaticLOBFromTasks([
+      resumen(1, "DA PORTO TORRE 3", "1"),
+      resumen(2, "SÓTANO 2", "1.1"),
+      resumen(3, "SÓTANO 1", "1.2"),
+      hoja(4, "MURO EN LADRILLO", "1.1.1", "2026-01-05", "2026-01-09"),
+      hoja(5, "MURO EN LADRILLO", "1.2.1", "2026-01-12", "2026-01-16"),
+    ]);
+
+    const muro = result.activities.find((activity) => activity.name === "Muro En Ladrillo");
+    expect(muro).toBeDefined();
+    expect(muro?.taskIds).toEqual([4, 5]);
+    expect(muro?.unitLabel).toBe("Sótano");
   });
 });

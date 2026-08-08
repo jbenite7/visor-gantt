@@ -9,8 +9,9 @@ import type { LOBActivity, LOBUnit } from "@/types/lob";
 import type { GanttTask } from "@/components/gantt/types";
 import type { MatrixPlan } from "@/types/matrix";
 import { classifyActivityFamily, type ActivityFamilyResult } from "./activityFamily";
-import { UNIT_PATTERNS, buildWbsBreadcrumb } from "./unitPatterns";
-import { extractLocation, formatLocationLabel } from "./detection/location";
+import { UNIT_PATTERNS, buildWbsBreadcrumb, buildWbsNameMap } from "./unitPatterns";
+import { formatLocationLabel } from "./detection/location";
+import { resolveTaskLocation } from "./detection/taskLocation";
 
 // ── Layout types ──────────────────────────────────────────────────
 
@@ -450,12 +451,29 @@ function normalizeText(value: string): string {
  * Línea de Balance los dibuja por debajo del piso 1 en vez de después del
  * piso 12, que es lo que hacía cuando el índice salía del texto.
  */
-function detectUnit(name: string): { label: string; key: string; index: number } | null {
-  const location = extractLocation(name);
-  if (!location) return null;
+function describeUnit(
+  location: { label: string; raw: string; value: number },
+): { label: string; key: string; index: number } {
   // La clave debe distinguir «Sótano 1» de «Piso 1»: los dos dan el texto
   // crudo «1», y con él uno de los dos desaparecía del análisis.
   return { label: location.label, key: formatLocationLabel(location), index: location.value };
+}
+
+/**
+ * Ubicación de una tarea para la Línea de Balance, con el motor completo.
+ *
+ * Antes solo se miraba «wbs + nombre», así que un «MURO EN LADRILLO» que
+ * cuelga de un padre «SÓTANO 2» estaba ubicado en Unidad Típica y en la
+ * cobertura, y no existía para la Línea de Balance. Los dos módulos
+ * respondían distinto a la misma tarea.
+ */
+function detectTaskUnit(
+  task: GanttTask,
+  tasks: GanttTask[],
+  nameByWbs: Map<string, string>,
+): { label: string; key: string; index: number } | null {
+  const { location } = resolveTaskLocation(task, tasks, undefined, nameByWbs);
+  return location ? describeUnit(location) : null;
 }
 
 function normalizeActivityName(name: string): string {
@@ -549,9 +567,11 @@ function generateTextLOBFromTasks(
   tasks: GanttTask[],
   matrixPlan?: MatrixPlan,
 ): AutomaticLOBResult {
+  // Una sola vez para todo el cronograma: la herencia lo consulta por tarea.
+  const nameByWbs = buildWbsNameMap(tasks);
   const candidates = tasks
     .filter((task) => !task.isSummary && !task.isMilestone)
-    .map((task) => ({ task, unit: detectUnit(`${task.wbs ?? ""} ${task.name}`) }))
+    .map((task) => ({ task, unit: detectTaskUnit(task, tasks, nameByWbs) }))
     .filter((entry): entry is { task: GanttTask; unit: { label: string; key: string; index: number } } => entry.unit !== null);
 
   const activityGroups = new Map<string, Array<typeof candidates[number]>>();

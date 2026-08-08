@@ -1,5 +1,6 @@
 import { resolveTaskLocation } from "./taskLocation";
 import { EMPTY_DETECTION_DICTIONARY, rememberCorrection } from "./dictionary";
+import { buildWbsNameMap } from "@/lib/scheduling/unitPatterns";
 import type { GanttTask } from "@/components/gantt/types";
 
 function task(overrides: Partial<GanttTask> & { id: string | number }): GanttTask {
@@ -59,6 +60,45 @@ describe("resolveTaskLocation", () => {
     expect(result.location).toBeNull();
     expect(result.scope).toBe("obraGeneral");
     expect(result.evidence).toContain("obra general");
+  });
+
+  test("el nombre del proyecto no ubica toda la obra", () => {
+    const proyecto = task({ id: 1, name: "DA PORTO TORRE 3", wbs: "1", isSummary: true });
+    const urbanismo = task({ id: 2, name: "URBANISMO", wbs: "1.5", isSummary: true });
+    const hoja = task({ id: 3, name: "VÍAS INTERNAS", wbs: "1.5.1" });
+
+    const result = resolveTaskLocation(hoja, [proyecto, urbanismo, hoja]);
+
+    expect(result.location).toBeNull();
+    expect(result.scope).toBe("obraGeneral");
+  });
+
+  test("pero un padre intermedio sí ubica", () => {
+    const proyecto = task({ id: 1, name: "DA PORTO TORRE 3", wbs: "1", isSummary: true });
+    const mamposteria = task({ id: 2, name: "MAMPOSTERÍA", wbs: "1.3", isSummary: true });
+    const sotano = task({ id: 3, name: "SOTANO 2", wbs: "1.3.4", isSummary: true });
+    const hoja = task({ id: 4, name: "MURO EN LADRILLO", wbs: "1.3.4.1" });
+
+    const result = resolveTaskLocation(hoja, [proyecto, mamposteria, sotano, hoja]);
+
+    expect(result.location?.value).toBe(-2);
+    expect(result.scope).toBe("heredada");
+  });
+
+  test("el mapa precomputado no cambia el resultado, solo el trabajo repetido", () => {
+    const proyecto = task({ id: 1, name: "DA PORTO TORRE 3", wbs: "1", isSummary: true });
+    const mamposteria = task({ id: 2, name: "MAMPOSTERÍA", wbs: "1.3", isSummary: true });
+    const sotano = task({ id: 3, name: "SOTANO 2", wbs: "1.3.4", isSummary: true });
+    const hoja = task({ id: 4, name: "MURO EN LADRILLO", wbs: "1.3.4.1" });
+    const vias = task({ id: 5, name: "VÍAS INTERNAS", wbs: "1.5.1" });
+    const tareas = [proyecto, mamposteria, sotano, hoja, vias];
+    const nameByWbs = buildWbsNameMap(tareas);
+
+    for (const tarea of tareas) {
+      expect(resolveTaskLocation(tarea, tareas, undefined, nameByWbs)).toEqual(
+        resolveTaskLocation(tarea, tareas),
+      );
+    }
   });
 
   test("una corrección guardada gana a todo lo demás", () => {

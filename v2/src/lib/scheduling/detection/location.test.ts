@@ -172,3 +172,37 @@ describe("extractLocation · el resto del vocabulario de obra", () => {
     expect(new RegExp(sotano.regex.source, "i").test("Pintura Sotano 1")).toBe(true);
   });
 });
+
+describe("unidades nombradas con letra", () => {
+  const extract = (name: string) => extractLocation(name);
+
+  test("las zonas, etapas, sectores, lotes y tramos también se nombran con letra", () => {
+    expect(extract("Excavación Zona A")).toMatchObject({ label: "Zona", raw: "A", value: 1 });
+    expect(extract("Etapa B urbanismo")).toMatchObject({ label: "Etapa", raw: "B", value: 2 });
+    expect(extract("Sector B")).toMatchObject({ label: "Sector", raw: "B", value: 2 });
+    expect(extract("Lote A")).toMatchObject({ label: "Lote", raw: "A", value: 1 });
+    expect(extract("Tramo A")).toMatchObject({ label: "Tramo", raw: "A", value: 1 });
+  });
+
+  test("el área sin guion también ubica", () => {
+    expect(extract("Pintura Área 3")).toMatchObject({ label: "Zona", raw: "3", value: 3 });
+    // La forma con guion, que ya existía, sigue funcionando.
+    expect(extract("Pintura ÁREA X-9")?.value).toBe(9);
+  });
+
+  test("el apartamento admite el sufijo de letra y conserva el texto completo", () => {
+    expect(extract("Acabados Apto 302A")).toMatchObject({
+      label: "Apartamento",
+      raw: "302A",
+      value: 302,
+    });
+    expect(extract("Acabados Apto 302")).toMatchObject({ raw: "302", value: 302 });
+  });
+
+  test("una palabra pegada detrás no es una letra de unidad", () => {
+    // Sin el `\b` final, «ZONA COMÚN» daría «Zona C» y «ZONA VERDE», «Zona V».
+    expect(extract("ZONA COMÚN")).toBeNull();
+    expect(extract("ZONA VERDE")).toBeNull();
+    expect(extract("SECTOR PRIVADO")).toBeNull();
+  });
+});

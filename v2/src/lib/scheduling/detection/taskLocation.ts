@@ -27,6 +27,12 @@ export function resolveTaskLocation(
   task: GanttTask,
   tasks: GanttTask[],
   dictionary?: DetectionDictionary,
+  /**
+   * Índice de nombre por WBS ya construido. Opcional: quien resuelve una sola
+   * tarea no tiene que saber que existe; quien recorre todo el cronograma lo
+   * pasa para no reconstruirlo en cada tarea.
+   */
+  nameByWbs?: Map<string, string>,
 ): TaskLocationResult {
   const correction = lookupCorrection(dictionary, "ubicacion", task.name);
   if (correction) {
@@ -53,8 +59,26 @@ export function resolveTaskLocation(
     };
   }
 
-  const breadcrumb = buildWbsBreadcrumb(task.wbs, tasks);
-  for (let level = breadcrumb.length - 1; level >= 0; level -= 1) {
+  const breadcrumb = buildWbsBreadcrumb(task.wbs, tasks, nameByWbs);
+  // Se hereda de hoja hacia arriba, pero **sin llegar al nivel raíz**: ese
+  // nivel nombra la obra entera, no una ubicación dentro de ella. El archivo
+  // real se llama «DA PORTO TORRE 3», así que heredar de la raíz ubicaba en
+  // «Torre 3» hasta las vías internas y el skate park — una ubicación que
+  // comparten todas las tareas no distingue nada, y además dejaba a Unidad
+  // Típica con un único nivel.
+  //
+  // El tope se mide por la profundidad del WBS, no por la posición en el
+  // breadcrumb: si la tarea raíz no está en el cronograma, el breadcrumb
+  // arranca en un ancestro intermedio —«SOTANO 1»— que sí ubica y que sería
+  // un error descartar.
+  const rootWbs = task.wbs?.split(".").map((part) => part.trim()).filter(Boolean)[0];
+  const rootExists =
+    rootWbs != null &&
+    (nameByWbs
+      ? nameByWbs.has(rootWbs)
+      : tasks.some((candidate) => candidate.wbs === rootWbs));
+  const oldestLevel = rootExists ? 1 : 0;
+  for (let level = breadcrumb.length - 1; level >= oldestLevel; level -= 1) {
     const inherited = extractLocation(breadcrumb[level]);
     if (inherited) {
       return {
