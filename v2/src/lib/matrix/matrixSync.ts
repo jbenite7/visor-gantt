@@ -250,11 +250,25 @@ export function applyMatrixUpdate({
  * La cantidad puede estar en la celda o en el override de la actividad: si
  * solo se mirara `cell.quantity`, una celda con cantidades por actividad
  * —que es lo normal— nunca produciría rendimiento observado.
+ *
+ * Lo que el usuario ya descartó no se reabre. «Mantener lo planificado» tiene
+ * que aguantar: la tarea sigue editada en el Gantt y su duración sigue
+ * difiriendo de la calculada, así que sin esta guarda el mismo rendimiento
+ * reaparecía como pendiente en la siguiente sincronización y el botón no
+ * cumplía lo que promete. Si la obra vuelve a editar la tarea con **otra**
+ * duración, eso sí es una observación nueva y vuelve a preguntarse.
  */
 function updateCellFeedback(
   cell: MatrixCell,
   observedDurationDays: number,
 ): MatrixCell {
+  if (
+    cell.feedback?.status === "dismissed" &&
+    cell.feedback.observedDurationDays === observedDurationDays
+  ) {
+    return cell;
+  }
+
   const quantity =
     cell.quantity ??
     cell.activityOverrides?.find((override) => override.quantity > 0)?.quantity;

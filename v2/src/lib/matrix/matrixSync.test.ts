@@ -121,6 +121,80 @@ describe("matrixSync", () => {
     expect(synced.cells[0].feedback).toBeUndefined();
   });
 
+  test("descartar un rendimiento observado lo mantiene descartado en la siguiente sincronización", () => {
+    const base = planWithQuantity(50);
+    // Lo que deja el panel al pulsar «Mantener lo planificado».
+    const planDescartado: MatrixPlan = {
+      ...base,
+      cells: [
+        {
+          ...base.cells[0],
+          feedback: {
+            source: "gantt",
+            observedDurationDays: 5,
+            suggestedProductivityPerDay: 10,
+            status: "dismissed",
+          },
+        },
+      ],
+    };
+    // La tarea sigue editada en obra y sigue durando lo mismo: nada nuevo que
+    // observar, así que no hay nada que volver a preguntar.
+    const editedTasks = generateScheduleFromMatrix(planDescartado).tasks.map((task) =>
+      task.matrixSource?.activityId === "mamposteria"
+        ? {
+            ...task,
+            duration: 5,
+            matrixSync: {
+              lastEditedAt: "2026-01-02T00:00:00.000Z",
+              lastEditedFrom: "gantt" as const,
+            },
+          }
+        : task,
+    );
+
+    const synced = syncMatrixPlanFromTasks(planDescartado, editedTasks);
+
+    expect(synced.cells[0].feedback?.status).toBe("dismissed");
+  });
+
+  test("si la obra vuelve a editar la tarea con otra duración, el rendimiento se pregunta de nuevo", () => {
+    const base = planWithQuantity(50);
+    const planDescartado: MatrixPlan = {
+      ...base,
+      cells: [
+        {
+          ...base.cells[0],
+          feedback: {
+            source: "gantt",
+            observedDurationDays: 5,
+            suggestedProductivityPerDay: 10,
+            status: "dismissed",
+          },
+        },
+      ],
+    };
+    const editedTasks = generateScheduleFromMatrix(planDescartado).tasks.map((task) =>
+      task.matrixSource?.activityId === "mamposteria"
+        ? {
+            ...task,
+            duration: 8,
+            matrixSync: {
+              lastEditedAt: "2026-01-03T00:00:00.000Z",
+              lastEditedFrom: "gantt" as const,
+            },
+          }
+        : task,
+    );
+
+    const synced = syncMatrixPlanFromTasks(planDescartado, editedTasks);
+
+    expect(synced.cells[0].feedback).toMatchObject({
+      observedDurationDays: 8,
+      status: "pendingApproval",
+    });
+  });
+
   test("syncs newer Gantt edits back to activity-level matrix quantities automatically", () => {
     const plan: MatrixPlan = {
       ...planWithQuantity(50),
