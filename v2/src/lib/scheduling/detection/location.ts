@@ -87,6 +87,20 @@ const leadingNumber = (match: RegExpMatchArray): number => Number.parseInt(match
 export const LOCATION_PATTERNS: LocationPattern[] = [
   {
     label: "Piso",
+    // Una tarea que cruza dos niveles —«Piso 1 a 2»— es un tramo, igual que
+    // un rango de ejes. Va delante del patrón de piso normal porque si no,
+    // aquel cazaría el primer número y se comería el resto sin avisar.
+    regex: /\b(?:PISO|NIVEL|PLANTA)\s*[-#:]?\s*(\d+)\s*(?:-|\bA\b)\s*(\d+)\b/i,
+    valueOf: (match) => Number(match[1]),
+    spanOf: (match) => ({
+      rawFrom: match[1],
+      rawTo: match[2],
+      from: Number(match[1]),
+      to: Number(match[2]),
+    }),
+  },
+  {
+    label: "Piso",
     regex: /\b(?:PISO|NIVEL|PLANTA)\s*[-#:]?\s*(\d+)\b/i,
     valueOf: numeric,
   },

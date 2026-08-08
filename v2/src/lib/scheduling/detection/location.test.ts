@@ -320,3 +320,35 @@ describe("extractLocation · módulo y edificio", () => {
     expect(extractLocation("COLUMNAS SÓTANO 3")?.value).toBe(-3);
   });
 });
+
+describe("extractLocation · tareas que cruzan dos pisos", () => {
+  test("«Piso 1 a 2» es un tramo, no el piso 1 a secas", () => {
+    // Es un caso real del archivo de la Estación 16, y hasta ahora el
+    // extractor devolvía el primer número y descartaba el resto en silencio.
+    expect(extractLocation("Piso 1 a 2 (eje A)")).toMatchObject({
+      label: "Piso",
+      value: 1,
+      span: { rawFrom: "1", rawTo: "2", from: 1, to: 2 },
+    });
+  });
+
+  test("también con guion", () => {
+    expect(extractLocation("Escalera piso 2-3")?.span).toEqual({
+      rawFrom: "2",
+      rawTo: "3",
+      from: 2,
+      to: 3,
+    });
+  });
+
+  test("un piso normal sigue sin tramo", () => {
+    expect(extractLocation("Piso 2 (eje B a D)")?.span).toBeUndefined();
+    expect(extractLocation("LOSA AÉREA PISO 5")?.span).toBeUndefined();
+  });
+
+  test("el orden por value no cambia: un tramo ordena por donde empieza", () => {
+    expect(extractLocation("Piso 1 a 2 (eje A)")!.value).toBeLessThan(
+      extractLocation("LOSA AÉREA PISO 5")!.value,
+    );
+  });
+});
