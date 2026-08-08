@@ -1877,7 +1877,8 @@ git commit -m "feat(matriz): edicion en lote de celdas seleccionadas"
 - Produces:
   - `export function duplicateAreaNode(plan: MatrixPlan, areaId: string, editedAt: string): MatrixPlan`
   - `export function duplicateScopeNode(plan: MatrixPlan, scopeId: string, editedAt: string): MatrixPlan`
-  - `export function createAreaRange(plan: MatrixPlan, input: { pattern: string; from: number; to: number; type?: string; parentId?: string }, editedAt: string): MatrixPlan`
+  - `export function createAreaRange(plan: MatrixPlan, input: { pattern: string; from: number; to: number; type?: string }, editedAt: string): MatrixPlan`
+  - (`parentId` figuraba en una versión anterior de este contrato y se retiró: ningún consumidor lo pasa y el cuerpo de la función nunca lo usó. Las ubicaciones nuevas se crean en la raíz.)
 
 - [ ] **Step 1: Write the failing test**
 
