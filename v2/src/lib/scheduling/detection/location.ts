@@ -23,14 +23,39 @@ export interface LocationPattern {
   valueOf: (match: RegExpMatchArray) => number;
 }
 
+/**
+ * La cubierta va por encima de cualquier piso realista. Es un centinela
+ * elegido aquí, no un dato del proyecto: el extractor solo mira un nombre y
+ * no sabe cuántos pisos tiene la torre. No se usa `Infinity` porque tiene
+ * que poder guardarse como JSON.
+ */
+export const ROOF_LOCATION_VALUE = 900;
+
+/** El mezanine está entre el sótano 1 y el piso 1. Igual que en PDC V2. */
+export const MEZZANINE_LOCATION_VALUE = 0.5;
+
 const numeric = (match: RegExpMatchArray): number => Number(match[1]);
+const letterToNumber = (match: RegExpMatchArray): number =>
+  match[1].toUpperCase().charCodeAt(0) - "A".charCodeAt(0) + 1;
 
 /**
  * Patrones en orden de prioridad: gana el primero que acierta.
  *
- * Todos llevan la bandera `i` aunque `extractLocation` ya normalice a
- * mayúsculas: `lob.ts` los reutiliza tal cual sobre texto ya en minúsculas
- * para limpiar el nombre de la actividad. Sin `i`, ahí no casaría ninguno.
+ * El orden no es decorativo. Las palabras completas van antes que los
+ * códigos de una letra, para que «MAMPOSTERÍA PISO 4 PLANO S2» dé el piso 4
+ * y no el sótano 2. Y los códigos llevan `\b` a los dos lados para no cazar
+ * la «p» de «pintura» ni la «s» de «escalas».
+ *
+ * Dos detalles que parecen redundantes y no lo son, porque estos patrones se
+ * reutilizan fuera de `extractLocation`:
+ *
+ * · **la bandera `i`** — `lob.ts` los aplica sobre texto ya en minúsculas
+ *   para limpiar el nombre de la actividad; sin `i` no casaría ninguno;
+ * · **las tildes como alternativa** (`S[OÓ]TANO`, `[AÁ]REA`) —
+ *   `typicalUnit.ts` los aplica sobre el nombre **sin normalizar**, porque
+ *   necesita conservar las tildes del sistema («mampostería»). Sin la
+ *   alternativa, «Pintura Sótano 1» y «Pintura Piso 1» acabarían en dos
+ *   sistemas distintos.
  */
 export const LOCATION_PATTERNS: LocationPattern[] = [
   {
@@ -45,10 +70,71 @@ export const LOCATION_PATTERNS: LocationPattern[] = [
   },
   {
     label: "Sótano",
-    regex: /\bSOTANO\s*[-#:]?\s*(\d+)\b/i,
+    regex: /\bS[OÓ]TANO\s*[-#:]?\s*(\d+)\b/i,
     valueOf: (match) => -Number(match[1]),
   },
+  {
+    label: "Torre",
+    regex: /\b(?:TORRE|BLOQUE)\s*[-#:]?\s*(\d+)\b/i,
+    valueOf: numeric,
+  },
+  {
+    label: "Torre",
+    // El `\b` del final no es adorno: sin él, «torregrúa» —diez tareas
+    // reales del cronograma de la Estación 16— se leería como «Torre G».
+    regex: /\b(?:TORRE|BLOQUE)\s*[-#:]?\s*([A-Z])\b/i,
+    valueOf: letterToNumber,
+  },
+  { label: "Zona", regex: /\bZONA\s*[-#:]?\s*(\d+)\b/i, valueOf: numeric },
+  { label: "Sector", regex: /\bSECTOR\s*[-#:]?\s*(\d+)\b/i, valueOf: numeric },
+  {
+    label: "Tramo",
+    regex: /\b(?:TRAMO|FRENTE)\s*[-#:]?\s*(\d+)\b/i,
+    valueOf: numeric,
+  },
+  {
+    label: "Lote",
+    regex: /\b(?:LOTE|MANZANA)\s*[-#:]?\s*(\d+)\b/i,
+    valueOf: numeric,
+  },
+  {
+    label: "Apartamento",
+    regex: /\b(?:APARTAMENTO|APTO|UNIDAD)\s*[-#:]?\s*(\d+)\b/i,
+    valueOf: numeric,
+  },
+  { label: "Zona", regex: /\b[AÁ]REA\s*[A-Z]-(\d+)\b/i, valueOf: numeric },
+  {
+    label: "Piso",
+    regex: /\b(MEZ+ANINE)\b/i,
+    valueOf: () => MEZZANINE_LOCATION_VALUE,
+  },
+  {
+    label: "Piso",
+    regex: /\b(CUBIERTA|AZOTEA|TERRAZA)\b/i,
+    valueOf: () => ROOF_LOCATION_VALUE,
+  },
+  { label: "Piso", regex: /\bP(\d{2,})\b/i, valueOf: numeric },
+  { label: "Sótano", regex: /\bS(\d{1,2})\b/i, valueOf: (m) => -Number(m[1]) },
+  { label: "Piso", regex: /\bN-?(\d+)\b/i, valueOf: numeric },
 ];
+
+/**
+ * Cómo se nombra una ubicación en pantalla.
+ *
+ * Existe por dos motivos, y el segundo es de corrección, no de estética:
+ *
+ * · `value` es un número de dominio, y `900` (cubierta) no se puede enseñar
+ *   tal cual: `TypicalUnitView.tsx:110` pinta el nivel literalmente;
+ * · `raw` tampoco vale como identidad: «SÓTANO 3» y «PISO 3» dan los dos
+ *   `"3"`, y Unidad Típica cuenta niveles distintos con un `Set` de esa
+ *   etiqueta. Sin el prefijo, los dos colapsarían en uno y la vista perdería
+ *   un nivel sin decirlo.
+ */
+export function formatLocationLabel(location: LocationMatch): string {
+  if (location.value === ROOF_LOCATION_VALUE) return "Cubierta";
+  if (location.value === MEZZANINE_LOCATION_VALUE) return "Mezanine";
+  return `${location.label} ${location.raw}`;
+}
 
 export function extractLocation(text: string): LocationMatch | null {
   const normalized = normalizeName(text);
