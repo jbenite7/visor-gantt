@@ -459,3 +459,30 @@ describe("MatrixEditorView · selección de varias celdas", () => {
     expect(screen.queryByTestId("matrix-bulk-panel")).not.toBeInTheDocument();
   });
 });
+
+describe("MatrixEditorView · selección y borrados", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("borrar un alcance descarta sus coordenadas de la selección", () => {
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+    const { plan, onApplyMatrixPlan } = renderEditor();
+    const scopeId = plan.scopeTree[0].children![0].id;
+
+    fireEvent.click(screen.getByTestId(`matrix-select-row-${scopeId}`));
+
+    fireEvent.click(screen.getByRole("button", { name: "Alcances" }));
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Estructura" }));
+    fireEvent.click(screen.getByRole("button", { name: "Matriz" }));
+
+    expect(screen.queryByTestId("matrix-bulk-panel")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    const aplicado = onApplyMatrixPlan.mock.calls.at(-1)![0];
+    expect(
+      aplicado.cells.filter((cell: { scopeId: string }) => cell.scopeId === scopeId),
+    ).toHaveLength(0);
+  });
+});

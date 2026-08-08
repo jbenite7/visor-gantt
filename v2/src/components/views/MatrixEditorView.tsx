@@ -295,8 +295,20 @@ export default function MatrixEditorView({
 
   const [selection, setSelection] = useState<CellTarget[]>([]);
 
+  // La selección guarda coordenadas, no celdas, para sobrevivir a las que
+  // crea la edición en lote. Pero un alcance o una ubicación pueden
+  // borrarse: si no filtramos, el lote crearía celdas para coordenadas que
+  // ya no existen, invisibles en la tabla y presentes en el plan.
+  const effectiveSelection = selection.filter(
+    (target) =>
+      scopes.some((scope) => scope.id === target.scopeId) &&
+      areas.some((area) => area.id === target.areaId),
+  );
+
   const isSelected = (scopeId: string, areaId: string) =>
-    selection.some((target) => target.scopeId === scopeId && target.areaId === areaId);
+    effectiveSelection.some(
+      (target) => target.scopeId === scopeId && target.areaId === areaId,
+    );
 
   const toggleSelection = (scopeId: string, areaId: string) =>
     setSelection((current) =>
@@ -316,7 +328,7 @@ export default function MatrixEditorView({
   const applyToSelection = (patch: Parameters<typeof applyBulkCellEdit>[2]) => {
     setDraft((current) =>
       current
-        ? applyBulkCellEdit(current, selection, patch, new Date().toISOString())
+        ? applyBulkCellEdit(current, effectiveSelection, patch, new Date().toISOString())
         : current,
     );
   };
@@ -1022,12 +1034,12 @@ export default function MatrixEditorView({
       ) : (
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] overflow-hidden">
         <div className="min-h-0 overflow-auto">
-        {selection.length > 0 && (
+        {effectiveSelection.length > 0 && (
           <div
             data-testid="matrix-bulk-panel"
             className="apple-section flex flex-wrap items-center gap-2 p-2 text-sm"
           >
-            <span>{`${selection.length} celdas seleccionadas`}</span>
+            <span>{`${effectiveSelection.length} celdas seleccionadas`}</span>
             <button type="button" onClick={() => applyToSelection({ active: true })}>
               Activar las seleccionadas
             </button>
