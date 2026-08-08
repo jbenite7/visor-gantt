@@ -291,3 +291,10 @@ Se anotan porque la spec del grilleo no las resuelve y no se ha inventado una re
    aplicación. No hay decisión del grilleo al respecto. **No se cambia** en este proyecto; queda anotado.
 3. **Umbral del aviso de calendario: 3 días.** Elegido aquí, no por el usuario. Es un valor, no una
    arquitectura: cambiarlo es tocar una constante.
+4. **Cuántas entradas debe tener el menú lateral.** M27 devuelve la Matriz al menú, y el carril A añade
+   Observaciones y Last Planner. El menú se recortó de 14 a 9 en el plan anterior; estas tres decisiones lo
+   dejan en **12**. Cada una es razonable por separado y todas están decididas en el grilleo, pero el total
+   no lo decidió nadie: se está resolviendo por acumulación. **Es una decisión de producto del usuario**,
+   no de este proyecto. La Fase 3 no la toma; lo que hace es contar las entradas antes de añadir la suya y
+   dejar el número dicho, para que la decisión se pueda tomar a conciencia. (Detectado por la sesión «Plan
+   de mejora para app web» revisando el carril A el 2026-08-08.)

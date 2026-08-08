@@ -5934,7 +5934,20 @@ Expected: FAIL — la matriz no está en `VIEW_TABS` y no hay ningún diálogo d
 
 Cuatro cableados, en este orden:
 
-**a) M27 · La matriz en el menú.** En `ViewSidebar.tsx`, añadir la entrada al grupo «Trabajo» del array
+**a) M27 · La matriz en el menú.**
+
+> ⚠️ **Comprobar el recuento del menú antes de añadir la entrada.** El menú se recortó de 14 a 9 vistas en
+> el plan del 2026-08-05, y las decisiones pendientes del supergoal lo devuelven a **12**: la Matriz
+> (esta), la vista de Observaciones (carril A) y Last Planner (carril A). Cada una es razonable por
+> separado; sumadas deshacen medio recorte, y la revisión en frío que dio 6/10 señaló exactamente ese
+> problema («catorce puertas y ninguna señal»).
+>
+> Esta tarea **no decide** el número final: es una decisión de producto del usuario. Lo que sí hace es
+> **no añadir la entrada en silencio**. Antes de tocar `VIEW_TABS`, contar las entradas que haya fusionado
+> el carril A y dejar el número en el mensaje del commit. Si ya hay 11, decirlo en el resumen final en vez
+> de dejar que el menú crezca por acumulación.
+
+En `ViewSidebar.tsx`, añadir la entrada al grupo «Trabajo» del array
 `VIEW_TABS`, con el mismo formato que las demás entradas de ese grupo:
 
 ```tsx
