@@ -109,12 +109,53 @@ describe("proposeMatrixFromTasks · alcances y recetas", () => {
   });
 
   test("la confianza sube con el número de ubicaciones donde se repite", () => {
-    const { recipes } = proposeMatrixFromTasks(cronograma());
+    // Comparar dos propuestas, no solo mirar el rango: un valor constante
+    // también estaría entre 0 y 1 y la prueba no se enteraría.
+    const enCincoPisos = [
+      ...cronograma(),
+      task(20, "Mampostería piso 4", 30, 5),
+      task(21, "Mampostería piso 5", 36, 5),
+    ];
+    const enTres = proposeMatrixFromTasks(cronograma()).recipes.find(
+      (recipe) => recipe.name === "Mampostería",
+    )!;
+    const enCinco = proposeMatrixFromTasks(enCincoPisos).recipes.find(
+      (recipe) => recipe.name === "Mampostería",
+    )!;
 
-    for (const recipe of recipes) {
+    expect(enCinco.confidence).toBeGreaterThan(enTres.confidence);
+    for (const recipe of [enTres, enCinco]) {
       expect(recipe.confidence).toBeGreaterThan(0);
       expect(recipe.confidence).toBeLessThanOrEqual(1);
     }
+  });
+
+  test("la mediana también manda dentro de una misma ubicación", () => {
+    // Piso 1 tiene tres mamposterías: 5, 5 y 40 días. Por mediana el piso
+    // rinde 5 y la receta sale 5; por media rendiría 16,7 y la receta 6.
+    const conParoEnUnPiso = [
+      ...cronograma(),
+      task(30, "Mampostería piso 1", 2, 5),
+      task(31, "Mampostería piso 1", 2, 40),
+    ];
+    const { recipes } = proposeMatrixFromTasks(conParoEnUnPiso);
+    const mamposteria = recipes.find((recipe) => recipe.name === "Mampostería")!;
+
+    expect(mamposteria.activities[0].medianDurationDays).toBe(5);
+  });
+
+  test("agrupa igual aunque la obra se organice por bloques y no por pisos", () => {
+    // El alcance se limpia con los patrones del motor, así que cualquier
+    // palabra que el motor aprenda a ubicar, esta función la quita sola.
+    const porBloques = [
+      task(40, "Mampostería bloque 1", 2, 5),
+      task(41, "Mampostería bloque 2", 8, 5),
+      task(42, "Mampostería bloque 3", 14, 6),
+    ];
+    const proposal = proposeMatrixFromTasks(porBloques);
+
+    expect(proposal.scopes.map((scope) => scope.name)).toEqual(["Mampostería"]);
+    expect(proposal.recipes.map((recipe) => recipe.name)).toEqual(["Mampostería"]);
   });
 });
 
@@ -141,6 +182,26 @@ describe("proposeMatrixFromTasks · honestidad", () => {
     const proposal = proposeMatrixFromTasks(conResumen);
 
     expect(proposal.scopes.map((scope) => scope.name)).not.toContain("ACABADOS");
+  });
+
+  test("la obra general no cuenta como una ubicación más para el mínimo", () => {
+    // Dos pisos y una tarea sin ubicación no son tres ubicaciones: el cajón
+    // de sastre no puede completar el umbral.
+    const dosPisosYGeneral = [
+      task(50, "Enchape piso 1", 2, 4),
+      task(51, "Enchape piso 2", 7, 4),
+      task(52, "Enchape", 12, 4),
+    ];
+    const proposal = proposeMatrixFromTasks(dosPisosYGeneral);
+
+    expect(proposal.recipes).toHaveLength(0);
+  });
+
+  test("nombra la cubierta como cubierta, no como «Piso CUBIERTA»", () => {
+    const conCubierta = [...cronograma(), task(60, "Impermeabilización cubierta", 30, 5)];
+    const { locations } = proposeMatrixFromTasks(conCubierta);
+
+    expect(locations.map((location) => location.name)).toContain("Cubierta");
   });
 
   test("resume lo propuesto en lenguaje de obra", () => {

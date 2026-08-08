@@ -1,5 +1,6 @@
 import type { GanttTask } from "@/components/gantt/types";
-import { resolveTaskLocation } from "@/lib/scheduling/detection";
+import { formatLocationLabel, resolveTaskLocation } from "@/lib/scheduling/detection";
+import { UNIT_PATTERNS } from "@/lib/scheduling/unitPatterns";
 
 /**
  * Propuesta de matriz a partir de un cronograma cargado.
@@ -73,19 +74,23 @@ function median(values: number[]): number {
     : sorted[middle];
 }
 
-/** El nombre de la actividad sin su ubicación: «Mampostería piso 3» → «Mampostería». */
-function scopeNameOf(taskName: string, locationRaw: string | null): string {
-  if (!locationRaw) return taskName.trim();
-  const cleaned = taskName
-    .replace(
-      new RegExp(
-        `\\s*(piso|nivel|planta|sotano|sótano|torre|zona|sector|tramo|etapa)\\s*[-#:]?\\s*${locationRaw}\\b`,
-        "iu",
-      ),
-      "",
-    )
-    .replace(/\s{2,}/g, " ")
-    .trim();
+/**
+ * El nombre de la actividad sin su ubicación: «Mampostería piso 3» → «Mampostería».
+ *
+ * La limpieza **se deriva de los patrones del motor** (`UNIT_PATTERNS`, que
+ * salen de `LOCATION_PATTERNS`), igual que hace `systemName` en
+ * `typicalUnit.ts`. Mantener aquí una segunda lista de palabras de obra ya
+ * había fallado: el motor reconoce «bloque», «apartamento», «lote» o
+ * «manzana», y la lista escrita a mano no, así que «Mampostería bloque 1/2/3»
+ * daba tres alcances distintos y cero recetas. Derivándola, cada palabra que
+ * el motor aprenda la aprende también esta función.
+ */
+function scopeNameOf(taskName: string): string {
+  let stripped = taskName;
+  for (const pattern of UNIT_PATTERNS) {
+    stripped = stripped.replace(new RegExp(pattern.regex.source, "gi"), "");
+  }
+  const cleaned = stripped.replace(/\s{2,}/g, " ").trim();
   return cleaned || taskName.trim();
 }
 
@@ -101,9 +106,12 @@ export function proposeMatrixFromTasks(tasks: GanttTask[]): MatrixProposal {
   for (const task of operational) {
     const resolved = resolveTaskLocation(task, tasks);
     const isGeneral = resolved.location === null;
+    // El nombre lo pone el motor, no esta función: `raw` viene normalizado en
+    // mayúsculas, así que componerlo a mano sacaba «Piso CUBIERTA» y «Piso
+    // MEZANINE». `formatLocationLabel` ya resuelve esos casos.
     const locationName = isGeneral
       ? "Obra general"
-      : `${resolved.location!.label} ${resolved.location!.raw}`;
+      : formatLocationLabel(resolved.location!);
     const locationId = isGeneral ? GENERAL_LOCATION_ID : sanitizeId(locationName);
 
     const existing = locationsById.get(locationId);
@@ -120,7 +128,7 @@ export function proposeMatrixFromTasks(tasks: GanttTask[]): MatrixProposal {
       });
     }
 
-    const scopeName = scopeNameOf(task.name, isGeneral ? null : resolved.location!.raw);
+    const scopeName = scopeNameOf(task.name);
     const scopeId = sanitizeId(scopeName);
     const scope = scopesById.get(scopeId) ?? {
       name: scopeName,
@@ -150,9 +158,17 @@ export function proposeMatrixFromTasks(tasks: GanttTask[]): MatrixProposal {
 
   const recipes: ProposedRecipe[] = [];
   for (const [scopeId, scope] of scopesById) {
-    if (scope.locations.size < MIN_LOCATIONS_FOR_RECIPE) continue;
+    // La obra general es un cajón de sastre, no una ubicación más: dejarla
+    // contar permitía que dos pisos y una tarea suelta alcanzaran el umbral y
+    // se propusiera una receta donde no hay repetición real.
+    const realLocationIds = [...scope.locations].filter(
+      (locationId) => locationId !== GENERAL_LOCATION_ID,
+    );
+    if (realLocationIds.length < MIN_LOCATIONS_FOR_RECIPE) continue;
 
-    const perLocation = [...scope.durations.values()].map((values) => median(values));
+    const perLocation = realLocationIds.map((locationId) =>
+      median(scope.durations.get(locationId)!),
+    );
     const medianDurationDays = median(perLocation);
 
     recipes.push({
@@ -164,11 +180,11 @@ export function proposeMatrixFromTasks(tasks: GanttTask[]): MatrixProposal {
           id: `actividad-${scopeId}`,
           name: scope.name,
           medianDurationDays,
-          observedIn: scope.locations.size,
+          observedIn: realLocationIds.length,
         },
       ],
-      confidence: Math.min(1, scope.locations.size / 10),
-      evidence: `«${scope.name}» aparece en ${scope.locations.size} ubicaciones, con ${medianDurationDays} días de mediana.`,
+      confidence: Math.min(1, realLocationIds.length / 10),
+      evidence: `«${scope.name}» aparece en ${realLocationIds.length} ubicaciones, con ${medianDurationDays} días de mediana.`,
     });
   }
 
