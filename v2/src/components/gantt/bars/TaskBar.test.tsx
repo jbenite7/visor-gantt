@@ -129,3 +129,44 @@ describe("el arrastre dice a dónde va (E30)", () => {
     expect(screen.queryByTestId("drag-destination")).not.toBeInTheDocument();
   });
 });
+
+describe("los cuatro tipos de vínculo son alcanzables (E35)", () => {
+  test("soltar sobre el punto de fin de la tarea destino crea un vínculo a fin", () => {
+    const onDepEnd = jest.fn();
+    renderBar({
+      onDepStart: jest.fn(),
+      onDepEnd,
+      isDepHovered: true,
+    });
+
+    fireEvent.mouseUp(screen.getByTestId("dep-point-right"));
+
+    expect(onDepEnd).toHaveBeenCalledWith(1, "right");
+  });
+
+  test("soltar sobre el punto de inicio crea un vínculo a inicio", () => {
+    const onDepEnd = jest.fn();
+    renderBar({
+      onDepStart: jest.fn(),
+      onDepEnd,
+      isDepHovered: true,
+    });
+
+    fireEvent.mouseUp(screen.getByTestId("dep-point-left"));
+
+    expect(onDepEnd).toHaveBeenCalledWith(1, "left");
+  });
+
+  test("pasar por un punto de conexión anuncia qué borde se va a usar", () => {
+    const onDepHoverEdge = jest.fn();
+    renderBar({
+      onDepStart: jest.fn(),
+      onDepHoverEdge,
+      isDepHovered: true,
+    });
+
+    fireEvent.mouseEnter(screen.getByTestId("dep-point-right"));
+
+    expect(onDepHoverEdge).toHaveBeenCalledWith("right");
+  });
+});

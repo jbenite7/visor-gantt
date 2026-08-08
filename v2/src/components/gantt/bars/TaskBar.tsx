@@ -37,6 +37,10 @@ interface TaskBarProps {
     edge: DepEdge,
     event: React.MouseEvent,
   ) => void;
+  /** Se suelta aquí para cerrar el vínculo, con el borde que toque. */
+  onDepEnd?: (taskId: string | number, edge: DepEdge) => void;
+  /** Aviso de sobre qué borde está el puntero mientras se arrastra. */
+  onDepHoverEdge?: (edge: DepEdge | null) => void;
   /** Whether this bar is the hover target during dependency creation. */
   isDepHovered?: boolean;
   /** Let parent charts move labels to a dedicated top layer. */
@@ -62,6 +66,8 @@ export default function TaskBar({
   onResizeStart,
   resizeState,
   onDepStart,
+  onDepEnd,
+  onDepHoverEdge,
   isDepHovered,
   showLabel = true,
 }: TaskBarProps) {
@@ -299,6 +305,12 @@ export default function TaskBar({
               e.stopPropagation();
               onDepStart(task.id, "left", e);
             }}
+            onMouseUp={(e) => {
+              e.stopPropagation();
+              onDepEnd?.(task.id, "left");
+            }}
+            onMouseEnter={() => onDepHoverEdge?.("left")}
+            onMouseLeave={() => onDepHoverEdge?.(null)}
           />
           <circle
             cx={x + width}
@@ -313,6 +325,12 @@ export default function TaskBar({
               e.stopPropagation();
               onDepStart(task.id, "right", e);
             }}
+            onMouseUp={(e) => {
+              e.stopPropagation();
+              onDepEnd?.(task.id, "right");
+            }}
+            onMouseEnter={() => onDepHoverEdge?.("right")}
+            onMouseLeave={() => onDepHoverEdge?.(null)}
           />
         </>
       )}
