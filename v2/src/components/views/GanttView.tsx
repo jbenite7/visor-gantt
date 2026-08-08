@@ -313,8 +313,9 @@ function GanttViewInner({
           mapping: "Mapeo",
         };
   const syncedMatrixPlan = useMemo(
-    () => (matrixPlan ? syncMatrixPlanFromTasks(matrixPlan, tasks) : undefined),
-    [matrixPlan, tasks],
+    () =>
+      matrixPlan ? syncMatrixPlanFromTasks(matrixPlan, tasks, calendar) : undefined,
+    [matrixPlan, tasks, calendar],
   );
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
@@ -912,6 +913,7 @@ function GanttViewInner({
         currentPlan: syncedMatrixPlan ?? nextPlan,
         nextPlan,
         resolutions,
+        calendar,
       });
 
       const previousPlan = matrixPlan;
@@ -929,7 +931,7 @@ function GanttViewInner({
         },
       });
     },
-    [matrixPlan, runUndoable, setTasks, syncedMatrixPlan, tasks],
+    [calendar, matrixPlan, runUndoable, setTasks, syncedMatrixPlan, tasks],
   );
 
   const handleApplyMatrixPlan = useCallback(
@@ -938,6 +940,7 @@ function GanttViewInner({
         tasks,
         currentPlan: syncedMatrixPlan ?? nextPlan,
         nextPlan,
+        calendar,
       });
 
       // Con conflictos no se aplica a ciegas: los decide el usuario.
@@ -948,7 +951,7 @@ function GanttViewInner({
 
       commitMatrixPlan(nextPlan);
     },
-    [commitMatrixPlan, syncedMatrixPlan, tasks],
+    [calendar, commitMatrixPlan, syncedMatrixPlan, tasks],
   );
 
   const handleResolveMatrixConflicts = useCallback(
