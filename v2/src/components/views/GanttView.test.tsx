@@ -2032,3 +2032,67 @@ describe("deshacer un alta de asignación no borra de más (M14)", () => {
     await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(2));
   });
 });
+
+describe("la matriz y el calendario del proyecto (M26)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  async function abrirMatriz() {
+    fireEvent.click(screen.getByTestId("command-palette-open"));
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "matriz" },
+    });
+    fireEvent.keyDown(window, { key: "Enter" });
+    await screen.findByTestId("matrix-editor");
+  }
+
+  test("el calendario del proyecto llega al editor y avisa antes de aplicar", async () => {
+    const matrixPlan = createSingleCellMatrixPlan();
+    const generated = generateScheduleFromMatrix(matrixPlan);
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Calendario"
+        tasks={generated.tasks}
+        matrixPlan={matrixPlan}
+        calendar={{
+          timeZone: "America/Bogota",
+          workDays: [1],
+          startHour: "08:00",
+          endHour: "17:00",
+          hoursPerDay: 8,
+          nonWorkingDays: [],
+          dateOverrides: [],
+        }}
+      />,
+    );
+
+    await abrirMatriz();
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    expect(screen.getByTestId("matrix-calendar-warning")).toBeInTheDocument();
+  });
+
+  test("sin calendario el editor aplica directo, como hasta ahora", async () => {
+    const matrixPlan = createSingleCellMatrixPlan();
+    const generated = generateScheduleFromMatrix(matrixPlan);
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Sin calendario"
+        tasks={generated.tasks}
+        matrixPlan={matrixPlan}
+      />,
+    );
+
+    await abrirMatriz();
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    expect(screen.queryByTestId("matrix-calendar-warning")).not.toBeInTheDocument();
+  });
+});
+

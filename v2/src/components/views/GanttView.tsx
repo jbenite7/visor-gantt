@@ -2060,6 +2060,7 @@ function GanttViewInner({
               tasks={calculatedTasks}
               onApplyMatrixPlan={handleApplyMatrixPlan}
               onSyncFromGantt={handleSyncMatrixFromGantt}
+              calendar={calendar}
               onDirtyChange={(dirty) => {
                 // El borrador de la matriz también es trabajo que se puede
                 // perder: entra en el aviso al cerrar (M28).

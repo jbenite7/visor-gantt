@@ -4,10 +4,12 @@
 
 import "@testing-library/jest-dom";
 import type { ComponentProps } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import MatrixEditorView from "./MatrixEditorView";
 import MatrixEditorViewDefault, { MATRIX_VISIBLE_ROWS } from "./MatrixEditorView";
 import type { MatrixPlan } from "@/types/matrix";
+import type { ProjectCalendar } from "@/types/calendar";
+import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
 import type { GanttTask } from "@/components/gantt/types";
 import { createDefaultMatrixPlan, createEmptyMatrixPlan } from "@/lib/matrix/templates";
 
@@ -950,3 +952,82 @@ describe("el borrador de la matriz no se pierde sin avisar (M28)", () => {
     expect(onDirtyChange).toHaveBeenCalledWith(true);
   });
 });
+
+describe("MatrixEditorView · el calendario del proyecto manda en las fechas", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  /** Solo tres días de obra: estira la matriz muy por encima del umbral. */
+  const calendarioCorto: ProjectCalendar = {
+    ...DEFAULT_PROJECT_CALENDAR,
+    workDays: [1, 2, 3],
+  };
+
+  function renderConCalendario(
+    extra: Partial<ComponentProps<typeof MatrixEditorView>> = {},
+  ) {
+    const onApplyMatrixPlan = jest.fn();
+    render(
+      <MatrixEditorView
+        matrixPlan={createDefaultMatrixPlan({
+          id: "matrix-calendario",
+          name: "Matriz",
+          startDate: "2026-01-05",
+        })}
+        tasks={[]}
+        onApplyMatrixPlan={onApplyMatrixPlan}
+        onSyncFromGantt={jest.fn()}
+        {...extra}
+      />,
+    );
+    return { onApplyMatrixPlan };
+  }
+
+  test("sin calendario la vista previa mantiene el fin de siempre", () => {
+    renderConCalendario();
+    const sinCalendario = screen.getByTestId("matrix-preview").textContent;
+
+    cleanup();
+
+    renderConCalendario({ calendar: calendarioCorto });
+    const conCalendario = screen.getByTestId("matrix-preview").textContent;
+
+    expect(sinCalendario).toMatch(/fin \d{4}-\d{2}-\d{2}/);
+    expect(conCalendario).not.toEqual(sinCalendario);
+  });
+
+  test("si el calendario mueve las fechas más de la cuenta, avisa antes de aplicar", () => {
+    const { onApplyMatrixPlan } = renderConCalendario({
+      calendar: calendarioCorto,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    expect(screen.getByTestId("matrix-calendar-warning")).toHaveTextContent(
+      /más tarde/,
+    );
+    expect(onApplyMatrixPlan).not.toHaveBeenCalled();
+  });
+
+  test("el aviso no bloquea: se puede aplicar igual", () => {
+    const { onApplyMatrixPlan } = renderConCalendario({
+      calendar: calendarioCorto,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar de todas formas" }));
+
+    expect(onApplyMatrixPlan).toHaveBeenCalledTimes(1);
+  });
+
+  test("sin calendario se aplica directo, como hasta ahora", () => {
+    const { onApplyMatrixPlan } = renderConCalendario();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Aplicar$/ }));
+
+    expect(screen.queryByTestId("matrix-calendar-warning")).not.toBeInTheDocument();
+    expect(onApplyMatrixPlan).toHaveBeenCalledTimes(1);
+  });
+});
+
