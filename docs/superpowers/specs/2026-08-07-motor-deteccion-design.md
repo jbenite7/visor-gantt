@@ -198,6 +198,44 @@ Y los que **deben seguir sin resolver**, para que nadie «arregle» la cobertura
 Un test de cobertura sobre ese fixture cierra el círculo: si alguien afloja un patrón para cazar un caso,
 otro se rompe.
 
+### Limitación conocida: esto es un motor de **obra vertical**
+
+El otro archivo de obra del repositorio, `test_data/20260430 PROGRAMACION ESTACION 16 - ML1 R2.mpp` (una
+estación de metro), habla otro idioma. Contado sobre sus **1.668 nombres únicos**:
+
+| Palabra de ubicación | Menciones |
+|---|---|
+| `Eje` | 94 |
+| `Piso` | 28 |
+| `Módulo` | 20 |
+| `Torre` | 10 |
+| `Edificio` | 8 |
+| `Nivel` | 6 |
+| `Sótano`, `Cubierta`, `Abscisa` | 0 |
+
+Sus tareas se llaman `Módulo 1.1 (Ejes A-D)`, `Edificio 1 (Sur)`, `Construcción Losa Aérea (Eje D-H)`,
+`Lucarnas (Ejes DB4-DB8)`.
+
+Qué significa exactamente, sin exagerar en ninguna dirección:
+
+- **El motor sí resuelve algo ahí**: los 28 `Piso N`, los 10 `Torre` y los 6 `Nivel N` caen dentro de los
+  patrones. No es un archivo donde detecte cero.
+- **Pero pierde el eje principal**: `Módulo`, `Edificio` y `Eje` suman 122 menciones y no están cubiertos.
+  En esa obra la unidad de producción es el módulo entre ejes, no el piso.
+- **Y hay un caso que resuelve a medias sin decirlo**: `Piso 1 a 2 (eje A)` y `Piso 2 a 3 (eje 07)` son
+  tareas de transición entre dos niveles. El extractor devuelve el primero y descarta el segundo en
+  silencio.
+
+**No se amplía el alcance aquí.** Nada de esto está en las 103 decisiones del grilleo, y añadir a ciegas una
+segunda gramática —módulo, edificio, eje, abscisa— sería inventar requisitos. Lo que sí se hace es dejarlo
+escrito: quien ejecute este plan debe saber que «el motor funciona» significa **«funciona en obra
+vertical»**, y el usuario puede decidir después si quiere una segunda familia de patrones para
+infraestructura. Una limitación escrita vale más que una sorpresa en obra.
+
+(Detectado a raíz de la auditoría de la sesión «Plan de mejora para app web» el 2026-08-08. Esa auditoría
+reportó «cero pisos, cero torres» en este archivo; medido directamente, hay 28 y 10. La conclusión —anotar
+la limitación— es correcta; los números de arriba son los verificados.)
+
 ### Limitación, dicha una vez
 
 El fixture contiene el **vocabulario único** del archivo (los ~110 nombres distintos que se pudieron

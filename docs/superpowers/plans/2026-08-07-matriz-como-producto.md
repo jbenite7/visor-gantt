@@ -42,19 +42,20 @@ Spec: [2026-08-07-matriz-como-producto-design.md](../specs/2026-08-07-matriz-com
 | `src/lib/matrix/templateCatalog.ts` | Plantillas de fábrica y plantilla propia desde un plan | 1 · 13 |
 | `src/lib/matrix/matrixProposal.ts` | Propuesta de matriz desde un cronograma cargado | 1 · 14, 15 |
 | `src/lib/matrix/draftState.ts` | `hasUnappliedChanges` | 1 · 16 |
-| `src/components/matrix/RecipeEditor.tsx` | Editor de recetas | 2 · 17 |
-| `src/components/matrix/TemplatePicker.tsx` | Elegir plantilla o generar desde el cronograma | 2 · 18 |
-| `src/components/matrix/ProposalReview.tsx` | Revisar la propuesta elemento a elemento | 2 · 19 |
-| `src/components/matrix/FeedbackPanel.tsx` | Aprobar rendimientos observados | 2 · 20 |
-| `src/components/matrix/ConflictChooser.tsx` | Elegir qué gana en cada conflicto | 2 · 21 |
-| `src/components/matrix/LocationBulkActions.tsx` | Duplicar y crear N ubicaciones | 2 · 22 |
+| `src/lib/matrix/removeArea.ts` | Borrar una ubicación sin perder las tareas que generó | 1 · 17 |
+| `src/components/matrix/RecipeEditor.tsx` | Editor de recetas | 2 · 18 |
+| `src/components/matrix/TemplatePicker.tsx` | Elegir plantilla o generar desde el cronograma | 2 · 19 |
+| `src/components/matrix/ProposalReview.tsx` | Revisar la propuesta elemento a elemento | 2 · 20 |
+| `src/components/matrix/FeedbackPanel.tsx` | Aprobar rendimientos observados | 2 · 21 |
+| `src/components/matrix/ConflictChooser.tsx` | Elegir qué gana en cada conflicto | 2 · 22 |
+| `src/components/matrix/LocationBulkActions.tsx` | Duplicar y crear N ubicaciones | 2 · 23 |
 | `src/components/views/MatrixEditorView.tsx` | Selección múltiple, panel de lote, dibujo por ventana | 2 · 23, 24 |
-| `src/components/gantt/toolbar/ViewSidebar.tsx` | La matriz vuelve al menú (M27) | 3 · 25 |
-| `src/components/views/GanttView.tsx` | Cableado: calendario, aviso al salir, conflictos | 3 · 25 |
+| `src/components/gantt/toolbar/ViewSidebar.tsx` | La matriz vuelve al menú (M27) | 3 · 26 |
+| `src/components/views/GanttView.tsx` | Cableado: calendario, aviso al salir, conflictos | 3 · 26 |
 
 ---
 
-# FASE 1 — El motor (tareas 1-16)
+# FASE 1 — El motor (tareas 1-17)
 
 Nada de esta fase cambia lo que el usuario ve. Es motor puro, probado, que la Fase 2 enchufa.
 
@@ -484,6 +485,11 @@ import { generateScheduleFromMatrix } from "./matrixGenerator";
 /**
  * A partir de aquí un desplazamiento deja de ser el ruido normal de un
  * festivo suelto y significa que el calendario cambia el plan de verdad.
+ *
+ * **Es un criterio elegido, no medido.** Nadie ha contado cuántos días de
+ * desplazamiento le importan a un residente de obra; tres es el punto donde
+ * deja de explicarse por un festivo. Cambiarlo es cambiar este número: no
+ * hay nada más que dependa de él.
  */
 export const CALENDAR_SHIFT_THRESHOLD_DAYS = 3;
 
@@ -3771,7 +3777,7 @@ export function describeDraftChanges(
 Run: `npx jest src/lib/matrix/draftState.test.ts`
 Expected: PASS (6 tests)
 
-- [ ] **Step 5: Verificación del motor completo**
+- [ ] **Step 5: Verificación parcial (queda la Tarea 17)**
 
 ```bash
 npx jest --runInBand
@@ -3793,7 +3799,269 @@ git commit -m "feat(matriz): saber cuantos cambios del borrador quedan sin aplic
 
 ---
 
-# FASE 2 — El editor (tareas 17-24)
+## Task 17: Borrar una ubicación sin perder trabajo en silencio
+
+Hoy `removeAreaNode` quita el nodo y sus celdas, y **las tareas que esa ubicación ya había generado quedan
+huérfanas** hasta la siguiente aplicación. De las 103 decisiones del grilleo, la línea más constante es que
+nada se pierde en silencio y que lo destructivo es deshacible: este caso es exactamente eso.
+
+**Files:**
+- Create: `src/lib/matrix/removeArea.ts`
+- Test: `src/lib/matrix/removeArea.test.ts`
+
+**Interfaces:**
+- Consumes: `removeAreaNode` de `./tree`; `MatrixPlan`, `GanttTask`.
+- Produces:
+  - `export type OrphanTaskPolicy = "borrar" | "conservar"`
+  - `export interface AreaRemovalPreview { areaName: string; cellCount: number; taskIds: (string | number)[]; message: string }`
+  - `export function describeAreaRemoval(plan: MatrixPlan, tasks: GanttTask[], areaId: string): AreaRemovalPreview`
+  - `export function removeAreaWithTasks(plan: MatrixPlan, tasks: GanttTask[], areaId: string, policy: OrphanTaskPolicy): { matrixPlan: MatrixPlan; tasks: GanttTask[] }`
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+import { describeAreaRemoval, removeAreaWithTasks } from "./removeArea";
+import type { MatrixPlan } from "@/types/matrix";
+import type { GanttTask } from "@/components/gantt/types";
+
+function plan(): MatrixPlan {
+  return {
+    id: "p1",
+    name: "Torre",
+    startDate: "2026-03-02",
+    scopeTree: [{ id: "estructura", name: "Estructura", type: "Disciplina" }],
+    areas: [
+      { id: "piso-1", name: "Piso 1", type: "Piso" },
+      { id: "piso-2", name: "Piso 2", type: "Piso" },
+    ],
+    recipes: [{ id: "r1", name: "Estructura", activities: [], dependencies: [] }],
+    cells: [
+      {
+        id: "c1",
+        scopeId: "estructura",
+        areaId: "piso-1",
+        recipeId: "r1",
+        active: true,
+        generatedTaskIds: ["mx-1", "mx-2"],
+      },
+      {
+        id: "c2",
+        scopeId: "estructura",
+        areaId: "piso-2",
+        recipeId: "r1",
+        active: true,
+        generatedTaskIds: ["mx-3"],
+      },
+    ],
+  };
+}
+
+function matrixTask(id: string, areaId: string, cellId: string): GanttTask {
+  return {
+    id,
+    name: `Columnas ${areaId}`,
+    start: new Date("2026-03-02T08:00:00"),
+    finish: new Date("2026-03-06T17:00:00"),
+    duration: 5,
+    progress: 0,
+    isCritical: false,
+    isMilestone: false,
+    isSummary: false,
+    outlineLevel: 3,
+    dependencies: [],
+    matrixSource: {
+      matrixPlanId: "p1",
+      scopeId: "estructura",
+      areaId,
+      cellId,
+      recipeId: "r1",
+      activityId: "columnas",
+    },
+    matrixSync: { lastEditedAt: "2026-03-02T00:00:00.000Z", lastEditedFrom: "matrix" },
+  };
+}
+
+const tareas: GanttTask[] = [
+  matrixTask("mx-1", "piso-1", "c1"),
+  matrixTask("mx-2", "piso-1", "c1"),
+  matrixTask("mx-3", "piso-2", "c2"),
+  { ...matrixTask("suelta", "piso-1", "c1"), matrixSource: undefined },
+];
+
+describe("describeAreaRemoval", () => {
+  test("cuenta las celdas y las tareas que se llevaría por delante", () => {
+    const preview = describeAreaRemoval(plan(), tareas, "piso-1");
+
+    expect(preview.areaName).toBe("Piso 1");
+    expect(preview.cellCount).toBe(1);
+    expect(preview.taskIds).toEqual(["mx-1", "mx-2"]);
+  });
+
+  test("lo dice en lenguaje de obra", () => {
+    expect(describeAreaRemoval(plan(), tareas, "piso-1").message).toBe(
+      "«Piso 1» tiene 2 tareas ya generadas en el cronograma. Elige qué hacer con ellas antes de borrarla.",
+    );
+  });
+
+  test("una ubicación sin tareas generadas lo dice también, sin alarmar", () => {
+    const sinTareas = describeAreaRemoval(plan(), [], "piso-2");
+
+    expect(sinTareas.taskIds).toEqual([]);
+    expect(sinTareas.message).toBe(
+      "«Piso 2» no tiene tareas en el cronograma. Se puede borrar sin más.",
+    );
+  });
+
+  test("una ubicación que no existe no inventa un aviso", () => {
+    expect(describeAreaRemoval(plan(), tareas, "fantasma").taskIds).toEqual([]);
+  });
+});
+
+describe("removeAreaWithTasks", () => {
+  test("borrar quita la ubicación, sus celdas y sus tareas", () => {
+    const result = removeAreaWithTasks(plan(), tareas, "piso-1", "borrar");
+
+    expect(result.matrixPlan.areas.map((area) => area.id)).toEqual(["piso-2"]);
+    expect(result.matrixPlan.cells.map((cell) => cell.id)).toEqual(["c2"]);
+    expect(result.tasks.map((task) => task.id)).toEqual(["mx-3", "suelta"]);
+  });
+
+  test("conservar deja las tareas en el cronograma, ya sin dueño en la matriz", () => {
+    const result = removeAreaWithTasks(plan(), tareas, "piso-1", "conservar");
+
+    expect(result.tasks.map((task) => task.id)).toEqual([
+      "mx-1",
+      "mx-2",
+      "mx-3",
+      "suelta",
+    ]);
+    const conservada = result.tasks.find((task) => task.id === "mx-1")!;
+    expect(conservada.matrixSource).toBeUndefined();
+    expect(conservada.matrixSync).toBeUndefined();
+  });
+
+  test("conservar no desengancha las tareas de las otras ubicaciones", () => {
+    const result = removeAreaWithTasks(plan(), tareas, "piso-1", "conservar");
+
+    expect(result.tasks.find((task) => task.id === "mx-3")?.matrixSource).toBeDefined();
+  });
+
+  test("no toca las tareas que nunca fueron de la matriz", () => {
+    const result = removeAreaWithTasks(plan(), tareas, "piso-1", "borrar");
+
+    expect(result.tasks.find((task) => task.id === "suelta")).toBeDefined();
+  });
+
+  test("borrar una ubicación que no existe devuelve todo igual", () => {
+    const original = plan();
+    const result = removeAreaWithTasks(original, tareas, "fantasma", "borrar");
+
+    expect(result.matrixPlan.areas).toHaveLength(2);
+    expect(result.tasks).toHaveLength(4);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npx jest src/lib/matrix/removeArea.test.ts`
+Expected: FAIL — `Cannot find module './removeArea' from 'src/lib/matrix/removeArea.test.ts'`
+
+- [ ] **Step 3: Write minimal implementation**
+
+```ts
+import type { GanttTask } from "@/components/gantt/types";
+import type { MatrixPlan } from "@/types/matrix";
+import { getAreaLeaves, removeAreaNode } from "./tree";
+
+/**
+ * Qué hacer con las tareas que una ubicación ya había generado cuando se
+ * borra esa ubicación.
+ *
+ * `removeAreaNode` quitaba el nodo y sus celdas y dejaba las tareas
+ * huérfanas hasta la siguiente aplicación. En un producto donde la línea
+ * constante es que nada se pierde en silencio, eso es un borrado a ciegas:
+ * aquí se cuenta lo que hay y se ofrecen las dos salidas honestas.
+ */
+export type OrphanTaskPolicy = "borrar" | "conservar";
+
+export interface AreaRemovalPreview {
+  areaName: string;
+  cellCount: number;
+  taskIds: (string | number)[];
+  message: string;
+}
+
+function areaTaskIds(tasks: GanttTask[], areaId: string): (string | number)[] {
+  return tasks
+    .filter((task) => task.matrixSource?.areaId === areaId)
+    .map((task) => task.id);
+}
+
+export function describeAreaRemoval(
+  plan: MatrixPlan,
+  tasks: GanttTask[],
+  areaId: string,
+): AreaRemovalPreview {
+  const area = getAreaLeaves(plan.areas).find((leaf) => leaf.node.id === areaId)?.node;
+  const taskIds = area ? areaTaskIds(tasks, areaId) : [];
+  const cellCount = plan.cells.filter((cell) => cell.areaId === areaId).length;
+  const areaName = area?.name ?? areaId;
+
+  return {
+    areaName,
+    cellCount,
+    taskIds,
+    message:
+      taskIds.length === 0
+        ? `«${areaName}» no tiene tareas en el cronograma. Se puede borrar sin más.`
+        : `«${areaName}» tiene ${taskIds.length} tareas ya generadas en el cronograma. Elige qué hacer con ellas antes de borrarla.`,
+  };
+}
+
+export function removeAreaWithTasks(
+  plan: MatrixPlan,
+  tasks: GanttTask[],
+  areaId: string,
+  policy: OrphanTaskPolicy,
+): { matrixPlan: MatrixPlan; tasks: GanttTask[] } {
+  const exists = getAreaLeaves(plan.areas).some((leaf) => leaf.node.id === areaId);
+  if (!exists) return { matrixPlan: plan, tasks };
+
+  const affected = new Set(areaTaskIds(tasks, areaId));
+
+  const nextTasks =
+    policy === "borrar"
+      ? tasks.filter((task) => !affected.has(task.id))
+      : tasks.map((task) =>
+          affected.has(task.id)
+            ? { ...task, matrixSource: undefined, matrixSync: undefined }
+            : task,
+        );
+
+  return { matrixPlan: removeAreaNode(plan, areaId), tasks: nextTasks };
+}
+```
+
+Nota: **esto no deshace nada por sí solo.** Hacer la acción reversible es cablearla con `runUndoable`, que
+vive en `ProjectContext.tsx` — territorio del carril A — y por eso va en la Fase 3. Estas dos funciones son
+puras a propósito: `runUndoable` recibe un antes y un después, y eso es exactamente lo que devuelven.
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `npx jest src/lib/matrix/removeArea.test.ts src/lib/matrix/tree.test.ts`
+Expected: PASS (9 tests nuevos, más los de `tree` sin cambios)
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/lib/matrix/removeArea.ts src/lib/matrix/removeArea.test.ts
+git commit -m "feat(matriz): borrar una ubicacion avisando de las tareas que ya genero"
+```
+
+---
+
+# FASE 2 — El editor (tareas 18-25)
 
 Todos los componentes nuevos viven en `src/components/matrix/`. **Ninguna tarea de esta fase toca
 `GanttView.tsx` ni `ProjectContext.tsx`.** Cada componente recibe sus datos por props y avisa por
@@ -3807,7 +4075,7 @@ Todos los tests de esta fase empiezan por la cabecera de entorno que usa el rest
  */
 ```
 
-## Task 17: Editor de recetas
+## Task 18: Editor de recetas
 
 **Files:**
 - Create: `src/components/matrix/RecipeEditor.tsx`
@@ -4131,7 +4399,7 @@ git commit -m "feat(matriz): editor de recetas con anadir, quitar, reordenar y e
 
 ---
 
-## Task 18: Elegir plantilla o generar desde el cronograma
+## Task 19: Elegir plantilla o generar desde el cronograma
 
 **Files:**
 - Create: `src/components/matrix/TemplatePicker.tsx`
@@ -4368,7 +4636,7 @@ git commit -m "feat(matriz): elegir plantilla de fabrica, propia o generar desde
 
 ---
 
-## Task 19: Revisar la propuesta antes de aceptarla
+## Task 20: Revisar la propuesta antes de aceptarla
 
 **Files:**
 - Create: `src/components/matrix/ProposalReview.tsx`
@@ -4654,7 +4922,7 @@ git commit -m "feat(matriz): revisar la propuesta elemento a elemento antes de c
 
 ---
 
-## Task 20: Panel de rendimientos observados
+## Task 21: Panel de rendimientos observados
 
 **Files:**
 - Create: `src/components/matrix/FeedbackPanel.tsx`
@@ -4848,7 +5116,7 @@ git commit -m "feat(matriz): panel para aprobar los rendimientos observados en o
 
 ---
 
-## Task 21: Elegir qué gana en cada conflicto
+## Task 22: Elegir qué gana en cada conflicto
 
 **Files:**
 - Create: `src/components/matrix/ConflictChooser.tsx`
@@ -5082,7 +5350,7 @@ git commit -m "feat(matriz): elegir que gana en cada conflicto entre matriz y Ga
 
 ---
 
-## Task 22: Duplicar y crear N ubicaciones desde la interfaz
+## Task 23: Duplicar y crear N ubicaciones desde la interfaz
 
 **Files:**
 - Create: `src/components/matrix/LocationBulkActions.tsx`
@@ -5330,7 +5598,7 @@ git commit -m "feat(matriz): duplicar ubicaciones y crear un rango desde la inte
 
 ---
 
-## Task 23: Selección de varias celdas y edición en lote
+## Task 24: Selección de varias celdas y edición en lote
 
 **Files:**
 - Modify: `src/components/views/MatrixEditorView.tsx:261-300` (estado) y `:1039-1084` (la celda de la tabla)
@@ -5568,7 +5836,7 @@ git commit -m "feat(matriz): seleccionar varias celdas, filas o columnas y edita
 
 ---
 
-## Task 24: Que aguante más de 1000 celdas
+## Task 25: Que aguante más de 1000 celdas
 
 **Files:**
 - Modify: `src/components/views/MatrixEditorView.tsx:294-300` (memorias) y el cuerpo de la tabla
@@ -5852,7 +6120,7 @@ git commit -m "perf(matriz): dibujar por ventana y precalcular el resumen de cad
 > incluye los proyectos P1 y P2. Si no están, esta fase espera. Las Fases 1 y 2 se pueden fusionar sin ella:
 > la matriz queda completa y se llega por `⌘K`, como hoy.
 
-## Task 25: Cablear la matriz en la aplicación
+## Task 26: Cablear la matriz en la aplicación
 
 **Files:**
 - Modify: `src/components/gantt/toolbar/ViewSidebar.tsx` (array `VIEW_TABS`, grupo «Trabajo»)
@@ -5861,7 +6129,7 @@ git commit -m "perf(matriz): dibujar por ventana y precalcular el resumen de cad
 - Modify: `src/components/gantt/toolbar/ViewSidebar.test.tsx` y `src/components/views/GanttView.test.tsx`
 
 **Interfaces:**
-- Consumes: `describeDraftChanges` de `@/lib/matrix/draftState`; `describeCalendarShift` de `@/lib/matrix/matrixCalendarShift`; `ConflictChooser` de `@/components/matrix/ConflictChooser`; `applyMatrixUpdate` con `resolutions`.
+- Consumes: `describeAreaRemoval` y `removeAreaWithTasks` de `@/lib/matrix/removeArea`; `describeDraftChanges` de `@/lib/matrix/draftState`; `describeCalendarShift` de `@/lib/matrix/matrixCalendarShift`; `ConflictChooser` de `@/components/matrix/ConflictChooser`; `applyMatrixUpdate` con `resolutions`.
 - Produces: `MatrixEditorView` recibe dos props nuevas: `calendar?: ProjectCalendar` y `onUnappliedChangesChange?: (changes: DraftChanges) => void`.
 
 - [ ] **Step 1: Write the failing test**
@@ -6008,6 +6276,13 @@ y dentro de `MatrixEditorView`, pasar `{ calendar }` a `generateScheduleFromMatr
 estado y montar `<ConflictChooser>` cuando los haya; su `onResolve` vuelve a llamar a `applyMatrixUpdate`
 con `resolutions`.
 
+**e) Borrar una ubicación con tareas generadas, y poder deshacerlo.** Al borrar una ubicación desde el
+editor, llamar primero a `describeAreaRemoval(plan, tasks, areaId)`; si `taskIds` no está vacío, enseñar el
+`message` con las dos salidas —«Borrar también sus tareas» y «Conservarlas en el cronograma»— y ejecutar
+`removeAreaWithTasks` con la elegida **dentro de `runUndoable`**, igual que el resto de borrados del
+proyecto. No inventar un mecanismo de deshacer nuevo: `runUndoable` ya existe en `ProjectContext.tsx:697` y
+recibe justo un antes y un después, que es lo que devuelven esas dos funciones puras de la Tarea 17.
+
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx jest --runInBand`
@@ -6040,6 +6315,7 @@ del goal, en este orden:
 6. Un rendimiento observado se **aprueba** y la siguiente generación lo usa.
 7. Un conflicto se **muestra con las dos versiones** y se puede elegir.
 8. Una matriz de 30 × 40 se edita **sin bloquear** la pantalla.
+9. Borrar una ubicación con tareas generadas **avisa, deja elegir y se puede deshacer**.
 
 - [ ] **Step 7: Commit**
 

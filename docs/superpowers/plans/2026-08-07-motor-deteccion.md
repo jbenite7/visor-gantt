@@ -341,7 +341,7 @@ git commit -m "feat(deteccion): extraer piso, nivel, etapa y sotano como numero 
 
 **Interfaces:**
 - Consumes: `LOCATION_PATTERNS`, `extractLocation` de la Tarea 2.
-- Produces: `export const ROOF_LOCATION_VALUE = 900` y `export const MEZZANINE_LOCATION_VALUE = 0.5`. `LOCATION_PATTERNS` pasa de 3 a 13 entradas; `extractLocation` no cambia de firma.
+- Produces: `export const ROOF_LOCATION_VALUE = 900`, `export const MEZZANINE_LOCATION_VALUE = 0.5` y `export function formatLocationLabel(location: LocationMatch): string`. `LOCATION_PATTERNS` pasa de 3 a 16 entradas; `extractLocation` no cambia de firma.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -350,6 +350,8 @@ Añadir al final de `src/lib/scheduling/detection/location.test.ts`:
 ```ts
 import {
   extractLocation as extract,
+  formatLocationLabel,
+  LOCATION_PATTERNS,
   MEZZANINE_LOCATION_VALUE,
   ROOF_LOCATION_VALUE,
 } from "./location";
@@ -419,6 +421,26 @@ describe("extractLocation · el resto del vocabulario de obra", () => {
     expect(extract("MAMPOSTERÍA PISO 4 PLANO S2")?.value).toBe(4);
   });
 
+  test("formatLocationLabel nombra la ubicación como la nombraría un residente", () => {
+    expect(formatLocationLabel(extract("LOSA AÉREA PISO 5")!)).toBe("Piso 5");
+    expect(formatLocationLabel(extract("COLUMNAS SÓTANO 2")!)).toBe("Sótano 2");
+    expect(formatLocationLabel(extract("ESTRUCTURA TORRE B")!)).toBe("Torre B");
+  });
+
+  test("los centinelas se dicen con su nombre, nunca con su número", () => {
+    // Sin esto, Unidad Típica pintaría literalmente «Nivel 900».
+    expect(formatLocationLabel(extract("LOSA AÉREA CUBIERTA")!)).toBe("Cubierta");
+    expect(formatLocationLabel(extract("MAMPOSTERÍA MEZANINE")!)).toBe("Mezanine");
+  });
+
+  test("dos ubicaciones distintas con el mismo número no comparten etiqueta", () => {
+    // «SÓTANO 3» y «PISO 3» dan ambos raw «3». Si la etiqueta fuera solo el
+    // número, Unidad Típica los contaría como un mismo nivel y perdería uno.
+    expect(formatLocationLabel(extract("COLUMNAS SÓTANO 3")!)).not.toBe(
+      formatLocationLabel(extract("COLUMNAS PISO 3")!),
+    );
+  });
+
   test("el patrón del sótano lleva la tilde como alternativa, porque se reutiliza sin normalizar", () => {
     // `typicalUnit.ts` recorre estos patrones para quitar la ubicación del
     // nombre y quedarse con el sistema, y lo hace sobre el nombre **tal cual**
@@ -437,7 +459,7 @@ Recordatorio: este bloque necesita `LOCATION_PATTERNS` en el `import` de arriba,
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx jest src/lib/scheduling/detection/location.test.ts`
-Expected: FAIL — `location.ts` no exporta `ROOF_LOCATION_VALUE` ni `MEZZANINE_LOCATION_VALUE`, y los casos de torre/zona/cubierta devuelven `null`.
+Expected: FAIL — `location.ts` no exporta `ROOF_LOCATION_VALUE`, `MEZZANINE_LOCATION_VALUE` ni `formatLocationLabel`, y los casos de torre/zona/cubierta devuelven `null`.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -536,6 +558,24 @@ export const LOCATION_PATTERNS: LocationPattern[] = [
   { label: "Sótano", regex: /\bS(\d{1,2})\b/i, valueOf: (m) => -Number(m[1]) },
   { label: "Piso", regex: /\bN-?(\d+)\b/i, valueOf: numeric },
 ];
+
+/**
+ * Cómo se nombra una ubicación en pantalla.
+ *
+ * Existe por dos motivos, y el segundo es de corrección, no de estética:
+ *
+ * · `value` es un número de dominio, y `900` (cubierta) no se puede enseñar
+ *   tal cual: `TypicalUnitView.tsx:110` pinta el nivel literalmente;
+ * · `raw` tampoco vale como identidad: «SÓTANO 3» y «PISO 3» dan los dos
+ *   `"3"`, y Unidad Típica cuenta niveles distintos con un `Set` de esa
+ *   etiqueta. Sin el prefijo, los dos colapsarían en uno y la vista perdería
+ *   un nivel sin decirlo.
+ */
+export function formatLocationLabel(location: LocationMatch): string {
+  if (location.value === ROOF_LOCATION_VALUE) return "Cubierta";
+  if (location.value === MEZZANINE_LOCATION_VALUE) return "Mezanine";
+  return `${location.label} ${location.raw}`;
+}
 ```
 
 Nota para quien implemente: `MEZANINE` y `CUBIERTA` capturan la **palabra** en el grupo 1, de modo que `raw` sale `"MEZANINE"` / `"CUBIERTA"` sin tocar `extractLocation`. `MEZ+ANINE` cubre las dos grafías que se ven en obra (`MEZANINE`, `MEZZANINE`).
@@ -543,7 +583,7 @@ Nota para quien implemente: `MEZANINE` y `CUBIERTA` capturan la **palabra** en e
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx jest src/lib/scheduling/detection/location.test.ts`
-Expected: PASS (17 tests — los 6 de la Tarea 2 más los 11 nuevos)
+Expected: PASS (20 tests — los 6 de la Tarea 2 más los 14 nuevos)
 
 - [ ] **Step 5: Commit**
 
@@ -1865,6 +1905,7 @@ import * as detection from "./index";
 describe("superficie pública del motor de detección", () => {
   test("expone las piezas que los consumidores necesitan", () => {
     expect(typeof detection.extractLocation).toBe("function");
+    expect(typeof detection.formatLocationLabel).toBe("function");
     expect(typeof detection.resolveTaskLocation).toBe("function");
     expect(typeof detection.resolveSystem).toBe("function");
     expect(typeof detection.summarizeDetection).toBe("function");
@@ -1889,6 +1930,7 @@ Expected: FAIL — `Cannot find module './index' from 'src/lib/scheduling/detect
 export { normalizeName, significantTokens, STOPWORDS } from "./normalize";
 export {
   extractLocation,
+  formatLocationLabel,
   LOCATION_PATTERNS,
   MEZZANINE_LOCATION_VALUE,
   ROOF_LOCATION_VALUE,
@@ -2072,11 +2114,12 @@ git commit -m "refactor(deteccion): unitPatterns delega en el motor y expone el 
 
 **Files:**
 - Modify: `src/lib/scheduling/typicalUnit.ts:7-16` (interfaz `TypicalUnitActivity`), `:41-48` (`extractLevel`), `:69-86` (construcción de actividades), `:125` (el `sort`)
+- Modify: `src/components/views/TypicalUnitView.tsx:110` (la etiqueta del nivel)
 - Modify: `src/lib/scheduling/typicalUnit.test.ts` (añadir un `describe`)
 
 **Interfaces:**
-- Consumes: `resolveTaskLocation` de `./detection/taskLocation`.
-- Produces: `TypicalUnitActivity` gana `levelValue: number`. `TypicalUnitGroup` y `TypicalUnitAnalysis` no cambian.
+- Consumes: `resolveTaskLocation` de `./detection/taskLocation`, `formatLocationLabel` de `./detection/location`.
+- Produces: `TypicalUnitActivity` gana `levelValue: number`, y su `level` pasa de ser el número suelto («3») a la etiqueta completa («Sótano 3», «Cubierta»). `TypicalUnitGroup` y `TypicalUnitAnalysis` no cambian de forma.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -2108,6 +2151,33 @@ describe("analyzeTypicalUnits · sótanos y orden físico", () => {
     ]);
   });
 
+  test("un sótano y un piso con el mismo número son dos niveles, no uno", () => {
+    // Los dos dan `raw` = «3». Si la etiqueta fuera solo el número, el Set
+    // que cuenta niveles los fundiría y la vista perdería un piso sin avisar.
+    const analysis = analyzeTypicalUnits([
+      task({ id: 1, name: "Pintura Sótano 3", wbs: "1.1" }),
+      task({ id: 2, name: "Pintura Piso 3", wbs: "1.2" }),
+      task({ id: 3, name: "Pintura Piso 4", wbs: "1.3" }),
+    ]);
+
+    expect(analysis.groups[0].levelCount).toBe(3);
+    expect(analysis.groups[0].activities.map((item) => item.level)).toEqual([
+      "Sótano 3",
+      "Piso 3",
+      "Piso 4",
+    ]);
+  });
+
+  test("la cubierta se nombra, no se numera", () => {
+    const analysis = analyzeTypicalUnits([
+      task({ id: 1, name: "Pintura Piso 1", wbs: "1.1" }),
+      task({ id: 2, name: "Pintura Piso 2", wbs: "1.2" }),
+      task({ id: 3, name: "Pintura Cubierta", wbs: "1.3" }),
+    ]);
+
+    expect(analysis.groups[0].activities.at(-1)?.level).toBe("Cubierta");
+  });
+
   test("la ubicación heredada de la tarea padre también cuenta", () => {
     const analysis = analyzeTypicalUnits([
       task({ id: 1, name: "SOTANO 1", wbs: "1.1", outlineLevel: 1 }),
@@ -2127,7 +2197,7 @@ describe("analyzeTypicalUnits · sótanos y orden físico", () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx jest src/lib/scheduling/typicalUnit.test.ts`
-Expected: FAIL — el primero con `Expected length: 1, Received length: 0` (los sótanos no se detectan y las tareas se descartan), y el segundo con `Property 'levelValue' does not exist` en tiempo de tipos y `undefined` en ejecución.
+Expected: FAIL — el primero con `Expected length: 1, Received length: 0` (los sótanos no se detectan y las tareas se descartan), el segundo con `Property 'levelValue' does not exist` en tiempo de tipos y `undefined` en ejecución, y el de «sótano y piso con el mismo número» con `Expected: 3, Received: 2` (los dos colapsan en la etiqueta «3»).
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -2138,6 +2208,7 @@ Tres cambios en `src/lib/scheduling/typicalUnit.ts`:
 ```ts
 import { buildWbsBreadcrumb, UNIT_PATTERNS } from "./unitPatterns";
 import { resolveTaskLocation } from "./detection/taskLocation";
+import { formatLocationLabel } from "./detection/location";
 ```
 
 **b)** Añadir el campo a la interfaz y sustituir `extractLevel`:
@@ -2168,7 +2239,10 @@ function extractLevel(
 ): { level: string; levelValue: number } | null {
   const resolved = resolveTaskLocation(task, tasks);
   if (resolved.location) {
-    return { level: resolved.location.raw, levelValue: resolved.location.value };
+    return {
+      level: formatLocationLabel(resolved.location),
+      levelValue: resolved.location.value,
+    };
   }
   const parts = task.wbs?.split(".");
   if (parts && parts.length >= 3) {
@@ -2211,7 +2285,19 @@ y en la línea del `sort` dentro del `map` de grupos:
         }),
 ```
 
-Nota: `levels` sigue construyéndose con `new Set(items.map((item) => item.level))`. Como `level` es el texto, «SOTANO 1» y «SÓTANO 1» ya llegan normalizados desde `extractLocation` (`raw` sale del nombre normalizado), así que no hay duplicados por tilde.
+**d)** En `src/components/views/TypicalUnitView.tsx:110`, quitar el prefijo, que ahora lo trae el dato:
+
+```tsx
+                      <span className="font-semibold text-[var(--color-text-strong)]">{activity.level}</span>
+```
+
+Antes decía `Nivel {activity.level}` con `level` = «3». Ahora `level` ya es «Piso 3», «Sótano 3» o
+«Cubierta», así que mantener el prefijo daría «Nivel Piso 3» y, en la cubierta, «Nivel Cubierta».
+
+Nota: `levels` sigue construyéndose con `new Set(items.map((item) => item.level))`, y ese `Set` es
+justo la razón por la que `level` tiene que llevar la etiqueta. Con el número suelto, «Sótano 3» y
+«Piso 3» compartían la cadena `"3"` y la vista contaba **un** nivel donde hay dos. Las tildes tampoco
+duplican: `raw` sale del nombre ya normalizado, así que «SOTANO 1» y «SÓTANO 1» dan la misma etiqueta.
 
 **`systemName` no se toca, y hay un motivo.** Recorre `UNIT_PATTERNS` para quitar la ubicación del nombre
 y quedarse con el sistema, y lo hace sobre `task.name` **tal cual**, porque el test que ya existe espera
@@ -2223,14 +2309,14 @@ aquí.
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx jest src/lib/scheduling/typicalUnit.test.ts`
-Expected: PASS — los tests que ya existían más los 3 nuevos.
+Run: `npx jest src/lib/scheduling/typicalUnit.test.ts src/components/views/TypicalUnitView.test.tsx`
+Expected: PASS — los tests que ya existían más los 5 nuevos. Si algún test de `TypicalUnitView` esperaba el texto «Nivel 3», actualizarlo a la etiqueta nueva: es el cambio que esta tarea persigue, no una regresión.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/lib/scheduling/typicalUnit.ts src/lib/scheduling/typicalUnit.test.ts
-git commit -m "fix(unidad-tipica): detectar sotanos y ordenar los niveles como se construye la obra"
+git add src/lib/scheduling/typicalUnit.ts src/lib/scheduling/typicalUnit.test.ts src/components/views/TypicalUnitView.tsx
+git commit -m "fix(unidad-tipica): detectar sotanos, ordenarlos como se construye y nombrarlos bien"
 ```
 
 ---

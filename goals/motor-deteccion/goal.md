@@ -64,6 +64,14 @@ matrices— y ninguno rinde hasta que esto funcione.
 - Copy en español con tildes, lenguaje de obra.
 - Rama propia (`carril-b/motor-deteccion`), fusionada a `main` al pasar su revisión.
 
+## Límite conocido
+
+Este es un motor de **obra vertical**. El otro archivo real del repositorio (`test_data/20260430
+PROGRAMACION ESTACION 16 - ML1 R2.mpp`, una estación de metro) nombra sus ubicaciones con `Módulo`,
+`Edificio` y `Eje` —122 menciones frente a 28 de `Piso`—, y esa gramática **no se cubre aquí**: no está en
+las 103 decisiones y ampliarla a ciegas sería inventar requisitos. Queda escrito para que nadie lo
+descubra en obra. Ver la spec para el detalle medido.
+
 ## Fuera de alcance
 
 - **Llamar al motor por API**: se deja la frontera preparada, no el cliente HTTP. Sin un servicio

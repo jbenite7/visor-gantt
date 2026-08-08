@@ -279,18 +279,25 @@ por `⌘K`. Si el carril A se retrasa, este proyecto se fusiona sin su Fase 3 y 
 
 ## 5. Preguntas abiertas
 
-Se anotan porque la spec del grilleo no las resuelve y no se ha inventado una respuesta.
+Se anotan porque la spec del grilleo no las resuelve y no se ha inventado una respuesta. **Las tres
+primeras se cerraron el 2026-08-08** con el feedback de la sesión «Plan de mejora para app web»; se dejan
+escritas con su resolución para que el porqué no se pierda.
 
-1. **Cuál es el orden de las ubicaciones para encadenar.** Con el motor de P3 el orden natural es el número
-   de ubicación (sótano 3 → sótano 1 → piso 1 → cubierta). Pero una obra puede construir la estructura de
-   abajo arriba y los acabados de arriba abajo — PDC V2 tiene incluso un `classifyBuildDirection` para eso.
-   **Se implementa el orden ascendente**, con `LocationChaining.reverse?: boolean` para invertirlo por
-   alcance. Qué obras necesitan el descendente por defecto es una pregunta para el usuario.
-2. **Qué pasa con las celdas de una ubicación que se borra tras haber generado tareas.** Hoy
-   `removeAreaNode` quita el nodo y sus celdas, y las tareas generadas quedan huérfanas hasta la siguiente
-   aplicación. No hay decisión del grilleo al respecto. **No se cambia** en este proyecto; queda anotado.
-3. **Umbral del aviso de calendario: 3 días.** Elegido aquí, no por el usuario. Es un valor, no una
-   arquitectura: cambiarlo es tocar una constante.
+1. **Cuál es el orden de las ubicaciones para encadenar.** *Resuelta el 2026-08-08.* Se implementa
+   **ascendente por defecto**, con `LocationChaining.reverse?: boolean` para invertirlo por alcance, y
+   **sin ninguna lista de oficios precargada**. No se hereda el `classifyBuildDirection` de PDC V2: existe
+   para puntuar similitud entre semanas, no para programar, y en obra el sentido depende del proyecto tanto
+   como del oficio —la impermeabilización de cubierta baja, la de sótanos sube—. La app no adivina, el
+   usuario declara. Si algún día hay datos de uso, se precargará lo que se vea repetirse.
+2. **Qué pasa con las celdas de una ubicación que se borra tras haber generado tareas.** *Resuelta el
+   2026-08-08.* Se aplica el criterio más constante de las 103 decisiones: **nada se pierde en silencio y lo
+   destructivo es deshacible.** Al borrar se avisa de cuántas tareas hay, se ofrecen las dos salidas
+   —borrarlas también o conservarlas como tareas sueltas del cronograma— y la acción se ejecuta dentro de
+   `runUndoable`, el mecanismo que ya usa el resto de borrados. Motor puro en la Fase 1 (Tarea 17), cableado
+   en la Fase 3.
+3. **Umbral del aviso de calendario: 3 días.** Elegido aquí, no medido. Es un valor, no una arquitectura:
+   vive como constante con nombre (`CALENDAR_SHIFT_THRESHOLD_DAYS`) y con el porqué escrito al lado, para
+   que quien lo cuestione sepa que puede cambiarlo sin romper nada.
 4. **Cuántas entradas debe tener el menú lateral.** M27 devuelve la Matriz al menú, y el carril A añade
    Observaciones y Last Planner. El menú se recortó de 14 a 9 en el plan anterior; estas tres decisiones lo
    dejan en **12**. Cada una es razonable por separado y todas están decididas en el grilleo, pero el total

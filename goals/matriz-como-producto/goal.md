@@ -74,7 +74,9 @@ Este proyecto la convierte en producto: **que sirva para armar la obra, y que ap
 
 - **Deshacer paso a paso dentro de la matriz.** El grilleo lo dejó como objetivo, con «Descartar cambios
   con confirmación» como lo que se hace ahora. Eso último es del carril A (es un cambio en la barra), y el
-  deshacer granular es un proyecto propio.
+  deshacer granular es un proyecto propio. Sí entra, en cambio, que **borrar una ubicación con tareas ya
+  generadas avise, deje elegir y sea deshacible** con el `runUndoable` que ya existe: no es un deshacer
+  nuevo, es aplicar el criterio de «nada se pierde en silencio» al único borrado que hoy no lo cumple.
 - **Cantidades de obra medidas.** La matriz seguirá calculando duración desde cantidad y rendimiento; de
   dónde salen las cantidades reales es harina de otro costal.
 - **Editor de dependencias arrastrando** en el Diagrama de Red: es P5.
