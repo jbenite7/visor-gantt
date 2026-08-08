@@ -488,6 +488,47 @@ describe("generateAutomaticLOBFromTasks", () => {
     expect(result.units).toHaveLength(4);
   });
 
+  it("no confunde el sótano 1 con el piso 1: los dos dan '1' en el texto crudo", () => {
+    const baseTask = {
+      duration: 3,
+      progress: 0,
+      isCritical: false,
+      isMilestone: false,
+      isSummary: false,
+      outlineLevel: 1,
+      dependencies: [],
+    };
+
+    const result = generateAutomaticLOBFromTasks([
+      {
+        ...baseTask,
+        id: 1,
+        name: "Mampostería Sótano 2",
+        start: new Date("2026-08-01"),
+        finish: new Date("2026-08-03"),
+      },
+      {
+        ...baseTask,
+        id: 2,
+        name: "Mampostería Piso 1",
+        start: new Date("2026-08-04"),
+        finish: new Date("2026-08-06"),
+      },
+      {
+        ...baseTask,
+        id: 3,
+        name: "Mampostería Sótano 1",
+        start: new Date("2026-08-02"),
+        finish: new Date("2026-08-04"),
+      },
+    ]);
+
+    expect(result.units).toHaveLength(3);
+    expect(result.activities).toHaveLength(1);
+    // El orden de abajo arriba: sótano 2, luego sótano 1, luego piso 1.
+    expect(result.activities[0].taskIds).toEqual([1, 3, 2]);
+  });
+
   it("uses matrix line-of-balance rhythm when generated tasks have collapsed dates", () => {
     const baseTask = {
       duration: 2,
@@ -622,5 +663,65 @@ describe("generateAutomaticLOBFromTasks", () => {
     expect(activity.family?.family).toBe("Redes MEP");
     expect(activity.family?.matchedBy).toBe("breadcrumb");
     expect(activity.family?.confidence).toBeGreaterThan(0);
+  });
+});
+
+describe("Línea de Balance · ubicación con el motor nuevo", () => {
+  const hoja = (
+    id: number,
+    name: string,
+    wbs: string,
+    start: string,
+    finish: string,
+  ): GanttTask => ({
+    id,
+    name,
+    wbs,
+    start: new Date(start),
+    finish: new Date(finish),
+    duration: 5,
+    progress: 0,
+    isCritical: false,
+    isMilestone: false,
+    isSummary: false,
+    outlineLevel: 3,
+    dependencies: [],
+  });
+
+  const resumen = (id: number, name: string, wbs: string): GanttTask => ({
+    ...hoja(id, name, wbs, "2026-01-05", "2026-01-09"),
+    isSummary: true,
+    outlineLevel: 2,
+  });
+
+  it("los sótanos entran en el análisis y se dibujan por debajo del piso 1", () => {
+    const result = generateAutomaticLOBFromTasks([
+      hoja(1, "Mampostería Sótano 2", "1.1", "2026-01-05", "2026-01-09"),
+      hoja(2, "Mampostería Sótano 1", "1.2", "2026-01-12", "2026-01-16"),
+      hoja(3, "Mampostería Piso 1", "1.3", "2026-01-19", "2026-01-23"),
+      hoja(4, "Mampostería Cubierta", "1.4", "2026-01-26", "2026-01-30"),
+    ]);
+
+    expect(result.activities).toHaveLength(1);
+    // De abajo arriba: sótano 2, sótano 1, piso 1, cubierta.
+    expect(result.activities[0].taskIds).toEqual([1, 2, 3, 4]);
+    expect(result.units.map((unit) => unit.unitIndex)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("una hoja sin ubicación en su nombre hereda la del padre «SÓTANO n»", () => {
+    // Es el caso de la mampostería y el aseo del archivo real: la hoja se
+    // llama solo «MURO EN LADRILLO» y el piso lo pone la tarea padre.
+    const result = generateAutomaticLOBFromTasks([
+      resumen(1, "DA PORTO TORRE 3", "1"),
+      resumen(2, "SÓTANO 2", "1.1"),
+      resumen(3, "SÓTANO 1", "1.2"),
+      hoja(4, "MURO EN LADRILLO", "1.1.1", "2026-01-05", "2026-01-09"),
+      hoja(5, "MURO EN LADRILLO", "1.2.1", "2026-01-12", "2026-01-16"),
+    ]);
+
+    const muro = result.activities.find((activity) => activity.name === "Muro En Ladrillo");
+    expect(muro).toBeDefined();
+    expect(muro?.taskIds).toEqual([4, 5]);
+    expect(muro?.unitLabel).toBe("Sótano");
   });
 });

@@ -120,7 +120,7 @@ export default function TypicalUnitView({ tasks }: TypicalUnitViewProps) {
                 <div className="divide-y divide-[var(--color-hairline)]">
                   {group.activities.map((activity) => (
                     <div key={String(activity.taskId)} className="grid gap-2 px-4 py-3 text-sm md:grid-cols-[90px_minmax(0,1fr)_120px_160px]">
-                      <span className="font-semibold text-[var(--color-text-strong)]">Nivel {activity.level}</span>
+                      <span className="font-semibold text-[var(--color-text-strong)]">{activity.level}</span>
                       <span className="truncate text-[var(--color-text-muted)]">{activity.name}</span>
                       <span className="text-[var(--color-text-muted)]">{activity.durationDays}d</span>
                       <span className="font-semibold text-[var(--aia-corp-dark)]">{formatNumber(activity.productivity)} 1/día</span>
