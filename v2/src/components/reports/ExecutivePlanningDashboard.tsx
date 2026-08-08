@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  CircleDashed,
   ClipboardCopy,
   Download,
   FileText,
@@ -18,29 +19,73 @@ import {
 
 interface ExecutivePlanningDashboardProps {
   summary: ExecutivePlanningSummary;
+  /** Cada indicador lleva a su detalle: el tablero era un callejón sin salida (M1). */
+  onNavigate?: (view: "bottlenecks" | "gantt" | "scurve" | "resources") => void;
+}
+
+function formatIsoDay(iso: string): string {
+  const [year, month, day] = iso.slice(0, 10).split("-");
+  return `${day}/${month}/${year}`;
 }
 
 function healthLabel(health: ExecutiveHealth): string {
-  if (health === "critical") return "Critico";
-  if (health === "warning") return "Atencion";
+  if (health === "critical") return "Crítico";
+  if (health === "warning") return "Atención";
+  if (health === "unknown") return "Aún no hay datos";
   return "Controlado";
 }
 
 function healthColor(health: ExecutiveHealth): string {
   if (health === "critical") return "var(--aia-alert-main)";
   if (health === "warning") return "var(--aia-warn-main)";
+  if (health === "unknown") return "var(--color-text-muted)";
   return "var(--aia-proj-main)";
+}
+
+/**
+ * Tarjeta que se vuelve botón solo si tiene a dónde llevar: un `<article>` que
+ * reacciona al clic sin serlo no lo anuncia a quien navega con teclado.
+ */
+function Tarjeta({
+  testId,
+  onClick,
+  children,
+}: {
+  testId: string;
+  onClick?: () => void;
+  children: React.ReactNode;
+}) {
+  if (!onClick) {
+    return (
+      <article data-testid={testId} className="apple-section px-4 py-3">
+        {children}
+      </article>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      onClick={onClick}
+      className="apple-section px-4 py-3 text-left"
+    >
+      {children}
+    </button>
+  );
 }
 
 function HealthIcon({ health, size = 16 }: { health: ExecutiveHealth; size?: number }) {
   const color = healthColor(health);
   if (health === "critical") return <TriangleAlert size={size} color={color} />;
   if (health === "warning") return <AlertTriangle size={size} color={color} />;
+  if (health === "unknown") return <CircleDashed size={size} color={color} />;
   return <CheckCircle2 size={size} color={color} />;
 }
 
 export default function ExecutivePlanningDashboard({
   summary,
+  onNavigate,
 }: ExecutivePlanningDashboardProps) {
   const [exportStatus, setExportStatus] =
     useState<"idle" | "copied" | "downloaded" | "print" | "error">("idle");
@@ -94,6 +139,25 @@ export default function ExecutivePlanningDashboard({
             <strong className="text-sm">{healthLabel(summary.health)}</strong>
           </div>
         </div>
+
+        <p
+          data-testid="executive-status-date"
+          className="mt-1 text-xs text-[var(--color-text-muted)]"
+        >
+          {summary.statusDate
+            ? `Cifras al ${formatIsoDay(summary.statusDate)}`
+            : "Sin fecha de corte: las cifras son de hoy"}
+        </p>
+
+        {summary.health === "unknown" && (
+          <p
+            data-testid="executive-no-data"
+            className="mt-2 text-sm text-[var(--color-text-muted)]"
+          >
+            Aún no hay datos para juzgar la obra. Importa un cronograma o crea
+            las primeras actividades y aquí verás avance, costo y alcance.
+          </p>
+        )}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -103,7 +167,7 @@ export default function ExecutivePlanningDashboard({
             title="Copiar reporte ejecutivo para Excel"
           >
             <ClipboardCopy size={14} aria-hidden />
-            Copiar Excel
+            Copiar para Excel
           </button>
           <button
             type="button"
@@ -120,10 +184,10 @@ export default function ExecutivePlanningDashboard({
             data-testid="executive-report-print"
             className="apple-button-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
             onClick={handlePrint}
-            title="Imprimir o guardar como PDF"
+            title="Abre el diálogo de impresión del navegador, desde donde puedes guardar en PDF"
           >
             <FileText size={14} aria-hidden />
-            PDF
+            Imprimir o PDF
           </button>
           {exportStatus !== "idle" && (
             <span
@@ -171,10 +235,14 @@ export default function ExecutivePlanningDashboard({
         <section className="grid gap-3 md:grid-cols-2">
           {summary.signals.map((signal) => {
             return (
-              <article
+              <Tarjeta
                 key={signal.dimension}
-                data-testid="executive-signal"
-                className="apple-section px-4 py-3"
+                testId="executive-signal"
+                onClick={
+                  onNavigate && signal.linkTo
+                    ? () => onNavigate(signal.linkTo!)
+                    : undefined
+                }
               >
                 <div className="flex items-center gap-2">
                   <HealthIcon health={signal.health} size={16} />
@@ -192,7 +260,7 @@ export default function ExecutivePlanningDashboard({
                 <p className="mt-2 text-xs text-[var(--color-text-muted)]">
                   {signal.recommendation}
                 </p>
-              </article>
+              </Tarjeta>
             );
           })}
         </section>

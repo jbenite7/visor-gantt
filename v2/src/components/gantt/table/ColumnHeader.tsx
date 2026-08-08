@@ -77,7 +77,7 @@ export default function ColumnHeader({
             : "Entrada",
         locale === "en"
           ? `Origin: ${calculationSpec.sourceOfTruth ?? "import"}`
-          : `Origen: ${calculationSpec.sourceOfTruth ?? "importacion"}`,
+          : `Origen: ${calculationSpec.sourceOfTruth ?? "importación"}`,
         calculationSpec.formula
           ? `${locale === "en" ? "Formula" : "Formula"}: ${calculationSpec.formula}`
           : undefined,

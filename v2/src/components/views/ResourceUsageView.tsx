@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { detectOverallocation } from "@/lib/scheduling/assignments";
 import type { Resource, Assignment } from "@/types/resource";
 import type { GanttTask } from "@/components/gantt/types";
 
@@ -133,6 +134,30 @@ export default function ResourceUsageView({
       return { resource, totalHours, periods: periodCells };
     });
   }, [resources, periods, assignmentMap, taskMap]);
+
+  /**
+   * Qué periodos contienen al menos un día que Problemas marca como
+   * sobreasignado. La detección es la de `detectOverallocation`: una sola
+   * definición, compartida (M18).
+   */
+  const periodosSobrecargados = useMemo(() => {
+    const dias = detectOverallocation(assignments, resources, tasks).filter(
+      (resultado) => resultado.isOverallocated,
+    );
+    const marcados = new Set<string>();
+
+    for (const resultado of dias) {
+      periods.forEach((period, index) => {
+        const inicio = new Date(period.start);
+        const fin = new Date(period.end);
+        if (resultado.date >= inicio && resultado.date <= fin) {
+          marcados.add(`${resultado.resourceId}:${index}`);
+        }
+      });
+    }
+
+    return marcados;
+  }, [assignments, resources, tasks, periods]);
 
   const hasAssignments = assignments.length > 0;
   const maxAvailability = (uid: number) => {
@@ -283,14 +308,18 @@ export default function ResourceUsageView({
                 }}
               >
                 {row.periods.map((cell, cellIndex) => {
-                  const avail = maxAvailability(row.resource.uid);
-                  const dailyCapacity = avail * 8;
-                  const isOverallocated = cell.hours > 0 && cell.hours > dailyCapacity * 7; // weekly capacity
+                  // Una sola definición de «sobreasignado», la misma que usa
+                  // Problemas: dos pestañas que se contradicen es peor que una
+                  // más estricta (M18).
+                  const isOverallocated = periodosSobrecargados.has(
+                    `${row.resource.uid}:${cellIndex}`,
+                  );
 
                   return (
                     <div
                       key={cellIndex}
                       data-testid="usage-cell"
+                      data-overallocated={isOverallocated}
                       style={{
                         flex: "0 0 100px",
                         padding: "8px 6px",

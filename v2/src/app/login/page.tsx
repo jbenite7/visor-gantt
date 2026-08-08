@@ -2,16 +2,24 @@ import Link from "next/link";
 import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { loginAction } from "@/app/actions/auth";
 import { safeNextPath } from "@/lib/auth/nextPath";
+import { loginErrorMessage } from "@/lib/auth/loginErrors";
 
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string; next?: string }>;
+  searchParams?: Promise<{
+    error?: string;
+    next?: string;
+    correo?: string;
+    motivo?: string;
+  }>;
 }) {
   const params = await searchParams;
-  const error = params?.error;
+  const errorMessage = loginErrorMessage(params?.error);
+  const correo = typeof params?.correo === "string" ? params.correo : "";
+  const sesionCaducada = params?.motivo === "sesion-expirada";
   const next = safeNextPath(params?.next);
   const microsoftConfigured = Boolean(
     process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET,
@@ -37,9 +45,14 @@ export default async function LoginPage({
           </div>
         </div>
 
-        {error && (
-          <p className="mb-4 rounded-lg border border-[var(--aia-alert-main)] bg-[var(--aia-alert-xlight)] px-3 py-2 text-sm text-[var(--aia-alert-main)]">
-            {error}
+        {sesionCaducada && (
+          <p
+            data-testid="login-motivo"
+            role="status"
+            className="mb-4 rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-surface-secondary)] px-3 py-2 text-sm text-[var(--color-text-muted)]"
+          >
+            Tu sesión caducó por seguridad. Entra de nuevo y te devolvemos al
+            cronograma que ibas a abrir.
           </p>
         )}
 
@@ -54,6 +67,7 @@ export default async function LoginPage({
               name="email"
               type="email"
               required
+              defaultValue={correo}
               autoComplete="email"
               className={inputClass}
             />
@@ -74,6 +88,16 @@ export default async function LoginPage({
             />
           </label>
 
+          {errorMessage && (
+            <p
+              data-testid="login-error"
+              role="alert"
+              className="text-sm text-[var(--aia-alert-main)]"
+            >
+              {errorMessage}
+            </p>
+          )}
+
           <button
             type="submit"
             className="apple-button-primary w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition"
@@ -81,6 +105,11 @@ export default async function LoginPage({
             Entrar
           </button>
         </form>
+
+        <p className="mt-4 text-sm text-[var(--color-text-muted)]">
+          ¿Olvidaste tu contraseña? Pídesela a quien administra el proyecto: es
+          quien crea y restablece las cuentas de la obra.
+        </p>
 
         <div className="my-5 flex items-center gap-3 text-xs font-semibold uppercase text-[var(--color-text-muted)]">
           <span className="h-px flex-1 bg-[var(--color-hairline)]" />

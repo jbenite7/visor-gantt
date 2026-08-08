@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Check,
   CornerDownRight,
@@ -34,6 +34,7 @@ import {
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
 import { approveCellFeedback, dismissCellFeedback } from "@/lib/matrix/feedback";
 import { templateFromPlan } from "@/lib/matrix/templateCatalog";
+import { describeDraftChanges } from "@/lib/matrix/draftState";
 import {
   planFromProposal,
   proposeMatrixFromTasks,
@@ -69,6 +70,8 @@ interface MatrixEditorViewProps {
   tasks: GanttTask[];
   onApplyMatrixPlan: (matrixPlan: MatrixPlan) => void;
   onSyncFromGantt: () => void;
+  /** Avisa al proyecto de que hay borrador sin aplicar, para el aviso al cerrar (M28). */
+  onDirtyChange?: (dirty: boolean) => void;
   applyLabel?: string;
 }
 
@@ -92,7 +95,7 @@ const matrixIconButtonClass =
   "inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)]";
 
 const scopeTypeOptions = [
-  "Capitulo",
+  "Capítulo",
   "Subcapitulo",
   "Disciplina",
   "Partida",
@@ -109,8 +112,8 @@ const areaTypeOptions = [
   "Piso",
   "Unidad",
   "Ambiente",
-  "Sub-Ubicacion",
-  "Ubicacion",
+  "Sub-Ubicación",
+  "Ubicación",
   "Apartamento",
   "Habitacion",
   "Zona",
@@ -173,7 +176,7 @@ function inferAreaTypeForLabel(label: string): string {
   if (normalized.includes("zona")) return "Zona";
   if (normalized.includes("local")) return "Local";
   if (normalized.includes("km")) return "Km";
-  return "Ubicacion";
+  return "Ubicación";
 }
 
 function findRecipeForScope(scopeId: string, plan: MatrixPlan): string | undefined {
@@ -301,11 +304,37 @@ export default function MatrixEditorView({
   tasks,
   onApplyMatrixPlan,
   onSyncFromGantt,
+  onDirtyChange,
   applyLabel = "Aplicar",
 }: MatrixEditorViewProps) {
   const [draft, setDraft] = useState<MatrixPlan | undefined>(
     matrixPlan ? clonePlan(matrixPlan) : undefined,
   );
+  /**
+   * El borrador se perdía sin decir nada al cambiar de pestaña o recargar, y
+   * «Deshacer» lo tiraba entero sin avisar de cuánto (M28).
+   */
+  const cambiosPendientes = useMemo(
+    () => describeDraftChanges(draft, matrixPlan),
+    [draft, matrixPlan],
+  );
+  const tieneCambios = cambiosPendientes.hasChanges;
+
+  useEffect(() => {
+    onDirtyChange?.(tieneCambios);
+    // Al desmontar —cambiar de vista— el borrador se pierde: deja de haber
+    // trabajo pendiente por el que preguntar al cerrar.
+    return () => onDirtyChange?.(false);
+  }, [tieneCambios, onDirtyChange]);
+
+  const descartarCambios = useCallback(() => {
+    if (!tieneCambios) return;
+    if (!window.confirm(`${cambiosPendientes.message} Se van a descartar. ¿Seguro?`)) {
+      return;
+    }
+    setDraft(matrixPlan ? clonePlan(matrixPlan) : draft);
+  }, [cambiosPendientes, draft, matrixPlan, tieneCambios]);
+
   const [activeMode, setActiveMode] = useState<MatrixEditorMode>("matrix");
   const [notice, setNotice] = useState<string | null>(null);
   const [newScopeName, setNewScopeName] = useState("");
@@ -592,7 +621,7 @@ export default function MatrixEditorView({
     if (!draft) return;
     setNotice(null);
     if (!canAddChild(draft.scopeTree, parentId)) {
-      setNotice("Maximo 10 niveles de jerarquia.");
+      setNotice("Máximo 10 niveles de jerarquía.");
       return;
     }
     const parent = findScope(draft.scopeTree, parentId);
@@ -642,7 +671,7 @@ export default function MatrixEditorView({
     if (!draft) return;
     setNotice(null);
     if (!canAddChild(draft.areas, parentId)) {
-      setNotice("Maximo 10 niveles de jerarquia.");
+      setNotice("Máximo 10 niveles de jerarquía.");
       return;
     }
     const parent = findArea(draft.areas, parentId);
@@ -657,8 +686,8 @@ export default function MatrixEditorView({
     }
     const child: AreaNode = {
       id: createNodeId("area", parentId),
-      name: "Nueva sub-ubicacion",
-      type: "Sub-Ubicacion",
+      name: "Nueva sub-ubicación",
+      type: "Sub-Ubicación",
     };
     let nextPlan: MatrixPlan = {
       ...draft,
@@ -675,8 +704,8 @@ export default function MatrixEditorView({
     if (!draft) return;
     const sibling: AreaNode = {
       id: createNodeId("area", targetId),
-      name: "Nueva sub-ubicacion",
-      type: "Sub-Ubicacion",
+      name: "Nueva sub-ubicación",
+      type: "Sub-Ubicación",
     };
     applyNextDraft({
       ...draft,
@@ -964,7 +993,7 @@ export default function MatrixEditorView({
               <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                 Nombre
                 <input
-                  aria-label={`Nombre ubicacion ${node.name}`}
+                  aria-label={`Nombre ubicación ${node.name}`}
                   value={node.name}
                   onChange={(event) =>
                     updateAreaDetails(node.id, { name: event.target.value })
@@ -975,7 +1004,7 @@ export default function MatrixEditorView({
               <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                 Tipo
                 <select
-                  aria-label={`Tipo ubicacion ${node.name}`}
+                  aria-label={`Tipo ubicación ${node.name}`}
                   value={node.type ?? ""}
                   onChange={(event) =>
                     updateAreaDetails(node.id, { type: event.target.value || undefined })
@@ -1052,13 +1081,22 @@ export default function MatrixEditorView({
             <Check size={14} />
             <span className="min-w-0 whitespace-normal text-left leading-tight">Activar todas las celdas</span>
           </button>
+          {tieneCambios && (
+            <span
+              data-testid="matrix-dirty"
+              className="text-xs font-semibold text-[var(--aia-warn-main)]"
+            >
+              Cambios sin aplicar
+            </span>
+          )}
           <button
             type="button"
-            onClick={() => setDraft(matrixPlan ? clonePlan(matrixPlan) : draft)}
+            data-testid="matrix-discard"
+            onClick={descartarCambios}
             className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold"
           >
             <RotateCcw size={14} />
-            Deshacer
+            Descartar cambios
           </button>
           <button
             type="button"

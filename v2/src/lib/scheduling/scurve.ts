@@ -22,8 +22,13 @@ export interface EarnedValuePoint {
 
 export interface EarnedValueData {
   points: EarnedValuePoint[];
-  cpi: number;
-  spi: number;
+  /**
+   * `null` cuando no hay con qué calcularlos. Antes valían 1 —«todo en
+   * orden»— y un proyecto vacío pintaba el semáforo en verde en la pantalla
+   * que más se mira (M1).
+   */
+  cpi: number | null;
+  spi: number | null;
 }
 
 export type SCurveDiagnosticKind =
@@ -277,7 +282,7 @@ export function computeEarnedValueSCurve(
   budgetItems: BudgetItem[]
 ): EarnedValueData {
   if (tasks.length === 0 || budgetMappings.length === 0) {
-    return { points: [], cpi: 1, spi: 1 };
+    return { points: [], cpi: null, spi: null };
   }
 
   const start = projectStart(tasks);
@@ -343,18 +348,18 @@ export function diagnoseSCurve(
   const evData = computeEarnedValueSCurve(tasks, budgetMappings, budgetItems);
   const lastPoint = evData.points.at(-1);
 
-  if (lastPoint && evData.spi < 0.9) {
+  if (lastPoint && evData.spi !== null && evData.spi < 0.9) {
     diagnostics.push({
       kind: "scheduleBehind",
       severity: evData.spi < 0.75 ? "high" : "medium",
       taskIds: tasks.filter((task) => (task.progress ?? 0) < 100).map((task) => task.id),
       message: `El avance ganado esta por debajo del valor planificado (SPI ${evData.spi.toFixed(2)}).`,
-      recommendation: "Revisa ruta critica, restricciones y compromisos de recuperacion antes del siguiente corte.",
+      recommendation: "Revisa ruta crítica, restricciones y compromisos de recuperación antes del siguiente corte.",
       metric: `EV/PV ${Math.round(lastPoint.ev).toLocaleString("es-CO")} / ${Math.round(lastPoint.pv).toLocaleString("es-CO")}`,
     });
   }
 
-  if (lastPoint && evData.cpi < 0.9) {
+  if (lastPoint && evData.cpi !== null && evData.cpi < 0.9) {
     diagnostics.push({
       kind: "costOverrun",
       severity: evData.cpi < 0.75 ? "high" : "medium",

@@ -13,7 +13,7 @@ export default async function UploadLayout({
 }) {
   const user = await getCurrentUser();
   if (!user) {
-    redirect("/login?next=/upload");
+    redirect("/login?motivo=sesion-expirada&next=/upload");
   }
 
   return <>{children}</>;

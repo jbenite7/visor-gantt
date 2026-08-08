@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import type { GanttConfig, GanttScale, GanttTask } from "@/components/gantt/types";
 import type { Baseline } from "@/types/baseline";
 import type { BaselineVariance } from "@/lib/scheduling/baseline";
 import {
-  saveBaseline,
   applyBaselineToTasks,
   compareWithBaseline,
 } from "@/lib/scheduling/baseline";
@@ -31,6 +30,15 @@ interface TrackingGanttViewProps {
   selectedTaskIds?: (string | number)[];
   onTaskSelect?: (taskId: string | number, ctrlKey: boolean) => void;
   onTaskClick?: (task: GanttTask) => void;
+  /**
+   * Las líneas base son del proyecto, no de esta vista. Antes vivían en un
+   * estado local que no se guardaba ni se compartía: cambiar de vista perdía
+   * el trabajo (M13).
+   */
+  baselines: Baseline[];
+  activeBaselineId?: string;
+  onSaveBaseline: (name: string) => void;
+  onSelectBaseline: (id: string | undefined) => void;
 }
 
 const DEFAULT_CONFIG: GanttConfig = {
@@ -456,7 +464,7 @@ function TrackingGanttChart({
  * TrackingGanttView — Gantt chart with baseline overlay for schedule variance.
  *
  * Layout: SplitPane with GanttTable (left) and TrackingGanttChart (right).
- * Toolbar: Save Baseline, Select Baseline dropdown.
+ * Toolbar: Guardar línea base, Select Baseline dropdown.
  * When a baseline is selected, baseline bars appear behind actual bars
  * with variance text and schedule-based color coding.
  */
@@ -466,21 +474,19 @@ export default function TrackingGanttView({
   selectedTaskIds,
   onTaskSelect,
   onTaskClick,
+  baselines,
+  activeBaselineId,
+  onSaveBaseline,
+  onSelectBaseline,
 }: TrackingGanttViewProps) {
-  const [baselines, setBaselines] = useState<Baseline[]>([]);
-  const [activeBaselineId, setActiveBaselineId] = useState<string | null>(null);
-
   const activeBaseline = useMemo(
     () => baselines.find((b) => b.id === activeBaselineId) ?? null,
     [baselines, activeBaselineId],
   );
 
   const handleSaveBaseline = useCallback(() => {
-    const baselineNum = baselines.length + 1;
-    const newBaseline = saveBaseline(tasks, `Baseline ${baselineNum}`);
-    setBaselines((prev) => [...prev, newBaseline]);
-    setActiveBaselineId(newBaseline.id);
-  }, [tasks, baselines.length]);
+    onSaveBaseline(`Línea base ${baselines.length + 1}`);
+  }, [baselines.length, onSaveBaseline]);
 
   // Apply baseline dates to tasks
   const displayTasks = useMemo(() => {
@@ -506,7 +512,7 @@ export default function TrackingGanttView({
           onClick={handleSaveBaseline}
           style={TOOLBAR_BTN_STYLE}
         >
-          Save Baseline
+          Guardar línea base
         </button>
 
         {baselines.length > 0 && (
@@ -519,17 +525,15 @@ export default function TrackingGanttView({
                 fontWeight: 500,
               }}
             >
-              Baseline:
+              Línea base:
             </span>
             <select
               data-testid="baseline-select"
               value={activeBaselineId ?? ""}
-              onChange={(e) =>
-                setActiveBaselineId(e.target.value || null)
-              }
+              onChange={(e) => onSelectBaseline(e.target.value || undefined)}
               style={TOOLBAR_SELECT_STYLE}
             >
-              <option value="">None</option>
+              <option value="">Ninguna</option>
               {baselines.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
@@ -541,15 +545,17 @@ export default function TrackingGanttView({
 
         {activeBaseline && (
           <span
+            data-testid="baseline-variance-summary"
             style={{
               fontSize: "0.6875rem",
               color: "var(--color-text-muted)",
               fontFamily: "var(--font-inter), system-ui, sans-serif",
             }}
           >
-            {activeBaseline.tasks.length} tasks &middot;{" "}
-            {variances.filter((v) => v.isBehind).length} behind,{" "}
-            {variances.filter((v) => v.isAhead).length} ahead
+            {activeBaseline.tasks.length} actividades &middot;{" "}
+            {variances.filter((v) => v.isBehind).length} atrasadas,{" "}
+            {variances.filter((v) => v.isAhead).length} adelantadas,{" "}
+            {variances.filter((v) => v.isOnSchedule).length} en fecha
           </span>
         )}
       </div>

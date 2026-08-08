@@ -21,7 +21,7 @@ export function executiveSummaryToCsv(summary: ExecutivePlanningSummary): string
       "",
     ]),
     ...summary.signals.map((signal) => [
-      "Triple restriccion",
+      "Triple restricción",
       signal.title,
       signal.dimension,
       signal.detail,

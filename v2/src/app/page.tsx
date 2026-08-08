@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   AlertTriangle,
@@ -84,15 +85,14 @@ export default async function Home() {
           </div>
           <div className="flex flex-wrap items-start gap-3">
             <HomeMppUploadAction className="flex flex-col items-end gap-2" />
-            <form action="/project/new" method="get">
-              <button
-                type="submit"
-                className="apple-button-primary inline-flex items-center gap-2 rounded-[var(--radius-lg)] px-4 py-2.5 text-sm font-semibold transition-colors"
-              >
-                <Plus size={16} aria-hidden />
-                Nuevo Proyecto
-              </button>
-            </form>
+            {/* Un enlace, no un formulario: se puede abrir en otra pestaña (E22) */}
+            <Link
+              href="/project/new"
+              className="apple-button-primary inline-flex items-center gap-2 rounded-[var(--radius-lg)] px-4 py-2.5 text-sm font-semibold transition-colors"
+            >
+              <Plus size={16} aria-hidden />
+              Nuevo proyecto
+            </Link>
           </div>
         </div>
 

@@ -32,3 +32,4 @@ aia-ms-project/
 
 # Secretos: nunca versionar codigos de recuperacion
 docs/recovery-codes.txt
+v2/.env.local

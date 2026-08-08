@@ -12,7 +12,7 @@ interface ObservationPanelProps {
   taskId: string | number;
   taskName: string;
   observations: Observation[];
-  onAdd: (text: string) => void;
+  onAdd: (text: string, responsible?: string) => void;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
@@ -32,13 +32,15 @@ export default function ObservationPanel({
   onClose,
 }: ObservationPanelProps) {
   const [text, setText] = useState("");
+  const [responsible, setResponsible] = useState("");
   const forTask = observations.filter((o) => o.taskId === taskId);
   const canSave = text.trim().length > 0;
 
   const save = () => {
     if (!canSave) return;
-    onAdd(text);
+    onAdd(text, responsible);
     setText("");
+    setResponsible("");
   };
 
   // El registro se comparte con el equipo: por eso el export vive junto a la lista.
@@ -80,6 +82,7 @@ export default function ObservationPanel({
                 <button
                   type="button"
                   onClick={() => onToggle(o.id)}
+                  data-testid={`observation-toggle-${o.id}`}
                   className="gantt-observation-item__status"
                 >
                   {o.status === "pending" ? "Pendiente" : "Atendida"}
@@ -87,6 +90,7 @@ export default function ObservationPanel({
                 <button
                   type="button"
                   onClick={() => onDelete(o.id)}
+                  data-testid={`observation-delete-${o.id}`}
                   aria-label="Eliminar observación"
                   className="gantt-observation-item__delete"
                 >
@@ -115,6 +119,7 @@ export default function ObservationPanel({
       <div className="gantt-observation-panel__form">
         <textarea
           rows={2}
+          data-testid="observation-text"
           value={text}
           placeholder="Agregar una observación…"
           onChange={(event) => setText(event.target.value)}
@@ -125,10 +130,19 @@ export default function ObservationPanel({
             }
           }}
         />
+        <input
+          data-testid="observation-responsible"
+          value={responsible}
+          placeholder="Responsable (opcional)"
+          aria-label="Responsable de la observación"
+          onChange={(event) => setResponsible(event.target.value)}
+          className="gantt-observation-panel__responsible"
+        />
         <button
           type="button"
           disabled={!canSave}
           onClick={save}
+          data-testid="observation-save"
           className="apple-button-primary gantt-observation-panel__save"
         >
           <MessageSquarePlus size={15} aria-hidden />

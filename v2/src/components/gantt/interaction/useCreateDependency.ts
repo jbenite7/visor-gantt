@@ -18,6 +18,11 @@ export interface DepCreationState {
   mouseY: number;
   /** ID of the task the mouse is currently hovering over. */
   hoverTaskId: string | number | null;
+  /**
+   * Borde de destino bajo el puntero. Sin esto, la vista previa tenía que
+   * adivinar el tipo y solo podía ofrecer FS o SS (E35).
+   */
+  hoverEdge: DepEdge | null;
 }
 
 const INITIAL_STATE: DepCreationState = {
@@ -27,6 +32,7 @@ const INITIAL_STATE: DepCreationState = {
   mouseX: 0,
   mouseY: 0,
   hoverTaskId: null,
+  hoverEdge: null,
 };
 
 /**
@@ -37,7 +43,7 @@ const INITIAL_STATE: DepCreationState = {
  *   left edge (start) → left edge = SS
  *   left edge → right edge = SF
  */
-function inferDepType(
+export function inferDepType(
   fromEdge: DepEdge,
   toEdge: DepEdge,
 ): "FS" | "SS" | "FF" | "SF" {
@@ -45,6 +51,21 @@ function inferDepType(
   if (fromEdge === "right" && toEdge === "right") return "FF";
   if (fromEdge === "left" && toEdge === "left") return "SS";
   return "SF"; // left → right
+}
+
+const DEP_TYPE_LABELS: Record<"FS" | "SS" | "FF" | "SF", string> = {
+  FS: "fin a inicio",
+  FF: "fin a fin",
+  SS: "inicio a inicio",
+  SF: "inicio a fin",
+};
+
+/**
+ * El tipo en lenguaje de obra. «FS» no le dice nada a quien no viene de MS
+ * Project, y el gesto tiene que explicarse mientras se hace (E35).
+ */
+export function depTypeLabel(type: "FS" | "SS" | "FF" | "SF"): string {
+  return DEP_TYPE_LABELS[type];
 }
 
 /**
@@ -78,6 +99,7 @@ interface UseCreateDependencyReturn {
     targetEdge: DepEdge,
   ) => void;
   onDepCancel: () => void;
+  onDepHoverEdge: (edge: DepEdge | null) => void;
 }
 
 /**
@@ -143,6 +165,7 @@ export function useCreateDependency(
         mouseX: svgPt.x,
         mouseY: svgPt.y,
         hoverTaskId: null,
+        hoverEdge: null,
       });
     },
     [],
@@ -196,5 +219,16 @@ export function useCreateDependency(
     setDepState(INITIAL_STATE);
   }, []);
 
-  return { depState, onDepStart, onDepMove, onDepEnd, onDepCancel };
+  const onDepHoverEdge = useCallback((edge: DepEdge | null) => {
+    setDepState((prev) => (prev.isCreating ? { ...prev, hoverEdge: edge } : prev));
+  }, []);
+
+  return {
+    depState,
+    onDepStart,
+    onDepMove,
+    onDepEnd,
+    onDepCancel,
+    onDepHoverEdge,
+  };
 }

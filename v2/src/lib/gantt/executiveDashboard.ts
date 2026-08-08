@@ -6,7 +6,8 @@ import {
   diagnoseSCurve,
 } from "@/lib/scheduling/scurve";
 
-export type ExecutiveHealth = "good" | "warning" | "critical";
+/** `unknown`: no hay con qué juzgar. Verde y «sin datos» no son lo mismo (M1). */
+export type ExecutiveHealth = "good" | "warning" | "critical" | "unknown";
 export type ExecutiveDimension = "schedule" | "cost" | "scope" | "progress";
 
 export interface ExecutiveKpi {
@@ -18,6 +19,8 @@ export interface ExecutiveKpi {
 }
 
 export interface ExecutiveSignal {
+  /** A qué vista lleva este indicador cuando se pulsa (M1). */
+  linkTo?: "bottlenecks" | "gantt" | "scurve" | "resources";
   dimension: ExecutiveDimension;
   health: ExecutiveHealth;
   title: string;
@@ -29,11 +32,15 @@ export interface ExecutivePlanningSummary {
   health: ExecutiveHealth;
   kpis: ExecutiveKpi[];
   signals: ExecutiveSignal[];
+  /** Fecha de corte en ISO. Sin ella no se sabe a qué día son las cifras (M3). */
+  statusDate?: string;
 }
 
 function healthRank(health: ExecutiveHealth): number {
   if (health === "critical") return 3;
   if (health === "warning") return 2;
+  // «Sin datos» pesa más que «controlado»: no saber no es estar bien (M1).
+  if (health === "unknown") return 1.5;
   return 1;
 }
 
@@ -72,12 +79,15 @@ export function buildExecutivePlanningSummary({
   budgetMappings,
   scheduleIssues,
   bottlenecks,
+  statusDate,
 }: {
   tasks: GanttTask[];
   budgetItems: BudgetItem[];
   budgetMappings: BudgetMapping[];
   scheduleIssues: ScheduleIssue[];
   bottlenecks: Bottleneck[];
+  /** Fecha de corte en ISO: sin ella no se sabe a qué día son las cifras (M3). */
+  statusDate?: string;
 }): ExecutivePlanningSummary {
   const operationalTasks = tasks.filter((task) => !task.isSummary && !task.isMilestone);
   const criticalTasks = tasks.filter((task) => task.isCritical);
@@ -94,39 +104,60 @@ export function buildExecutivePlanningSummary({
     ? (mappedOperationalCount / operationalTasks.length) * 100
     : 100;
 
-  const scheduleHealth: ExecutiveHealth =
-    highIssues > 0 || ev.spi < 0.75
+  /**
+   * Sin tareas o sin presupuesto vinculado no hay SPI ni CPI: el semáforo dice
+   * «aún no hay datos» en vez de verde, que es lo que hacía antes (M1).
+   */
+  const sinDatos = tasks.length === 0;
+
+  const scheduleHealth: ExecutiveHealth = sinDatos
+    ? "unknown"
+    : highIssues > 0 || (ev.spi !== null && ev.spi < 0.75)
       ? "critical"
-      : highBottlenecks > 0 || ev.spi < 0.9
+      : highBottlenecks > 0 || (ev.spi !== null && ev.spi < 0.9)
         ? "warning"
         : "good";
-  const costHealth: ExecutiveHealth =
-    ev.cpi < 0.75 || actualCost > totalBudget * 1.1
+  const costHealth: ExecutiveHealth = sinDatos
+    ? "unknown"
+    : (ev.cpi !== null && ev.cpi < 0.75) || actualCost > totalBudget * 1.1
       ? "critical"
-      : ev.cpi < 0.9 || actualCost > totalBudget
+      : (ev.cpi !== null && ev.cpi < 0.9) || actualCost > totalBudget
         ? "warning"
         : "good";
-  const scopeHealth: ExecutiveHealth =
-    budgetCoverage < 60 ? "critical" : budgetCoverage < 85 ? "warning" : "good";
-  const progressHealth: ExecutiveHealth =
-    progress < 50 && ev.spi < 0.9 ? "warning" : "good";
+  const scopeHealth: ExecutiveHealth = sinDatos
+    ? "unknown"
+    : budgetCoverage < 60
+      ? "critical"
+      : budgetCoverage < 85
+        ? "warning"
+        : "good";
+  /** El avance también llega a crítico, como cronograma y costo (M8). */
+  const progressHealth: ExecutiveHealth = sinDatos
+    ? "unknown"
+    : progress < 25 && ev.spi !== null && ev.spi < 0.75
+      ? "critical"
+      : progress < 50 && ev.spi !== null && ev.spi < 0.9
+        ? "warning"
+        : "good";
 
   const signals: ExecutiveSignal[] = [
     {
       dimension: "schedule",
+      linkTo: "bottlenecks",
       health: scheduleHealth,
       title: "Cronograma",
-      detail: `${criticalTasks.length} tareas criticas · ${highBottlenecks} cuellos altos · SPI ${ev.spi.toFixed(2)}`,
+      detail: `${criticalTasks.length} tareas críticas · ${highBottlenecks} cuellos altos · SPI ${ev.spi?.toFixed(2) ?? "sin datos"}`,
       recommendation:
         scheduleHealth === "good"
-          ? "Mantener seguimiento de ruta critica y holguras bajas."
+          ? "Mantener seguimiento de ruta crítica y holguras bajas."
           : "Priorizar restricciones de ruta critica y compromisos de recuperacion.",
     },
     {
       dimension: "cost",
+      linkTo: "scurve",
       health: costHealth,
       title: "Costo",
-      detail: `${formatMoney(actualCost)} real / ${formatMoney(totalBudget)} presupuesto · CPI ${ev.cpi.toFixed(2)}`,
+      detail: `${formatMoney(actualCost)} real / ${formatMoney(totalBudget)} presupuesto · CPI ${ev.cpi?.toFixed(2) ?? "sin datos"}`,
       recommendation:
         costHealth === "good"
           ? "Mantener control de gasto contra avance ganado."
@@ -134,6 +165,7 @@ export function buildExecutivePlanningSummary({
     },
     {
       dimension: "scope",
+      linkTo: "resources",
       health: scopeHealth,
       title: "Alcance",
       detail: `${formatPercent(budgetCoverage)} de tareas operativas con presupuesto mapeado.`,
@@ -144,6 +176,7 @@ export function buildExecutivePlanningSummary({
     },
     {
       dimension: "progress",
+      linkTo: "gantt",
       health: progressHealth,
       title: "Avance",
       detail: `${formatPercent(progress)} promedio ponderado · ${scurveDiagnostics.length} alertas de Curva S.`,
@@ -156,6 +189,7 @@ export function buildExecutivePlanningSummary({
 
   return {
     health: worstHealth(signals.map((signal) => signal.health)),
+    statusDate,
     kpis: [
       {
         id: "tasks",
@@ -168,14 +202,14 @@ export function buildExecutivePlanningSummary({
         id: "progress",
         label: "Avance",
         value: formatPercent(progress),
-        detail: `SPI ${ev.spi.toFixed(2)}`,
+        detail: `SPI ${ev.spi?.toFixed(2) ?? "sin datos"}`,
         health: progressHealth,
       },
       {
         id: "cost",
         label: "Costo real",
         value: formatMoney(actualCost),
-        detail: `CPI ${ev.cpi.toFixed(2)}`,
+        detail: `CPI ${ev.cpi?.toFixed(2) ?? "sin datos"}`,
         health: costHealth,
       },
       {

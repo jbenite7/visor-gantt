@@ -24,7 +24,11 @@ import type { MppCustomFieldDefinition, MppTaskColumn, TaskColumnSettings } from
 import type { TaskFilterSettings, TaskFilterType, UILocale } from "@/types/ui";
 import { t } from "@/lib/i18n";
 import { filterTasks, normalizeTaskFilter } from "@/lib/gantt/taskFilters";
-import { exportedScheduleFileName, tasksToExcelTsv } from "@/lib/gantt/scheduleExchange";
+import {
+  exportedScheduleFileName,
+  tasksToCsv,
+  tasksToExcelTsv,
+} from "@/lib/gantt/scheduleExchange";
 import { getMppColumnLabel } from "@/lib/mpp/fieldLabels";
 import { inspectMppField } from "@/lib/mpp/fieldInspector";
 import {
@@ -35,6 +39,8 @@ import ColumnHeader from "./ColumnHeader";
 import ColumnSelector from "./ColumnSelector";
 import type { ColumnConfig } from "./ColumnSelector";
 import GanttRow from "./GanttRow";
+import type { ProjectCalendar } from "@/types/calendar";
+import type { Observation } from "@/lib/observations/observations";
 import DependencyPanel from "@/components/gantt/dependencies/DependencyPanel";
 
 interface TaskBudgetData {
@@ -55,6 +61,12 @@ interface GanttTableProps {
     value: unknown
   ) => void;
   /** Motivo por el que una edición se rechazó, para anunciarlo al usuario. */
+  /** Calendario del proyecto: decide qué días cuentan al editar el fin. */
+  calendar?: ProjectCalendar;
+  /** Actividades movidas por la última edición aceptada (E31). */
+  changedTaskIds?: (string | number)[];
+  /** Observaciones del proyecto: viajan en el CSV del cronograma (M31). */
+  observations?: Observation[];
   onInvalidEdit?: (reason: string) => void;
   /**
    * Restablecer columnas borra la configuración del usuario, así que el padre
@@ -189,17 +201,19 @@ function getVisibleTasks(
       collapsedStack.pop();
     }
 
+    // Primero: ¿está dentro de un resumen ya colapsado? Si lo está, no se ve,
+    // aunque ella misma sea un resumen colapsado. Antes esta rama iba después
+    // y un capítulo cerrado seguía mostrando sus subcapítulos cerrados.
+    const dentroDeColapsado =
+      collapsedStack.length > 0 &&
+      task.outlineLevel > collapsedStack[collapsedStack.length - 1];
+
+    if (dentroDeColapsado) continue;
+
     if (task.isSummary && collapsedIds.has(task.id)) {
       collapsedStack.push(task.outlineLevel);
-      visible.push(task);
-    } else if (
-      collapsedStack.length > 0 &&
-      task.outlineLevel > collapsedStack[collapsedStack.length - 1]
-    ) {
-      continue;
-    } else {
-      visible.push(task);
     }
+    visible.push(task);
   }
 
   return visible;
@@ -241,6 +255,9 @@ export default function GanttTable({
   selectedTaskIds,
   onTaskSelect,
   onUpdateTask,
+  calendar,
+  changedTaskIds,
+  observations,
   onInvalidEdit,
   onResetColumns,
   budgetMappings,
@@ -523,15 +540,48 @@ export default function GanttTable({
     () => filterTasks(tasks, taskFilter),
     [tasks, taskFilter],
   );
+
+  /**
+   * Una tarea filtrada de la que depende algo visible se sigue mostrando, en
+   * gris: si no, la flecha de dependencia muere en el vacío y el plan parece
+   * roto (E7).
+   */
+  const contextTaskIds = useMemo(() => {
+    const visibles = new Set(filteredTasks.map((task) => task.id));
+    const contexto = new Set<string | number>();
+
+    for (const task of filteredTasks) {
+      for (const dep of task.dependencies ?? []) {
+        if (!visibles.has(dep.from)) contexto.add(dep.from);
+      }
+    }
+
+    return contexto;
+  }, [filteredTasks]);
+
+  const tasksWithContext = useMemo(() => {
+    if (contextTaskIds.size === 0) return filteredTasks;
+    const extra = tasks.filter((task) => contextTaskIds.has(task.id));
+    // Se conserva el orden del cronograma: el contexto no se apila al final.
+    const incluidos = new Set([
+      ...filteredTasks.map((task) => task.id),
+      ...extra.map((task) => task.id),
+    ]);
+    return tasks.filter((task) => incluidos.has(task.id));
+  }, [contextTaskIds, filteredTasks, tasks]);
   const visibleTasks = useMemo(
-    () => getVisibleTasks(filteredTasks, collapsedTaskIds),
-    [filteredTasks, collapsedTaskIds],
+    () => getVisibleTasks(tasksWithContext, collapsedTaskIds),
+    [tasksWithContext, collapsedTaskIds],
   );
+  /**
+   * La etiqueta y el nivel iban desfasados: el botón «L1» aplicaba el nivel 2.
+   * Ahora `L1` es el nivel 1, que es lo que dice (E19).
+   */
   const levelButtons = useMemo(() => {
     const maxLevel = Math.max(1, ...tasks.map((task) => task.outlineLevel || 1));
     return Array.from({ length: maxLevel }, (_, index) => ({
       label: `L${index + 1}`,
-      level: index + 2,
+      level: index + 1,
     }));
   }, [tasks]);
   const normalizedTaskFilter = useMemo(
@@ -574,7 +624,7 @@ export default function GanttTable({
         kind,
         parentTaskId,
         afterTaskId: parentTaskId === undefined ? selectedTaskId : undefined,
-        name: kind === "summary" ? "Nuevo capitulo" : "Nueva tarea",
+        name: kind === "summary" ? "Nuevo capítulo" : "Nueva tarea",
       });
     },
     [onInsertTask, selectedTaskId],
@@ -594,6 +644,10 @@ export default function GanttTable({
     setBulkProgressOpen(false);
   }, [bulkProgressValue, canBulkEditProgress, onUpdateTask, selectedTasks]);
 
+  const csvText = useMemo(
+    () => tasksToCsv(visibleTasks, observations ?? []),
+    [visibleTasks, observations],
+  );
   const exportText = useMemo(
     () => tasksToExcelTsv(visibleTasks),
     [visibleTasks],
@@ -609,7 +663,10 @@ export default function GanttTable({
   }, [exportText]);
 
   const handleDownloadExport = useCallback(() => {
-    const blob = new Blob([exportText], { type: "text/tab-separated-values;charset=utf-8" });
+    // La marca de orden de bytes hace que Excel abra el CSV con las tildes bien.
+    const blob = new Blob([`\ufeff${csvText}`], {
+      type: "text/csv;charset=utf-8",
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -617,7 +674,7 @@ export default function GanttTable({
     link.click();
     URL.revokeObjectURL(url);
     setExportStatus("downloaded");
-  }, [exportText]);
+  }, [csvText]);
 
   const handleRowDragStart = useCallback(
     (taskId: string | number, event: React.DragEvent<HTMLTableRowElement>) => {
@@ -741,43 +798,23 @@ export default function GanttTable({
       role="toolbar"
       aria-label={effectiveLocale === "en" ? "Table tools" : "Herramientas de tabla"}
     >
-      <div className="gantt-table-ribbon__group gantt-table-ribbon__group--expand">
+      <div
+        className="gantt-table-ribbon__group gantt-table-ribbon__group--expand"
+        data-testid="gantt-table-ribbon-group"
+        data-label={t(effectiveLocale, "expand")}
+      >
         <span className="gantt-table-ribbon__label">{t(effectiveLocale, "expand")}</span>
-        {levelButtons.length <= 2 ? (
-          levelButtons.map((btn) => (
-            <button
-              key={btn.label}
-              type="button"
-              data-testid="expand-level-button"
-              className="gantt-table-tools__text-button gantt-table-ribbon__text-button"
-              onClick={() => handleExpandToLevel(btn.level)}
-            >
-              {btn.label}
-            </button>
-          ))
-        ) : (
-          <select
-            data-testid="expand-level-select"
-            className="gantt-table-ribbon__select"
-            value=""
-            aria-label={effectiveLocale === "en" ? "Expand to level" : "Expandir a nivel"}
-            onChange={(event) => {
-              const level = Number.parseInt(event.target.value, 10);
-              if (Number.isFinite(level)) {
-                handleExpandToLevel(level);
-              }
-            }}
+        {levelButtons.map((btn) => (
+          <button
+            key={btn.label}
+            type="button"
+            data-testid="expand-level-button"
+            className="gantt-table-tools__text-button gantt-table-ribbon__text-button"
+            onClick={() => handleExpandToLevel(btn.level)}
           >
-            <option value="" disabled>
-              {effectiveLocale === "en" ? "Level" : "Nivel"}
-            </option>
-            {levelButtons.map((btn) => (
-              <option key={btn.label} value={btn.level}>
-                {btn.label}
-              </option>
-            ))}
-          </select>
-        )}
+            {btn.label}
+          </button>
+        ))}
         <button
           type="button"
           data-testid="expand-all-button"
@@ -796,7 +833,11 @@ export default function GanttTable({
         </button>
       </div>
       <span className="gantt-table-ribbon__divider" aria-hidden />
-      <div className="gantt-table-ribbon__group">
+      <div
+        className="gantt-table-ribbon__group"
+        data-testid="gantt-table-ribbon-group"
+        data-label={effectiveLocale === "en" ? "Hierarchy" : "Jerarquía"}
+      >
         <span className="gantt-table-ribbon__label">
           {effectiveLocale === "en" ? "Hierarchy" : "Jerarquía"}
         </span>
@@ -846,15 +887,19 @@ export default function GanttTable({
         </button>
       </div>
       <span className="gantt-table-ribbon__divider" aria-hidden />
-      <div className="gantt-table-ribbon__group">
+      <div
+        className="gantt-table-ribbon__group"
+        data-testid="gantt-table-ribbon-group"
+        data-label={effectiveLocale === "en" ? "Create" : "Crear"}
+      >
         <span className="gantt-table-ribbon__label">
           {effectiveLocale === "en" ? "Create" : "Crear"}
         </span>
         <button
           type="button"
           data-testid="hierarchy-add-chapter"
-          title={effectiveLocale === "en" ? "Add chapter" : "Crear capitulo"}
-          aria-label={effectiveLocale === "en" ? "Add chapter" : "Crear capitulo"}
+          title={effectiveLocale === "en" ? "Add chapter" : "Crear capítulo"}
+          aria-label={effectiveLocale === "en" ? "Add chapter" : "Crear capítulo"}
           disabled={!onInsertTask}
           className="gantt-table-toolbar__icon-button"
           onClick={() => handleInsertTask("summary")}
@@ -900,7 +945,11 @@ export default function GanttTable({
         </button>
       </div>
       <span className="gantt-table-ribbon__divider" aria-hidden />
-      <div className="gantt-table-ribbon__group gantt-table-ribbon__group--data">
+      <div
+        className="gantt-table-ribbon__group gantt-table-ribbon__group--data"
+        data-testid="gantt-table-ribbon-group"
+        data-label={effectiveLocale === "en" ? "Data" : "Datos"}
+      >
         <span className="gantt-table-ribbon__label">
           {effectiveLocale === "en" ? "Data" : "Datos"}
         </span>
@@ -929,8 +978,16 @@ export default function GanttTable({
         <button
           type="button"
           data-testid="excel-copy-export"
-          title={effectiveLocale === "en" ? "Copy visible schedule for Excel" : "Copiar cronograma visible para Excel"}
-          aria-label={effectiveLocale === "en" ? "Copy visible schedule for Excel" : "Copiar cronograma visible para Excel"}
+          title={
+            effectiveLocale === "en"
+              ? "Copy the visible schedule to paste into Excel"
+              : "Copiar el cronograma visible para pegar en Excel"
+          }
+          aria-label={
+            effectiveLocale === "en"
+              ? "Copy the visible schedule to paste into Excel"
+              : "Copiar el cronograma visible para pegar en Excel"
+          }
           disabled={visibleTasks.length === 0}
           className="gantt-table-toolbar__icon-button"
           onClick={() => void handleCopyExport()}
@@ -940,8 +997,16 @@ export default function GanttTable({
         <button
           type="button"
           data-testid="excel-download-export"
-          title={effectiveLocale === "en" ? "Download visible schedule as TSV" : "Descargar cronograma visible como TSV"}
-          aria-label={effectiveLocale === "en" ? "Download visible schedule as TSV" : "Descargar cronograma visible como TSV"}
+          title={
+            effectiveLocale === "en"
+              ? "Download the visible schedule as CSV"
+              : "Descargar el cronograma visible en CSV"
+          }
+          aria-label={
+            effectiveLocale === "en"
+              ? "Download the visible schedule as CSV"
+              : "Descargar el cronograma visible en CSV"
+          }
           disabled={visibleTasks.length === 0}
           className="gantt-table-toolbar__icon-button"
           onClick={handleDownloadExport}
@@ -1025,7 +1090,13 @@ export default function GanttTable({
               data-testid="gantt-task-filter-count"
               className="gantt-table-toolbar__count"
             >
-              {visibleTasks.length} / {tasks.length}
+              {hasActiveTaskFilter
+                ? `${tasks.length - filteredTasks.length} ${
+                    tasks.length - filteredTasks.length === 1
+                      ? "oculta"
+                      : "ocultas"
+                  } de ${tasks.length}`
+                : `${visibleTasks.length} / ${tasks.length}`}
             </span>
             {hasActiveTaskFilter && (
               <button
@@ -1210,6 +1281,9 @@ export default function GanttTable({
                 key={task.id}
                 task={task}
                 index={index}
+                isChanged={changedTaskIds?.includes(task.id) ?? false}
+                isFilteredContext={contextTaskIds.has(task.id)}
+                calendar={calendar}
                 rowNumber={index + 1}
                 isSelected={selectedTaskIds?.includes(task.id) ?? false}
                 onSelect={onTaskSelect}

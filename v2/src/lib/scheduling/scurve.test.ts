@@ -225,11 +225,12 @@ describe("computeEarnedValueSCurve", () => {
   // -------------------------------------------------------------------------
   // 7. Empty input
   // -------------------------------------------------------------------------
-  it("returns empty points with CPI/SPI=1 when no tasks are given", () => {
+  it("returns empty points and no indices when no tasks are given", () => {
+    // Antes devolvía 1, que el tablero leía como «todo en orden» (M1).
     const result = computeEarnedValueSCurve([], [], []);
     expect(result.points).toEqual([]);
-    expect(result.cpi).toBe(1);
-    expect(result.spi).toBe(1);
+    expect(result.cpi).toBeNull();
+    expect(result.spi).toBeNull();
   });
 
   // -------------------------------------------------------------------------
@@ -487,5 +488,39 @@ describe("getTaskActualCost", () => {
     expect(resultForT1).toBe(200);
     // T2: 500 × (1200 / 2000) = 300
     expect(resultForT2).toBe(300);
+  });
+});
+
+describe("sin datos no se inventa un semáforo verde (M1)", () => {
+  test("sin tareas, SPI y CPI no valen 1: valen nada", () => {
+    const r = computeEarnedValueSCurve([], [], []);
+
+    expect(r.spi).toBeNull();
+    expect(r.cpi).toBeNull();
+  });
+
+  test("sin mapeos de presupuesto tampoco se inventan", () => {
+    const r = computeEarnedValueSCurve(
+      [
+        {
+          id: 1,
+          name: "Excavación",
+          start: new Date("2026-01-05"),
+          finish: new Date("2026-01-09"),
+          duration: 5,
+          progress: 0,
+          isCritical: false,
+          isMilestone: false,
+          isSummary: false,
+          outlineLevel: 1,
+          dependencies: [],
+        },
+      ],
+      [],
+      [],
+    );
+
+    expect(r.spi).toBeNull();
+    expect(r.cpi).toBeNull();
   });
 });

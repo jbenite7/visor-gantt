@@ -28,7 +28,7 @@ function task(overrides: Partial<GanttTask> & { id: string | number }): GanttTas
 describe("task structure editing", () => {
   test("normalizes WBS, summary flags and summary rollups", () => {
     const result = normalizeTaskStructure([
-      task({ id: 1, name: "Capitulo" }),
+      task({ id: 1, name: "Capítulo" }),
       task({
         id: 2,
         name: "A",
@@ -118,7 +118,7 @@ describe("task structure editing", () => {
     const withSummary = insertTask(base, {
       afterTaskId: 1,
       kind: "summary",
-      name: "Nuevo capitulo",
+      name: "Nuevo capítulo",
     });
     const withChild = insertTask(withSummary, {
       parentTaskId: 3,
@@ -128,7 +128,7 @@ describe("task structure editing", () => {
 
     expect(withChild.map((item) => item.name)).toEqual([
       "Task 1",
-      "Nuevo capitulo",
+      "Nuevo capítulo",
       "Nueva actividad",
       "Task 2",
     ]);

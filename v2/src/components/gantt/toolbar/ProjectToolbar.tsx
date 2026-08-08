@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import BaselineMenu from "./BaselineMenu";
 import {
   Undo2,
   Redo2,
   Plus,
   Trash2,
-  Save,
   FolderKanban,
-  ChevronDown,
   MessageSquare,
 } from "lucide-react";
 import type { ViewType } from "./viewTypes";
@@ -66,8 +64,10 @@ interface ProjectToolbarProps {
   /* ── Baseline Tools ── */
   baselines?: Baseline[];
   activeBaselineId?: string;
-  onSaveBaseline?: () => void;
+  onSaveBaseline?: (name: string) => void;
   onSelectBaseline?: (id: string) => void;
+  onDeleteBaseline?: (id: string) => void;
+  proposedBaselineName?: string;
   locale?: UILocale;
 }
 
@@ -104,26 +104,10 @@ export default function ProjectToolbar({
   activeBaselineId,
   onSaveBaseline,
   onSelectBaseline,
+  onDeleteBaseline,
+  proposedBaselineName = "Línea base 1",
   locale = "es",
 }: ProjectToolbarProps) {
-  const [baselineDropdownOpen, setBaselineDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    if (!baselineDropdownOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setBaselineDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [baselineDropdownOpen]);
-
-  const activeBaselineName =
-    baselines.find((b) => b.id === activeBaselineId)?.name ?? null;
-
   return (
     <div
       data-testid="project-toolbar"
@@ -176,9 +160,10 @@ export default function ProjectToolbar({
 
       {/* ─── 4. Editing Tools (center-right) ─── */}
       <div className="gantt-project-toolbar__group">
-        {/* Add Task */}
+        {/* Agregar tarea */}
         <button
           type="button"
+          data-testid="toolbar-add"
           onClick={onAddTask}
           disabled={!onAddTask}
           title={t(locale, "addTask")}
@@ -187,15 +172,20 @@ export default function ProjectToolbar({
           <Plus className="gantt-project-toolbar__icon" aria-hidden />
         </button>
 
-        {/* Delete Task */}
+        {/* Separador: lo destructivo no puede estar pegado a lo frecuente (E34) */}
+        <div className="gantt-project-toolbar__mini-divider" />
+
+        {/* Eliminar tarea — con etiqueta de texto, no solo icono */}
         <button
           type="button"
+          data-testid="toolbar-delete"
           onClick={onDeleteTask}
           disabled={!hasSelection}
           title={t(locale, "deleteSelectedTasks")}
-          className="gantt-project-toolbar__button gantt-project-toolbar__button--icon"
+          className="gantt-project-toolbar__button gantt-project-toolbar__button--text gantt-project-toolbar__button--danger"
         >
           <Trash2 className="gantt-project-toolbar__icon" aria-hidden />
+          <span>{locale === "en" ? "Delete" : "Eliminar"}</span>
         </button>
 
         {onOpenObservations && (
@@ -220,12 +210,15 @@ export default function ProjectToolbar({
           </>
         )}
 
-        {(canUndo || canRedo) && (
-          <>
-            <div className="gantt-project-toolbar__mini-divider" />
+        {/*
+          Antes el grupo entero desaparecía sin historial, y la barra se
+          reordenaba bajo el dedo del usuario. Ahora se apagan (E15).
+        */}
+        <div className="gantt-project-toolbar__mini-divider" />
 
             <button
               type="button"
+              data-testid="toolbar-undo"
               onClick={onUndo}
               disabled={!canUndo}
               title={`${t(locale, "undo")} (Ctrl+Z)`}
@@ -236,6 +229,7 @@ export default function ProjectToolbar({
 
             <button
               type="button"
+              data-testid="toolbar-redo"
               onClick={onRedo}
               disabled={!canRedo}
               title={`${t(locale, "redo")} (Ctrl+Shift+Z)`}
@@ -243,71 +237,20 @@ export default function ProjectToolbar({
             >
               <Redo2 className="gantt-project-toolbar__icon" aria-hidden />
             </button>
-          </>
-        )}
+          
       </div>
 
       <div className="gantt-project-toolbar__divider" />
 
-      {/* ─── 5. Baseline Tools (right) ─── */}
-      <div className="gantt-project-toolbar__group gantt-project-toolbar__baseline-group">
-        {/* Save Baseline */}
-        <button
-          type="button"
-          onClick={onSaveBaseline}
-          disabled={!onSaveBaseline}
-          title={t(locale, "saveBaseline")}
-          className="gantt-project-toolbar__button gantt-project-toolbar__button--text"
-        >
-          <Save className="gantt-project-toolbar__small-icon" aria-hidden />
-          <span>
-            {locale === "en" ? "Baseline" : "Línea base"}
-          </span>
-        </button>
-
-        {/* Baseline Selector Dropdown */}
-        {baselines.length > 0 && (
-          <div ref={dropdownRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setBaselineDropdownOpen((prev) => !prev)}
-              title={t(locale, "selectBaseline")}
-              className="gantt-project-toolbar__button gantt-project-toolbar__button--text gantt-project-toolbar__baseline-select"
-              data-active={Boolean(activeBaselineId)}
-              aria-expanded={baselineDropdownOpen}
-            >
-              <span className="truncate">
-                {activeBaselineName ?? "Baseline"}
-              </span>
-              <ChevronDown className="gantt-project-toolbar__chevron" aria-hidden />
-            </button>
-
-            {baselineDropdownOpen && (
-              <div className="gantt-project-toolbar__baseline-menu">
-                {baselines.map((bl) => (
-                  <button
-                    key={bl.id}
-                    type="button"
-                    onClick={() => {
-                      onSelectBaseline?.(bl.id);
-                      setBaselineDropdownOpen(false);
-                    }}
-                    className="gantt-project-toolbar__baseline-option"
-                    data-active={bl.id === activeBaselineId}
-                  >
-                    {bl.name}
-                    {bl.id === activeBaselineId && (
-                      <span className="gantt-project-toolbar__baseline-current">
-                        ●
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      {/* ─── 5. Línea base (derecha) ─── */}
+      <BaselineMenu
+        baselines={baselines}
+        activeBaselineId={activeBaselineId}
+        proposedName={proposedBaselineName}
+        onSave={(name) => onSaveBaseline?.(name)}
+        onSelect={(id) => onSelectBaseline?.(id)}
+        onDelete={(id) => onDeleteBaseline?.(id)}
+      />
     </div>
   );
 }

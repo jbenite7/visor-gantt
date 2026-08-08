@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveProject } from "@/app/actions/project";
 import { getCurrentUser } from "@/lib/auth/session";
+import { humanParserError } from "@/lib/import/parserErrors";
 import { buildProjectDataFromMpp } from "@/lib/import/mpp-project";
 import type { ProjectData as ParsedMppProject } from "@/lib/parser/mpp-parser";
 
@@ -45,19 +46,19 @@ export async function POST(request: NextRequest) {
 
   if (!(file instanceof File)) {
     return NextResponse.json(
-      { error: "No se proporciono un archivo .mpp valido" },
+      { error: "No se proporcionó un archivo .mpp válido" },
       { status: 400 },
     );
   }
   if (!file.name.toLowerCase().endsWith(".mpp")) {
     return NextResponse.json(
-      { error: "Selecciona un archivo Microsoft Project con extension .mpp" },
+      { error: "Selecciona un archivo de Microsoft Project con extensión .mpp" },
       { status: 400 },
     );
   }
   if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
     return NextResponse.json(
-      { error: `El archivo supera el maximo de ${MAX_FILE_SIZE_MB} MB` },
+      { error: `El archivo supera el máximo de ${MAX_FILE_SIZE_MB} MB` },
       { status: 413 },
     );
   }
@@ -72,8 +73,14 @@ export async function POST(request: NextRequest) {
 
   if (!parserResponse.ok) {
     const errorText = await parserResponse.text().catch(() => "Sin detalles");
+    // El detalle técnico se queda en el registro del servidor: al usuario le
+    // llega la causa probable y qué hacer con ella (E5).
+    console.error("[import-mpp] error del analizador", {
+      status: parserResponse.status,
+      detail: errorText,
+    });
     return NextResponse.json(
-      { error: errorText },
+      { error: humanParserError(errorText, parserResponse.status) },
       { status: parserResponse.status },
     );
   }
@@ -105,6 +112,19 @@ export async function POST(request: NextRequest) {
   destination.searchParams.set("tareas", String(projectData.tasks.length));
   destination.searchParams.set("dependencias", String(dependencyCount));
   destination.searchParams.set("recursos", String(projectData.resources.length));
+
+  // La importación ligera se queda en las primeras 120 columnas del archivo.
+  // Solo son «descartadas» las que caen por ese tope: los campos propios del
+  // cronograma (nombre, inicio, fin…) entran siempre, aunque no figuren en la
+  // lista de columnas MPP (E33).
+  const columnasOfrecidas = parsedProject.mppTaskColumns ?? [];
+  const columnasDescartadas = columnasOfrecidas
+    .slice(projectData.mppTaskColumns?.length ?? columnasOfrecidas.length)
+    .map((columna) => columna.labelEs || columna.labelEn || columna.key)
+    .slice(0, 40);
+  if (columnasDescartadas.length > 0) {
+    destination.searchParams.set("descartadas", columnasDescartadas.join(","));
+  }
 
   const response = NextResponse.redirect(destination, { status: 303 });
   response.headers.set("X-Import-Tasks", String(projectData.tasks.length));

@@ -100,7 +100,7 @@ function constraintsForTask(
   if (task.isCritical) {
     constraints.push({
       type: "criticalPath",
-      message: "Actividad en ruta critica; requiere control semanal.",
+      message: "Actividad en ruta crítica; requiere control semanal.",
     });
   }
 

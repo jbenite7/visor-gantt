@@ -82,7 +82,7 @@ function createTask(tasks: GanttTask[], level: number, options: InsertTaskOption
     name:
       options.name ??
       (options.kind === "summary"
-        ? "Nuevo capitulo"
+        ? "Nuevo capítulo"
         : options.kind === "milestone"
           ? "Nuevo hito"
           : "Nueva tarea"),

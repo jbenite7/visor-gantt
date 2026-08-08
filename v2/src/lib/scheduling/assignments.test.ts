@@ -5,6 +5,7 @@ import {
   getResourceAssignments,
   getTaskAssignments,
   createAssignment,
+  wouldOverallocate,
 } from "./assignments";
 import { Resource, Assignment } from "@/types/resource";
 import { GanttTask } from "@/components/gantt/types";
@@ -299,5 +300,99 @@ describe("createAssignment", () => {
     const result = createAssignment(1, 999, 50, resources, tasks);
 
     expect(result.cost).toBe(0);
+  });
+});
+
+describe("una sola definición de sobreasignado (M18, M19)", () => {
+  const recursos: Resource[] = [
+    { uid: 1, name: "Cuadrilla 2", type: "work", rate: 20, availability: 100 },
+  ];
+  const tareas: GanttTask[] = [
+    {
+      id: 1,
+      name: "Excavación",
+      start: new Date("2026-01-05"),
+      finish: new Date("2026-01-09"),
+      duration: 5,
+      progress: 0,
+      isCritical: false,
+      isMilestone: false,
+      isSummary: false,
+      outlineLevel: 1,
+      dependencies: [],
+    },
+    {
+      id: 2,
+      name: "Cimentación",
+      start: new Date("2026-01-05"),
+      finish: new Date("2026-01-09"),
+      duration: 5,
+      progress: 0,
+      isCritical: false,
+      isMilestone: false,
+      isSummary: false,
+      outlineLevel: 1,
+      dependencies: [],
+    },
+  ];
+  const yaAsignado: Assignment[] = [
+    { taskId: 1, resourceId: 1, units: 100, cost: 0 },
+  ];
+
+  test("la nueva asignación que rebasa el día se detecta antes de crearla", () => {
+    const aviso = wouldOverallocate(yaAsignado, recursos, tareas, {
+      taskId: 2,
+      resourceId: 1,
+      units: 100,
+      cost: 0,
+    });
+
+    expect(aviso).not.toBeNull();
+    expect(aviso!.resourceId).toBe(1);
+  });
+
+  test("una que cabe no genera aviso", () => {
+    const aviso = wouldOverallocate([], recursos, tareas, {
+      taskId: 2,
+      resourceId: 1,
+      units: 50,
+      cost: 0,
+    });
+
+    expect(aviso).toBeNull();
+  });
+
+  test("usa el mismo umbral que Problemas, no uno propio", () => {
+    const nueva: Assignment = {
+      taskId: 2,
+      resourceId: 1,
+      units: 100,
+      cost: 0,
+    };
+
+    const porProblemas = detectOverallocation(
+      [...yaAsignado, nueva],
+      recursos,
+      tareas,
+    ).filter((r) => r.isOverallocated);
+    const previo = wouldOverallocate(yaAsignado, recursos, tareas, nueva);
+
+    expect(porProblemas.length > 0).toBe(previo !== null);
+  });
+
+  test("no avisa por un recurso distinto del que se está asignando", () => {
+    const otros: Resource[] = [
+      ...recursos,
+      { uid: 2, name: "Cuadrilla 3", type: "work", rate: 20, availability: 100 },
+    ];
+
+    const aviso = wouldOverallocate(yaAsignado, otros, tareas, {
+      taskId: 2,
+      resourceId: 2,
+      units: 100,
+      cost: 0,
+    });
+
+    expect(aviso).toBeNull();
   });
 });

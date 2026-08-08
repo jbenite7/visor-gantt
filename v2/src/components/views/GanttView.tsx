@@ -6,14 +6,13 @@ import type { GanttScale, GanttTask } from "@/components/gantt/types";
 import type { PlanningAuditEvent } from "@/types/audit";
 import type { Observation } from "@/lib/observations/observations";
 import dynamic from "next/dynamic";
+import ScheduleSkeleton from "@/components/gantt/ScheduleSkeleton";
 
 /**
  * Las vistas distintas del Gantt se cargan al abrirlas. Antes las 14 viajaban en
  * el bundle inicial y montaban de golpe: cambiar de vista costaba ~584 ms de INP.
  */
-const ViewLoading = () => (
-  <div className="gantt-view-loading" role="status">Cargando vista…</div>
-);
+const ViewLoading = () => <ScheduleSkeleton />;
 
 const TaskSheetView = dynamic(() => import("@/components/views/TaskSheetView"), { loading: ViewLoading });
 const TrackingGanttView = dynamic(() => import("@/components/views/TrackingGanttView"), { loading: ViewLoading });
@@ -27,6 +26,7 @@ const LineOfBalance = dynamic(() => import("@/components/charts/LineOfBalance"),
 const SCurveView = dynamic(() => import("@/components/views/SCurveView"), { loading: ViewLoading });
 const CalendarSettingsView = dynamic(() => import("@/components/views/CalendarSettingsView"), { loading: ViewLoading });
 const ProblemsView = dynamic(() => import("@/components/views/ProblemsView"), { loading: ViewLoading });
+const ObservationsView = dynamic(() => import("@/components/views/ObservationsView"), { loading: ViewLoading });
 const CalendarView = dynamic(() => import("@/components/views/CalendarView"), { loading: ViewLoading });
 const MatrixEditorView = dynamic(() => import("@/components/views/MatrixEditorView"), { loading: ViewLoading });
 const TypicalUnitView = dynamic(() => import("@/components/views/TypicalUnitView"), { loading: ViewLoading });
@@ -46,6 +46,7 @@ import type { BudgetItem, BudgetMapping as BudgetMappingType } from "@/types/bud
 import type { ProjectCalendar } from "@/types/calendar";
 import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
 import type { Baseline } from "@/types/baseline";
+import { applyBaselineToTasks, saveBaseline } from "@/lib/scheduling/baseline";
 import type { MatrixPlan } from "@/types/matrix";
 import type {
   AssignmentColumnSettings,
@@ -99,6 +100,11 @@ import {
 } from "@/lib/gantt/roleViewPresets";
 import { normalizeTaskStructure } from "@/lib/gantt/taskStructure";
 import { saveStatusLabel } from "@/lib/gantt/saveStatusLabel";
+import { shouldWarnBeforeUnload } from "@/lib/gantt/pendingChanges";
+import { removeAt } from "@/lib/state/undoableCollections";
+import { detectDeepChanges } from "@/lib/gantt/deepChanges";
+import { resolveInteractionMode } from "@/lib/gantt/interactionMode";
+import { fuzzyMatches } from "@/lib/gantt/fuzzyMatch";
 import { buildExecutivePlanningSummary } from "@/lib/gantt/executiveDashboard";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -212,6 +218,7 @@ function GanttViewInner({
     deleteTasks,
     lastAction,
     lastRejection,
+    lastChange,
     reportInvalidEdit,
     runUndoable,
     observations,
@@ -243,7 +250,7 @@ function GanttViewInner({
   const [observationPanelTaskId, setObservationPanelTaskId] = useState<
     string | number | null
   >(null);
-  const [assignments] = useState<Assignment[]>(initialAssignments);
+  const [assignments, setAssignments] = useState<Assignment[]>(initialAssignments);
   const [resourceSubView, setResourceSubView] = useState<"sheet" | "assignments" | "usage" | "budget" | "mapping">("sheet");
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>(initialBudgetItems);
   const [budgetMappings, setBudgetMappings] =
@@ -271,7 +278,14 @@ function GanttViewInner({
     ),
   );
   const locale = uiSettings.locale;
-  const interactionMode = uiSettings.interactionMode ?? "advanced";
+  /**
+   * Simple es la puerta de entrada, no una preferencia permanente: se ofrece en
+   * la primera visita y después manda lo que el usuario haya elegido (E36).
+   */
+  const interactionMode = resolveInteractionMode(uiSettings, {
+    isFirstVisit: !initialProjectId,
+    hasHistory: planningAuditEvents.length > 0,
+  });
   const isAdvancedMode = interactionMode === "advanced";
   const resourceViewLabels =
     locale === "en"
@@ -295,6 +309,14 @@ function GanttViewInner({
   );
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  /**
+   * Espejo del estado de guardado para el aviso al cerrar. Va en un ref
+   * porque `beforeunload` se registra una sola vez y consulta al dispararse:
+   * marcar estado desde el efecto de autoguardado encadenaría renders.
+   */
+  const saveStatusRef = useRef<SaveStatus>("idle");
+  /** Borrador de la matriz sin aplicar: cuenta como trabajo pendiente (M28). */
+  const matrixDraftDirtyRef = useRef(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [projectId, setProjectId] = useState<string | undefined>(initialProjectId);
   const [projectName] = useState<string>(initialProjectName ?? "Sin título");
@@ -304,6 +326,7 @@ function GanttViewInner({
   const [commandQuery, setCommandQuery] = useState("");
   const isDirtyRef = useRef(false);
   const didMountSaveStateRef = useRef(false);
+  const didMountObservationsRef = useRef(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const commandInputRef = useRef<HTMLInputElement>(null);
   const previousActiveViewRef = useRef<ViewType | null>(null);
@@ -403,7 +426,21 @@ function GanttViewInner({
   const calculatedTasks = calculatedMpp.tasks;
   const calculatedResources = calculatedMpp.resources;
   const calculatedAssignments = calculatedMpp.assignments;
+  /**
+   * Las columnas del `.mpp` tal como vinieron. Esto es lo que se persiste:
+   * esconderlas en modo Simple no puede borrarlas del proyecto.
+   */
   const mppTaskColumns = calculatedMpp.mppTaskColumns;
+
+  /**
+   * Lo que ve la tabla. En modo Simple las columnas importadas no se muestran
+   * —son exactamente lo que abruma a quien abre el cronograma por primera
+   * vez— y vuelven enteras al pasar a Avanzado (E36).
+   */
+  const visibleMppTaskColumns = useMemo(
+    () => (isAdvancedMode ? mppTaskColumns : []),
+    [mppTaskColumns, isAdvancedMode],
+  );
   const mppResourceColumns = calculatedMpp.mppResourceColumns;
   const mppAssignmentColumns = calculatedMpp.mppAssignmentColumns;
   const planningRecommendations = useMemo(
@@ -503,8 +540,16 @@ function GanttViewInner({
         budgetMappings,
         scheduleIssues,
         bottlenecks,
+        statusDate: initialStatusDate,
       }),
-    [bottlenecks, budgetItems, budgetMappings, calculatedTasks, scheduleIssues],
+    [
+      bottlenecks,
+      budgetItems,
+      budgetMappings,
+      calculatedTasks,
+      scheduleIssues,
+      initialStatusDate,
+    ],
   );
   const matrixEditorKey = useMemo(
     () =>
@@ -545,23 +590,82 @@ function GanttViewInner({
   }, [deleteTasks, selectedTaskIds]);
 
   /* ── Save Baseline handler ── */
-  const handleSaveBaseline = useCallback(() => {
-    const baselineNumber = baselines.length + 1;
-    const newBaseline: Baseline = {
-      id: `bl-${Date.now()}`,
-      name: `Baseline ${baselineNumber}`,
-      createdAt: new Date(),
-      tasks: calculatedTasks.map((t) => ({
-        taskId: t.id,
-        baselineStart: new Date(t.start),
-        baselineFinish: new Date(t.finish),
-        baselineDuration: t.duration,
-        baselineCost: t.cost,
-      })),
-    };
-    setBaselines((prev) => [...prev, newBaseline]);
-    setActiveBaselineId(newBaseline.id);
-  }, [baselines.length, calculatedTasks]);
+  const handleSaveBaseline = useCallback(
+    (name: string) => {
+      const nueva = saveBaseline(calculatedTasks, name);
+      setBaselines((prev) => [...prev, nueva]);
+      setActiveBaselineId(nueva.id);
+    },
+    [calculatedTasks],
+  );
+
+  /**
+   * Borrar una línea base pasa por el historial, como el resto de lo
+   * destructivo desde E24: una foto del plan aprobado no se pierde por un clic.
+   */
+  const handleDeleteBaseline = useCallback(
+    (id: string) => {
+      const index = baselines.findIndex((b) => b.id === id);
+      if (index === -1) return;
+      const removed = baselines[index];
+      const wasActive = activeBaselineId === id;
+
+      runUndoable({
+        description: `Línea base «${removed.name}» eliminada`,
+        execute: () => {
+          setBaselines((prev) => prev.filter((b) => b.id !== id));
+          if (wasActive) setActiveBaselineId(undefined);
+        },
+        undo: () => {
+          setBaselines((prev) => {
+            const next = [...prev];
+            next.splice(index, 0, removed);
+            return next;
+          });
+          if (wasActive) setActiveBaselineId(id);
+        },
+      });
+    },
+    [activeBaselineId, baselines, runUndoable],
+  );
+
+  /**
+   * Foto de las tareas antes del último recálculo, para poder decir si se
+   * movió el fin de obra o cambió la ruta crítica.
+   */
+  const previousTasksRef = useRef(calculatedTasks);
+  const deepChange = useMemo(() => {
+    const anterior = previousTasksRef.current;
+    if (!lastChange) return null;
+    return detectDeepChanges(anterior, calculatedTasks);
+    // Se recalcula solo cuando hay una edición nueva: `lastChange.token` cambia
+    // una vez por edición aceptada.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastChange?.token]);
+
+  useEffect(() => {
+    previousTasksRef.current = calculatedTasks;
+  }, [calculatedTasks]);
+
+  const activeBaseline = useMemo(
+    () => baselines.find((b) => b.id === activeBaselineId) ?? null,
+    [baselines, activeBaselineId],
+  );
+
+  /**
+   * El botón «Línea base» está en la barra principal: la comparación tiene que
+   * verse aquí, no solo dentro de Seguimiento (M13).
+   *
+   * Solo para dibujar: los campos baseline* son derivados y no se persisten
+   * dentro de cada tarea.
+   */
+  const tasksForChart = useMemo(
+    () =>
+      activeBaseline
+        ? applyBaselineToTasks(calculatedTasks, activeBaseline)
+        : calculatedTasks,
+    [activeBaseline, calculatedTasks],
+  );
 
   /* ── Select Baseline handler ── */
   const handleSelectBaseline = useCallback((id: string) => {
@@ -847,6 +951,47 @@ function GanttViewInner({
     });
   }, [locale, resourceColumnSettings, runUndoable]);
 
+  /**
+   * Alta y baja de asignaciones, por el historial como el resto de lo
+   * destructivo desde E24. Sin esto, quien arma el proyecto en la app no podía
+   * asignar a nadie (M14).
+   */
+  const handleCreateAssignment = useCallback(
+    (assignment: Assignment) => {
+      runUndoable({
+        description: "Recurso asignado a la actividad",
+        execute: () => setAssignments((prev) => [...prev, assignment]),
+        // Por posición: dos asignaciones del mismo par son indistinguibles por
+        // sus campos, y filtrarlas se llevaría también la que ya estaba.
+        undo: () => setAssignments((prev) => removeAt(prev, prev.length - 1)),
+      });
+    },
+    [runUndoable],
+  );
+
+  const handleDeleteAssignment = useCallback(
+    (assignment: Assignment) => {
+      const index = assignments.findIndex(
+        (a) =>
+          a.taskId === assignment.taskId &&
+          a.resourceId === assignment.resourceId,
+      );
+      if (index === -1) return;
+
+      runUndoable({
+        description: "Asignación de recurso eliminada",
+        execute: () => setAssignments((prev) => removeAt(prev, index)),
+        undo: () =>
+          setAssignments((prev) => {
+            const next = [...prev];
+            next.splice(index, 0, assignment);
+            return next;
+          }),
+      });
+    },
+    [assignments, runUndoable],
+  );
+
   const handleResetAssignmentColumns = useCallback(() => {
     const previous = assignmentColumnSettings;
     const next = {
@@ -861,11 +1006,16 @@ function GanttViewInner({
     });
   }, [assignmentColumnSettings, locale, runUndoable]);
 
+  const updateSaveStatus = useCallback((status: SaveStatus) => {
+    saveStatusRef.current = status;
+    setSaveStatus(status);
+  }, []);
+
   const doSave = useCallback(async () => {
     if (!isDirtyRef.current) return;
 
     isDirtyRef.current = false;
-    setSaveStatus("saving");
+    updateSaveStatus("saving");
 
     try {
       const data: ProjectData = {
@@ -896,18 +1046,22 @@ function GanttViewInner({
       const result = await saveProject(data);
       if (result.success) {
         setProjectId(result.id);
-        setSaveStatus("saved");
+        updateSaveStatus("saved");
         setLastSavedAt(new Date());
-        setTimeout(() => setSaveStatus("idle"), 2000);
+        setTimeout(() => updateSaveStatus("idle"), 2000);
       } else {
-        setSaveStatus("error");
-        setTimeout(() => setSaveStatus("idle"), 3000);
+        // Lo que no llegó al servidor sigue pendiente: si no se vuelve a marcar
+        // sucio, el aviso al cerrar deja pasar un trabajo que se va a perder.
+        isDirtyRef.current = true;
+        updateSaveStatus("error");
+        setTimeout(() => updateSaveStatus("idle"), 3000);
       }
     } catch {
-      setSaveStatus("error");
-      setTimeout(() => setSaveStatus("idle"), 3000);
+      isDirtyRef.current = true;
+      updateSaveStatus("error");
+      setTimeout(() => updateSaveStatus("idle"), 3000);
     }
-  }, [projectId, projectName, initialStatusDate, calculatedTasks, calculatedResources, calculatedAssignments, budgetItems, budgetMappings, baselines, calendar, syncedMatrixPlan, mppTaskColumns, mppResourceColumns, mppAssignmentColumns, calculatedMpp.customFieldDefinitions, calculatedMpp.engineVersion, calculatedMpp.calculatedAt, taskColumnSettings, resourceColumnSettings, assignmentColumnSettings, uiSettings, planningAuditEvents, observations]);
+  }, [projectId, projectName, initialStatusDate, calculatedTasks, calculatedResources, calculatedAssignments, budgetItems, budgetMappings, baselines, calendar, syncedMatrixPlan, mppTaskColumns, mppResourceColumns, mppAssignmentColumns, calculatedMpp.customFieldDefinitions, calculatedMpp.engineVersion, calculatedMpp.calculatedAt, taskColumnSettings, resourceColumnSettings, assignmentColumnSettings, uiSettings, planningAuditEvents, observations, updateSaveStatus]);
 
   // Use a ref to avoid the interval effect depending on doSave's reference
   const doSaveRef = useRef(doSave);
@@ -1056,6 +1210,24 @@ function GanttViewInner({
         keywords: "zoom month mes escala",
       },
       {
+        id: "export-schedule",
+        label: locale === "en" ? "Export the schedule" : "Exportar el cronograma",
+        hint:
+          locale === "en"
+            ? "Download the visible schedule as CSV"
+            : "Descarga el cronograma visible en CSV",
+        keywords: "export exportar csv excel descargar cronograma",
+      },
+      {
+        id: "view-settings",
+        label: locale === "en" ? "Settings" : "Configuración",
+        hint:
+          locale === "en"
+            ? "Project calendar and preferences"
+            : "Calendario del proyecto y preferencias",
+        keywords: "settings configuracion configuración ajustes calendario",
+      },
+      {
         id: "zoom-quarter",
         label: locale === "en" ? "Zoom by quarter" : "Zoom por trimestre",
         hint: locale === "en" ? "Set timeline scale to quarters" : "Cambia la escala a trimestres",
@@ -1066,12 +1238,15 @@ function GanttViewInner({
   );
 
   const filteredCommands = useMemo(() => {
-    const normalizedQuery = commandQuery.trim().toLowerCase();
-    if (!normalizedQuery) return commandActions;
-    return commandActions.filter((command) => {
-      const haystack = `${command.label} ${command.hint} ${command.keywords}`.toLowerCase();
-      return haystack.includes(normalizedQuery);
-    });
+    const query = commandQuery.trim();
+    if (!query) return commandActions;
+    return commandActions.filter((command) =>
+      // Una errata dejaba la paleta vacía justo cuando más falta hace (M36).
+      fuzzyMatches(
+        `${command.label} ${command.hint} ${command.keywords}`,
+        query,
+      ),
+    );
   }, [commandActions, commandQuery]);
 
   const runCommand = useCallback((command: CommandPaletteAction) => {
@@ -1098,6 +1273,13 @@ function GanttViewInner({
         break;
       case "view-matrix":
         setActiveView("matrix");
+        break;
+      case "view-settings":
+        setActiveView("settings");
+        break;
+      case "export-schedule":
+        setActiveView("gantt");
+        // El export vive junto a la tabla, donde está lo que se va a exportar.
         break;
       case "view-executive":
         setActiveView("executive");
@@ -1215,6 +1397,48 @@ function GanttViewInner({
     projectName,
   ]);
 
+  /**
+   * Las observaciones se guardan al instante, sin pasar por el temporizador.
+   *
+   * Anotar en obra es un acto único: no hay nada que agrupar, y quien anota
+   * cierra la pestaña a los dos segundos. Esperar 750 ms era exactamente la
+   * ventana en la que se perdía lo escrito (M24).
+   */
+  useEffect(() => {
+    if (!didMountObservationsRef.current) {
+      didMountObservationsRef.current = true;
+      return;
+    }
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    isDirtyRef.current = true;
+    void doSaveRef.current();
+  }, [observations]);
+
+  /**
+   * Preguntar antes de cerrar, pero solo si hay algo que perder: un diálogo
+   * que sale siempre es un diálogo que nadie lee.
+   */
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      const hayQuePerder = shouldWarnBeforeUnload({
+        hasPendingChanges: isDirtyRef.current || matrixDraftDirtyRef.current,
+        saveStatus: saveStatusRef.current,
+      });
+      if (!hayQuePerder) return;
+
+      // El navegador no deja personalizar el texto; solo pedir la confirmación.
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
+
   useEffect(
     () => () => {
       if (autoSaveTimerRef.current) {
@@ -1257,6 +1481,8 @@ function GanttViewInner({
           activeBaselineId={activeBaselineId}
           onSaveBaseline={handleSaveBaseline}
           onSelectBaseline={handleSelectBaseline}
+          onDeleteBaseline={handleDeleteBaseline}
+          proposedBaselineName={`Línea base ${baselines.length + 1}`}
           locale={locale}
         />
         <span
@@ -1267,6 +1493,16 @@ function GanttViewInner({
         >
           {saveStatusLabel(saveStatus, lastSavedAt)}
         </span>
+        {saveStatus === "error" && (
+          <button
+            type="button"
+            data-testid="save-retry"
+            onClick={handleManualSave}
+            className="apple-button-secondary inline-flex h-[var(--gantt-topbar-control-height)] shrink-0 items-center rounded-[var(--radius-lg)] px-[var(--gantt-topbar-control-padding-inline)] text-[length:var(--gantt-topbar-font-size)] font-semibold"
+          >
+            Reintentar
+          </button>
+        )}
         <label
           className="apple-button-secondary gantt-role-view inline-flex h-[var(--gantt-topbar-control-height)] shrink-0 items-center gap-[var(--gantt-topbar-gap)] rounded-[var(--radius-lg)] px-[var(--gantt-topbar-control-padding-inline)] text-[length:var(--gantt-topbar-font-size)] font-semibold"
           title={
@@ -1338,6 +1574,8 @@ function GanttViewInner({
         >
           <CommandIcon className="gantt-topbar__icon" aria-hidden />
           {locale === "en" ? "Commands" : "Comandos"}
+          {/* El atajo a la vista: se aprende usando el botón, no leyendo ayuda */}
+          <kbd className="gantt-command-button__shortcut">⌘K</kbd>
         </button>
         <button
           type="button"
@@ -1482,6 +1720,28 @@ function GanttViewInner({
       <UndoToast action={lastAction} onUndo={undo} locale={locale} />
       <RejectionToast rejection={lastRejection} locale={locale} />
 
+      {lastChange && (
+        <div className="gantt-impact-strip" key={lastChange.token}>
+          <span data-testid="impact-summary" role="status">
+            {lastChange.taskIds.length === 1
+              ? "1 actividad se movió"
+              : `${lastChange.taskIds.length} actividades se movieron`}
+          </span>
+          {deepChange?.projectFinishMoved != null && (
+            <span data-testid="deep-change-finish" role="status">
+              {deepChange.projectFinishMoved > 0
+                ? `El fin de obra se corrió ${deepChange.projectFinishMoved} días`
+                : `El fin de obra se adelantó ${Math.abs(deepChange.projectFinishMoved)} días`}
+            </span>
+          )}
+          {deepChange?.criticalPathChanged && (
+            <span data-testid="deep-change-critical" role="status">
+              La ruta crítica cambió de actividades
+            </span>
+          )}
+        </div>
+      )}
+
       {helpOpen && (
         <ViewHelpPanel view={activeView} onClose={() => setHelpOpen(false)} />
       )}
@@ -1491,7 +1751,9 @@ function GanttViewInner({
           taskId={observationPanelTask.id}
           taskName={observationPanelTask.name}
           observations={observations}
-          onAdd={(text) => addObservation(observationPanelTask.id, text)}
+          onAdd={(text, responsible) =>
+            addObservation(observationPanelTask.id, text, responsible)
+          }
           onToggle={toggleObservation}
           onDelete={deleteObservation}
           onClose={() => setObservationPanelTaskId(null)}
@@ -1521,7 +1783,10 @@ function GanttViewInner({
                       onTaskSelect={handleTaskSelect}
                       onUpdateTask={updateTask}
                       onInvalidEdit={reportInvalidEdit}
-                      mppTaskColumns={mppTaskColumns}
+                      changedTaskIds={lastChange?.taskIds ?? []}
+                      calendar={calendar}
+                      observations={observations}
+                      mppTaskColumns={visibleMppTaskColumns}
                       customFieldDefinitions={calculatedMpp.customFieldDefinitions}
                       columnSettings={taskColumnSettings}
                       locale={locale}
@@ -1549,7 +1814,8 @@ function GanttViewInner({
                   }
                   right={
                     <GanttChart
-                      tasks={calculatedTasks}
+                      tasks={tasksForChart}
+                      showBaseline={Boolean(activeBaseline)}
                       observations={observations}
                       calendar={calendar}
                       scale={scale}
@@ -1574,7 +1840,7 @@ function GanttViewInner({
               onUpdateTask={updateTask}
               selectedTaskIds={selectedTaskIds}
               onTaskSelect={handleTaskSelect}
-              mppTaskColumns={mppTaskColumns}
+              mppTaskColumns={visibleMppTaskColumns}
               customFieldDefinitions={calculatedMpp.customFieldDefinitions}
               columnSettings={taskColumnSettings}
               locale={locale}
@@ -1601,7 +1867,10 @@ function GanttViewInner({
           )}
 
           {activeView === "executive" && (
-            <ExecutivePlanningDashboard summary={executiveSummary} />
+            <ExecutivePlanningDashboard
+              summary={executiveSummary}
+              onNavigate={setActiveView}
+            />
           )}
 
           {activeView === "tracking" && (
@@ -1611,6 +1880,10 @@ function GanttViewInner({
               selectedTaskIds={selectedTaskIds}
               onTaskSelect={handleTaskSelect}
               onTaskClick={onTaskClick}
+              baselines={baselines}
+              activeBaselineId={activeBaselineId}
+              onSaveBaseline={handleSaveBaseline}
+              onSelectBaseline={setActiveBaselineId}
             />
           )}
 
@@ -1733,6 +2006,8 @@ function GanttViewInner({
                     locale={locale}
                     onColumnSettingsChange={setAssignmentColumnSettings}
                     onResetColumns={handleResetAssignmentColumns}
+                    onCreateAssignment={handleCreateAssignment}
+                    onDeleteAssignment={handleDeleteAssignment}
                     onLocaleChange={(nextLocale: UILocale) =>
                       setUISettings({ locale: nextLocale })
                     }
@@ -1785,6 +2060,11 @@ function GanttViewInner({
               tasks={calculatedTasks}
               onApplyMatrixPlan={handleApplyMatrixPlan}
               onSyncFromGantt={handleSyncMatrixFromGantt}
+              onDirtyChange={(dirty) => {
+                // El borrador de la matriz también es trabajo que se puede
+                // perder: entra en el aviso al cerrar (M28).
+                matrixDraftDirtyRef.current = dirty;
+              }}
             />
           )}
 
@@ -1793,6 +2073,16 @@ function GanttViewInner({
               tasks={calculatedTasks}
               budgetMappings={budgetMappings}
               budgetItems={budgetItems}
+            />
+          )}
+
+          {activeView === "observaciones" && (
+            <ObservationsView
+              observations={observations}
+              tasks={calculatedTasks}
+              statusDate={initialStatusDate}
+              onToggle={toggleObservation}
+              onDelete={deleteObservation}
             />
           )}
 

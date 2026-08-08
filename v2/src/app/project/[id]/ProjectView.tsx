@@ -25,6 +25,7 @@ import type {
   TaskColumnSettings,
 } from "@/types/mppColumns";
 import type { UISettings } from "@/types/ui";
+import ScheduleSkeleton from "@/components/gantt/ScheduleSkeleton";
 
 interface SerializedTask {
   id: string | number;

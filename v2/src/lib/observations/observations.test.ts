@@ -97,7 +97,7 @@ describe("exportación", () => {
     const csv = observationsToCsv([obs({ text: "Revisar acero, viga y losa" })]);
     const [header, row] = csv.split("\n");
 
-    expect(header).toBe("ID Actividad,WBS,Tarea,Observacion,Estado,Fecha");
+    expect(header).toBe("ID Actividad,WBS,Tarea,Observación,Estado,Fecha");
     expect(row).toContain('"Revisar acero, viga y losa"');
     expect(row).toContain("Pendiente");
   });
@@ -110,7 +110,66 @@ describe("exportación", () => {
   test("el CSV de Last Planner usa sus propias columnas de restricción", () => {
     const csv = observationsToLpsCsv([obs()]);
     expect(csv.split("\n")[0]).toBe(
-      "Actividad,WBS,Restriccion,Estado,Responsable,Fecha compromiso",
+      "Actividad,WBS,Restricción,Estado,Responsable,Fecha compromiso",
     );
+  });
+});
+
+describe("el responsable de la restricción (M32)", () => {
+  test("se guarda cuando se indica", () => {
+    const o = createObservation({
+      id: "1",
+      taskId: 1,
+      taskName: "Excavación",
+      text: "Falta acero",
+      responsible: "Cuadrilla 2",
+      createdAt: "2026-08-07T08:00:00.000Z",
+    });
+
+    expect(o!.responsible).toBe("Cuadrilla 2");
+  });
+
+  test("es opcional: sin él la observación se crea igual", () => {
+    const o = createObservation({
+      id: "1",
+      taskId: 1,
+      taskName: "Excavación",
+      text: "Falta acero",
+      createdAt: "2026-08-07T08:00:00.000Z",
+    });
+
+    expect(o).not.toBeNull();
+    expect(o!.responsible).toBeUndefined();
+  });
+
+  test("el CSV de Last Planner deja de tener la columna Responsable vacía", () => {
+    const csv = observationsToLpsCsv([
+      {
+        id: "1",
+        taskId: 1,
+        taskName: "Excavación",
+        text: "Falta acero",
+        responsible: "Cuadrilla 2",
+        status: "pending",
+        createdAt: "2026-08-07T08:00:00.000Z",
+      },
+    ]);
+
+    expect(csv.split("\n")[1].split(",")[4]).toBe("Cuadrilla 2");
+  });
+
+  test("sin responsable, la columna sale vacía pero la fila conserva sus seis campos", () => {
+    const csv = observationsToLpsCsv([
+      {
+        id: "1",
+        taskId: 1,
+        taskName: "Excavación",
+        text: "Falta acero",
+        status: "pending",
+        createdAt: "2026-08-07T08:00:00.000Z",
+      },
+    ]);
+
+    expect(csv.split("\n")[1].split(",")).toHaveLength(6);
   });
 });

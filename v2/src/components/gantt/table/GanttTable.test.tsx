@@ -103,7 +103,8 @@ describe("GanttTable", () => {
     );
 
     expect(screen.getAllByTestId("gantt-row")).toHaveLength(1);
-    expect(screen.getByTestId("gantt-task-filter-count")).toHaveTextContent("1 / 3");
+    // El contador dice cuántas esconde, que es el dato que preocupa (E7).
+    expect(screen.getByTestId("gantt-task-filter-count")).toHaveTextContent("2 ocultas de 3");
 
     fireEvent.click(screen.getByTestId("gantt-task-filter-clear"));
     expect(onTaskFilterChange).toHaveBeenCalledWith({ text: "", type: "all" });
@@ -230,6 +231,9 @@ describe("GanttTable", () => {
     expect(successorCells[7]).toHaveClass("gantt-row-cell--date");
     expect(successorCells[8]).toHaveClass("gantt-row-cell--predecessors");
     expect(successorCells[8]).toHaveTextContent("1FS");
+
+    // El control de edición aparece al señalar la fila (E40).
+    fireEvent.mouseEnter(screen.getAllByTestId("gantt-row")[1]);
     expect(within(successorCells[8]).getByRole("button", { name: "Editar predecesoras" })).toBeInTheDocument();
     expect(successorCells[8]).toHaveTextContent("Editar");
     expect(successorCells[6]).not.toHaveTextContent("2026-01-05");
@@ -240,7 +244,12 @@ describe("GanttTable", () => {
 
     const cells = screen.getAllByTestId("gantt-row")[0].querySelectorAll("td");
     expect(cells[8]).toHaveTextContent("Sin pred.");
-    expect(within(cells[8]).getByRole("button", { name: "Editar predecesoras" })).toBeInTheDocument();
+
+    // El control de edición aparece al señalar la fila (E40); el dato, siempre.
+    fireEvent.mouseEnter(screen.getAllByTestId("gantt-row")[0]);
+    expect(
+      within(cells[8]).getByRole("button", { name: "Editar predecesoras" }),
+    ).toBeInTheDocument();
     expect(cells[8]).toHaveTextContent("Editar");
   });
 
@@ -634,13 +643,13 @@ describe("GanttTable", () => {
       kind: "summary",
       afterTaskId: regularTask.id,
       parentTaskId: undefined,
-      name: "Nuevo capitulo",
+      name: "Nuevo capítulo",
     });
     expect(onInsertTask).toHaveBeenCalledWith({
       kind: "summary",
       parentTaskId: regularTask.id,
       afterTaskId: undefined,
-      name: "Nuevo capitulo",
+      name: "Nuevo capítulo",
     });
     expect(onInsertTask).toHaveBeenCalledWith({
       kind: "task",
@@ -944,6 +953,14 @@ describe("GanttTable", () => {
       />,
     );
 
+    // El control aparece al señalar la fila (E40).
+
+    fireEvent.mouseEnter(
+
+      screen.getByTestId("cell-predecessors-2").closest("tr")!,
+
+    );
+
     fireEvent.click(screen.getByTestId("dependency-popover-open-2"));
     fireEvent.change(screen.getByTestId("dependency-search"), {
       target: { value: "Predecessor" },
@@ -972,6 +989,14 @@ describe("GanttTable", () => {
         tasks={[predecessor, successor]}
         onUpdateTask={onUpdateTask}
       />,
+    );
+
+    // El control aparece al señalar la fila (E40).
+
+    fireEvent.mouseEnter(
+
+      screen.getByTestId("cell-predecessors-2").closest("tr")!,
+
     );
 
     fireEvent.click(screen.getByTestId("dependency-popover-open-2"));
@@ -1016,6 +1041,14 @@ describe("GanttTable", () => {
         tasks={[predecessor, successor]}
         onUpdateTask={onUpdateTask}
       />,
+    );
+
+    // El control aparece al señalar la fila (E40).
+
+    fireEvent.mouseEnter(
+
+      screen.getByTestId("cell-predecessors-205").closest("tr")!,
+
     );
 
     fireEvent.click(screen.getByTestId("dependency-popover-open-205"));
@@ -1210,5 +1243,529 @@ describe("restablecer columnas es una acción aparte (E24)", () => {
     fireEvent.click(screen.getByRole("button", { name: /restablecer/i }));
 
     expect(onColumnSettingsChange).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("lo calculado no se edita (E27)", () => {
+  test("la fecha de fin se edita, pero lo que cambia es la duración", () => {
+    // Decidido en el Bloque B: escribir el fin no mueve la tarea, cambia
+    // cuánto dura. El fin sigue siendo un dato que calcula el motor.
+    const onUpdateTask = jest.fn();
+    render(
+      <GanttTable tasks={[makeTask({ id: 1 })]} onUpdateTask={onUpdateTask} />,
+    );
+
+    const fin = screen.getByTestId("cell-finish-1");
+    fireEvent.doubleClick(fin.querySelector('[data-testid="editable-cell"]')!);
+
+    expect(fin.querySelector("input")).not.toBeNull();
+  });
+
+  test("una fila resumen no deja editar la duración", () => {
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({ id: 1, isSummary: true }),
+          makeTask({ id: 2 }),
+        ]}
+        onUpdateTask={jest.fn()}
+      />,
+    );
+
+    const duracion = screen.getByTestId("cell-duration-1");
+    fireEvent.doubleClick(
+      duracion.querySelector('[data-testid="editable-cell"]')!,
+    );
+
+    expect(duracion.querySelector("input")).toBeNull();
+  });
+
+  test("una tarea normal sí deja editar la duración: no se rompe lo que servía", () => {
+    render(<GanttTable tasks={[makeTask({ id: 2 })]} onUpdateTask={jest.fn()} />);
+
+    const duracion = screen.getByTestId("cell-duration-2");
+    fireEvent.doubleClick(
+      duracion.querySelector('[data-testid="editable-cell"]')!,
+    );
+
+    expect(duracion.querySelector("input")).not.toBeNull();
+  });
+
+  test("la fila resumen tampoco deja editar el avance ni las predecesoras", () => {
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1, isSummary: true })]}
+        onUpdateTask={jest.fn()}
+      />,
+    );
+
+    for (const columna of ["progress", "predecessors", "start"]) {
+      const celda = screen.getByTestId(`cell-${columna}-1`);
+      expect(
+        celda.querySelector('[data-testid="editable-cell"]'),
+      ).toHaveAttribute("data-read-only", "true");
+    }
+  });
+});
+
+describe("ningún dato se descarta sin decirlo (E28)", () => {
+  const columnaNumerica = {
+    key: "mpp:Cost1",
+    fieldId: "COST_1",
+    sourceKey: "Cost1",
+    labelEn: "Cost 1",
+    labelEs: "Costo unitario",
+    dataType: "number" as const,
+    group: "custom" as const,
+    isCustom: true,
+    isCore: false,
+    isEditable: true,
+  };
+
+  test("vaciar un campo numérico lo deja vacío, no lo convierte en cero", () => {
+    const onUpdateTask = jest.fn();
+    const onInvalidEdit = jest.fn();
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1, mppFields: { Cost1: 1000 } })]}
+        mppTaskColumns={[columnaNumerica]}
+        columnSettings={{
+          visible: ["id", "name", "mpp:Cost1"],
+          widths: {},
+          labelLocale: "es",
+        }}
+        onUpdateTask={onUpdateTask}
+        onInvalidEdit={onInvalidEdit}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-mpp:Cost1-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    // Un `input[type=number]` ya impide teclear letras: lo que sí llegaba al
+    // guardado era el campo vacío, que se convertía en 0 en silencio.
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onUpdateTask).toHaveBeenCalledWith(1, "mppFields:Cost1", null);
+    expect(onUpdateTask).not.toHaveBeenCalledWith(1, "mppFields:Cost1", 0);
+  });
+
+  test("un número válido sí se guarda: no se rompe lo que servía", () => {
+    const onUpdateTask = jest.fn();
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1, mppFields: { Cost1: 1000 } })]}
+        mppTaskColumns={[columnaNumerica]}
+        columnSettings={{
+          visible: ["id", "name", "mpp:Cost1"],
+          widths: {},
+          labelLocale: "es",
+        }}
+        onUpdateTask={onUpdateTask}
+        onInvalidEdit={jest.fn()}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-mpp:Cost1-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "2500" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onUpdateTask).toHaveBeenCalledWith(1, "mppFields:Cost1", 2500);
+  });
+
+  test("una predecesora mal escrita explica el formato en vez de desaparecer", () => {
+    const onUpdateTask = jest.fn();
+    const onInvalidEdit = jest.fn();
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1 }), makeTask({ id: 2 })]}
+        onUpdateTask={onUpdateTask}
+        onInvalidEdit={onInvalidEdit}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-predecessors-2");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "la primera" } });
+    fireEvent.blur(input);
+
+    expect(onUpdateTask).not.toHaveBeenCalled();
+    expect(onInvalidEdit).toHaveBeenCalledWith(
+      expect.stringMatching(/1FS|formato/i),
+    );
+  });
+
+  test("una predecesora bien escrita sigue funcionando", () => {
+    const onUpdateTask = jest.fn();
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1 }), makeTask({ id: 2 })]}
+        onUpdateTask={onUpdateTask}
+        onInvalidEdit={jest.fn()}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-predecessors-2");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "1FS+2" } });
+    fireEvent.blur(input);
+
+    expect(onUpdateTask).toHaveBeenCalledWith(
+      2,
+      "dependencies",
+      expect.arrayContaining([
+        expect.objectContaining({ from: 1, to: 2, type: "FS", lag: 2 }),
+      ]),
+    );
+  });
+
+  test("borrar todas las predecesoras sigue siendo posible", () => {
+    const onUpdateTask = jest.fn();
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({ id: 1 }),
+          makeTask({
+            id: 2,
+            dependencies: [{ from: 1, to: 2, type: "FS" }],
+          }),
+        ]}
+        onUpdateTask={onUpdateTask}
+        onInvalidEdit={jest.fn()}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-predecessors-2");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+
+    expect(onUpdateTask).toHaveBeenCalledWith(2, "dependencies", []);
+  });
+});
+
+describe("las filas afectadas por la última edición se resaltan (E31)", () => {
+  test("la fila que se movió queda marcada", () => {
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1 }), makeTask({ id: 2 })]}
+        changedTaskIds={[2]}
+      />,
+    );
+
+    const filas = screen.getAllByTestId("gantt-row");
+    expect(filas[1]).toHaveAttribute("data-changed", "true");
+  });
+
+  test("las que no se movieron no se marcan", () => {
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1 }), makeTask({ id: 2 })]}
+        changedTaskIds={[2]}
+      />,
+    );
+
+    expect(screen.getAllByTestId("gantt-row")[0]).toHaveAttribute(
+      "data-changed",
+      "false",
+    );
+  });
+
+  test("sin edición reciente, ninguna fila se marca", () => {
+    render(<GanttTable tasks={[makeTask({ id: 1 })]} />);
+
+    expect(screen.getAllByTestId("gantt-row")[0]).toHaveAttribute(
+      "data-changed",
+      "false",
+    );
+  });
+});
+
+describe("editar el fin cambia la duración (Bloque B)", () => {
+  test("escribir un fin más lejano sube la duración, no mueve la tarea", () => {
+    const onUpdateTask = jest.fn();
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({
+            id: 1,
+            start: new Date("2026-01-05"),
+            finish: new Date("2026-01-09"),
+            duration: 5,
+          }),
+        ]}
+        onUpdateTask={onUpdateTask}
+        onInvalidEdit={jest.fn()}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-finish-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "2026-01-12" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onUpdateTask).toHaveBeenCalledWith(1, "duration", 7);
+    expect(onUpdateTask).not.toHaveBeenCalledWith(
+      1,
+      "finish",
+      expect.anything(),
+    );
+  });
+
+  test("un fin en domingo se rechaza explicando, sin tocar la tarea", () => {
+    const onUpdateTask = jest.fn();
+    const onInvalidEdit = jest.fn();
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({
+            id: 1,
+            start: new Date("2026-01-05"),
+            finish: new Date("2026-01-09"),
+            duration: 5,
+          }),
+        ]}
+        onUpdateTask={onUpdateTask}
+        onInvalidEdit={onInvalidEdit}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-finish-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "2026-01-11" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onUpdateTask).not.toHaveBeenCalled();
+    expect(onInvalidEdit).toHaveBeenCalledWith(
+      expect.stringMatching(/no se trabaja/i),
+    );
+  });
+
+  test("el fin de una fila resumen sigue sin editarse: lo calculan sus hijas", () => {
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1, isSummary: true })]}
+        onUpdateTask={jest.fn()}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-finish-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+
+    expect(celda.querySelector("input")).toBeNull();
+  });
+});
+
+describe("el filtro no esconde nada a escondidas (E7)", () => {
+  test("el chip dice cuántas tareas quedaron fuera", () => {
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({ id: 1, isCritical: true }),
+          makeTask({ id: 2 }),
+          makeTask({ id: 3 }),
+        ]}
+        taskFilter={{ type: "critical", text: "" }}
+        onTaskFilterChange={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("gantt-task-filter-count")).toHaveTextContent(
+      "2 ocultas",
+    );
+  });
+
+  test("sin filtro, el contador no habla de ocultas", () => {
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1 }), makeTask({ id: 2 })]}
+        taskFilter={{ type: "all", text: "" }}
+        onTaskFilterChange={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("gantt-task-filter-count")).not.toHaveTextContent(
+      /ocultas/,
+    );
+  });
+
+  test("sin filtro no hay chip que quitar", () => {
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1 })]}
+        taskFilter={{ type: "all", text: "" }}
+        onTaskFilterChange={jest.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("gantt-task-filter-clear")).not.toBeInTheDocument();
+  });
+
+  test("una tarea oculta de la que depende una visible se muestra atenuada", () => {
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({ id: 1 }),
+          makeTask({
+            id: 2,
+            isCritical: true,
+            dependencies: [{ from: 1, to: 2, type: "FS" }],
+          }),
+        ]}
+        taskFilter={{ type: "critical", text: "" }}
+        onTaskFilterChange={jest.fn()}
+      />,
+    );
+
+    const fila = screen.getByTestId("cell-id-1").closest("tr");
+    expect(fila).toHaveAttribute("data-filtered-context", "true");
+  });
+
+  test("una tarea oculta de la que no depende nadie no se cuela", () => {
+    render(
+      <GanttTable
+        tasks={[
+          makeTask({ id: 1 }),
+          makeTask({ id: 2, isCritical: true }),
+          makeTask({ id: 3 }),
+        ]}
+        taskFilter={{ type: "critical", text: "" }}
+        onTaskFilterChange={jest.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("cell-id-3")).not.toBeInTheDocument();
+  });
+});
+
+describe("los niveles WBS hacen lo que dicen (E19)", () => {
+  const jerarquia = [
+    makeTask({ id: 1, name: "Capítulo", isSummary: true, outlineLevel: 1 }),
+    makeTask({ id: 2, name: "Subcapítulo", isSummary: true, outlineLevel: 2 }),
+    makeTask({ id: 3, name: "Detalle de obra", outlineLevel: 3 }),
+  ];
+
+  test("el botón L1 deja a la vista solo el primer nivel", () => {
+    render(<GanttTable tasks={jerarquia} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "L1" }));
+
+    expect(screen.getByText("Capítulo")).toBeInTheDocument();
+    expect(screen.queryByText("Subcapítulo")).not.toBeInTheDocument();
+    expect(screen.queryByText("Detalle de obra")).not.toBeInTheDocument();
+  });
+
+  test("el botón L2 deja a la vista dos niveles", () => {
+    render(<GanttTable tasks={jerarquia} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "L2" }));
+
+    expect(screen.getByText("Capítulo")).toBeInTheDocument();
+    expect(screen.getByText("Subcapítulo")).toBeInTheDocument();
+    expect(screen.queryByText("Detalle de obra")).not.toBeInTheDocument();
+  });
+
+  test("con muchos niveles el control sigue siendo botones, no un desplegable", () => {
+    render(
+      <GanttTable
+        tasks={[
+          ...jerarquia,
+          makeTask({ id: 4, name: "Subdetalle", outlineLevel: 4 }),
+        ]}
+      />,
+    );
+
+    expect(screen.queryByTestId("expand-level-select")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("expand-level-button")).toHaveLength(4);
+  });
+});
+
+describe("las exportaciones dicen lo que hacen (M25)", () => {
+  test("descargar entrega un CSV, no un TSV", () => {
+    render(
+      <GanttTable tasks={[makeTask({ id: 1 })]} observations={[]} />,
+    );
+
+    expect(screen.getByTestId("excel-download-export")).toHaveAttribute(
+      "title",
+      expect.stringMatching(/CSV/),
+    );
+  });
+
+  test("copiar dice que es para pegar en Excel, que es lo que hace", () => {
+    render(<GanttTable tasks={[makeTask({ id: 1 })]} observations={[]} />);
+
+    expect(screen.getByTestId("excel-copy-export")).toHaveAttribute(
+      "title",
+      expect.stringMatching(/pegar en Excel/i),
+    );
+  });
+});
+
+describe("la cinta se lee por grupos y los encabezados no gritan (E41, E42)", () => {
+  test("cada grupo de la cinta lleva su etiqueta visible", () => {
+    render(<GanttTable tasks={[makeTask({ id: 1 })]} onUpdateTask={jest.fn()} />);
+
+    const etiquetas = screen
+      .getAllByTestId("gantt-table-ribbon-group")
+      .map((grupo) => grupo.getAttribute("data-label"));
+
+    expect(etiquetas.length).toBeGreaterThanOrEqual(3);
+    expect(etiquetas.every((etiqueta) => Boolean(etiqueta))).toBe(true);
+  });
+
+  test("los grupos están separados, no en una sola tira de iconos", () => {
+    render(<GanttTable tasks={[makeTask({ id: 1 })]} onUpdateTask={jest.fn()} />);
+
+    const grupos = screen.getAllByTestId("gantt-table-ribbon-group");
+    expect(new Set(grupos.map((g) => g.getAttribute("data-label"))).size).toBe(
+      grupos.length,
+    );
+  });
+});
+
+describe("la columna Predecesoras muestra el dato, no el control (E40)", () => {
+  const conDependencia = [
+    makeTask({ id: 1 }),
+    makeTask({ id: 2, dependencies: [{ from: 1, to: 2, type: "FS", lag: 2 }] }),
+  ];
+
+  test("de entrada se lee el vínculo, no un botón", () => {
+    render(<GanttTable tasks={conDependencia} onUpdateTask={jest.fn()} />);
+
+    const celda = screen.getByTestId("cell-predecessors-2");
+    expect(celda).toHaveTextContent("1FS+2");
+    expect(celda.querySelector("button")).toBeNull();
+  });
+
+  test("el control aparece al pasar por la fila", () => {
+    render(<GanttTable tasks={conDependencia} onUpdateTask={jest.fn()} />);
+
+    const celda = screen.getByTestId("cell-predecessors-2");
+    fireEvent.mouseEnter(celda.closest("tr")!);
+
+    expect(celda.querySelector("button")).not.toBeNull();
+  });
+
+  test("y también cuando la fila está seleccionada, sin ratón", () => {
+    render(
+      <GanttTable
+        tasks={conDependencia}
+        selectedTaskIds={[2]}
+        onUpdateTask={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("cell-predecessors-2").querySelector("button"),
+    ).not.toBeNull();
   });
 });

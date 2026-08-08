@@ -342,7 +342,7 @@ describe("GanttView", () => {
       target: { value: "critical" },
     });
 
-    expect(screen.getByTestId("gantt-task-filter-count")).toHaveTextContent("1 / 2");
+    expect(screen.getByTestId("gantt-task-filter-count")).toHaveTextContent("1 oculta de 2");
 
     await flushAutosave();
 
@@ -361,7 +361,7 @@ describe("GanttView", () => {
         projectId="1"
         projectName="Presets por rol"
         tasks={[
-          makeTask({ id: 1, name: "Ruta critica", isCritical: true, cost: 1000 }),
+          makeTask({ id: 1, name: "Ruta crítica", isCritical: true, cost: 1000 }),
           makeTask({ id: 2, name: "Actividad normal", cost: 500 }),
         ]}
       />,
@@ -404,7 +404,7 @@ describe("GanttView", () => {
         projectId="1"
         projectName="Preset persistido"
         tasks={[
-          makeTask({ id: 1, name: "Ruta critica", isCritical: true }),
+          makeTask({ id: 1, name: "Ruta crítica", isCritical: true }),
           makeTask({ id: 2, name: "Actividad normal" }),
         ]}
         uiSettings={{
@@ -429,7 +429,7 @@ describe("GanttView", () => {
         projectId="1"
         projectName="Modo simple"
         tasks={[
-          makeTask({ id: 1, name: "Ruta critica", isCritical: true }),
+          makeTask({ id: 1, name: "Ruta crítica", isCritical: true }),
           makeTask({ id: 2, name: "Actividad normal" }),
         ]}
       />,
@@ -460,7 +460,7 @@ describe("GanttView", () => {
         projectId="1"
         projectName="Modo simple persistido"
         tasks={[
-          makeTask({ id: 1, name: "Ruta critica", isCritical: true }),
+          makeTask({ id: 1, name: "Ruta crítica", isCritical: true }),
           makeTask({ id: 2, name: "Actividad normal" }),
         ]}
         uiSettings={{
@@ -711,6 +711,10 @@ describe("GanttView", () => {
 
     mockedSaveProject.mockClear();
 
+    // El control aparece al señalar la fila (E40).
+    fireEvent.mouseEnter(
+      screen.getByTestId("cell-predecessors-2").closest("tr")!,
+    );
     fireEvent.click(screen.getByTestId("dependency-popover-open-2"));
     fireEvent.change(screen.getByTestId("dependency-search"), {
       target: { value: "Predecesora" },
@@ -1139,12 +1143,17 @@ describe("GanttView", () => {
 
     mockedSaveProject.mockClear();
 
-    fireEvent.click(screen.getByTitle("Guardar línea base"));
+    fireEvent.click(screen.getByTestId("baseline-save-open"));
+    fireEvent.change(screen.getByTestId("baseline-name-input"), {
+      target: { value: "Antes de la lluvia" },
+    });
+    fireEvent.click(screen.getByTestId("baseline-save-confirm"));
 
     await flushAutosave();
 
     await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
     expect(latestSavedProject().baselines).toHaveLength(1);
+    expect(latestSavedProject().baselines[0].name).toBe("Antes de la lluvia");
     expect(latestSavedProject().baselines[0].tasks[0]).toEqual(
       expect.objectContaining({
         taskId: 1,
@@ -1330,5 +1339,696 @@ describe("restablecer columnas se puede deshacer (E24)", () => {
     expect(
       await screen.findByText(/deshecho: columnas del cronograma restablecidas/i),
     ).toBeInTheDocument();
+  });
+});
+
+describe("las observaciones no se pierden (M24)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("anotar guarda al instante, sin esperar al temporizador", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Obra con observaciones"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByTestId("editable-cell")[0]);
+    fireEvent.click(screen.getByTestId("open-observations"));
+
+    fireEvent.change(screen.getByTestId("observation-text"), {
+      target: { value: "Falta acero de refuerzo en el eje 3" },
+    });
+
+    mockedSaveProject.mockClear();
+    fireEvent.click(screen.getByTestId("observation-save"));
+
+    // Sin avanzar ni un milisegundo: el guardado tiene que haber salido ya.
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockedSaveProject).toHaveBeenCalled();
+    expect(latestSavedProject().observations).toEqual([
+      expect.objectContaining({
+        taskId: 1,
+        text: "Falta acero de refuerzo en el eje 3",
+        status: "pending",
+      }),
+    ]);
+  });
+
+  test("atender una observación también guarda al instante", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Obra con observaciones"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+        observations={[
+          {
+            id: "obs-1",
+            taskId: 1,
+            taskName: "Excavación",
+            text: "Falta acero",
+            status: "pending",
+            createdAt: "2026-08-07T08:00:00.000Z",
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByTestId("editable-cell")[0]);
+    fireEvent.click(screen.getByTestId("open-observations"));
+
+    mockedSaveProject.mockClear();
+    fireEvent.click(screen.getByTestId("observation-toggle-obs-1"));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockedSaveProject).toHaveBeenCalled();
+    expect(latestSavedProject().observations[0].status).toBe("done");
+  });
+
+  test("abrir el proyecto con observaciones ya guardadas no dispara un guardado", async () => {
+    jest.useFakeTimers();
+
+    mockedSaveProject.mockClear();
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Obra con observaciones"
+        tasks={[makeTask({ id: 1 })]}
+        observations={[
+          {
+            id: "obs-1",
+            taskId: 1,
+            taskName: "Excavación",
+            text: "Falta acero",
+            status: "pending",
+            createdAt: "2026-08-07T08:00:00.000Z",
+          },
+        ]}
+      />,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockedSaveProject).not.toHaveBeenCalled();
+  });
+});
+
+describe("aviso al cerrar con cambios pendientes (M33)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("sin tocar nada, cerrar no pregunta", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  test("tras editar y antes de que guarde, cerrar pregunta", async () => {
+    jest.useFakeTimers();
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+      />,
+    );
+
+    const cells = screen.getAllByTestId("editable-cell");
+    fireEvent.doubleClick(cells[0]);
+    const input = screen.getByDisplayValue("Excavación");
+    fireEvent.change(input, { target: { value: "Excavación manual" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+});
+
+describe("reintentar el guardado es un botón", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("aparece solo cuando falla y vuelve a guardar al pulsarlo", async () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    expect(screen.queryByTestId("save-retry")).not.toBeInTheDocument();
+
+    mockedSaveProject.mockResolvedValueOnce({
+      success: false,
+      error: "sin conexión",
+    });
+
+    // La app ofrece «Guardar ahora» desde la paleta de comandos.
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    fireEvent.click(screen.getByText("Guardar ahora"));
+
+    const retry = await screen.findByTestId("save-retry");
+    expect(retry.tagName).toBe("BUTTON");
+    expect(retry).toHaveTextContent("Reintentar");
+
+    mockedSaveProject.mockClear();
+    mockedSaveProject.mockResolvedValueOnce({ success: true, id: "1" });
+    fireEvent.click(retry);
+
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.queryByTestId("save-retry")).not.toBeInTheDocument(),
+    );
+  });
+});
+
+describe("la línea base se dibuja donde se guarda (M13)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("al guardar y seleccionar una línea base, el Gantt principal la dibuja", async () => {
+    const { container } = render(
+      <GanttView
+        projectId="1"
+        projectName="Obra"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+      />,
+    );
+
+    expect(container.querySelector("g.baseline-bars")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("baseline-save-open"));
+    fireEvent.click(screen.getByTestId("baseline-save-confirm"));
+
+    await waitFor(() =>
+      expect(container.querySelector("g.baseline-bars")).toBeInTheDocument(),
+    );
+    expect(container.querySelectorAll("g.baseline-bars rect")).toHaveLength(1);
+  });
+
+  test("una línea base cargada del proyecto no se dibuja hasta seleccionarla", () => {
+    const { container } = render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        baselines={[
+          {
+            id: "bl-1",
+            name: "Línea base 1",
+            createdAt: new Date("2026-08-01"),
+            tasks: [
+              {
+                taskId: 1,
+                baselineStart: createProjectDate("2026-01-05"),
+                baselineFinish: createProjectDate("2026-01-10"),
+                baselineDuration: 5,
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(container.querySelector("g.baseline-bars")).not.toBeInTheDocument();
+  });
+});
+
+describe("borrar una línea base es deshacible (M13)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("Ctrl+Z devuelve la línea base borrada", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        baselines={[
+          {
+            id: "bl-1",
+            name: "Antes de la lluvia",
+            createdAt: new Date("2026-08-01"),
+            tasks: [
+              {
+                taskId: 1,
+                baselineStart: createProjectDate("2026-01-05"),
+                baselineFinish: createProjectDate("2026-01-10"),
+                baselineDuration: 5,
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("baseline-menu-open"));
+    fireEvent.click(screen.getByTestId("baseline-delete-bl-1"));
+
+    expect(screen.queryByTestId("baseline-menu-open")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("baseline-menu-open")).toBeInTheDocument(),
+    );
+  });
+});
+
+describe("un guardado fallido deja el trabajo pendiente (M33)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("si el guardado falla, cerrar sigue preguntando", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+      />,
+    );
+
+    mockedSaveProject.mockResolvedValueOnce({
+      success: false,
+      error: "sin conexión",
+    });
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    fireEvent.click(screen.getByText("Guardar ahora"));
+
+    await screen.findByTestId("save-retry");
+
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  test("y sigue preguntando cuando el indicador ya volvió a su estado normal", async () => {
+    jest.useFakeTimers();
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+      />,
+    );
+
+    mockedSaveProject.mockResolvedValueOnce({
+      success: false,
+      error: "sin conexión",
+    });
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    fireEvent.click(screen.getByText("Guardar ahora"));
+
+    // El indicador vuelve a «idle» a los 3 s: el trabajo sigue sin guardarse.
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(4000);
+    });
+
+    expect(screen.queryByTestId("save-retry")).not.toBeInTheDocument();
+
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+});
+
+describe("se ve qué se movió y cuánto (E31)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("tras editar, la app dice cuántas actividades se movieron", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[
+          makeTask({ id: 1, name: "Excavación", duration: 2 }),
+          makeTask({
+            id: 2,
+            name: "Cimentación",
+            dependencies: [{ from: 1, to: 2, type: "FS" }],
+          }),
+        ]}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-duration-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "8" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(await screen.findByTestId("impact-summary")).toHaveTextContent(
+      /actividades se movieron/i,
+    );
+  });
+
+  test("al abrir el proyecto no hay recuento que mostrar", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    expect(screen.queryByTestId("impact-summary")).not.toBeInTheDocument();
+  });
+
+  test("si el fin de obra se corre, se avisa sin que nadie lo pida", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[
+          makeTask({ id: 1, name: "Excavación", duration: 2 }),
+          makeTask({
+            id: 2,
+            name: "Cimentación",
+            dependencies: [{ from: 1, to: 2, type: "FS" }],
+          }),
+        ]}
+      />,
+    );
+
+    const celda = screen.getByTestId("cell-duration-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "20" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(await screen.findByTestId("deep-change-finish")).toHaveTextContent(
+      /el fin de obra se corrió/i,
+    );
+  });
+});
+
+describe("el modo Simple esconde lo avanzado de verdad (E36)", () => {
+  const columnaMpp = {
+    key: "mpp:Cost1",
+    fieldId: "COST_1",
+    sourceKey: "Cost1",
+    labelEn: "Cost 1",
+    labelEs: "Costo unitario",
+    dataType: "number" as const,
+    group: "custom" as const,
+    isCustom: true,
+    isCore: false,
+    isEditable: true,
+  };
+
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("en modo Simple no se ven las columnas importadas del .mpp", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        mppTaskColumns={[columnaMpp]}
+        taskColumnSettings={{
+          visible: ["id", "name", "mpp:Cost1"],
+          widths: {},
+          labelLocale: "es",
+        }}
+        uiSettings={{
+          locale: "es",
+          interactionMode: "simple",
+          taskFilter: { text: "", type: "all" },
+        }}
+      />,
+    );
+
+    expect(screen.queryByText("Costo unitario")).not.toBeInTheDocument();
+  });
+
+  test("y al pasar a Avanzado vuelven, sin perder nada", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        mppTaskColumns={[columnaMpp]}
+        taskColumnSettings={{
+          visible: ["id", "name", "mpp:Cost1"],
+          widths: {},
+          labelLocale: "es",
+        }}
+        uiSettings={{
+          locale: "es",
+          interactionMode: "simple",
+          taskFilter: { text: "", type: "all" },
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("interaction-mode-advanced"));
+
+    expect(screen.getByText("Costo unitario")).toBeInTheDocument();
+  });
+
+  test("un proyecto que ya tiene historial arranca en Avanzado, no en Simple", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        planningAuditEvents={[
+          {
+            id: "ev-1",
+            kind: "taskEdit",
+            summary: "Duración de Excavación",
+            taskIds: [1],
+            createdAt: "2026-08-01T10:00:00.000Z",
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByTestId("interaction-mode-advanced")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+  });
+});
+
+describe("la paleta de comandos se deja encontrar (E20, M36)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("el botón enseña el atajo, para que se aprenda solo", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    expect(screen.getByTestId("command-palette-open")).toHaveTextContent("⌘K");
+  });
+
+  test("una errata al teclear sigue encontrando el comando", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "cruva" },
+    });
+
+    // Acotado a la paleta: «Curva S» también es una entrada del menú lateral.
+    expect(
+      within(screen.getByTestId("command-palette")).getByText(/curva s/i),
+    ).toBeInTheDocument();
+  });
+
+  test("lo que no existe sigue sin aparecer: tolerar no es adivinar", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "zzzzzz" },
+    });
+
+    expect(screen.getByText(/no hay comandos coincidentes/i)).toBeInTheDocument();
+  });
+
+  test("la paleta conoce la exportación y la configuración", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+
+    const paleta = within(screen.getByTestId("command-palette"));
+    expect(paleta.getByText("Configuración")).toBeInTheDocument();
+    expect(paleta.getByText(/exportar el cronograma/i)).toBeInTheDocument();
+  });
+
+  test("la Matriz sigue en la paleta además de estar en el menú", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+
+    expect(
+      within(screen.getByTestId("command-palette")).getByText(/matriz/i),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("el modo Simple no borra lo que esconde (E36)", () => {
+  const columnaMpp = {
+    key: "mpp:Cost1",
+    fieldId: "COST_1",
+    sourceKey: "Cost1",
+    labelEn: "Cost 1",
+    labelEs: "Costo unitario",
+    dataType: "number" as const,
+    group: "custom" as const,
+    isCustom: true,
+    isCore: false,
+    isEditable: true,
+  };
+
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("guardar en modo Simple conserva las columnas del .mpp", async () => {
+    jest.useFakeTimers();
+
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Importado"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+        mppTaskColumns={[columnaMpp]}
+        uiSettings={{
+          locale: "es",
+          interactionMode: "simple",
+          taskFilter: { text: "", type: "all" },
+        }}
+      />,
+    );
+
+    mockedSaveProject.mockClear();
+
+    // Cualquier edición dispara el autoguardado.
+    const celda = screen.getByTestId("cell-duration-1");
+    fireEvent.doubleClick(celda.querySelector('[data-testid="editable-cell"]')!);
+    const input = celda.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "8" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await flushAutosave();
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+
+    // Esconderlas de la tabla no puede borrarlas del proyecto.
+    expect(latestSavedProject().mppTaskColumns).toEqual([
+      expect.objectContaining({ key: "mpp:Cost1" }),
+    ]);
+  });
+});
+
+describe("el aviso al cerrar no se queda encendido de más (M28)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("salir de la matriz sin aplicar deja de contar como trabajo pendiente", async () => {
+    render(
+      <GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-matrix"));
+    await screen.findByRole("button", { name: /Crear matriz/i });
+    fireEvent.click(screen.getByRole("button", { name: /Crear matriz/i }));
+
+    // Volver al Gantt desmonta el editor: el borrador se pierde, así que ya no
+    // hay nada pendiente por lo que preguntar al cerrar.
+    fireEvent.click(screen.getByTestId("sidebar-view-gantt"));
+    await screen.findByTestId("gantt-view");
+
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+  });
+});
+
+describe("deshacer un alta de asignación no borra de más (M14)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("con dos asignaciones iguales, Ctrl+Z quita solo la última", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+        resources={[
+          { uid: 7, name: "Cuadrilla 2", type: "work", rate: 20, availability: 100 },
+        ]}
+        assignments={[{ taskId: 1, resourceId: 7, units: 20, cost: 0 }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+    fireEvent.click(await screen.findByRole("button", { name: /Asignaciones/i }));
+
+    // Se crea una segunda del mismo par: nada lo impide hoy.
+    fireEvent.click(await screen.findByTestId("assignment-add"));
+    fireEvent.change(screen.getByTestId("assignment-task"), {
+      target: { value: "1" },
+    });
+    fireEvent.change(screen.getByTestId("assignment-resource"), {
+      target: { value: "7" },
+    });
+    fireEvent.click(screen.getByTestId("assignment-confirm"));
+
+    // Dos asignaciones del mismo par, más la fila de encabezado.
+    await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(3));
+    // eslint-disable-next-line no-console
+    console.log("FILAS TRAS CREAR", screen.getAllByRole("row").length);
+
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+
+    await new Promise((r) => setTimeout(r, 100));
+    // eslint-disable-next-line no-console
+    console.log("FILAS TRAS DESHACER", screen.getAllByRole("row").length);
+    // Deshacer quita una, no las dos.
+    await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(2));
   });
 });

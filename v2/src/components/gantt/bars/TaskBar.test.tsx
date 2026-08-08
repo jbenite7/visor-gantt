@@ -3,56 +3,170 @@
  */
 
 import "@testing-library/jest-dom";
-import { render } from "@testing-library/react";
-import { TaskBar, CriticalHatchDefs, CRITICAL_HATCH_ID } from "./index";
-import type { GanttTask } from "@/components/gantt/types";
+import { fireEvent, render, screen } from "@testing-library/react";
+import TaskBar from "./TaskBar";
+import type { GanttTask } from "../types";
+import { createProjectDate } from "@/lib/date/projectDate";
 
-function task(overrides: Partial<GanttTask> = {}): GanttTask {
-  return {
-    id: 1,
-    name: "Tarea",
-    start: new Date("2026-01-05T08:00:00"),
-    finish: new Date("2026-01-09T17:00:00"),
-    duration: 5,
-    progress: 0,
-    isCritical: false,
-    isMilestone: false,
-    isSummary: false,
-    outlineLevel: 1,
-    dependencies: [],
-    ...overrides,
-  };
-}
+const task: GanttTask = {
+  id: 1,
+  name: "Excavación",
+  start: createProjectDate("2026-01-05"),
+  finish: createProjectDate("2026-01-09"),
+  duration: 5,
+  progress: 0,
+  isCritical: false,
+  isMilestone: false,
+  isSummary: false,
+  outlineLevel: 1,
+  dependencies: [],
+};
 
-function renderBar(t: GanttTask) {
+function renderBar(extra: Partial<React.ComponentProps<typeof TaskBar>> = {}) {
   return render(
     <svg>
-      <CriticalHatchDefs />
-      <TaskBar task={t} x={0} y={0} width={100} height={24} color="var(--aia-corp-main)" />
+      <TaskBar
+        task={task}
+        x={40}
+        y={0}
+        width={100}
+        height={28}
+        color="var(--aia-proj-main)"
+        onDragStart={jest.fn()}
+        onResizeStart={jest.fn()}
+        {...extra}
+      />
     </svg>,
   );
 }
 
-describe("TaskBar — señal no cromática de ruta crítica (E39)", () => {
-  test("una barra crítica lleva trama superpuesta además del color", () => {
-    const { container } = renderBar(task({ isCritical: true }));
-    const hatch = container.querySelector('[data-testid="task-bar-critical-hatch"]');
-    expect(hatch).not.toBeNull();
-    expect(hatch).toHaveAttribute("fill", `url(#${CRITICAL_HATCH_ID})`);
-    expect(hatch).toHaveAttribute("stroke", "var(--aia-alert-dark)");
-    // No debe robar los eventos de arrastre de la barra de abajo.
-    expect(hatch).toHaveAttribute("pointer-events", "none");
+describe("los tiradores se ven (E29)", () => {
+  test("sin ratón encima, los tiradores no distraen", () => {
+    renderBar();
+
+    expect(screen.getByTestId("task-bar-resize-right")).toHaveAttribute(
+      "data-visible",
+      "false",
+    );
   });
 
-  test("una barra normal no lleva trama", () => {
-    const { container } = renderBar(task({ isCritical: false }));
-    expect(
-      container.querySelector('[data-testid="task-bar-critical-hatch"]'),
-    ).toBeNull();
+  test("al pasar por la barra, los tiradores dejan de ser invisibles", () => {
+    renderBar();
+
+    fireEvent.mouseEnter(screen.getByTestId("task-bar"));
+
+    expect(screen.getByTestId("task-bar-resize-right")).toHaveAttribute(
+      "data-visible",
+      "true",
+    );
+    expect(screen.getByTestId("task-bar-resize-left")).toHaveAttribute(
+      "data-visible",
+      "true",
+    );
   });
 
-  test("el patrón existe en las defs del SVG", () => {
-    const { container } = renderBar(task({ isCritical: true }));
-    expect(container.querySelector(`pattern#${CRITICAL_HATCH_ID}`)).not.toBeNull();
+  test("una barra seleccionada muestra los tiradores sin necesidad de ratón", () => {
+    renderBar({ isSelected: true });
+
+    expect(screen.getByTestId("task-bar-resize-right")).toHaveAttribute(
+      "data-visible",
+      "true",
+    );
+  });
+
+  test("una barra que no se puede arrastrar no ofrece tiradores", () => {
+    render(
+      <svg>
+        <TaskBar
+          task={task}
+          x={40}
+          y={0}
+          width={100}
+          height={28}
+          color="var(--aia-proj-main)"
+        />
+      </svg>,
+    );
+
+    expect(screen.queryByTestId("task-bar-resize-right")).not.toBeInTheDocument();
+  });
+});
+
+describe("el arrastre dice a dónde va (E30)", () => {
+  test("durante el arrastre se ve la fecha destino, no solo un rectángulo", () => {
+    renderBar({
+      dragState: {
+        isDragging: true,
+        taskId: 1,
+        ghostX: 40,
+        ghostY: 0,
+        dayDelta: 3,
+      },
+    });
+
+    expect(screen.getByTestId("drag-destination")).toHaveTextContent(
+      "08/01/2026",
+    );
+  });
+
+  test("sin arrastre no hay etiqueta de destino", () => {
+    renderBar();
+
+    expect(screen.queryByTestId("drag-destination")).not.toBeInTheDocument();
+  });
+
+  test("arrastrando otra barra, esta no muestra destino", () => {
+    renderBar({
+      dragState: {
+        isDragging: true,
+        taskId: 99,
+        ghostX: 40,
+        ghostY: 0,
+        dayDelta: 3,
+      },
+    });
+
+    expect(screen.queryByTestId("drag-destination")).not.toBeInTheDocument();
+  });
+});
+
+describe("los cuatro tipos de vínculo son alcanzables (E35)", () => {
+  test("soltar sobre el punto de fin de la tarea destino crea un vínculo a fin", () => {
+    const onDepEnd = jest.fn();
+    renderBar({
+      onDepStart: jest.fn(),
+      onDepEnd,
+      isDepHovered: true,
+    });
+
+    fireEvent.mouseUp(screen.getByTestId("dep-point-right"));
+
+    expect(onDepEnd).toHaveBeenCalledWith(1, "right");
+  });
+
+  test("soltar sobre el punto de inicio crea un vínculo a inicio", () => {
+    const onDepEnd = jest.fn();
+    renderBar({
+      onDepStart: jest.fn(),
+      onDepEnd,
+      isDepHovered: true,
+    });
+
+    fireEvent.mouseUp(screen.getByTestId("dep-point-left"));
+
+    expect(onDepEnd).toHaveBeenCalledWith(1, "left");
+  });
+
+  test("pasar por un punto de conexión anuncia qué borde se va a usar", () => {
+    const onDepHoverEdge = jest.fn();
+    renderBar({
+      onDepStart: jest.fn(),
+      onDepHoverEdge,
+      isDepHovered: true,
+    });
+
+    fireEvent.mouseEnter(screen.getByTestId("dep-point-right"));
+
+    expect(onDepHoverEdge).toHaveBeenCalledWith("right");
   });
 });

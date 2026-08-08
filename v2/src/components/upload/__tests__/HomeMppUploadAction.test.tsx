@@ -14,9 +14,13 @@ jest.mock("next/navigation", () => ({
 
 function selectFile(name: string, size = 3) {
   const input = screen.getByLabelText("Seleccionar archivo .mpp");
-  const file = new File(["x".repeat(size)], name, {
+  const file = new File(["x".repeat(Math.min(size, 3))], name, {
     type: "application/octet-stream",
   });
+  // El componente solo lee `file.size`. Materializar 50 MB de verdad tardaba
+  // más de los 5 s del test en cuanto la suite corría en paralelo, y hacía
+  // fallar esta prueba una de cada dos veces sin que nada estuviera roto.
+  Object.defineProperty(file, "size", { value: size });
   fireEvent.change(input, { target: { files: [file] } });
 }
 
@@ -84,7 +88,7 @@ describe("HomeMppUploadAction", () => {
 
     expect(
       await screen.findByText(
-        "Selecciona un archivo Microsoft Project con extension .mpp",
+        "Selecciona un archivo de Microsoft Project con extensión .mpp",
       ),
     ).toBeInTheDocument();
     expect(global.fetch).not.toHaveBeenCalled();
@@ -98,7 +102,7 @@ describe("HomeMppUploadAction", () => {
     selectFile("cronograma.mpp", bytesOverLimit);
 
     expect(
-      await screen.findByText("El archivo supera el maximo de 50 MB"),
+      await screen.findByText("El archivo supera el máximo de 50 MB"),
     ).toBeInTheDocument();
     expect(global.fetch).not.toHaveBeenCalled();
   });
@@ -144,8 +148,8 @@ describe("HomeMppUploadAction", () => {
 
   test.each([
     [400, "Archivo invalido"],
-    [400, "Selecciona un archivo Microsoft Project con extension .mpp"],
-    [413, "El archivo excede el tamano maximo permitido"],
+    [400, "Selecciona un archivo de Microsoft Project con extensión .mpp"],
+    [413, "El archivo excede el tamaño máximo permitido"],
     [422, "No se pudo interpretar el archivo .mpp"],
   ])(
     "muestra el error del servidor para status %i",
@@ -191,4 +195,12 @@ describe("la espera muestra información real, no fases inventadas", () => {
 
     jest.useRealTimers();
   });
+});
+
+test("anuncia el formato y el límite antes de elegir archivo (E11)", () => {
+  render(<HomeMppUploadAction />);
+
+  expect(screen.getByTestId("upload-limits")).toHaveTextContent(
+    /\.mpp.*50 MB|50 MB.*\.mpp/i,
+  );
 });

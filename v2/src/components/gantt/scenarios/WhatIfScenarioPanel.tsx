@@ -41,7 +41,7 @@ export default function WhatIfScenarioPanel({
     if (!selectedTask || !isPreviewing) return undefined;
     return {
       id: `duration-${selectedTask.id}`,
-      name: locale === "en" ? "Duration what-if" : "What-if duracion",
+      name: locale === "en" ? "Duration what-if" : "What-if duración",
       changes: [
         {
           type: "updateTask",
@@ -74,7 +74,7 @@ export default function WhatIfScenarioPanel({
                 ? `${selectedTask.id} - ${selectedTask.name}`
                 : locale === "en"
                   ? "Select one task to compare a duration change."
-                  : "Selecciona una tarea para comparar cambio de duracion."}
+                  : "Selecciona una tarea para comparar un cambio de duración."}
             </p>
           </div>
         </div>

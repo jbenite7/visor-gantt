@@ -5,6 +5,7 @@ import type { DragState } from "../interaction/useDragBar";
 import type { ResizeState } from "../interaction/useResizeBar";
 import type { DepEdge } from "../interaction/useCreateDependency";
 import { CRITICAL_HATCH_ID } from "./CriticalHatchDefs";
+import { dragDestinationLabel } from "@/lib/gantt/dragPreview";
 import ObservationBadge from "./ObservationBadge";
 import type { ObservationBadge as ObservationBadgeState } from "@/lib/observations/observations";
 
@@ -36,6 +37,10 @@ interface TaskBarProps {
     edge: DepEdge,
     event: React.MouseEvent,
   ) => void;
+  /** Se suelta aquí para cerrar el vínculo, con el borde que toque. */
+  onDepEnd?: (taskId: string | number, edge: DepEdge) => void;
+  /** Aviso de sobre qué borde está el puntero mientras se arrastra. */
+  onDepHoverEdge?: (edge: DepEdge | null) => void;
   /** Whether this bar is the hover target during dependency creation. */
   isDepHovered?: boolean;
   /** Let parent charts move labels to a dedicated top layer. */
@@ -61,6 +66,8 @@ export default function TaskBar({
   onResizeStart,
   resizeState,
   onDepStart,
+  onDepEnd,
+  onDepHoverEdge,
   isDepHovered,
   showLabel = true,
 }: TaskBarProps) {
@@ -82,6 +89,12 @@ export default function TaskBar({
     ? `${resizeState?.newDuration ?? task.duration}d`
     : null;
 
+  /**
+   * Los tiradores existían pero eran `fill="transparent"`: se podían usar solo
+   * si ya sabías que estaban ahí. Se pintan al pasar por la barra o al
+   * seleccionarla, y desaparecen el resto del tiempo para no ensuciar (E29).
+   */
+  const showResizeHandles = Boolean(isHovered || isSelected);
   const showConnPoints = onDepStart !== undefined && (isHovered || isDepHovered);
   const connCy = y + height / 2;
   const labelPlacement = viewport
@@ -183,15 +196,18 @@ export default function TaskBar({
         />
       )}
 
-      {/* Left resize handle (invisible hit area) */}
+      {/* Tirador izquierdo: se ve al pasar por encima o al seleccionar */}
       {isInteractive && (
         <rect
           x={x}
           y={barY}
           width={RESIZE_HANDLE_WIDTH}
           height={barHeight}
-          fill="transparent"
+          fill={showResizeHandles ? "var(--color-text-muted)" : "transparent"}
+          opacity={showResizeHandles ? 0.7 : 1}
+          rx={2}
           style={{ cursor: "ew-resize" }}
+          data-visible={showResizeHandles}
           data-testid="task-bar-resize-left"
           onMouseDown={(e) =>
             onResizeStart?.(task.id, "left", task.duration, e)
@@ -199,15 +215,18 @@ export default function TaskBar({
         />
       )}
 
-      {/* Right resize handle (invisible hit area) */}
+      {/* Tirador derecho */}
       {isInteractive && (
         <rect
           x={x + width - RESIZE_HANDLE_WIDTH}
           y={barY}
           width={RESIZE_HANDLE_WIDTH}
           height={barHeight}
-          fill="transparent"
+          fill={showResizeHandles ? "var(--color-text-muted)" : "transparent"}
+          opacity={showResizeHandles ? 0.7 : 1}
+          rx={2}
           style={{ cursor: "ew-resize" }}
+          data-visible={showResizeHandles}
           data-testid="task-bar-resize-right"
           onMouseDown={(e) =>
             onResizeStart?.(task.id, "right", task.duration, e)
@@ -230,6 +249,20 @@ export default function TaskBar({
           rx={4}
           pointerEvents="none"
         />
+      )}
+
+      {/* A qué día va a caer: sin esto, arrastrar es adivinar (E30) */}
+      {isDragging && (
+        <text
+          data-testid="drag-destination"
+          x={ghostX + 4}
+          y={barY - 6}
+          fontSize={10}
+          fill="var(--color-text-muted)"
+          pointerEvents="none"
+        >
+          {dragDestinationLabel(task.start, dragState?.dayDelta ?? 0)}
+        </text>
       )}
 
       {/* Duration tooltip while resizing */}
@@ -272,6 +305,12 @@ export default function TaskBar({
               e.stopPropagation();
               onDepStart(task.id, "left", e);
             }}
+            onMouseUp={(e) => {
+              e.stopPropagation();
+              onDepEnd?.(task.id, "left");
+            }}
+            onMouseEnter={() => onDepHoverEdge?.("left")}
+            onMouseLeave={() => onDepHoverEdge?.(null)}
           />
           <circle
             cx={x + width}
@@ -286,6 +325,12 @@ export default function TaskBar({
               e.stopPropagation();
               onDepStart(task.id, "right", e);
             }}
+            onMouseUp={(e) => {
+              e.stopPropagation();
+              onDepEnd?.(task.id, "right");
+            }}
+            onMouseEnter={() => onDepHoverEdge?.("right")}
+            onMouseLeave={() => onDepHoverEdge?.(null)}
           />
         </>
       )}
