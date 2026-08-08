@@ -95,6 +95,10 @@ import {
   applyMatrixUpdate,
   syncMatrixPlanFromTasks,
 } from "@/lib/matrix/matrixSync";
+import {
+  removeAreaWithTasks,
+  type OrphanTaskPolicy,
+} from "@/lib/matrix/removeArea";
 import { buildPlanningRecommendations } from "@/lib/gantt/planningRecommendations";
 import {
   applyRoleViewPreset,
@@ -955,6 +959,34 @@ function GanttViewInner({
       commitMatrixPlan(pending.nextPlan, resolutions);
     },
     [commitMatrixPlan, pendingMatrixConflicts],
+  );
+
+  /**
+   * Borrar una ubicación toca la matriz y el cronograma a la vez, así que va
+   * por el deshacer del proyecto, el mismo que el resto de borrados.
+   */
+  const handleRemoveMatrixArea = useCallback(
+    (areaId: string, policy: OrphanTaskPolicy) => {
+      const currentPlan = syncedMatrixPlan ?? matrixPlan;
+      if (!currentPlan) return;
+
+      const previousPlan = matrixPlan;
+      const previousTasks = tasks;
+      const result = removeAreaWithTasks(currentPlan, tasks, areaId, policy);
+
+      runUndoable({
+        description: `Ubicación «${areaId}» borrada de la matriz`,
+        execute: () => {
+          setMatrixPlan(result.matrixPlan);
+          setTasks(() => result.tasks);
+        },
+        undo: () => {
+          setMatrixPlan(previousPlan);
+          setTasks(() => previousTasks);
+        },
+      });
+    },
+    [matrixPlan, runUndoable, setTasks, syncedMatrixPlan, tasks],
   );
 
   const handleSyncMatrixFromGantt = useCallback(() => {
@@ -2116,6 +2148,7 @@ function GanttViewInner({
               onApplyMatrixPlan={handleApplyMatrixPlan}
               onSyncFromGantt={handleSyncMatrixFromGantt}
               calendar={calendar}
+              onRemoveArea={handleRemoveMatrixArea}
               onDirtyChange={(dirty) => {
                 // El borrador de la matriz también es trabajo que se puede
                 // perder: entra en el aviso al cerrar (M28).

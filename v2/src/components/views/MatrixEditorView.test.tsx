@@ -12,6 +12,7 @@ import type { ProjectCalendar } from "@/types/calendar";
 import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
 import type { GanttTask } from "@/components/gantt/types";
 import { createDefaultMatrixPlan, createEmptyMatrixPlan } from "@/lib/matrix/templates";
+import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
 
 function planGrande(scopeCount = 30): MatrixPlan {
   const scopeTree = Array.from({ length: scopeCount }, (_, index) => ({
@@ -1031,3 +1032,97 @@ describe("MatrixEditorView · el calendario del proyecto manda en las fechas", (
   });
 });
 
+describe("MatrixEditorView · borrar una ubicación no borra tareas a ciegas", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  function planConTareas() {
+    const matrixPlan = createDefaultMatrixPlan({
+      id: "matrix-borrar-area",
+      name: "Matriz",
+      startDate: "2026-01-05",
+    });
+    return { matrixPlan, tasks: generateScheduleFromMatrix(matrixPlan).tasks };
+  }
+
+  function renderParaBorrar(onRemoveArea?: jest.Mock) {
+    const { matrixPlan, tasks } = planConTareas();
+    render(
+      <MatrixEditorView
+        matrixPlan={matrixPlan}
+        tasks={tasks}
+        onApplyMatrixPlan={jest.fn()}
+        onSyncFromGantt={jest.fn()}
+        onRemoveArea={onRemoveArea}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Ubicaciones" }));
+  }
+
+  test("con tareas generadas, avisa y ofrece las dos salidas en vez de confirmar", () => {
+    const confirmar = jest.spyOn(window, "confirm").mockReturnValue(true);
+    renderParaBorrar(jest.fn());
+
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Piso 1" }));
+
+    expect(screen.getByTestId("area-removal-choice")).toHaveTextContent(
+      /tareas ya generadas en el cronograma/,
+    );
+    expect(
+      screen.getByRole("button", { name: "Borrar también sus tareas" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Conservarlas en el cronograma" }),
+    ).toBeInTheDocument();
+    expect(confirmar).not.toHaveBeenCalled();
+  });
+
+  test("borrar también las tareas se lo pide al proyecto, que sabe deshacer", () => {
+    const onRemoveArea = jest.fn();
+    renderParaBorrar(onRemoveArea);
+
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Piso 1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Borrar también sus tareas" }));
+
+    expect(onRemoveArea).toHaveBeenCalledWith("piso-1", "borrar");
+    expect(screen.queryByTestId("area-removal-choice")).not.toBeInTheDocument();
+  });
+
+  test("conservarlas en el cronograma también se lo pide al proyecto", () => {
+    const onRemoveArea = jest.fn();
+    renderParaBorrar(onRemoveArea);
+
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Piso 1" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Conservarlas en el cronograma" }),
+    );
+
+    expect(onRemoveArea).toHaveBeenCalledWith("piso-1", "conservar");
+  });
+
+  test("sin tareas generadas se borra como siempre, con la confirmación de antes", () => {
+    const confirmar = jest.spyOn(window, "confirm").mockReturnValue(true);
+    const onRemoveArea = jest.fn();
+    render(
+      <MatrixEditorView
+        matrixPlan={createDefaultMatrixPlan({
+          id: "matrix-sin-tareas",
+          name: "Matriz",
+          startDate: "2026-01-05",
+        })}
+        tasks={[]}
+        onApplyMatrixPlan={jest.fn()}
+        onSyncFromGantt={jest.fn()}
+        onRemoveArea={onRemoveArea}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Ubicaciones" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Piso 1" }));
+
+    expect(confirmar).toHaveBeenCalled();
+    expect(screen.queryByTestId("area-removal-choice")).not.toBeInTheDocument();
+    expect(onRemoveArea).not.toHaveBeenCalled();
+  });
+});

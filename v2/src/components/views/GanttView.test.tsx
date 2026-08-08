@@ -2164,3 +2164,87 @@ describe("los conflictos de la matriz los decide el usuario (M26)", () => {
   });
 });
 
+describe("borrar una ubicación de la matriz se puede deshacer (M26)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  async function abrirUbicaciones(matrixPlan: MatrixPlan, tasks: GanttTask[]) {
+    jest.useFakeTimers();
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Ubicaciones"
+        tasks={tasks}
+        matrixPlan={matrixPlan}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("command-palette-open"));
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "matriz" },
+    });
+    fireEvent.keyDown(window, { key: "Enter" });
+    await flushAutosave();
+    screen.getByTestId("matrix-editor");
+    fireEvent.click(screen.getByRole("button", { name: "Ubicaciones" }));
+    mockedSaveProject.mockClear();
+  }
+
+  function tareasGuardadasDePiso1(): number {
+    return latestSavedProject().tasks.filter(
+      (task) => task.matrixSource?.areaId === "piso-1",
+    ).length;
+  }
+
+  test("borrar también las tareas las quita del cronograma y Ctrl+Z las devuelve", async () => {
+    const matrixPlan = createSingleCellMatrixPlan();
+    const generated = generateScheduleFromMatrix(matrixPlan);
+    const generadas = generated.tasks.filter((task) => task.matrixSource);
+    expect(generadas.length).toBeGreaterThan(0);
+
+    await abrirUbicaciones(matrixPlan, generated.tasks);
+
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Piso 1" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Borrar también sus tareas" }),
+    );
+
+    await flushAutosave();
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+    expect(tareasGuardadasDePiso1()).toBe(0);
+
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+
+    await flushAutosave();
+    await waitFor(() => expect(tareasGuardadasDePiso1()).toBe(generadas.length));
+  }, 20_000);
+
+  test("conservarlas deja las tareas en el cronograma, sueltas de la matriz", async () => {
+    const matrixPlan = createSingleCellMatrixPlan();
+    const generated = generateScheduleFromMatrix(matrixPlan);
+    const generadas = generated.tasks.filter((task) => task.matrixSource);
+
+    await abrirUbicaciones(matrixPlan, generated.tasks);
+
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Piso 1" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Conservarlas en el cronograma" }),
+    );
+
+    await flushAutosave();
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+
+    // Siguen en el cronograma, pero ya no cuelgan de la matriz.
+    const guardadas = latestSavedProject().tasks;
+    expect(guardadas.filter((task) => generadas.some((t) => t.id === task.id))).toHaveLength(
+      generadas.length,
+    );
+    expect(tareasGuardadasDePiso1()).toBe(0);
+  }, 20_000);
+});

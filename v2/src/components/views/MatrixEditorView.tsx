@@ -33,6 +33,11 @@ import {
 } from "@/lib/matrix/bulk";
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
 import { describeCalendarShift } from "@/lib/matrix/matrixCalendarShift";
+import {
+  describeAreaRemoval,
+  type AreaRemovalPreview,
+  type OrphanTaskPolicy,
+} from "@/lib/matrix/removeArea";
 import type { ProjectCalendar } from "@/types/calendar";
 import { approveCellFeedback, dismissCellFeedback } from "@/lib/matrix/feedback";
 import { templateFromPlan } from "@/lib/matrix/templateCatalog";
@@ -80,6 +85,11 @@ interface MatrixEditorViewProps {
    * que garantiza que ningún plan ya guardado cambie de fechas.
    */
   calendar?: ProjectCalendar;
+  /**
+   * Borrar una ubicación que ya generó tareas toca el cronograma, no solo el
+   * borrador: lo ejecuta el proyecto, que es quien sabe deshacerlo.
+   */
+  onRemoveArea?: (areaId: string, policy: OrphanTaskPolicy) => void;
   applyLabel?: string;
 }
 
@@ -314,6 +324,7 @@ export default function MatrixEditorView({
   onSyncFromGantt,
   onDirtyChange,
   calendar,
+  onRemoveArea,
   applyLabel = "Aplicar",
 }: MatrixEditorViewProps) {
   const [draft, setDraft] = useState<MatrixPlan | undefined>(
@@ -344,6 +355,12 @@ export default function MatrixEditorView({
     setDraft(matrixPlan ? clonePlan(matrixPlan) : draft);
   }, [cambiosPendientes, draft, matrixPlan, tieneCambios]);
 
+  /**
+   * El aviso de que el calendario mueve las fechas más de la cuenta. Se
+   * calcula al pulsar «Aplicar» —comparar dos generaciones es caro— y por eso
+   * vive en estado; pero un mensaje calculado sobre un borrador viejo miente,
+   * así que se borra en cuanto cambia el borrador o el calendario.
+   */
   const [pendingCalendarWarning, setPendingCalendarWarning] = useState<{
     message: string;
     forDraft: MatrixPlan | undefined;
@@ -380,6 +397,33 @@ export default function MatrixEditorView({
     }
     onApplyMatrixPlan(reconcileMatrixCells(draft));
   }, [calendar, draft, onApplyMatrixPlan]);
+
+  /**
+   * La ubicación que espera decisión.
+   *
+   * En estado va solo el identificador, nunca el recuento: si se guardara el
+   * recuento y el borrador o el cronograma cambiaran por debajo, el aviso
+   * diría un número que ya no es verdad. El recuento se vuelve a calcular en
+   * cada render a partir de lo que hay ahora.
+   */
+  const [pendingAreaRemovalId, setPendingAreaRemovalId] = useState<string | null>(
+    null,
+  );
+
+  const areaRemoval: AreaRemovalPreview | null = useMemo(() => {
+    if (!draft || !pendingAreaRemovalId) return null;
+    const preview = describeAreaRemoval(draft, tasks, pendingAreaRemovalId);
+    return preview.taskIds.length > 0 ? preview : null;
+  }, [draft, pendingAreaRemovalId, tasks]);
+
+  const confirmarBorradoArea = useCallback(
+    (policy: OrphanTaskPolicy) => {
+      if (!pendingAreaRemovalId) return;
+      onRemoveArea?.(pendingAreaRemovalId, policy);
+      setPendingAreaRemovalId(null);
+    },
+    [onRemoveArea, pendingAreaRemovalId],
+  );
 
   const [activeMode, setActiveMode] = useState<MatrixEditorMode>("matrix");
   const [notice, setNotice] = useState<string | null>(null);
@@ -784,6 +828,18 @@ export default function MatrixEditorView({
 
   const deleteArea = (areaId: string) => {
     if (!draft) return;
+
+    // Con tareas ya generadas no hay borrado limpio: se cuenta lo que hay y
+    // se deja elegir. Sin `onRemoveArea` el proyecto no sabría deshacerlo,
+    // así que se mantiene el borrado de siempre.
+    if (onRemoveArea) {
+      const preview = describeAreaRemoval(draft, tasks, areaId);
+      if (preview.taskIds.length > 0) {
+        setPendingAreaRemovalId(areaId);
+        return;
+      }
+    }
+
     const ids = getAreaNodeIds(draft.areas, areaId);
     const cellCount = draft.cells.filter((cell) => ids.includes(cell.areaId)).length;
     if (
@@ -1183,6 +1239,36 @@ export default function MatrixEditorView({
             className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold"
           >
             Revisar antes
+          </button>
+        </div>
+      )}
+
+      {areaRemoval && (
+        <div
+          data-testid="area-removal-choice"
+          className="apple-module-header shrink-0 flex flex-wrap items-center gap-2 px-3 py-2 text-xs text-[var(--aia-warn-main)]"
+        >
+          <span className="font-semibold">{areaRemoval.message}</span>
+          <button
+            type="button"
+            onClick={() => confirmarBorradoArea("borrar")}
+            className="apple-button-primary inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold"
+          >
+            Borrar también sus tareas
+          </button>
+          <button
+            type="button"
+            onClick={() => confirmarBorradoArea("conservar")}
+            className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold"
+          >
+            Conservarlas en el cronograma
+          </button>
+          <button
+            type="button"
+            onClick={() => setPendingAreaRemovalId(null)}
+            className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold"
+          >
+            No borrarla
           </button>
         </div>
       )}
