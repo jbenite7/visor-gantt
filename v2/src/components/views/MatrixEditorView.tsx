@@ -337,7 +337,7 @@ export default function MatrixEditorView({
    */
   const {
     draft,
-    commitDraft: setDraft,
+    commitDraft,
     resetDraft,
     undoDraft,
     redoDraft,
@@ -367,7 +367,7 @@ export default function MatrixEditorView({
       return;
     }
     // Recargar desde el proyecto tira la pila: describe un borrador que ya no existe.
-    resetDraft(matrixPlan ? clonePlan(matrixPlan) : draft);
+    recommitDraft(matrixPlan ? clonePlan(matrixPlan) : draft);
   }, [cambiosPendientes, draft, matrixPlan, resetDraft, tieneCambios]);
 
   /**
@@ -513,7 +513,7 @@ export default function MatrixEditorView({
     setSelection(scopes.map((scope) => ({ scopeId: scope.id, areaId })));
 
   const applyToSelection = (patch: Parameters<typeof applyBulkCellEdit>[2]) => {
-    setDraft((current) =>
+    commitDraft((current) =>
       current
         ? applyBulkCellEdit(current, effectiveSelection, patch, new Date().toISOString())
         : current,
@@ -588,7 +588,7 @@ export default function MatrixEditorView({
       name: "Programación Matricial",
       startDate: firstTaskStart ?? new Date().toISOString().slice(0, 10),
     });
-    setDraft(plan);
+    commitDraft(plan);
     const firstScope = getScopeLeaves(plan.scopeTree)[0]?.node;
     const firstArea = getAreaLeaves(plan.areas)[0]?.node;
     if (firstScope && firstArea) {
@@ -613,7 +613,7 @@ export default function MatrixEditorView({
       lastEditedFrom: "matrix",
     };
 
-    setDraft({
+    commitDraft({
       ...draft,
       cells: existing
         ? draft.cells.map((cell) => (cell.id === existing.id ? nextCell : cell))
@@ -669,7 +669,7 @@ export default function MatrixEditorView({
 
   const applyNextDraft = (nextPlan: MatrixPlan) => {
     const next = reconcileMatrixCells(nextPlan);
-    setDraft(next);
+    commitDraft(next);
     const firstScope = getScopeLeaves(next.scopeTree)[0]?.node;
     const firstArea = getAreaLeaves(next.areas)[0]?.node;
     if (
@@ -690,7 +690,7 @@ export default function MatrixEditorView({
     if (!draft) return;
     const timestamp = new Date().toISOString();
     const next = reconcileMatrixCells(draft, timestamp);
-    setDraft({
+    commitDraft({
       ...next,
       cells: next.cells.map((cell) => ({
         ...cell,
@@ -851,7 +851,7 @@ export default function MatrixEditorView({
     const cellCount = draft.cells.filter((cell) => ids.includes(cell.scopeId)).length;
     if (
       !window.confirm(
-        `Se eliminarán ${ids.length} alcances y ${cellCount} celdas. Esta acción no se puede deshacer.`,
+        `Se eliminarán ${ids.length} alcances y ${cellCount} celdas. Puedes deshacerlo con ⌘Z mientras no apliques.`,
       )
     ) {
       return;
@@ -877,7 +877,7 @@ export default function MatrixEditorView({
     const cellCount = draft.cells.filter((cell) => ids.includes(cell.areaId)).length;
     if (
       !window.confirm(
-        `Se eliminarán ${ids.length} ubicaciones y ${cellCount} celdas. Esta acción no se puede deshacer.`,
+        `Se eliminarán ${ids.length} ubicaciones y ${cellCount} celdas. Puedes deshacerlo con ⌘Z mientras no apliques.`,
       )
     ) {
       return;
@@ -941,7 +941,7 @@ export default function MatrixEditorView({
 
   const replaceRecipe = (recipe: ActivityRecipe) => {
     if (!draft) return;
-    setDraft({
+    commitDraft({
       ...draft,
       recipes: draft.recipes.map((item) => (item.id === recipe.id ? recipe : item)),
     });
@@ -983,12 +983,12 @@ export default function MatrixEditorView({
 
   const approveFeedback = (cellId: string) => {
     if (!draft) return;
-    setDraft(approveCellFeedback(draft, cellId, new Date().toISOString()));
+    commitDraft(approveCellFeedback(draft, cellId, new Date().toISOString()));
   };
 
   const dismissFeedback = (cellId: string) => {
     if (!draft) return;
-    setDraft(dismissCellFeedback(draft, cellId, new Date().toISOString()));
+    commitDraft(dismissCellFeedback(draft, cellId, new Date().toISOString()));
   };
 
   const renderScopeTree = (nodes: ScopeNode[], depth = 1): ReactNode =>
@@ -1367,7 +1367,7 @@ export default function MatrixEditorView({
           Nombre
           <input
             value={draft.name}
-            onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+            onChange={(event) => commitDraft({ ...draft, name: event.target.value })}
             className={`${matrixInputClass} py-1.5 font-normal`}
           />
         </label>
@@ -1376,7 +1376,7 @@ export default function MatrixEditorView({
           <input
             type="date"
             value={draft.startDate}
-            onChange={(event) => setDraft({ ...draft, startDate: event.target.value })}
+            onChange={(event) => commitDraft({ ...draft, startDate: event.target.value })}
             className={`${matrixInputClass} py-1.5 font-normal`}
           />
         </label>
