@@ -346,3 +346,77 @@ no es que falten pruebas — es que **las pruebas prueban lo que se les ocurrió
 falta alguien que use el producto sin saber cómo se construyó.
 
 **7/10.** Se pasa de «esto esconde su músculo» a «esto ya no engaña, pero todavía cansa».
+
+---
+
+# Revisión en frío de cierre — 2026-08-08 (tercera pasada)
+
+**Veredicto: 9/10.** Es el **techo alcanzable** de esta app, no una nota perfecta: con E51 descartado en
+firme, el usuario nuevo seguirá necesitando 6 pasos hasta el valor, y esa fila no se puede aprobar.
+
+**Acotada a propósito** a las dos filas que fallaron el 2026-08-08. Las cinco que ya pasaban no se repiten:
+volver a puntuarlas no daría información y sí ruido. Mismo método que las dos revisiones anteriores, sobre
+**build de producción** (`next start`), con el `.mpp` real de obra y con la demo para el caso sin datos.
+
+## Fila 6 — estados vacíos a la altura: **pasa**
+
+**F6 · La puerta de la Matriz.** Medido: de **12 caracteres a 841**.
+
+Antes: un botón que decía «Crear matriz» y nada más, con las 26 tareas de P4 construidas detrás. Ahora la
+puerta dice qué es la programación matricial en lenguaje de obra —«cruzas **qué se hace** con **dónde se
+hace**»—, qué obtienes en tres líneas concretas, y ofrece **tres** entradas: tres plantillas de fábrica con
+su resumen («1 alcance · 2 ubicaciones · 3 recetas»), generar la matriz desde el cronograma, y empezar en
+blanco como tercera opción y no como única.
+
+Un detalle que cambia el gesto: pulsar una plantilla **aterriza directo en la cuadrícula poblada**. Antes
+había que crear la matriz y luego ir a «Plantillas».
+
+**F7 · Recursos.** De **217 a 1.011 caracteres**, y con una decisión medida detrás.
+
+La duda era llenar o esconder. Se midieron los tres `.mpp` reales del repositorio: **17, 1 y 0 recursos con
+nombre**. Las dos caras de esa cifra mandan: un tercio de las obras usa la hoja en serio —esconderla
+escondería contenido real—, pero **dos de tres llegan vacías**, así que este estado es el caso mayoritario y
+tiene que enseñar. La vista explica qué es una hoja de recursos, de dónde salen, qué hay en cada una de las
+cinco sub-pestañas, y ofrece **dos salidas**: crear el primer recurso o **abrir el presupuesto** — la segunda
+existe porque Presupuesto y Mapeo funcionan con cero cuadrillas, y esconder las cinco en bloque habría tapado
+dos pantallas que sí sirven.
+
+## Fila 1 — pasos hasta el valor: **sigue sin pasar, y es correcto que así sea**
+
+6 pasos frente a los 2 del visor 1.0. **Decisión del usuario tomada dos veces y declarada firme**: la cuenta
+se queda. No se reabre y no debe reaparecer como pendiente. Es el único motivo por el que el techo es 9 y no
+10, y conviene decirlo en vez de perseguir un número que ya no está disponible.
+
+## Lo que esta revisión encontró, midiendo
+
+**Mi propio arreglo de R0 se rompía en el caso vacío.** Sin datos, las descripciones del menú eran frases
+completas: la entrada «Matriz» ocupaba **152 px** y «Recursos» **140**, frente a 52 del resto. El menú pedía
+**881 px en 624 disponibles** — no cabía. Es exactamente el fallo que R0 vino a arreglar, reaparecido en el
+estado vacío, que es justo el que F6 y F7 sirven.
+
+Corregido durante la revisión: la descripción pasa a ser **etiqueta, no párrafo** («Sin matriz todavía»).
+De 881 px a **731**, y la entrada más alta de 152 a **77**. La explicación completa ya vive dentro de la
+vista desde F6 y F7: **la puerta dice cuánto hay, la habitación explica qué es.**
+
+## Lo que sigue abierto, y no cuenta para esta nota
+
+- **Las superficies siguen siendo ~19** contando sub-pestañas y vistas alcanzables por preset. El menú tiene
+  11 entradas y la agrupación ayuda, pero el recorte «de 14 a 9» sigue siendo contabilidad. Registrado en la
+  revisión anterior; no era una de las dos filas de esta.
+- **Otros estados vacíos siguen diciendo «0»** —Curva S, Problemas, Diagrama de Red— con el texto que los
+  explicaría ya escrito en `viewHelp.ts`, a un clic de «?». No entraban en F6 ni F7.
+- **La suite E2E es inestable bajo carga en esta máquina**: tres corridas completas, tres fallos distintos,
+  **los tres verdes en aislamiento**. El único fallo real fue uno propio —el recorrido fijaba la cara vieja de
+  Recursos— y está corregido.
+
+## Nota del revisor
+
+Las tres revisiones cuentan la misma historia en tres actos. La primera dijo que el producto **escondía su
+músculo**; la segunda, que **ya no engañaba pero todavía cansaba**; esta encuentra que las dos puertas que
+seguían mudas ya hablan.
+
+Lo que no cambia entre las tres es el método que las hizo útiles: **medir en vez de opinar**. El 12→841 de la
+Matriz, el 17/1/0 de los recursos y el 881→731 del menú son los tres momentos en que este cierre dejó de ser
+una impresión. Y el tercero salió de dudar del propio trabajo terminado el día anterior.
+
+**9/10 — DONE, con el techo dicho.**
