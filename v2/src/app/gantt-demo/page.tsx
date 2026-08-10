@@ -123,10 +123,7 @@ export default function GanttDemoPage() {
         </p>
       </header>
       <div className="flex-1 min-h-0">
-        <GanttView
-          tasks={sampleTasks}
-          onTaskClick={(task) => console.log("Clic:", task.name)}
-        />
+        <GanttView tasks={sampleTasks} />
       </div>
     </div>
   );

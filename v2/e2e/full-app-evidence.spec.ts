@@ -87,7 +87,9 @@ const PROJECT_MODULES: ProjectModule[] = [
     access: "palette",
     command: "Diagrama de Red",
   },
-  { id: "resources", label: "Recursos", testId: "resource-sheet-view" },
+  // Recursos tiene dos caras desde R9: la hoja cuando hay recursos, y la
+  // portada que enseña cuando no los hay. Se espera la que corresponda.
+  { id: "resources", label: "Recursos", testId: "resources-view-any" },
   { id: "lob", label: "Línea Balance", testId: "line-of-balance" },
   { id: "matrix", label: "Matriz", testId: "matrix-editor" },
   { id: "scurve", label: "Curva S", testId: "s-curve-view" },
@@ -263,7 +265,17 @@ async function validateProjectModule(
       page.getByTestId(`sidebar-view-${projectModule.id}`),
     ).toHaveAttribute("aria-selected", "true");
   }
-  await expect(page.getByTestId(projectModule.testId)).toBeVisible({ timeout: 30_000 });
+  if (projectModule.testId === "resources-view-any") {
+    await expect(
+      page
+        .getByTestId("resource-sheet-view")
+        .or(page.getByTestId("resources-empty-state")),
+    ).toBeVisible({ timeout: 30_000 });
+  } else {
+    await expect(page.getByTestId(projectModule.testId)).toBeVisible({
+      timeout: 30_000,
+    });
+  }
   await exerciseProjectModuleTools(page, projectModule);
   await expect(page.locator("body")).not.toContainText(/application error|runtime error/i);
   await attachEvidence(page, testInfo, scenario, projectModule.id, logger);
@@ -325,7 +337,17 @@ async function exerciseProjectModuleTools(page: Page, projectModule: ProjectModu
       break;
     }
     case "resources": {
-      await expect(page.getByTestId("resource-sheet-view")).toContainText(/recurso|nombre|tipo/i);
+      // Un `.mpp` real puede traer cero recursos con nombre —los tres del
+      // repositorio traen 17, 1 y 0—, y entonces la vista enseña en vez de
+      // mostrar cinco pestañas vacías. Las dos caras son correctas.
+      const hoja = page.getByTestId("resource-sheet-view");
+      if (await hoja.isVisible().catch(() => false)) {
+        await expect(hoja).toContainText(/recurso|nombre|tipo/i);
+      } else {
+        await expect(page.getByTestId("resources-empty-state")).toContainText(
+          /recursos|cuadrillas/i,
+        );
+      }
       break;
     }
     case "lob": {
@@ -854,7 +876,12 @@ function assertNoCriticalLogs(entries: BrowserLogEntry[]) {
       (entry.url?.includes("_rsc=") ||
         entry.url?.endsWith("/project/new") ||
         entry.url?.endsWith("/login") ||
-        /\/project\/\d+$/.test(entry.url ?? "") ||
+        // El destino del proyecto, con o sin el resumen de importación en la
+        // consulta: el ancla final dejó de aplicar cuando E32 añadió
+        // `?tareas=…&dependencias=…`, y desde entonces esta carrera —el POST de
+        // importación que el redirect cancela— hacía fallar la corrida una de
+        // cada dos veces sin que nada estuviera roto.
+        /\/project\/\d+(\?|$)/.test(entry.url ?? "") ||
         // Ruido de Fast Refresh del servidor de desarrollo (next dev); no existe en producción.
         entry.url?.endsWith(".hot-update.json"))
     ) {

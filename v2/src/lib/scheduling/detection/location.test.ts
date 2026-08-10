@@ -258,7 +258,10 @@ describe("extractLocation · ejes (nombres reales de la Estación 16)", () => {
     const match = extractLocation("Módulo 1.1 (Ejes A-D)");
     expect(match?.label).toBe("Módulo");
     expect(match?.value).toBe(1.1);
-    expect(match?.span).toBeUndefined();
+    // R5: el módulo sigue ganando, pero ya no tira el tramo de ejes que
+    // trae detrás. La precedencia no cambió; lo que cambió es que el dato
+    // adicional deja de perderse.
+    expect(match?.span).toEqual({ rawFrom: "A", rawTo: "D", from: 1, to: 4 });
   });
 
   test("el rango numérico también: «Eje 3-H» es un caso real del archivo", () => {
@@ -413,5 +416,80 @@ describe("extractLocation · el vocabulario de obra lineal no pisa al vertical",
 
   test("y aun así el módulo sigue ganando al eje, que es lo que sí decide la spec", () => {
     expect(extractLocation("Módulo 1.1 (Ejes A-D)")?.label).toBe("Módulo");
+  });
+});
+
+describe("El módulo conserva su tramo de ejes (R5)", () => {
+  test("«Módulo 1.1 (Ejes A-D)» resuelve como módulo, con el tramo puesto", () => {
+    const result = extractLocation("Estructura Módulo 1.1 (Ejes A-D)");
+
+    expect(result?.label).toBe("Módulo");
+    expect(result?.value).toBe(1.1);
+    expect(result?.span).toEqual({
+      rawFrom: "A",
+      rawTo: "D",
+      from: 1,
+      to: 4,
+    });
+  });
+
+  test("el módulo sigue ganando al eje: la precedencia no cambia", () => {
+    expect(extractLocation("Módulo 2 Ejes B-C")?.label).toBe("Módulo");
+  });
+
+  test("un módulo sin ejes resuelve igual que hoy, sin tramo", () => {
+    const result = extractLocation("Acabados Módulo 3");
+
+    expect(result?.label).toBe("Módulo");
+    expect(result?.value).toBe(3);
+    expect(result?.span).toBeUndefined();
+  });
+
+  test("el tramo de un eje solo, sin módulo, no cambia", () => {
+    const result = extractLocation("Cimentación Ejes A-D");
+
+    expect(result?.label).toBe("Eje");
+    expect(result?.span?.to).toBe(4);
+  });
+
+  test("el edificio también conserva el tramo de ejes que lleve detrás", () => {
+    const result = extractLocation("Edificio 2 (Ejes J-DB08)");
+
+    expect(result?.label).toBe("Edificio");
+    expect(result?.span?.crossesGrids).toBe(true);
+  });
+});
+
+/**
+ * Abscisas de obra lineal: `K12+340` es el kilómetro 12 más 340 metros.
+ *
+ * **En espera de un dato, no de trabajo.** El patrón no se implementa porque
+ * no hay ningún `.mpp` real de túnel o de vía sobre el que verificarlo, y
+ * escribirlo a ciegas produciría un extractor que acierta con el ejemplo
+ * inventado y falla con la nomenclatura real — que es exactamente lo que pasó
+ * con el vocabulario vertical antes de tener la Estación 16.
+ *
+ * **Disparador:** en cuanto llegue un `.mpp` de túnel o vía, se sustituyen
+ * estos nombres por los reales del archivo, se quita el `.skip` y se
+ * implementa el patrón hasta que pase.
+ */
+describe("Abscisas de obra lineal — en espera de un .mpp real (R6)", () => {
+  test.skip("«Excavación K12+340» ubica en el kilómetro 12 más 340 metros", () => {
+    const result = extractLocation("Excavación K12+340");
+
+    expect(result?.label).toBe("Abscisa");
+    expect(result?.value).toBe(12340);
+  });
+
+  test.skip("«Revestimiento K12+340 a K12+560» resuelve como tramo", () => {
+    const result = extractLocation("Revestimiento K12+340 a K12+560");
+
+    expect(result?.label).toBe("Abscisa");
+    expect(result?.span).toEqual({
+      rawFrom: "K12+340",
+      rawTo: "K12+560",
+      from: 12340,
+      to: 12560,
+    });
   });
 });

@@ -131,7 +131,7 @@ export default function ResourceSheetView({
           availability: "Dispon.",
           group: "Grupo",
           new: "Nuevo",
-          empty: "No hay recursos. Click \"Agregar Recurso\" para crear uno.",
+          empty: "No hay recursos. Pulsa «Agregar Recurso» para crear el primero.",
         };
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [selectedUid, setSelectedUid] = useState<number | null>(null);

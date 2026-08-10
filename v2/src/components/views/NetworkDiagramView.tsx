@@ -157,7 +157,7 @@ export default function NetworkDiagramView({
         <button
           onClick={handleReset}
           className="apple-icon-button"
-          title="Reset view"
+          title="Volver a encuadrar el diagrama"
         >
           <RotateCcw size={15} />
         </button>

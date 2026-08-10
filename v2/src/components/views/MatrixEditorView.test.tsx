@@ -1130,3 +1130,180 @@ describe("MatrixEditorView · borrar una ubicación no borra tareas a ciegas", (
     expect(onRemoveArea).not.toHaveBeenCalled();
   });
 });
+
+describe("MatrixEditorView · deshacer dentro del editor (R1)", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("borrar un alcance y deshacer devuelve el alcance y sus celdas", () => {
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+    const { plan } = renderEditor();
+    const scopeId = plan.scopeTree[0].children![0].id;
+
+    const celdasAntes = screen.getAllByTestId(/^matrix-cell-select-/).length;
+
+    fireEvent.click(screen.getByRole("button", { name: "Alcances" }));
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Estructura" }));
+    fireEvent.click(screen.getByRole("button", { name: "Matriz" }));
+
+    expect(
+      screen.queryAllByTestId(`matrix-select-row-${scopeId}`),
+    ).toHaveLength(0);
+
+    fireEvent.keyDown(window, { key: "z", metaKey: true });
+
+    expect(screen.getByTestId(`matrix-select-row-${scopeId}`)).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^matrix-cell-select-/)).toHaveLength(
+      celdasAntes,
+    );
+  });
+
+  test("rehacer vuelve a aplicar lo deshecho", () => {
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+    const { plan } = renderEditor();
+    const scopeId = plan.scopeTree[0].children![0].id;
+
+    fireEvent.click(screen.getByRole("button", { name: "Alcances" }));
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Estructura" }));
+    fireEvent.click(screen.getByRole("button", { name: "Matriz" }));
+
+    fireEvent.keyDown(window, { key: "z", metaKey: true });
+    expect(screen.getByTestId(`matrix-select-row-${scopeId}`)).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "z", metaKey: true, shiftKey: true });
+
+    expect(
+      screen.queryAllByTestId(`matrix-select-row-${scopeId}`),
+    ).toHaveLength(0);
+  });
+
+  test("sin nada que deshacer, el atajo no rompe el borrador", () => {
+    const { plan } = renderEditor();
+    const scopeId = plan.scopeTree[0].children![0].id;
+
+    fireEvent.keyDown(window, { key: "z", metaKey: true });
+
+    expect(screen.getByTestId(`matrix-select-row-${scopeId}`)).toBeInTheDocument();
+  });
+
+  test("N operaciones seguidas y un guardado producen UNA entrada en el historial general", () => {
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+    const { onApplyMatrixPlan } = renderEditor();
+
+    // Dos mutaciones del borrador antes de aplicar.
+    fireEvent.click(
+      screen.getByRole("button", { name: /Activar todas las celdas/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    expect(onApplyMatrixPlan).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("MatrixEditorView · deshacer se puede ver, no solo teclear (R1)", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("los botones existen y arrancan apagados", () => {
+    renderEditor();
+
+    expect(screen.getByTestId("matrix-undo")).toBeDisabled();
+    expect(screen.getByTestId("matrix-redo")).toBeDisabled();
+  });
+
+  test("tras un cambio, deshacer se enciende y funciona con el ratón", () => {
+    const { plan } = renderEditor();
+    const scopeId = plan.scopeTree[0].children![0].id;
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Alcances" }));
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Estructura" }));
+    fireEvent.click(screen.getByRole("button", { name: "Matriz" }));
+
+    expect(screen.getByTestId("matrix-undo")).toBeEnabled();
+    fireEvent.click(screen.getByTestId("matrix-undo"));
+
+    expect(screen.getByTestId(`matrix-select-row-${scopeId}`)).toBeInTheDocument();
+    expect(screen.getByTestId("matrix-redo")).toBeEnabled();
+  });
+
+  test("el botón dice el atajo, para que se aprenda", () => {
+    renderEditor();
+
+    expect(screen.getByTestId("matrix-undo")).toHaveAttribute(
+      "title",
+      expect.stringMatching(/Z/),
+    );
+  });
+});
+
+describe("MatrixEditorView · descartar de verdad (R1)", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("al confirmar, el borrador vuelve al plan aplicado y la pila se vacía", () => {
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+    renderEditor();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Activar todas las celdas/i }),
+    );
+    fireEvent.click(screen.getByTestId("matrix-discard"));
+
+    // Sin esta prueba, la rama del «sí» no se ejecutaba en ningún test: los dos
+    // que había respondían «no» o no tenían cambios, así que un fallo dentro de
+    // `descartarCambios` pasaba desapercibido.
+    expect(screen.queryByTestId("matrix-dirty")).not.toBeInTheDocument();
+    expect(screen.getByTestId("matrix-undo")).toBeDisabled();
+    expect(screen.getByTestId("matrix-editor")).toBeInTheDocument();
+  });
+});
+
+describe("MatrixEditorView · la portada de la Matriz (R8)", () => {
+  function renderVacio() {
+    const onApplyMatrixPlan = jest.fn();
+    render(
+      <MatrixEditorView
+        tasks={[]}
+        onApplyMatrixPlan={onApplyMatrixPlan}
+        onSyncFromGantt={jest.fn()}
+      />,
+    );
+    return { onApplyMatrixPlan };
+  }
+
+  test("sin matriz, la puerta explica qué hay dentro en vez de pedir un clic a ciegas", () => {
+    renderVacio();
+
+    expect(screen.getByTestId("matrix-editor-empty")).toBeInTheDocument();
+    expect(screen.getByTestId("matrix-intro-benefits")).toBeInTheDocument();
+    expect(screen.getByTestId("template-picker")).toBeInTheDocument();
+  });
+
+  test("elegir una plantilla de fábrica aterriza en la cuadrícula ya poblada", () => {
+    renderVacio();
+
+    const primera = screen
+      .getByTestId("template-picker")
+      .querySelectorAll("li button")[0];
+    fireEvent.click(primera);
+
+    // Un solo gesto: de la portada a la matriz con celdas, sin pasar por
+    // «Crear matriz» y luego «Plantillas».
+    expect(screen.getByTestId("matrix-editor")).toBeInTheDocument();
+    expect(
+      screen.getAllByTestId(/^matrix-cell-select-/).length,
+    ).toBeGreaterThan(0);
+  });
+
+  test("crear en blanco sigue llevando a la matriz vacía de siempre", () => {
+    renderVacio();
+
+    fireEvent.click(screen.getByTestId("matrix-create-blank"));
+
+    expect(screen.getByTestId("matrix-editor")).toBeInTheDocument();
+  });
+});

@@ -91,7 +91,7 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | E35 | Anunciar el tipo de dependencia durante el arrastre y permitir corregirlo al soltar | #34 | 3 | 7 | 8 | 6 | **7,0** | 0 dependencias creadas con un tipo que el usuario no eligió | **shipped 2026-08-08** — el arrastre anuncia el tipo real; **FF y SF pasan de inalcanzables a creables** |
 | E36 | Modo Simple/Avanzado: que haga lo que promete, o eliminarlo | #39 | 2 | 6 | 8 | 7 | **7,0** | El modo cambia algo perceptible además de un desplegable | **shipped 2026-08-08** — Simple esconde las columnas MPP; por defecto solo en la primera visita |
 | E37 | Significante visual de celda editable + entrada en edición por teclado (Enter/F2), sin tooltip en inglés | #40 | 2 | 6 | 9 | 8 | **7,7** | La tabla es editable con teclado; 0 textos en inglés en UI española | **shipped 2026-08-08** — señal al pasar por encima y entrada en edición con Enter o F2 |
-| E38 | Etiquetas completas en la barra de vistas y encabezados de tabla | #41 | 2 | 6 | 9 | 8 | **7,7** | 0 etiquetas truncadas a 1280 px de ancho | **parcial** — barra hecha (E38a); encabezados comprimidos de la tabla siguen open (tienen sistema responsivo propio con abreviaturas) |
+| E38 | Etiquetas completas en la barra de vistas y encabezados de tabla | #41 | 2 | 6 | 9 | 8 | **7,7** | 0 etiquetas truncadas a 1280 px de ancho | **shipped 2026-08-08** — barra hecha (E38a); los encabezados eran **truncamiento CSS** (`ellipsis`) más un mapa parcial de 8 abreviaturas que se activaba por ancho de panel, no por columna. R2 lo cierra: cada columna declara su forma corta y se elige por su propio ancho |
 
 **Orden recomendado de ejecución:** ~~E1, E2, E3~~ → ~~E23, E25, E26~~ (hechos) →
 E5, E6, E7, E11, E34 (alto ICE, baratos) → E24, E27, E28, E30, E32 → el resto.
@@ -243,10 +243,14 @@ exactamente ese escenario.
 
 **Evidencia:** 630 tests (5 nuevos de los helpers + 2 de la primitiva), lint limpio, `next build` correcto.
 
-**Cobertura declarada — lo que NO cubre (queda abierto):** editar un recurso o una partida (sobrescriben sin
-copia de seguridad), `handleSyncMatrixFromGantt`, el reset de columnas en las tres tablas, los borrados de
-`MatrixEditorView` (piden confirmación pero no son deshacibles) y el borrado de proyecto (permanente en
-servidor). Por eso el hallazgo #27 queda como **parcial**, no resuelto.
+**Cobertura declarada — corregida el 2026-08-08.** El párrafo original quedó congelado el 2026-08-05 y
+declaraba cinco casos sin cubrir; **cuatro ya estaban resueltos** vía `runUndoable` cuando se escribió, y se
+ha comprobado en el código antes de corregirlo: editar recurso y editar partida (`GanttView.tsx:748`, `:785`),
+`handleSyncMatrixFromGantt` (`:1069`) y el reset de columnas en las tres tablas (`:1082`, `:1096`, `:1151`).
+
+Queda **un** caso realmente abierto: los borrados de `MatrixEditorView`, que piden confirmación y no eran
+deshacibles — **cerrado por R1**, que le da al borrador su propia pila.
+Y el borrado de proyecto (permanente en servidor), que es **irreversible por diseño** y no cuenta como deuda.
 
 ### E23 + E25 + E26 · El usuario ya sabe por qué no se aplicó su cambio — shipped 2026-08-05
 
@@ -314,3 +318,33 @@ posible; comprobar la sesión primero convierte un error tardío e incomprensibl
 cuenta. El modo demo —que es lo que hace fuerte al visor 1.0— queda como decisión para la Fase 9.
 
 **Evidencia:** test de ruta que verifica 401 sin llamar al parser ni guardar, y 3 tests de `safeNextPath`.
+
+## Pendientes que esperan un dato (R6)
+
+No están bloqueados por falta de trabajo, sino por falta de un dato que hoy no existe. Subirlos como tareas
+normales produciría trabajo imposible el primer día. Tienen dueño: el dato que les falta.
+
+| Pendiente | Qué falta | Qué ya se hizo | Disparador |
+|---|---|---|---|
+| Ritmo, no productividad (P3+P4) | Cantidad de obra ejecutada por actividad | El indicador se llama **Ritmo (1/día)** en toda la interfaz, y un test prohíbe el nombre anterior en todo `v2/src` (`copyProductividad.test.ts`) | Que la matriz aporte cantidades de obra ejecutada, no solo previstas |
+| Abscisas `K12+340` (P3b) | Un `.mpp` real de túnel o de vía | El caso de prueba está escrito y desactivado en `location.test.ts`, con los dos escenarios: punto y tramo | Llega un `.mpp` de túnel o vía: se sustituyen los nombres por los reales, se quita el `.skip` y se implementa hasta que pase |
+| RUM en obra (E47) | Usuarios reales usando la app en campo | Nada de código, a propósito: es una **medición pendiente**, no deuda técnica | Que haya obra usando el visor a diario con red de campo |
+| Presupuesto desde PDC | Es integración entre dos aplicaciones, no una función del visor | **Fuera de alcance del goal maestro.** El punto de entrada es la carga manual de partidas, que se deja funcionando y sin pulir | Que exista una decisión de producto sobre integrar PDC y el visor |
+
+## Decisiones diferidas (R7)
+
+Cuatro decisiones tomadas con motivo, no trabajo sin hacer. Se resuelven **cuando aparezca el caso que las
+obliga**, y hasta entonces se quedan escritas aquí para que ninguna auditoría futura las cuente como deuda.
+
+- **Cómo dibujar un tramo en la Línea de Balance.** Hoy cada unidad es una fila y un tramo ocupa varias. El
+  motor ya tiene el dato tras R5 (`LocationMatch.span`); la vista decidirá cuando se aborde la Línea de
+  Balance de obra lineal. *Caso que la obliga:* un cronograma de obra lineal con tramos en la Línea de Balance.
+- **El orden entre familias de eje** (letras, números, series como `DB`). Se resolvió por familia y luego por
+  índice — «lo único defendible» sin conocer la geometría real del proyecto. Queda como **supuesto declarado,
+  no verificado**. *Caso que la obliga:* un plano de ejes real que contradiga el orden supuesto.
+- **Deshacer granular más allá de R1.** R1 cubre las operaciones del borrador del editor. El deshacer paso a
+  paso dentro de la matriz **ya construida y persistida** sigue siendo proyecto propio. *Caso que la obliga:*
+  que alguien pierda trabajo en la matriz aplicada, no en el borrador.
+- **«Fin cambia la duración».** Si el motor no lo soporta limpiamente, el campo queda en **solo lectura** y se
+  informa. Es un límite aceptado con salida honesta, no una implementación a medias. *Caso que la obliga:* que
+  el motor de cálculo pase a soportar el modo de tarea que lo hace posible.

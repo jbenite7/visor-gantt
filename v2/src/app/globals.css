@@ -618,6 +618,15 @@ h6 {
   letter-spacing: 0;
 }
 
+.project-view-sidebar__blurb {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.625rem;
+  line-height: 1.25;
+  text-align: center;
+  text-wrap: balance;
+}
+
 .gantt-demo-header {
   display: flex;
   flex-wrap: wrap;

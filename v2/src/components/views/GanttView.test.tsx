@@ -18,6 +18,10 @@ import { createProjectDate } from "@/lib/date/projectDate";
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
 import * as mppCalculationEngine from "@/lib/mpp/mppCalculationEngine";
 import type { MatrixPlan } from "@/types/matrix";
+import {
+  EMPTY_DETECTION_DICTIONARY,
+  rememberCorrection,
+} from "@/lib/scheduling/detection/dictionary";
 
 jest.mock("@/app/actions/project", () => ({
   saveProject: jest.fn(async () => ({ success: true, id: "test-project" })),
@@ -1966,24 +1970,28 @@ describe("el aviso al cerrar no se queda encendido de más (M28)", () => {
     mockedSaveProject.mockClear();
   });
 
-  test("salir de la matriz sin aplicar deja de contar como trabajo pendiente", async () => {
-    render(
-      <GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />,
-    );
+  test("salir de la matriz con un borrador pregunta antes de destruirlo", async () => {
+    // Este test afirmaba lo contrario: que perder el borrador al cambiar de
+    // vista era aceptable «porque ya no hay nada pendiente». La revisión en
+    // frío del 2026-08-08 lo señaló como lo que era —un test defendiendo una
+    // pérdida de datos— y M28 dice «avisa antes de salir», no «antes de cerrar».
+    const confirmar = jest.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
 
     fireEvent.click(screen.getByTestId("sidebar-view-matrix"));
     await screen.findByRole("button", { name: /Crear matriz/i });
     fireEvent.click(screen.getByRole("button", { name: /Crear matriz/i }));
 
-    // Volver al Gantt desmonta el editor: el borrador se pierde, así que ya no
-    // hay nada pendiente por lo que preguntar al cerrar.
     fireEvent.click(screen.getByTestId("sidebar-view-gantt"));
-    await screen.findByTestId("gantt-view");
 
-    const event = new Event("beforeunload", { cancelable: true });
-    window.dispatchEvent(event);
+    expect(confirmar).toHaveBeenCalledWith(
+      expect.stringMatching(/sin aplicar/i),
+    );
+    // Y al decir que no, el borrador sigue vivo.
+    expect(screen.getByTestId("matrix-editor")).toBeInTheDocument();
 
-    expect(event.defaultPrevented).toBe(false);
+    confirmar.mockRestore();
   });
 });
 
@@ -2370,4 +2378,363 @@ describe("el diálogo de conflictos no se queda viejo (M26)", () => {
 
     expect(screen.queryByTestId("conflict-chooser")).not.toBeInTheDocument();
   }, 20_000);
+});
+
+describe("salir de la Matriz con un borrador sin aplicar (M28)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  function abrirMatriz() {
+    const matrixPlan = createSingleCellMatrixPlan();
+    const generated = generateScheduleFromMatrix(matrixPlan);
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Con matriz"
+        tasks={generated.tasks}
+        matrixPlan={matrixPlan}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("command-palette-open"));
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "matriz" },
+    });
+    fireEvent.keyDown(window, { key: "Enter" });
+    expect(screen.getByTestId("matrix-editor")).toBeInTheDocument();
+  }
+
+  /** Desactivar una celda basta: el borrador deja de coincidir con lo aplicado. */
+  function ensuciarElBorrador() {
+    // La celda de la matriz de prueba: alcance «Estructura» × ubicación «Piso 1».
+    fireEvent.click(screen.getByTestId("matrix-cell-select-cell-estructura-piso-1"));
+    const casilla = within(screen.getByTestId("matrix-cell-panel")).getByRole(
+      "checkbox",
+    );
+    fireEvent.click(casilla);
+    expect(screen.getByTestId("matrix-dirty")).toBeInTheDocument();
+  }
+
+  test("sin cambios, cambiar de vista no pregunta nada", () => {
+    const confirmar = jest.spyOn(window, "confirm").mockReturnValue(true);
+    abrirMatriz();
+
+    fireEvent.click(screen.getByTestId("sidebar-view-gantt"));
+
+    expect(confirmar).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("matrix-editor")).not.toBeInTheDocument();
+  });
+
+  test("con un borrador sin aplicar, salir pregunta antes", () => {
+    const confirmar = jest.spyOn(window, "confirm").mockReturnValue(true);
+    abrirMatriz();
+
+    ensuciarElBorrador();
+    fireEvent.click(screen.getByTestId("sidebar-view-gantt"));
+
+    expect(confirmar).toHaveBeenCalledWith(
+      expect.stringMatching(/sin aplicar/i),
+    );
+  });
+
+  test("si el usuario dice que no, se queda en la Matriz y conserva el borrador", () => {
+    jest.spyOn(window, "confirm").mockReturnValue(false);
+    abrirMatriz();
+
+    ensuciarElBorrador();
+    fireEvent.click(screen.getByTestId("sidebar-view-gantt"));
+
+    // El editor sigue montado: el borrador no se ha destruido.
+    expect(screen.getByTestId("matrix-editor")).toBeInTheDocument();
+    expect(screen.getByTestId("matrix-dirty")).toBeInTheDocument();
+  });
+});
+
+describe("GanttView · el menú refleja el proyecto real (R0)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("la Matriz del menú cuenta las ubicaciones del plan cargado", () => {
+    const matrixPlan = createSingleCellMatrixPlan();
+    const generated = generateScheduleFromMatrix(matrixPlan);
+
+    render(
+      <GanttView
+        projectId="1"
+        tasks={generated.tasks}
+        matrixPlan={matrixPlan}
+      />,
+    );
+
+    // El fixture tiene una sola ubicación: exigir el número es lo que prueba
+    // que el conteo llega de verdad. Con `/ubicaciones/` a secas, este test
+    // pasaría igual con el cableado roto, porque el texto de «todavía no hay
+    // matriz» también la menciona.
+    expect(screen.getByTestId("sidebar-blurb-matrix")).toHaveTextContent(
+      "1 ubicación programada",
+    );
+  });
+
+  test("sin matriz, la entrada explica para qué sirve en vez de contar cero", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    expect(screen.getByTestId("sidebar-blurb-matrix")).toHaveTextContent(
+      /Sin matriz todavía/,
+    );
+  });
+
+  test("Recursos cuenta los que trae el proyecto", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        resources={[
+          { uid: 1, name: "Oficial", type: "work" },
+          { uid: 2, name: "Ayudante", type: "work" },
+        ]}
+      />,
+    );
+
+    expect(screen.getByTestId("sidebar-blurb-resources")).toHaveTextContent(
+      "2 recursos asignados",
+    );
+  });
+});
+
+describe("GanttView · corregir ubicaciones desde la Línea de Balance (R4)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  const tareasDeObra = () => [
+    makeTask({ id: 1, name: "Mampostería Piso 1" }),
+    makeTask({ id: 2, name: "Mampostería Piso 2" }),
+    makeTask({ id: 3, name: "Mampostería" }),
+  ];
+
+  test("la Línea de Balance ofrece el panel de correcciones", () => {
+    render(<GanttView projectId="1" tasks={tareasDeObra()} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-lob"));
+
+    expect(screen.getByTestId("location-correction-panel")).toBeInTheDocument();
+  });
+
+  test("corregir una ubicación se guarda con el proyecto", async () => {
+    render(<GanttView projectId="1" tasks={tareasDeObra()} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-lob"));
+    mockedSaveProject.mockClear();
+
+    fireEvent.change(
+      screen.getByLabelText("Nivel corregido de Mampostería"),
+      { target: { value: "3" } },
+    );
+    fireEvent.change(
+      screen.getByLabelText("Motivo de la corrección de Mampostería"),
+      { target: { value: "Va en el piso 3" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Corregir Mampostería" }));
+
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+
+    const guardado = latestSavedProject();
+    expect(guardado.detectionDictionary?.corrections).toEqual([
+      expect.objectContaining({
+        kind: "ubicacion",
+        value: "3",
+        note: "Va en el piso 3",
+      }),
+    ]);
+  });
+
+  test("la corrección cambia lo que el panel muestra, no solo lo que se guarda", async () => {
+    render(<GanttView projectId="1" tasks={tareasDeObra()} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-lob"));
+
+    expect(screen.getByTestId("correction-detected-3")).toHaveTextContent(
+      "Obra general",
+    );
+
+    fireEvent.change(
+      screen.getByLabelText("Nivel corregido de Mampostería"),
+      { target: { value: "3" } },
+    );
+    fireEvent.change(
+      screen.getByLabelText("Motivo de la corrección de Mampostería"),
+      { target: { value: "Va en el piso 3" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Corregir Mampostería" }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("correction-detected-3")).toHaveTextContent(
+        "Piso 3",
+      ),
+    );
+    expect(screen.getByTestId("correction-source-3")).toHaveTextContent(
+      "Corregida a mano",
+    );
+  });
+
+  test("un proyecto que ya traía correcciones las respeta al abrir", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={tareasDeObra()}
+        detectionDictionary={rememberCorrection(EMPTY_DETECTION_DICTIONARY, {
+          kind: "ubicacion",
+          name: "Mampostería",
+          value: "5",
+          note: "Corregido en obra",
+          recordedAt: "2026-08-08T10:00:00.000Z",
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-lob"));
+
+    expect(screen.getByTestId("correction-detected-3")).toHaveTextContent(
+      "Piso 5",
+    );
+  });
+});
+
+describe("Recursos sin recursos: la vista enseña en vez de mostrar cinco pestañas vacías (F7)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("sin recursos muestra el estado vacío y esconde las cinco sub-pestañas", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+        resources={[]}
+        assignments={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+
+    expect(await screen.findByTestId("resources-empty-state")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Uso de Recursos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Asignaciones" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("resource-sheet-view")).not.toBeInTheDocument();
+  });
+
+  test("crear el primer recurso desde el estado vacío abre la hoja con sus pestañas", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+        resources={[]}
+        assignments={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+    fireEvent.click(await screen.findByTestId("resources-empty-create"));
+
+    expect(screen.queryByTestId("resources-empty-state")).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Uso de Recursos" })).toBeInTheDocument();
+  });
+
+  test("con recursos importados del .mpp no hay estado vacío", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+        resources={[
+          { uid: 145, name: "Ayudante armado", type: "work", rate: 0, availability: 100 },
+        ]}
+        assignments={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+
+    expect(await screen.findByRole("button", { name: "Uso de Recursos" })).toBeInTheDocument();
+    expect(screen.queryByTestId("resources-empty-state")).not.toBeInTheDocument();
+  });
+});
+
+describe("Recursos: la segunda salida existe porque el presupuesto no los necesita (R9)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("«Abrir el presupuesto» lleva al presupuesto, no a la hoja de recursos", async () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} resources={[]} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+    // La vista se carga con `next/dynamic`: hay que esperar a que monte.
+    fireEvent.click(await screen.findByTestId("resources-empty-budget"));
+
+    // Presupuesto y Mapeo funcionan con cero cuadrillas: esconder las cinco
+    // pestañas en bloque taparía dos pantallas que sí sirven.
+    expect(screen.queryByTestId("resources-empty-state")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Presupuesto/i }),
+    ).toBeInTheDocument();
+  });
+
+  test("una vez elegida la salida, el estado vacío no vuelve a interponerse", async () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} resources={[]} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+    fireEvent.click(await screen.findByTestId("resources-empty-create"));
+    fireEvent.click(screen.getByTestId("sidebar-view-gantt"));
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+
+    expect(screen.queryByTestId("resources-empty-state")).not.toBeInTheDocument();
+  });
+});
+
+describe("Recursos: el recurso fantasma de MS Project no llega a la pantalla (R9)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("un recurso sin nombre no cuenta como recurso ni pinta fila", async () => {
+    // Los tres .mpp reales del repositorio traen el recurso nulo de MS Project
+    // (UID 0, nombre vacío) — DA PORTO tiene 213 asignaciones colgando de él.
+    // Contarlo daría «1 recurso» y una fila en blanco sin explicación.
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        resources={[{ uid: 0, name: "", type: "work" }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+
+    expect(await screen.findByTestId("resources-empty-state")).toBeInTheDocument();
+  });
+
+  test("el menú tampoco lo cuenta", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        resources={[{ uid: 0, name: "", type: "work" }]}
+      />,
+    );
+
+    expect(screen.getByTestId("sidebar-blurb-resources")).toHaveTextContent(
+      /Sin recursos todavía/,
+    );
+  });
 });

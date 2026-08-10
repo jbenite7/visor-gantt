@@ -10,6 +10,20 @@
       ],
       "cwd": "v2",
       "port": 3000
+    },
+    {
+      "name": "visor-gantt-prod",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "next",
+        "start",
+        "--hostname",
+        "127.0.0.1",
+        "--port",
+        "3100"
+      ],
+      "cwd": "v2",
+      "port": 3100
     }
   ]
 }

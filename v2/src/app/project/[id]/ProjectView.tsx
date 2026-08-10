@@ -6,6 +6,7 @@ import GanttView from "@/components/views/GanttView";
 import type { GanttTask } from "@/components/gantt/types";
 import type { PlanningAuditEvent } from "@/types/audit";
 import type { Observation } from "@/lib/observations/observations";
+import type { DetectionDictionary } from "@/lib/scheduling/detection/dictionary";
 import type { ImportSummary } from "@/lib/import/importSummary";
 import ImportSummaryBanner from "@/components/import/ImportSummaryBanner";
 import Link from "next/link";
@@ -92,6 +93,7 @@ export default function ProjectView({
   budgetMappings,
   baselines,
   matrixPlan,
+  detectionDictionary,
   mppTaskColumns,
   mppResourceColumns,
   mppAssignmentColumns,
@@ -116,6 +118,7 @@ export default function ProjectView({
   budgetMappings: BudgetMapping[];
   baselines: SerializedBaseline[];
   matrixPlan?: MatrixPlan;
+  detectionDictionary?: DetectionDictionary;
   mppTaskColumns?: MppTaskColumn[];
   mppResourceColumns?: MppResourceColumn[];
   mppAssignmentColumns?: MppAssignmentColumn[];
@@ -209,6 +212,7 @@ export default function ProjectView({
             budgetMappings={budgetMappings}
             baselines={deserializedBaselines}
             matrixPlan={matrixPlan}
+            detectionDictionary={detectionDictionary}
             mppTaskColumns={mppTaskColumns}
             mppResourceColumns={mppResourceColumns}
             mppAssignmentColumns={mppAssignmentColumns}
@@ -221,12 +225,9 @@ export default function ProjectView({
             uiSettings={uiSettings}
             planningAuditEvents={planningAuditEvents}
             observations={observations}
-            onTaskClick={(task) => console.log("Clicked:", task.name)}
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-muted)]">
-            Cargando cronograma...
-          </div>
+          <ScheduleSkeleton />
         )}
       </div>
     </div>

@@ -11,6 +11,10 @@ import type { Resource, Assignment } from "@/types/resource";
 import type { BudgetItem, BudgetMapping } from "@/types/budget";
 import type { Baseline } from "@/types/baseline";
 import type { MatrixIssue, MatrixPlan, MatrixTemplate } from "@/types/matrix";
+import {
+  EMPTY_DETECTION_DICTIONARY,
+  type DetectionDictionary,
+} from "@/lib/scheduling/detection/dictionary";
 import type {
   AssignmentColumnSettings,
   MppAssignmentColumn,
@@ -50,6 +54,12 @@ export interface ProjectData {
   baselines: Baseline[];
   calendar: ProjectCalendar;
   matrixPlan?: MatrixPlan;
+  /**
+   * Lo que el usuario corrigió a mano sobre la detección automática. Viaja
+   * dentro de `project_data`: no necesita columna ni migración, y el motor
+   * lo recibe como argumento porque no sabe dónde se guarda.
+   */
+  detectionDictionary?: DetectionDictionary;
   mppTaskColumns?: MppTaskColumn[];
   mppResourceColumns?: MppResourceColumn[];
   mppAssignmentColumns?: MppAssignmentColumn[];
@@ -189,6 +199,7 @@ interface SerializedProjectData {
   baselines: SerializedBaseline[];
   calendar?: ProjectCalendar;
   matrixPlan?: MatrixPlan;
+  detectionDictionary?: DetectionDictionary;
   mppTaskColumns?: MppTaskColumn[];
   mppResourceColumns?: MppResourceColumn[];
   mppAssignmentColumns?: MppAssignmentColumn[];
@@ -215,6 +226,7 @@ function serializeProjectData(data: ProjectData): SerializedProjectData {
     baselines: serializeBaselines(data.baselines),
     calendar: normalizeProjectCalendar(data.calendar),
     matrixPlan: data.matrixPlan,
+    detectionDictionary: data.detectionDictionary ?? EMPTY_DETECTION_DICTIONARY,
     mppTaskColumns: data.mppTaskColumns ?? [],
     mppResourceColumns: data.mppResourceColumns ?? [],
     mppAssignmentColumns: data.mppAssignmentColumns ?? [],
@@ -247,6 +259,7 @@ function deserializeProjectData(
     baselines: deserializeBaselines(pd.baselines ?? []),
     calendar: normalizeProjectCalendar(pd.calendar ?? DEFAULT_PROJECT_CALENDAR),
     matrixPlan: pd.matrixPlan,
+    detectionDictionary: pd.detectionDictionary ?? EMPTY_DETECTION_DICTIONARY,
     mppTaskColumns: pd.mppTaskColumns ?? [],
     mppResourceColumns: pd.mppResourceColumns ?? [],
     mppAssignmentColumns: pd.mppAssignmentColumns ?? [],
