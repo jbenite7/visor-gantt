@@ -439,7 +439,12 @@ function normalizeText(value: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
+    // El punto de un decimal —«Módulo 1.1»— es parte del número, no
+    // puntuación: se conserva aquí y se quitan después los que no separan
+    // dos dígitos. Si se barriera con el resto, «1.1» quedaría en «1 1» y el
+    // submódulo desaparecería, partiendo la actividad en dos.
+    .replace(/[^a-z0-9\s.]/g, " ")
+    .replace(/\.(?!\d)|(?<!\d)\./g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }

@@ -529,6 +529,51 @@ describe("generateAutomaticLOBFromTasks", () => {
     expect(result.activities[0].taskIds).toEqual([1, 3, 2]);
   });
 
+  it("no parte el decimal de un módulo: «1.1» y «2.1» son la misma actividad", () => {
+    // El punto de «Módulo 1.1» es parte del número, no puntuación. Al
+    // convertirlo en espacio, «Losa aérea Módulo 1.2» se separaba de «Losa
+    // aérea Módulo 1.1» y arrastraba el «2» al nombre de la actividad.
+    const baseTask = {
+      duration: 2,
+      progress: 0,
+      isCritical: false,
+      isMilestone: false,
+      isSummary: false,
+      outlineLevel: 1,
+      dependencies: [],
+    };
+
+    const result = generateAutomaticLOBFromTasks([
+      {
+        ...baseTask,
+        id: 1,
+        name: "Losa aérea Módulo 1.1",
+        start: new Date("2026-08-01"),
+        finish: new Date("2026-08-03"),
+      },
+      {
+        ...baseTask,
+        id: 2,
+        name: "Losa aérea Módulo 1.2",
+        start: new Date("2026-08-04"),
+        finish: new Date("2026-08-06"),
+      },
+      {
+        ...baseTask,
+        id: 3,
+        name: "Losa aérea Módulo 2.1",
+        start: new Date("2026-08-07"),
+        finish: new Date("2026-08-09"),
+      },
+    ]);
+
+    // Una sola actividad —«Losa aérea»— con tres ubicaciones, no tres
+    // actividades con una cada una.
+    expect(result.activities).toHaveLength(1);
+    expect(result.units).toHaveLength(3);
+    expect(result.activities[0].taskIds).toEqual([1, 2, 3]);
+  });
+
   it("uses matrix line-of-balance rhythm when generated tasks have collapsed dates", () => {
     const baseTask = {
       duration: 2,

@@ -383,3 +383,35 @@ describe("extractLocation · tareas que cruzan dos pisos", () => {
     );
   });
 });
+
+describe("extractLocation · el vocabulario de obra lineal no pisa al vertical", () => {
+  // Los tres casos que cazó la revisión final de la rama. Ninguno estaba en el
+  // fixture de DA PORTO, así que ningún test los veía.
+
+  test("«Módulo» con tilde se reconoce, porque así lo escribe el archivo real", () => {
+    // Igual que el del sótano: `typicalUnit.ts` y `matrixProposal.ts` recorren
+    // estos patrones sobre el nombre **tal cual**, no sobre el normalizado. Sin
+    // la alternativa con tilde, «Excavación Módulo 1.1» y «Excavación Módulo
+    // 2.1» quedaban como dos sistemas distintos con una ubicación cada uno, y
+    // la matriz salía sin ninguna receta.
+    const modulo = LOCATION_PATTERNS.find((pattern) => pattern.label === "Módulo")!;
+    expect(new RegExp(modulo.regex.source, "i").test("Excavación Módulo 2.1")).toBe(true);
+    expect(new RegExp(modulo.regex.source, "i").test("Excavación Modulo 2.1")).toBe(true);
+  });
+
+  test("un apartamento gana al edificio que lo contiene", () => {
+    // La spec decide que el módulo gana al eje, pero nunca decidió que el
+    // edificio ganara al apartamento: eso salió de dónde se pegó el bloque.
+    expect(extractLocation("Edificio 2 - Apto 302")?.label).toBe("Apartamento");
+    expect(extractLocation("EDIFICIO 1 APARTAMENTO 401")?.label).toBe("Apartamento");
+  });
+
+  test("la torre gana al edificio y al módulo", () => {
+    expect(extractLocation("Edificio 2 Torre 1")?.label).toBe("Torre");
+    expect(extractLocation("Torre 1 Modulo 2")?.label).toBe("Torre");
+  });
+
+  test("y aun así el módulo sigue ganando al eje, que es lo que sí decide la spec", () => {
+    expect(extractLocation("Módulo 1.1 (Ejes A-D)")?.label).toBe("Módulo");
+  });
+});

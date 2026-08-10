@@ -135,37 +135,6 @@ export const LOCATION_PATTERNS: LocationPattern[] = [
     valueOf: (match) => -Number(match[1]),
   },
   {
-    label: "Módulo",
-    // Decimal a propósito: 1.1 y 1.2 son submódulos del módulo 1, y como
-    // enteros se fundirían en uno.
-    regex: /\bMODULO\s*[-#:]?\s*(\d+(?:\.\d+)?)\b/i,
-    valueOf: (match) => Number(match[1]),
-  },
-  {
-    label: "Edificio",
-    regex: /\bEDIFICIO\s*[-#:]?\s*(\d+)\b/i,
-    valueOf: (match) => Number(match[1]),
-  },
-  {
-    label: "Eje",
-    // Dos etiquetas alrededor del separador: un guion decorativo no basta.
-    regex: /\bEJES?\b\s*[-#:]?\s*([A-Z]{0,3}\d{0,3}|[A-Z])\s*(?:-|\bA\b)\s*([A-Z]{0,3}\d{0,3}|[A-Z])\b/i,
-    valueOf: (match) => parseAxisLabel(match[1])?.index ?? Number.NaN,
-    spanOf: (match) => {
-      const from = parseAxisLabel(match[1]);
-      const to = parseAxisLabel(match[2]);
-      if (!from || !to) return null;
-      const span: LocationSpan = { rawFrom: from.raw, rawTo: to.raw, from: from.index, to: to.index };
-      if (from.family !== to.family) span.crossesGrids = true;
-      return span;
-    },
-  },
-  {
-    label: "Eje",
-    regex: /\bEJES?\b\s*[-#:]?\s*([A-Z]{1,3}\d{1,3}|[A-Z]|\d{1,3})\b/i,
-    valueOf: (match) => parseAxisLabel(match[1])?.index ?? Number.NaN,
-  },
-  {
     label: "Torre",
     regex: /\b(?:TORRE|BLOQUE)\s*[-#:]?\s*(\d+)\b/i,
     valueOf: numeric,
@@ -208,6 +177,46 @@ export const LOCATION_PATTERNS: LocationPattern[] = [
     // la parte numérica.
     regex: /\b(?:APARTAMENTO|APTO|UNIDAD)\s*[-#:]?\s*(\d+[A-Z]?)\b/i,
     valueOf: leadingNumber,
+  },
+  // ── Obra lineal ──────────────────────────────────────────────────────
+  // Va DESPUÉS del vocabulario vertical a propósito. La spec decide que el
+  // módulo gana al eje (D3), pero nunca decidió que el edificio ganara al
+  // apartamento ni el módulo a la torre: «Edificio 2 - Apto 302» es un
+  // apartamento, y colocarlo antes colapsaba decenas de filas de la Línea de
+  // Balance en tres.
+  {
+    label: "Módulo",
+    // Decimal a propósito: 1.1 y 1.2 son submódulos del módulo 1, y como
+    // enteros se fundirían en uno.
+    // La tilde va como alternativa, igual que en `S[OÓ]TANO`: estos patrones
+    // se recorren también sobre el nombre sin normalizar, y el archivo real
+    // escribe «Módulo».
+    regex: /\bM[OÓ]DULO\s*[-#:]?\s*(\d+(?:\.\d+)?)\b/i,
+    valueOf: (match) => Number(match[1]),
+  },
+  {
+    label: "Edificio",
+    regex: /\bEDIFICIO\s*[-#:]?\s*(\d+)\b/i,
+    valueOf: (match) => Number(match[1]),
+  },
+  {
+    label: "Eje",
+    // Dos etiquetas alrededor del separador: un guion decorativo no basta.
+    regex: /\bEJES?\b\s*[-#:]?\s*([A-Z]{0,3}\d{0,3}|[A-Z])\s*(?:-|\bA\b)\s*([A-Z]{0,3}\d{0,3}|[A-Z])\b/i,
+    valueOf: (match) => parseAxisLabel(match[1])?.index ?? Number.NaN,
+    spanOf: (match) => {
+      const from = parseAxisLabel(match[1]);
+      const to = parseAxisLabel(match[2]);
+      if (!from || !to) return null;
+      const span: LocationSpan = { rawFrom: from.raw, rawTo: to.raw, from: from.index, to: to.index };
+      if (from.family !== to.family) span.crossesGrids = true;
+      return span;
+    },
+  },
+  {
+    label: "Eje",
+    regex: /\bEJES?\b\s*[-#:]?\s*([A-Z]{1,3}\d{1,3}|[A-Z]|\d{1,3})\b/i,
+    valueOf: (match) => parseAxisLabel(match[1])?.index ?? Number.NaN,
   },
   { label: "Zona", regex: /\b[AÁ]REA\s*[A-Z]-(\d+)\b/i, valueOf: numeric },
   { label: "Zona", regex: /\b[AÁ]REA\s*[-#:]?\s*(\d+)\b/i, valueOf: numeric },
