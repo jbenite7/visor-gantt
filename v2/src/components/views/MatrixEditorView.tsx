@@ -9,6 +9,8 @@ import {
   RefreshCw,
   RotateCcw,
   Trash2,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import type { GanttTask } from "@/components/gantt/types";
 import type {
@@ -42,6 +44,7 @@ import type { ProjectCalendar } from "@/types/calendar";
 import { approveCellFeedback, dismissCellFeedback } from "@/lib/matrix/feedback";
 import { templateFromPlan } from "@/lib/matrix/templateCatalog";
 import { describeDraftChanges } from "@/lib/matrix/draftState";
+import { useDraftHistory } from "@/lib/matrix/useDraftHistory";
 import {
   planFromProposal,
   proposeMatrixFromTasks,
@@ -327,9 +330,20 @@ export default function MatrixEditorView({
   onRemoveArea,
   applyLabel = "Aplicar",
 }: MatrixEditorViewProps) {
-  const [draft, setDraft] = useState<MatrixPlan | undefined>(
-    matrixPlan ? clonePlan(matrixPlan) : undefined,
-  );
+  /**
+   * El borrador vive en una pila propia: era la única acción destructiva de la
+   * app sin vuelta atrás. No usa `runUndoable` porque aquello opera sobre el
+   * proyecto persistido y esto todavía no lo es (R1).
+   */
+  const {
+    draft,
+    commitDraft: setDraft,
+    resetDraft,
+    undoDraft,
+    redoDraft,
+    canUndo: canUndoDraftChange,
+    canRedo: canRedoDraftChange,
+  } = useDraftHistory<MatrixPlan>(matrixPlan ? clonePlan(matrixPlan) : undefined);
   /**
    * El borrador se perdía sin decir nada al cambiar de pestaña o recargar, y
    * «Deshacer» lo tiraba entero sin avisar de cuánto (M28).
@@ -352,8 +366,9 @@ export default function MatrixEditorView({
     if (!window.confirm(`${cambiosPendientes.message} Se van a descartar. ¿Seguro?`)) {
       return;
     }
-    setDraft(matrixPlan ? clonePlan(matrixPlan) : draft);
-  }, [cambiosPendientes, draft, matrixPlan, tieneCambios]);
+    // Recargar desde el proyecto tira la pila: describe un borrador que ya no existe.
+    resetDraft(matrixPlan ? clonePlan(matrixPlan) : draft);
+  }, [cambiosPendientes, draft, matrixPlan, resetDraft, tieneCambios]);
 
   /**
    * El aviso de que el calendario mueve las fechas más de la cuenta. Se
@@ -633,6 +648,24 @@ export default function MatrixEditorView({
       activityOverrides: nextOverrides,
     });
   };
+
+  /**
+   * `Cmd+Z` / `Ctrl+Z` deshace dentro del editor, y con `Shift` rehace. El
+   * historial general de la app no puede hacerlo: el borrador no es parte del
+   * proyecto hasta que se aplica.
+   */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      if (event.key.toLowerCase() !== "z") return;
+      event.preventDefault();
+      if (event.shiftKey) redoDraft();
+      else undoDraft();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [redoDraft, undoDraft]);
 
   const applyNextDraft = (nextPlan: MatrixPlan) => {
     const next = reconcileMatrixCells(nextPlan);
@@ -1191,6 +1224,30 @@ export default function MatrixEditorView({
           >
             <Check size={14} />
             <span className="min-w-0 whitespace-normal text-left leading-tight">Activar todas las celdas</span>
+          </button>
+          {/* Deshacer visible: un atajo que no se ve es una función que nadie
+              alcanza, que es justo el patrón que este proyecto persigue. */}
+          <button
+            type="button"
+            data-testid="matrix-undo"
+            onClick={undoDraft}
+            disabled={!canUndoDraftChange}
+            title="Deshacer el último cambio del borrador (⌘Z)"
+            className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Undo2 size={14} />
+            <span>Deshacer</span>
+          </button>
+          <button
+            type="button"
+            data-testid="matrix-redo"
+            onClick={redoDraft}
+            disabled={!canRedoDraftChange}
+            title="Rehacer el cambio deshecho (⇧⌘Z)"
+            className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Redo2 size={14} />
+            <span>Rehacer</span>
           </button>
           {tieneCambios && (
             <span
