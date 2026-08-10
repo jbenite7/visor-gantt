@@ -6,7 +6,7 @@ import { computeNetworkLayout } from "@/lib/layout/networkLayout";
 import { resolveDependencyDraft } from "@/lib/gantt/networkDependencyEditing";
 import NetworkNode from "@/components/network/NetworkNode";
 import NetworkArrow from "@/components/network/NetworkArrow";
-import { RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
+import { RotateCcw, Trash2, ZoomIn, ZoomOut } from "lucide-react";
 
 interface NetworkDiagramViewProps {
   tasks: GanttTask[];
@@ -16,6 +16,10 @@ interface NetworkDiagramViewProps {
     toId: string | number,
     type: "FS" | "SS" | "FF" | "SF",
   ) => void;
+  onDeleteDependency?: (dependency: {
+    from: string | number;
+    to: string | number;
+  }) => void;
   onRejectEdit?: (reason: string) => void;
 }
 
@@ -23,6 +27,7 @@ export default function NetworkDiagramView({
   tasks,
   onTaskClick,
   onCreateDependency,
+  onDeleteDependency,
   onRejectEdit,
 }: NetworkDiagramViewProps) {
   const [zoom, setZoom] = useState(1);
@@ -34,6 +39,10 @@ export default function NetworkDiagramView({
   const [connectFromId, setConnectFromId] = useState<string | number | null>(
     null,
   );
+  const [selectedEdge, setSelectedEdge] = useState<{
+    from: string | number;
+    to: string | number;
+  } | null>(null);
 
   useEffect(() => {
     if (connectFromId === null) return;
@@ -44,9 +53,39 @@ export default function NetworkDiagramView({
     return () => window.removeEventListener("keydown", cancelar);
   }, [connectFromId]);
 
+  // Elegir un origen para una dependencia nueva y elegir una flecha para
+  // borrarla son dos modos que no pueden convivir: si había un origen a
+  // medio elegir, empezar a conectar de nuevo lo suelta.
   const handleStartConnection = useCallback((taskId: string | number) => {
+    setSelectedEdge(null);
     setConnectFromId((current) => (current === taskId ? null : taskId));
   }, []);
+
+  const handleSelectEdge = useCallback(
+    (edge: { fromTaskId: string | number; toTaskId: string | number }) => {
+      setConnectFromId(null);
+      setSelectedEdge({ from: edge.fromTaskId, to: edge.toTaskId });
+    },
+    [],
+  );
+
+  const handleDeleteSelectedEdge = useCallback(() => {
+    if (!selectedEdge) return;
+    onDeleteDependency?.(selectedEdge);
+    setSelectedEdge(null);
+  }, [selectedEdge, onDeleteDependency]);
+
+  useEffect(() => {
+    if (!selectedEdge) return;
+    const borrar = (event: KeyboardEvent) => {
+      if (event.key === "Delete" || event.key === "Backspace") {
+        handleDeleteSelectedEdge();
+      }
+      if (event.key === "Escape") setSelectedEdge(null);
+    };
+    window.addEventListener("keydown", borrar);
+    return () => window.removeEventListener("keydown", borrar);
+  }, [selectedEdge, handleDeleteSelectedEdge]);
 
   const panRef = useRef<{
     dragging: boolean;
@@ -109,6 +148,8 @@ export default function NetworkDiagramView({
   // ── Node click ──
   const handleNodeClick = useCallback(
     (taskId: string | number) => {
+      setSelectedEdge(null);
+
       if (connectFromId !== null) {
         const draft = resolveDependencyDraft(tasks, connectFromId, taskId);
         setConnectFromId(null);
@@ -164,6 +205,11 @@ export default function NetworkDiagramView({
             <NetworkArrow
               key={`${edge.fromTaskId}-${edge.toTaskId}`}
               edge={edge}
+              isSelected={
+                selectedEdge?.from === edge.fromTaskId &&
+                selectedEdge?.to === edge.toTaskId
+              }
+              onSelect={onDeleteDependency ? handleSelectEdge : undefined}
             />
           ))}
           {/* Nodes on top */}
@@ -191,6 +237,17 @@ export default function NetworkDiagramView({
 
       {/* Zoom controls */}
       <div className="absolute bottom-4 right-4 flex gap-2">
+        {selectedEdge && (
+          <button
+            data-testid="network-delete-dependency"
+            onClick={handleDeleteSelectedEdge}
+            className="apple-icon-button"
+            title="Borrar la dependencia elegida"
+            type="button"
+          >
+            <Trash2 size={15} />
+          </button>
+        )}
         <button
           onClick={() => setZoom((z) => Math.min(z + 0.2, 3))}
           className="apple-icon-button"
