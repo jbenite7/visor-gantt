@@ -101,7 +101,7 @@ describe("migrador de esquema", () => {
     expect(log).toEqual([]);
   });
 
-  test("revertir un id desconocido es un error de programación, no un silencio", async () => {
+  test("revertir un id que no está en el array de migraciones también da false (indistinguible de 'no aplicada')", async () => {
     const client = fakeClient();
     const log: string[] = [];
     const migraciones = [migration("001_primera", log)];
@@ -110,5 +110,80 @@ describe("migrador de esquema", () => {
     await expect(
       rollbackMigration(client, migraciones, "001_primera_mal_escrita"),
     ).resolves.toBe(false);
+  });
+
+  test("ids duplicados son un error de programación y no ejecutan nada", async () => {
+    const client = fakeClient();
+    const log: string[] = [];
+
+    await expect(
+      runMigrations(client, [migration("001_x", log), migration("001_x", log)]),
+    ).rejects.toThrow(/duplicad/i);
+
+    expect(log).toEqual([]);
+  });
+
+  test("si up() falla a mitad de camino, revierte la transacción y no queda registrada", async () => {
+    const client = fakeClient();
+    const migracionRota: Migration = {
+      id: "001_rota",
+      async up(c) {
+        await c.query("CREATE TABLE foo (id INT)");
+        throw new Error("fallo simulado en up()");
+      },
+      async down() {},
+    };
+
+    await expect(runMigrations(client, [migracionRota])).rejects.toThrow(
+      "fallo simulado en up()",
+    );
+
+    expect(client.sql).toContain("ROLLBACK");
+    expect(await appliedMigrationIds(client)).toEqual([]);
+  });
+
+  test("si down() falla, la migración sigue registrada como aplicada", async () => {
+    const client = fakeClient();
+    const migraciones: Migration[] = [
+      {
+        id: "001_x",
+        async up() {},
+        async down() {
+          throw new Error("fallo simulado en down()");
+        },
+      },
+    ];
+    await runMigrations(client, migraciones);
+
+    await expect(rollbackMigration(client, migraciones, "001_x")).rejects.toThrow(
+      "fallo simulado en down()",
+    );
+
+    expect(await appliedMigrationIds(client)).toEqual(["001_x"]);
+  });
+
+  test("toma un lock consultivo al migrar y lo suelta al terminar", async () => {
+    const client = fakeClient();
+    const log: string[] = [];
+
+    await runMigrations(client, [migration("001_primera", log)]);
+
+    expect(client.sql.some((s) => s.includes("pg_advisory_lock"))).toBe(true);
+    expect(client.sql.some((s) => s.includes("pg_advisory_unlock"))).toBe(true);
+  });
+
+  test("suelta el lock consultivo aunque una migración falle", async () => {
+    const client = fakeClient();
+    const migracionRota: Migration = {
+      id: "001_rota",
+      async up() {
+        throw new Error("boom");
+      },
+      async down() {},
+    };
+
+    await expect(runMigrations(client, [migracionRota])).rejects.toThrow("boom");
+
+    expect(client.sql.some((s) => s.includes("pg_advisory_unlock"))).toBe(true);
   });
 });
