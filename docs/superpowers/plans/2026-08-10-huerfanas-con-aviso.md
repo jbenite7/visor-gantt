@@ -138,7 +138,9 @@ Y el cálculo, justo antes de normalizar:
   const canonicalTasks = normalizeDependencies(tasks);
 ```
 
-Añadir `orphanedDependencies` a **todos** los `return` de `recalculateSchedule` — hoy son **cuatro**, compruébalo antes de tocarlos porque el compilador te los señalará uno a uno. El del error de calendario ocurre **antes** de calcular nada, así que devuelve `[]` con su motivo escrito; los demás devuelven el array calculado:
+Añadir `orphanedDependencies` a los **tres** `return` de `recalculateSchedule` —líneas 172, 187 y 201—. Cuidado al contarlos con un `grep`: hay más `return {` dentro de la función, pero están en el callback del `.map()` final y no son retornos de la función. El compilador te señalará los tres de verdad.
+
+El del error de calendario (172) ocurre **antes** de calcular nada, así que devuelve `[]` con su motivo escrito; los otros dos devuelven el array calculado:
 
 ```ts
     // Sin calendario válido no se llega a tocar ninguna dependencia.
