@@ -69,3 +69,31 @@ describe("PRODUCT.md registra C3 revertido (R3)", () => {
     );
   });
 });
+
+describe("R6 y R7 quedan registrados donde nadie los confunda con trabajo olvidado", () => {
+  const experiments = readDoc("EXPERIMENTS.md");
+
+  test("los cuatro pendientes que esperan un dato están escritos con su disparador", () => {
+    expect(experiments).toContain("## Pendientes que esperan un dato (R6)");
+    for (const pendiente of [
+      "Ritmo, no productividad",
+      "Abscisas `K12+340`",
+      "RUM en obra",
+      "Presupuesto desde PDC",
+    ]) {
+      expect(experiments).toContain(pendiente);
+    }
+  });
+
+  test("las cuatro decisiones diferidas están escritas con el caso que las obliga", () => {
+    expect(experiments).toContain("## Decisiones diferidas (R7)");
+    for (const decision of [
+      "Cómo dibujar un tramo en la Línea de Balance",
+      "El orden entre familias de eje",
+      "Deshacer granular más allá de R1",
+      "«Fin cambia la duración»",
+    ]) {
+      expect(experiments).toContain(decision);
+    }
+  });
+});

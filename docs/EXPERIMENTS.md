@@ -318,3 +318,33 @@ posible; comprobar la sesión primero convierte un error tardío e incomprensibl
 cuenta. El modo demo —que es lo que hace fuerte al visor 1.0— queda como decisión para la Fase 9.
 
 **Evidencia:** test de ruta que verifica 401 sin llamar al parser ni guardar, y 3 tests de `safeNextPath`.
+
+## Pendientes que esperan un dato (R6)
+
+No están bloqueados por falta de trabajo, sino por falta de un dato que hoy no existe. Subirlos como tareas
+normales produciría trabajo imposible el primer día. Tienen dueño: el dato que les falta.
+
+| Pendiente | Qué falta | Qué ya se hizo | Disparador |
+|---|---|---|---|
+| Ritmo, no productividad (P3+P4) | Cantidad de obra ejecutada por actividad | El indicador se llama **Ritmo (1/día)** en toda la interfaz, y un test prohíbe el nombre anterior en todo `v2/src` (`copyProductividad.test.ts`) | Que la matriz aporte cantidades de obra ejecutada, no solo previstas |
+| Abscisas `K12+340` (P3b) | Un `.mpp` real de túnel o de vía | El caso de prueba está escrito y desactivado en `location.test.ts`, con los dos escenarios: punto y tramo | Llega un `.mpp` de túnel o vía: se sustituyen los nombres por los reales, se quita el `.skip` y se implementa hasta que pase |
+| RUM en obra (E47) | Usuarios reales usando la app en campo | Nada de código, a propósito: es una **medición pendiente**, no deuda técnica | Que haya obra usando el visor a diario con red de campo |
+| Presupuesto desde PDC | Es integración entre dos aplicaciones, no una función del visor | **Fuera de alcance del goal maestro.** El punto de entrada es la carga manual de partidas, que se deja funcionando y sin pulir | Que exista una decisión de producto sobre integrar PDC y el visor |
+
+## Decisiones diferidas (R7)
+
+Cuatro decisiones tomadas con motivo, no trabajo sin hacer. Se resuelven **cuando aparezca el caso que las
+obliga**, y hasta entonces se quedan escritas aquí para que ninguna auditoría futura las cuente como deuda.
+
+- **Cómo dibujar un tramo en la Línea de Balance.** Hoy cada unidad es una fila y un tramo ocupa varias. El
+  motor ya tiene el dato tras R5 (`LocationMatch.span`); la vista decidirá cuando se aborde la Línea de
+  Balance de obra lineal. *Caso que la obliga:* un cronograma de obra lineal con tramos en la Línea de Balance.
+- **El orden entre familias de eje** (letras, números, series como `DB`). Se resolvió por familia y luego por
+  índice — «lo único defendible» sin conocer la geometría real del proyecto. Queda como **supuesto declarado,
+  no verificado**. *Caso que la obliga:* un plano de ejes real que contradiga el orden supuesto.
+- **Deshacer granular más allá de R1.** R1 cubre las operaciones del borrador del editor. El deshacer paso a
+  paso dentro de la matriz **ya construida y persistida** sigue siendo proyecto propio. *Caso que la obliga:*
+  que alguien pierda trabajo en la matriz aplicada, no en el borrador.
+- **«Fin cambia la duración».** Si el motor no lo soporta limpiamente, el campo queda en **solo lectura** y se
+  informa. Es un límite aceptado con salida honesta, no una implementación a medias. *Caso que la obliga:* que
+  el motor de cálculo pase a soportar el modo de tarea que lo hace posible.
