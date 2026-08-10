@@ -28,6 +28,28 @@ export default function LocationCorrectionPanel({
   const [values, setValues] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+
+  /**
+   * De entrada solo lo que hay que corregir.
+   *
+   * Un cronograma real trae 240 tareas: listarlas todas son 480 campos de
+   * formulario, que es un muro y no una herramienta. Lo que se viene a
+   * corregir aquí es lo que salió sin ubicar; lo demás está a un clic.
+   *
+   * Las ya corregidas se quedan a la vista aunque tengan ubicación: si
+   * desaparecieran al corregirlas, el usuario perdería de vista lo que acaba
+   * de hacer y no sabría si funcionó.
+   */
+  const resolved = tasks.map((task) => ({
+    task,
+    ...resolveTaskLocation(task, tasks, dictionary),
+  }));
+  const pendientes = resolved.filter(
+    (entry) => !entry.location || entry.scope === "diccionario",
+  );
+  const sinUbicar = resolved.filter((entry) => !entry.location);
+  const visibles = showAll ? resolved : pendientes;
 
   const submit = (task: GanttTask) => {
     const key = String(task.id);
@@ -70,10 +92,28 @@ export default function LocationCorrectionPanel({
         </p>
       )}
 
+      <p
+        data-testid="correction-summary"
+        className="mt-2 text-xs text-[var(--color-text-muted)]"
+      >
+        {sinUbicar.length === 0
+          ? `Todas las actividades quedaron ubicadas: ${resolved.length} de ${resolved.length}.`
+          : `${sinUbicar.length} sin ubicar · ${resolved.length - sinUbicar.length} ubicadas.`}
+        {!showAll && (
+          <button
+            type="button"
+            data-testid="correction-show-all"
+            onClick={() => setShowAll(true)}
+            className="ml-2 underline"
+          >
+            Ver todas
+          </button>
+        )}
+      </p>
+
       <ul className="mt-3 divide-y divide-[var(--color-hairline)]">
-        {tasks.map((task) => {
+        {visibles.map(({ task, location, scope }) => {
           const key = String(task.id);
-          const { location, scope } = resolveTaskLocation(task, tasks, dictionary);
 
           return (
             <li

@@ -40,6 +40,10 @@ describe("LocationCorrectionPanel (R4)", () => {
       />,
     );
 
+    // Las bien ubicadas están tras «Ver todas»: de entrada solo se listan las
+    // que hay que corregir.
+    fireEvent.click(screen.getByTestId("correction-show-all"));
+
     expect(screen.getByTestId("correction-detected-1")).toHaveTextContent(
       "Piso 4",
     );
@@ -156,11 +160,76 @@ describe("LocationCorrectionPanel (R4)", () => {
       />,
     );
 
+    fireEvent.click(screen.getByTestId("correction-show-all"));
+
     expect(screen.getByTestId("correction-source-2")).toHaveTextContent(
       "Corregida a mano",
     );
     expect(screen.getByTestId("correction-detected-2")).toHaveTextContent(
       "Piso 4",
+    );
+  });
+});
+
+describe("LocationCorrectionPanel · no es un muro de 240 filas (R4)", () => {
+  const cronograma = [
+    task({ id: 1, name: "Mampostería Piso 1" }),
+    task({ id: 2, name: "Mampostería Piso 2" }),
+    task({ id: 3, name: "Instalación de redes secas" }),
+  ];
+
+  test("de entrada muestra solo las que el motor no supo ubicar", () => {
+    render(
+      <LocationCorrectionPanel
+        tasks={cronograma}
+        dictionary={EMPTY_DETECTION_DICTIONARY}
+        onCorrect={jest.fn()}
+      />,
+    );
+
+    // Con 240 tareas reales, listarlas todas son 480 campos: un muro, no una
+    // herramienta. Lo que hay que corregir es lo que salió sin ubicar.
+    expect(screen.getByTestId("correction-detected-3")).toBeInTheDocument();
+    expect(screen.queryByTestId("correction-detected-1")).not.toBeInTheDocument();
+  });
+
+  test("dice cuántas hay bien, para que no parezca que se perdieron", () => {
+    render(
+      <LocationCorrectionPanel
+        tasks={cronograma}
+        dictionary={EMPTY_DETECTION_DICTIONARY}
+        onCorrect={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("correction-summary")).toHaveTextContent("2");
+  });
+
+  test("se pueden ver todas si hace falta corregir una que salió bien", () => {
+    render(
+      <LocationCorrectionPanel
+        tasks={cronograma}
+        dictionary={EMPTY_DETECTION_DICTIONARY}
+        onCorrect={jest.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("correction-show-all"));
+
+    expect(screen.getByTestId("correction-detected-1")).toBeInTheDocument();
+  });
+
+  test("sin nada que corregir, lo dice en vez de mostrar una lista vacía", () => {
+    render(
+      <LocationCorrectionPanel
+        tasks={[cronograma[0], cronograma[1]]}
+        dictionary={EMPTY_DETECTION_DICTIONARY}
+        onCorrect={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("correction-summary")).toHaveTextContent(
+      /todas.*ubicad/i,
     );
   });
 });
