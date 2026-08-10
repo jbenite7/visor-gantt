@@ -361,6 +361,22 @@ export function ProjectProvider({
     (updater: (prev: GanttTask[]) => GanttTask[]) => {
       const result = recalculateSchedule(updater(tasks), { calendar });
       setScheduleIssues(result.issues);
+
+      // Cualquier huérfana que llegue hasta aquí la introduce ESTA edición.
+      //
+      // Las que trae el proyecto al abrirse no sobreviven al montaje: el
+      // `recalculateSchedule` inicial ya las retira, así que el estado editable
+      // nace limpio. Por eso no hay que descontarlas — y descontarlas sería un
+      // fallo: un proyecto que abrió con una huérfana aceptaría en silencio una
+      // huérfana nueva, que es justo lo que este cambio viene a impedir.
+      if (result.orphanedDependencies.length > 0) {
+        rejectWith(
+          [{ message: "Esa actividad no existe en el cronograma." }],
+          "Esa actividad no existe en el cronograma.",
+        );
+        return;
+      }
+
       if (result.issues.length > 0) {
         rejectWith(result.issues, "El cambio deja el cronograma en conflicto.");
       } else {
@@ -378,7 +394,7 @@ export function ProjectProvider({
         publishChange(changedTaskIds(tasks, result.tasks));
       }
     },
-    [calendar, rejectWith, tasks],
+    [calendar, loadedOrphanCount, rejectWith, tasks],
   );
 
   const commitTaskChange = useCallback(
@@ -388,6 +404,22 @@ export function ProjectProvider({
     ) => {
       const previous = tasks;
       const result = recalculateSchedule(updater(previous), { calendar });
+
+      // Cualquier huérfana que llegue hasta aquí la introduce ESTA edición.
+      //
+      // Las que trae el proyecto al abrirse no sobreviven al montaje: el
+      // `recalculateSchedule` inicial ya las retira, así que el estado editable
+      // nace limpio. Por eso no hay que descontarlas — y descontarlas sería un
+      // fallo: un proyecto que abrió con una huérfana aceptaría en silencio una
+      // huérfana nueva, que es justo lo que este cambio viene a impedir.
+      if (result.orphanedDependencies.length > 0) {
+        setScheduleIssues(result.issues);
+        rejectWith(
+          [{ message: "Esa actividad no existe en el cronograma." }],
+          "Esa actividad no existe en el cronograma.",
+        );
+        return;
+      }
 
       if (result.issues.length > 0) {
         setScheduleIssues(result.issues);
@@ -423,7 +455,7 @@ export function ProjectProvider({
 
       history.push(command);
     },
-    [calendar, history, rejectWith, tasks],
+    [calendar, history, loadedOrphanCount, rejectWith, tasks],
   );
 
   const updateCalendar = useCallback(
