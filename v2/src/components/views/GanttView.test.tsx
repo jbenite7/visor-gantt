@@ -2607,3 +2607,134 @@ describe("GanttView · corregir ubicaciones desde la Línea de Balance (R4)", ()
     );
   });
 });
+
+describe("Recursos sin recursos: la vista enseña en vez de mostrar cinco pestañas vacías (F7)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("sin recursos muestra el estado vacío y esconde las cinco sub-pestañas", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+        resources={[]}
+        assignments={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+
+    expect(await screen.findByTestId("resources-empty-state")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Uso de Recursos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Asignaciones" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("resource-sheet-view")).not.toBeInTheDocument();
+  });
+
+  test("crear el primer recurso desde el estado vacío abre la hoja con sus pestañas", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+        resources={[]}
+        assignments={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+    fireEvent.click(await screen.findByTestId("resources-empty-create"));
+
+    expect(screen.queryByTestId("resources-empty-state")).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Uso de Recursos" })).toBeInTheDocument();
+  });
+
+  test("con recursos importados del .mpp no hay estado vacío", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+        resources={[
+          { uid: 145, name: "Ayudante armado", type: "work", rate: 0, availability: 100 },
+        ]}
+        assignments={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+
+    expect(await screen.findByRole("button", { name: "Uso de Recursos" })).toBeInTheDocument();
+    expect(screen.queryByTestId("resources-empty-state")).not.toBeInTheDocument();
+  });
+});
+
+describe("Recursos: la segunda salida existe porque el presupuesto no los necesita (R9)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("«Abrir el presupuesto» lleva al presupuesto, no a la hoja de recursos", async () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} resources={[]} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+    // La vista se carga con `next/dynamic`: hay que esperar a que monte.
+    fireEvent.click(await screen.findByTestId("resources-empty-budget"));
+
+    // Presupuesto y Mapeo funcionan con cero cuadrillas: esconder las cinco
+    // pestañas en bloque taparía dos pantallas que sí sirven.
+    expect(screen.queryByTestId("resources-empty-state")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Presupuesto/i }),
+    ).toBeInTheDocument();
+  });
+
+  test("una vez elegida la salida, el estado vacío no vuelve a interponerse", async () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} resources={[]} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+    fireEvent.click(await screen.findByTestId("resources-empty-create"));
+    fireEvent.click(screen.getByTestId("sidebar-view-gantt"));
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+
+    expect(screen.queryByTestId("resources-empty-state")).not.toBeInTheDocument();
+  });
+});
+
+describe("Recursos: el recurso fantasma de MS Project no llega a la pantalla (R9)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("un recurso sin nombre no cuenta como recurso ni pinta fila", async () => {
+    // Los tres .mpp reales del repositorio traen el recurso nulo de MS Project
+    // (UID 0, nombre vacío) — DA PORTO tiene 213 asignaciones colgando de él.
+    // Contarlo daría «1 recurso» y una fila en blanco sin explicación.
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        resources={[{ uid: 0, name: "", type: "work" }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+
+    expect(await screen.findByTestId("resources-empty-state")).toBeInTheDocument();
+  });
+
+  test("el menú tampoco lo cuenta", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        resources={[{ uid: 0, name: "", type: "work" }]}
+      />,
+    );
+
+    expect(screen.getByTestId("sidebar-blurb-resources")).toHaveTextContent(
+      /Todavía no hay recursos/,
+    );
+  });
+});

@@ -26,6 +26,7 @@ const BudgetMapping = dynamic(() => import("@/components/budget/BudgetMapping"),
 const LineOfBalance = dynamic(() => import("@/components/charts/LineOfBalance"), { loading: ViewLoading });
 const SCurveView = dynamic(() => import("@/components/views/SCurveView"), { loading: ViewLoading });
 const CalendarSettingsView = dynamic(() => import("@/components/views/CalendarSettingsView"), { loading: ViewLoading });
+const ResourcesEmptyState = dynamic(() => import("@/components/views/ResourcesEmptyState"), { loading: ViewLoading });
 const ProblemsView = dynamic(() => import("@/components/views/ProblemsView"), { loading: ViewLoading });
 const ObservationsView = dynamic(() => import("@/components/views/ObservationsView"), { loading: ViewLoading });
 const CalendarView = dynamic(() => import("@/components/views/CalendarView"), { loading: ViewLoading });
@@ -395,6 +396,17 @@ function GanttViewInner({
     },
     [],
   );
+
+  /**
+   * El estado vacío de Recursos es una puerta, no un muro: en cuanto el usuario
+   * elige por dónde entrar —crear un recurso o ir al presupuesto— deja de
+   * interponerse y aparecen las cinco pestañas de siempre.
+   *
+   * La segunda salida existe porque **Presupuesto y Mapeo no dependen de
+   * recursos**: esconder las cinco pestañas en bloque taparía dos pantallas que
+   * funcionan con cero cuadrillas (R9).
+   */
+  const [resourcesIntroDismissed, setResourcesIntroDismissed] = useState(false);
 
   /* ── Baselines ── */
   const [baselines, setBaselines] = useState<Baseline[]>(initialBaselines);
@@ -964,13 +976,26 @@ function GanttViewInner({
    * matriz reaparecería con un borrador que ya no existe: el editor se
    * remonta por `matrixEditorKey` y el usuario decidiría sobre otra cosa.
    */
+  /**
+   * Los recursos que un usuario reconocería como tales.
+   *
+   * Los tres `.mpp` reales del repositorio traen el **recurso nulo de MS
+   * Project** —UID 0, nombre vacío—, y DA PORTO tiene 213 asignaciones
+   * colgando de él. Contarlo daría «1 recurso» y una fila en blanco sin
+   * explicación: un dato fantasma visible, que es peor que ninguno (R9).
+   */
+  const namedResources = useMemo(
+    () => calculatedResources.filter((resource) => (resource.name ?? "").trim()),
+    [calculatedResources],
+  );
+
   /** Lo que el menú necesita para decir qué hay dentro de cada puerta (R0). */
   const sidebarBlurbContext = useMemo(
     () => ({
       areaCount: syncedMatrixPlan?.areas.length ?? matrixPlan?.areas.length ?? 0,
-      resourceCount: calculatedResources.length,
+      resourceCount: namedResources.length,
     }),
-    [calculatedResources.length, matrixPlan, syncedMatrixPlan],
+    [matrixPlan, namedResources.length, syncedMatrixPlan],
   );
 
   const setActiveView = useCallback(
@@ -2096,7 +2121,24 @@ function GanttViewInner({
             <NetworkDiagramView tasks={calculatedTasks} onTaskClick={onTaskClick} />
           )}
 
-          {activeView === "resources" && (
+          {activeView === "resources" &&
+            namedResources.length === 0 &&
+            !resourcesIntroDismissed && (
+              <ResourcesEmptyState
+                locale={locale}
+                onCreateResource={() => {
+                  setResourceSubView("sheet");
+                  setResourcesIntroDismissed(true);
+                }}
+                onOpenBudget={() => {
+                  setResourceSubView("budget");
+                  setResourcesIntroDismissed(true);
+                }}
+              />
+            )}
+
+          {activeView === "resources" &&
+            (namedResources.length > 0 || resourcesIntroDismissed) && (
             <div className="apple-module flex h-full flex-col">
               <div
                 className="apple-subtoolbar"
