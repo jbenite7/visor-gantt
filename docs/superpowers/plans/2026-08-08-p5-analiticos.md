@@ -56,6 +56,21 @@ nunca la aplicación. Ninguna tiene lector vivo: el proyecto real vive en `proje
 `holidays` la consultaba `CalendarService`, que ya se retiró en `fix/importacion-muerta` junto con la ruta
 `/upload` que era su único llamador.
 
+> **Dependencia de orden — verificada el 2026-08-10, no la saltes.** Que `/upload` y `CalendarService` estén
+> retirados es cierto **en la rama `fix/importacion-muerta`**, no en cualquier rama. Antes de ejecutar un
+> `DROP TABLE` sobre `tasks`, `dependencies` o `holidays`, comprueba que esa rama esté dentro de la tuya:
+>
+> ```
+> git merge-base --is-ancestor fix/importacion-muerta HEAD || git merge --no-ff fix/importacion-muerta
+> ```
+>
+> Sin eso, `/upload` pasa de «escribe donde nadie lee» a **reventar en ejecución**: sigue haciendo
+> `INSERT INTO tasks` y `INSERT INTO dependencies`, y `calendar.ts` sigue consultando `holidays`.
+> `resources` es la excepción: cero consultas en `v2/src`, retirable sin condiciones.
+>
+> Es la misma lección de arriba un nivel más abajo — «ya se retiró» sin decir **dónde** es una afirmación
+> incompleta, y una afirmación incompleta produce un `DROP` sobre una tabla con escritor vivo.
+
 La Tarea 5 debe **decidir explícitamente** qué hace con esas cuatro: retirarlas del esquema o dejarlas
 documentadas como reservadas. Lo que no vale es cementarlas en una migración sin haber preguntado si sirven.
 
