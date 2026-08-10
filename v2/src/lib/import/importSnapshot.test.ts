@@ -33,8 +33,20 @@ beforeEach(() => {
 describe("importSnapshotName", () => {
   test("el nombre dice de qué archivo salió y de qué día", () => {
     expect(
-      importSnapshotName("Estación 16 v7.mpp", createProjectDate("2026-02-05")),
-    ).toBe("Importación de «Estación 16 v7» — 05/02/2026");
+      importSnapshotName("Estación 16 v7.mpp", createProjectDate("2026-02-05T00:00:00")),
+    ).toBe("Importación de «Estación 16 v7» — 05/02/2026 00:00");
+  });
+
+  test("dos importaciones del mismo archivo el mismo día a horas distintas dan nombres distintos", () => {
+    const manana = createProjectDate("2026-02-05T09:15:00");
+    const tarde = createProjectDate("2026-02-05T16:40:00");
+
+    const nombreManana = importSnapshotName("Estación 16 v7.mpp", manana);
+    const nombreTarde = importSnapshotName("Estación 16 v7.mpp", tarde);
+
+    expect(nombreManana).not.toBe(nombreTarde);
+    expect(nombreManana).toBe("Importación de «Estación 16 v7» — 05/02/2026 09:15");
+    expect(nombreTarde).toBe("Importación de «Estación 16 v7» — 05/02/2026 16:40");
   });
 });
 
