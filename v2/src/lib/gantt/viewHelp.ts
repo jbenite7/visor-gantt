@@ -93,6 +93,13 @@ const VIEW_HELP: Partial<Record<ViewType, ViewHelp>> = {
     needs:
       "Alcances y ubicaciones definidos. Sin esa matriz base, no hay celdas que programar.",
   },
+  observaciones: {
+    title: "Observaciones",
+    purpose:
+      "Lo que se reporta en obra y el compromiso semanal: qué está frenando, quién responde y para cuándo.",
+    needs:
+      "Nada: se puede abrir una observación sobre cualquier tarea desde el primer día.",
+  },
 };
 
 export function viewHelpFor(view: ViewType): ViewHelp | null {
