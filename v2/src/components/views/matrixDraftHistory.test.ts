@@ -16,7 +16,10 @@ describe("Detector de mutaciones fuera de la pila (R1)", () => {
     const lineasCulpables = source
       .split("\n")
       .map((line, index) => ({ line, number: index + 1 }))
-      .filter((entry) => entry.line.includes("setDraft("))
+      // `resetDraft(` contiene la cadena y es legítimo: se busca la palabra
+      // suelta, no el trozo. Este mismo descuido convirtió `resetDraft` en
+      // `recommitDraft` durante el renombrado, y ningún test lo vio.
+      .filter((entry) => /(?<![A-Za-z])setDraft\(/.test(entry.line))
       .map((entry) => `${entry.number}: ${entry.line.trim()}`);
 
     expect(lineasCulpables).toEqual([]);
