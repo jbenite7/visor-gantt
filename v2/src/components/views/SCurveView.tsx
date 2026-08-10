@@ -1,10 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { GanttTask } from "@/components/gantt/types";
 import type { BudgetItem, BudgetMapping } from "@/types/budget";
+import type { Baseline } from "@/types/baseline";
+import type { ProjectSnapshotSummary } from "@/types/snapshot";
 import SCurveChart from "@/components/charts/SCurve";
 import type { SCurveLineData } from "@/components/charts/SCurve";
+import SnapshotsBoardView from "@/components/views/SnapshotsBoardView";
 import {
   computeScheduleSCurve,
   computeBudgetSCurve,
@@ -12,11 +15,20 @@ import {
   diagnoseSCurve,
 } from "@/lib/scheduling/scurve";
 import { projectCompletion } from "@/lib/scheduling/projection";
+import { createSnapshotFromTasks, mergeSnapshotSources } from "@/lib/scheduling/snapshots";
 import { createProjectDate, formatProjectDate } from "@/lib/date/projectDate";
+import {
+  listProjectSnapshots,
+  loadProjectSnapshot,
+  saveProjectSnapshot,
+} from "@/app/actions/snapshots";
 
 // ── Types ──
 
-type SubView = "schedule" | "budget" | "earnedValue" | "projection";
+// «Proyección» mira hacia adelante y «Cortes» mira hacia atrás: las dos
+// responden a cómo se mueve el cronograma en el tiempo, que es de lo que
+// va esta vista.
+type SubView = "schedule" | "budget" | "earnedValue" | "projection" | "cortes";
 
 interface SCurveViewProps {
   tasks: GanttTask[];
@@ -24,6 +36,9 @@ interface SCurveViewProps {
   budgetItems: BudgetItem[];
   /** Fecha de corte del proyecto, en formato `YYYY-MM-DD`. */
   statusDate?: string;
+  /** Para marcar y comparar cortes en la sub-vista Cortes. */
+  projectId?: string;
+  baselines?: Baseline[];
 }
 
 /**
@@ -73,8 +88,63 @@ export default function SCurveView({
   budgetMappings,
   budgetItems,
   statusDate,
+  projectId,
+  baselines,
 }: SCurveViewProps) {
   const [activeSubView, setActiveSubView] = useState<SubView>("schedule");
+
+  // ── Cortes (se leen solo al abrir esta sub-vista) ──
+  const [snapshotSummaries, setSnapshotSummaries] = useState<ProjectSnapshotSummary[]>([]);
+  const [snapshotsLoaded, setSnapshotsLoaded] = useState(false);
+  // Cargando mientras la sub-vista está abierta y la carga no terminó: no es
+  // un estado propio, se deriva para no disparar un setState síncrono en el
+  // efecto de abajo.
+  const snapshotsLoading = activeSubView === "cortes" && Boolean(projectId) && !snapshotsLoaded;
+
+  useEffect(() => {
+    if (activeSubView !== "cortes" || snapshotsLoaded || !projectId) return;
+    let cancelado = false;
+    void listProjectSnapshots(projectId).then((stored) => {
+      if (cancelado) return;
+      setSnapshotSummaries(mergeSnapshotSources(stored, baselines ?? [], projectId));
+      setSnapshotsLoaded(true);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [activeSubView, snapshotsLoaded, projectId, baselines]);
+
+  const handleMarkSnapshot = useCallback(
+    (name: string) => {
+      if (!projectId) return;
+      const snapshot = createSnapshotFromTasks(tasks, {
+        projectId,
+        name,
+        origin: "manual",
+        capturedAt: new Date(),
+      });
+      void saveProjectSnapshot(snapshot).then((result) => {
+        if (!result.success) return;
+        setSnapshotSummaries((prev) =>
+          mergeSnapshotSources(
+            [
+              {
+                id: snapshot.id,
+                name: snapshot.name,
+                origin: snapshot.origin,
+                capturedAt: snapshot.capturedAt,
+                taskCount: snapshot.tasks.length,
+              },
+              ...prev,
+            ],
+            baselines ?? [],
+            projectId,
+          ),
+        );
+      });
+    },
+    [projectId, tasks, baselines],
+  );
 
   // ── Schedule S-Curve ──
   const scheduleData = useMemo(
@@ -296,6 +366,12 @@ export default function SCurveView({
         >
           Proyección
         </button>
+        <button
+          onClick={() => setActiveSubView("cortes")}
+          style={tabStyle(activeSubView === "cortes")}
+        >
+          Cortes
+        </button>
       </div>
 
       {/* Content */}
@@ -416,6 +492,18 @@ export default function SCurveView({
               </div>
             )}
           </div>
+        )}
+
+        {activeSubView === "cortes" && (
+          <SnapshotsBoardView
+            tasks={tasks}
+            summaries={snapshotSummaries}
+            isLoading={snapshotsLoading}
+            loadSnapshot={(snapshotId) =>
+              projectId ? loadProjectSnapshot(projectId, snapshotId) : Promise.resolve(null)
+            }
+            onMarkSnapshot={handleMarkSnapshot}
+          />
         )}
       </div>
     </div>

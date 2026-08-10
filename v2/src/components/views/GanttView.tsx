@@ -2260,6 +2260,8 @@ function GanttViewInner({
               budgetMappings={budgetMappings}
               budgetItems={budgetItems}
               statusDate={initialStatusDate}
+              projectId={projectId}
+              baselines={baselines}
             />
           )}
 
