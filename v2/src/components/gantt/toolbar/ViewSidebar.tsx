@@ -101,6 +101,17 @@ export default function ViewSidebar({
             const Icon = tab.icon;
             const label = locale === "en" ? tab.labelEn : tab.labelEs;
             const blurb = viewSidebarBlurb(tab.id, blurbContext);
+            /**
+             * La descripción se pinta solo donde se gana el sitio.
+             *
+             * «Matriz» y «Recursos» son las dos entradas cuyo nombre no delata
+             * lo que hay dentro y cuyo contenido depende de los datos cargados
+             * —son las que la revisión en frío señaló—. Pintarla en las once
+             * dejaba el menú en 1.729 px de alto sobre una columna de 88: las
+             * puertas dejaban de verse, que era el problema de partida. En el
+             * resto, el propósito vive en el `title`.
+             */
+            const showsBlurb = tab.id === "matrix" || tab.id === "resources";
 
             return (
               <button
@@ -116,7 +127,7 @@ export default function ViewSidebar({
               >
                 <Icon className="project-view-sidebar__icon" aria-hidden />
                 <span className="project-view-sidebar__label">{label}</span>
-                {blurb && (
+                {blurb && showsBlurb && (
                   <span
                     data-testid={`sidebar-blurb-${tab.id}`}
                     className="project-view-sidebar__blurb"

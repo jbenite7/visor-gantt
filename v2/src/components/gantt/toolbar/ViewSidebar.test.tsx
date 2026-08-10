@@ -163,3 +163,45 @@ describe("ViewSidebar · descripción por entrada (R0)", () => {
     );
   });
 });
+
+describe("ViewSidebar · la descripción no puede tapar el menú (R0)", () => {
+  test("solo las entradas que dependen de datos la muestran a la vista", () => {
+    render(
+      <ViewSidebar
+        activeView="gantt"
+        onViewChange={jest.fn()}
+        blurbContext={{ areaCount: 26, resourceCount: 3 }}
+      />,
+    );
+
+    // Matriz y Recursos son las dos que la revisión en frío señaló: su nombre
+    // no dice lo que hay dentro y su contenido depende de los datos cargados.
+    expect(screen.getByTestId("sidebar-blurb-matrix")).toBeInTheDocument();
+    expect(screen.getByTestId("sidebar-blurb-resources")).toBeInTheDocument();
+
+    // El resto se explica solo. Pintarles un párrafo debajo hacía que el menú
+    // necesitara 1.729 px de alto en una columna de 88: dejaban de verse las
+    // once puertas, que era justo el problema que este bloque venía a arreglar.
+    expect(screen.queryByTestId("sidebar-blurb-gantt")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("sidebar-blurb-calendario")).not.toBeInTheDocument();
+  });
+
+  test("pero todas conservan su propósito al pasar por encima", () => {
+    render(
+      <ViewSidebar
+        activeView="gantt"
+        onViewChange={jest.fn()}
+        blurbContext={{ areaCount: 26, resourceCount: 3 }}
+      />,
+    );
+
+    expect(screen.getByTestId("sidebar-view-calendario")).toHaveAttribute(
+      "title",
+      expect.stringContaining("días"),
+    );
+    expect(screen.getByTestId("sidebar-view-matrix")).toHaveAttribute(
+      "title",
+      expect.stringContaining("26 ubicaciones"),
+    );
+  });
+});
