@@ -57,11 +57,17 @@ if (result.issues.length > 0) {
 } else { … }
 ```
 
-Si dejamos de descartar en silencio sin más, **un proyecto ya guardado que arrastre un enlace roto quedaría
-imposible de editar para siempre**: cada edición se rechazaría por un problema preexistente que el usuario no
-causó y que no puede arreglar desde ahí. Sería cambiar un fallo mudo por uno que bloquea, que es peor.
+Eso hacía temer que **un proyecto ya guardado con un enlace roto quedara imposible de editar**: cada edición
+se rechazaría por un problema preexistente que el usuario no causó.
 
-**Por eso el diseño separa por dónde entra el dato, no por qué tipo de dato es.**
+> **Ese temor resultó infundado, comprobado el 2026-08-10.** La huérfana no sobrevive al montaje, así que
+> nunca llega a una edición posterior. Se deja escrito porque **el diseño se construyó sobre él** y porque
+> es lo que hay que verificar antes de dar por buena una precaución: una precaución contra un riesgo
+> inexistente no sale gratis — aquí introdujo un fallo propio (ver D3).
+
+**Aun así, el diseño separa por dónde entra el dato, no por qué tipo de dato es**, y eso sigue siendo
+correcto: la carga informa sin bloquear porque el usuario no causó esa huérfana ni puede arreglarla desde
+ahí, y la edición rechaza porque acaba de causarla.
 
 ## 4. El reparto
 
@@ -101,12 +107,23 @@ aviso con **cuántas**, sin impedir nada. El proyecto se abre y se puede trabaja
 
 ### D3 · La edición rechaza
 
-En `setTasks` y `commitTaskChange`, una huérfana **nueva** —introducida por la edición que se está
-evaluando— se rechaza con su motivo, igual que en el diagrama. Las que ya venían de la carga no cuentan:
-solo se juzga lo que añade esta edición.
+En `setTasks` y `commitTaskChange`, cualquier huérfana que llegue se rechaza con su motivo, igual que en el
+diagrama.
 
-Esa comparación —huérfanas de antes contra huérfanas de ahora— es lo que impide que un proyecto viejo
-quede bloqueado.
+> **Corrección del 2026-08-10, hecha durante la implementación.** Esta sección decía que había que
+> **descontar** las huérfanas que traía el proyecto, para que un cronograma viejo con un enlace roto no
+> quedara bloqueado. **Las dos mitades de esa frase eran falsas**, y lo demostró la mutación que el plan
+> exigía.
+>
+> **El riesgo no existía**: la huérfana que trae el proyecto **no sobrevive al montaje**. El
+> `recalculateSchedule` inicial ya la retira —la tarea queda con `dependencies: []`—, así que el estado
+> editable nace limpio y ninguna edición posterior la vuelve a ver.
+>
+> **Y la resta sí introducía un fallo**, medido: un proyecto abierto con una huérfana **aceptaba en
+> silencio** una huérfana nueva, porque `1 - 1 = 0`. Justo el fallo que este trabajo viene a eliminar,
+> reintroducido por el propio diseño que lo eliminaba.
+>
+> La comprobación correcta es la simple: `result.orphanedDependencies.length > 0`.
 
 ### D4 · El borrado cuenta su impacto
 

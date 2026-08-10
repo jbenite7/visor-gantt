@@ -261,7 +261,9 @@ git commit -m "feat(estado): al abrir un proyecto se cuentan los enlaces rotos q
 - Consumes: `RecalculateScheduleResult.orphanedDependencies` de la Tarea 1; `rejectWith(issues, fallback)`, que ya existe en el archivo.
 - Produces: ninguna interfaz nueva.
 
-**Lo que decide esta tarea:** solo se rechaza la huérfana **que introduce la edición**. Las que ya venían de la carga no cuentan — si contaran, un proyecto viejo quedaría bloqueado, que es el riesgo que ordena todo este diseño.
+**Lo que decide esta tarea:** se rechaza cualquier huérfana que llegue.
+
+> **Corregido el 2026-08-10 durante la implementación.** Esta tarea decía que había que **descontar** las huérfanas de la carga. Era falso por partida doble: la huérfana precargada **no sobrevive al montaje** (queda `dependencies: []`), así que no hay nada que descontar; y descontarla introducía un fallo — un proyecto abierto con una huérfana **aceptaba en silencio** una nueva, porque `1 - 1 = 0`. La comprobación correcta es `result.orphanedDependencies.length > 0`.
 
 - [ ] **Step 1: Write the failing test**
 
