@@ -1,6 +1,6 @@
 ---
 tipo: goal
-estado: abierto
+estado: cerrado
 fecha: 2026-08-08
 areas: [cronograma, deteccion, obra-lineal]
 carril: B
@@ -67,7 +67,7 @@ Un tramo y una transición entre pisos son la misma cosa: una ubicación con pri
 
 ## Estado (2026-08-08) — ejecutado
 
-Siete tareas TDD con revisión independiente por tarea, más una revisión final de rama. **1395 tests en 143
+Siete tareas TDD con revisión independiente por tarea, más una revisión final de rama. **1400 tests en 143
 suites**, lint limpio, `tsc` filtrado vacío y `next build` correcto.
 
 **Medido contra el archivo real** (`PROGRAMACION ESTACION 16`, 301 tareas, parseado con `mpp-parser`):
@@ -95,6 +95,34 @@ cronograma de verdad:
   que no se pueden comparar. Eran **12 de los 22 tramos** del archivo. Ahora el dato lo dice con
   `span.crossesGrids`, en vez de callarlo.
 
+### Límite conocido: la unidad de producción se queda sin tramo
+
+`Módulo 1.1 (Ejes A-D)` resuelve como `Módulo 1.1` y **sin `span`**, porque el módulo gana al eje por
+diseño. Es coherente con la decisión D3 de la spec —el módulo es la unidad de producción y el eje dice
+dónde está—, pero tiene una consecuencia que conviene decir en voz alta: **la idea que ordena el proyecto,
+que una ubicación puede ser un tramo, no alcanza a las 17 tareas de módulo del archivo insignia.** El tramo
+solo aparece donde el eje gana, que son 26.
+
+Resolverlo pediría que una ubicación pueda llevar un detalle dentro —un módulo *que ocupa* un tramo de
+ejes—, y eso es un modelo distinto, no un patrón más. Queda anotado, no inventado.
+
+### Tres regresiones sobre obra vertical, cazadas por la revisión final
+
+Ninguna estaba en el fixture de DA PORTO, así que ningún test las veía. Las tres salieron de mirar el
+conjunto, no las piezas:
+
+- **`Módulo` no aceptaba la tilde.** Estos patrones se recorren también sobre el nombre **sin normalizar**,
+  y el archivo real escribe «Módulo». Sin la alternativa, cada módulo quedaba como un sistema distinto con
+  una sola ubicación, y **la matriz salía sin ninguna receta**.
+- **El decimal se partía en la Línea de Balance.** Su normalizador convertía el punto en espacio, así que
+  «Módulo 1.1» quedaba en «modulo 1 1» y «Losa aérea» se rompía en dos actividades.
+- **El bloque de obra lineal se pegó delante del vocabulario vertical**, y eso cambiaba en silencio nombres
+  que ya funcionaban: `Edificio 2 - Apto 302` pasaba a leerse como edificio. La spec decide que el módulo
+  gana al eje, pero **nunca decidió que el edificio ganara al apartamento**: eso salió de dónde se pegó el
+  bloque, no de una decisión. Movido detrás de `Apartamento`.
+
+Tras los tres arreglos, la medición sobre la Estación 16 es **idéntica**: no costaron cobertura.
+
 ### Tres errores del propio plan, cazados por los implementadores
 
 Los tres los encontraron ayudantes que **pararon a preguntar** en vez de forzar que el código pasara:
@@ -120,7 +148,12 @@ Los tres los encontraron ayudantes que **pararon a preguntar** en vez de forzar 
 3. Las cinco «torregrúa» y las cuatro «nivelación hasta nivel superior» **siguen sin resolver**: el
    fixture las incluye como negativos para que nadie afloje un patrón sin romper otro.
 4. **Ningún archivo de obra vertical cambia de resultado.** El fixture de DA PORTO de P3 sigue en verde sin
-   tocarse: es la prueba de que la gramática nueva no pisa a la anterior.
+   tocarse.
+
+   > **Este punto estuvo incumplido y hubo que arreglarlo.** El fixture pasaba, pero la revisión final
+   > encontró tres nombres de obra vertical **que el fixture no contiene** y que sí cambiaban de resultado
+   > —apartamentos, torres y la agrupación de módulos—. Es la lección del proyecto: *un fixture en verde
+   > prueba lo que contiene, no lo que falta*. Los tres están arreglados y descritos arriba.
 5. Suite completa, lint, `tsc` filtrado vacío y `next build` en verde.
 
 ## Restricciones

@@ -52,7 +52,7 @@ Gantt (celdas calculadas, validación que explica, tiradores visibles, arrastre 
 pulido (menú agrupado, chip de filtro con contador, destructivas separadas, esqueleto de carga) y
 exportaciones honestas (renombrar «Excel» y «PDF», CSV real, **conectar la API de Last Planner**).
 
-### P3 · Motor de detección — *ejecutado y fusionado (2026-08-08)*
+### P3 · Motor de detección — ✅ *cerrado el 2026-08-08*
 📄 [`goals/motor-deteccion/goal.md`](../motor-deteccion/goal.md) ·
 [spec](../../docs/superpowers/specs/2026-08-07-motor-deteccion-design.md) ·
 [plan, 14 tareas](../../docs/superpowers/plans/2026-08-07-motor-deteccion.md)
@@ -65,7 +65,7 @@ similitud de palabras. Más un **diccionario que se llena con las correcciones d
 Va aparte porque **mejora tres módulos a la vez** (Línea de Balance, Unidad Típica y el generador de matrices)
 y ninguno rinde hasta que esto funcione.
 
-### P4 · La matriz como producto — *fases 1 y 2 fusionadas (2026-08-08); fase 3 pendiente del carril A*
+### P4 · La matriz como producto — ✅ *cerrado el 2026-08-08, las tres fases*
 📄 [`goals/matriz-como-producto/goal.md`](../matriz-como-producto/goal.md) ·
 [spec](../../docs/superpowers/specs/2026-08-07-matriz-como-producto-design.md) ·
 [plan, 26 tareas en 3 fases](../../docs/superpowers/plans/2026-08-07-matriz-como-producto.md)
@@ -75,12 +75,12 @@ dependencias reales piso a piso configurables por alcance, calendario del proyec
 panel para aprobar rendimientos observados, conflictos visibles con elección, duplicar y crear N ubicaciones,
 edición en lote y escala para más de 1000 celdas.
 
-### P3b · La obra lineal — *diseñado (2026-08-08)*
+### P3b · La obra lineal — ✅ *cerrado el 2026-08-08*
 📄 [`goals/obra-lineal/goal.md`](../obra-lineal/goal.md) ·
 [spec](../../docs/superpowers/specs/2026-08-08-obra-lineal-design.md) ·
 [plan, 7 tareas](../../docs/superpowers/plans/2026-08-08-obra-lineal.md)
 
-Salió del límite conocido de P3, medido sobre un archivo real: una estación de metro nombra sus ubicaciones
+Ejecutado en siete tareas TDD. Salió del límite conocido de P3, medido sobre un archivo real: una estación de metro nombra sus ubicaciones
 con `Eje`, `Módulo` y `Edificio` —84 menciones frente a 15 de `Piso`—. El usuario confirmó el 2026-08-08 que
 la infraestructura es una línea real de trabajo. La idea que lo ordena: **una ubicación puede ser un tramo,
 no un punto**, y eso arregla de paso las tareas que cruzan dos pisos, que hoy se resuelven a medias y en
@@ -99,7 +99,7 @@ a la vez colisionan en cada tarea.
 | Carril | Proyectos | ¿Toca `GanttView.tsx`? |
 |---|---|---|
 | **A** | P1 → P2 | Sí, ambos — **cerrado el 2026-08-08** |
-| **B** | P3 → núcleo de P4 | **No** (P3 no lo toca en ninguna línea; P4 solo al cablear) |
+| **B** | P3 → núcleo de P4 → P3b | **No** (P3 y P3b no lo tocan; P4 solo al cablear) — **cerrado el 2026-08-08** |
 
 **Reglas de coordinación:**
 1. **Una rama por proyecto**, fusionada a `main` cuando pasa su revisión.
