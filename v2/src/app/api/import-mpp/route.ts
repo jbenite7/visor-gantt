@@ -3,6 +3,7 @@ import { saveProject } from "@/app/actions/project";
 import { getCurrentUser } from "@/lib/auth/session";
 import { humanParserError } from "@/lib/import/parserErrors";
 import { buildProjectDataFromMpp } from "@/lib/import/mpp-project";
+import { captureImportSnapshot } from "@/lib/import/importSnapshot";
 import type { ProjectData as ParsedMppProject } from "@/lib/parser/mpp-parser";
 
 const DEFAULT_PARSER_URL = "http://mpp-parser:8000";
@@ -97,6 +98,14 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+
+  // La foto del cronograma importado se toma después de guardar: si falla, la
+  // importación ya está a salvo.
+  await captureImportSnapshot({
+    projectId: result.id,
+    tasks: projectData.tasks,
+    fileName: file.name,
+  });
 
   const dependencyCount = projectData.tasks.reduce(
     (total, task) => total + (task.dependencies?.length ?? 0),

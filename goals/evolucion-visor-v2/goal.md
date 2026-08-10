@@ -86,10 +86,30 @@ la infraestructura es una línea real de trabajo. La idea que lo ordena: **una u
 no un punto**, y eso arregla de paso las tareas que cruzan dos pisos, que hoy se resuelven a medias y en
 silencio.
 
-### P5 · Analíticos avanzados — *después de los cuatro*
-Proyección con escenarios en la Curva S, tablero por capas con historial de cortes, editor de dependencias en
-el Diagrama de Red. **No se planifica todavía**: varios dependen del motor de P3 y de un historial de cortes
-que aún no existe. Diseñarlos antes sería planificar sobre arena.
+### P5 · Analíticos avanzados — ✅ *cerrado el 2026-08-10*
+> Diseñado y ejecutado en 20 tareas TDD con revisión independiente:
+> [plan](../../docs/superpowers/plans/2026-08-08-p5-analiticos.md) ·
+> [spec](../../docs/superpowers/specs/2026-08-08-remates-y-analiticos-design.md)
+
+Los tres analíticos que quedaban, construidos una vez que P3 dio el motor y P6 dejó el menú en su sitio:
+
+- **Proyección a fin de obra** en la Curva S. La banda optimista/pesimista sale de comparar el **ritmo medio
+  contra el reciente**, ambos medidos, **sin una sola constante inventada**. Y cuando no hay datos para
+  proyectar, lo dice en vez de devolver una fecha falsa.
+- **Historial de cortes**. Obligó a construir lo que no existía: **el repositorio no tenía sistema de
+  migraciones** —cinco fuentes de esquema descoordinadas, y ninguna coincidía con otra—. Se hizo uno, con
+  transacción por migración y cerrojo entre procesos. Encima, las fotos del cronograma salen del blob a su
+  tabla propia y una valla impide que el guardado vuelva a cargarlas.
+- **Editor de dependencias** en el Diagrama de Red: crear con dos clics, borrar seleccionando, y
+  `validateDependencies` como **única fuente** que decide qué se acepta.
+
+**Lo que más valió no fue el código.** Tres huecos del propio plan los cazaron los implementadores porque
+tenían permiso para parar y preguntar. Aparecieron **dos tests incapaces de fallar**, ambos aprobados en su
+primera revisión y ambos cazados por alguien que **mutó el código en vez de leerlo**; desde entonces romper
+el propio test a propósito es exigencia fija. Y una decisión de producto —añadir una entrada al menú— se
+paró y se consultó, porque el número 11 lo había decidido el usuario, no el plan.
+
+**Suite al cerrar: 1659 tests en verde, 175 suites.**
 
 ## Los dos carriles
 

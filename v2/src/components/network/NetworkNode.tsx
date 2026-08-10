@@ -3,7 +3,9 @@ import type { NetworkNode as NetworkNodeType } from "@/lib/layout/networkLayout"
 interface NetworkNodeProps {
   node: NetworkNodeType;
   onClick?: (taskId: string | number) => void;
+  onStartConnection?: (taskId: string | number) => void;
   isSelected?: boolean;
+  isConnectSource?: boolean;
 }
 
 function formatDate(date: Date | undefined): string {
@@ -20,11 +22,31 @@ function truncateName(name: string, maxLen = 25): string {
 export default function NetworkNode({
   node,
   onClick,
+  onStartConnection,
   isSelected = false,
+  isConnectSource = false,
 }: NetworkNodeProps) {
   const handleClick = () => {
     onClick?.(node.taskId);
   };
+
+  const connector = onStartConnection && (
+    <circle
+      data-testid="network-connector"
+      data-task-id={node.taskId}
+      cx={node.x + node.width}
+      cy={node.y + node.height / 2}
+      r={6}
+      fill={isConnectSource ? "var(--aia-proj-main)" : "var(--aia-alabaster)"}
+      stroke="var(--aia-corp-mid)"
+      strokeWidth={1}
+      style={{ cursor: "crosshair" }}
+      onClick={(event) => {
+        event.stopPropagation();
+        onStartConnection(node.taskId);
+      }}
+    />
+  );
 
   // ── Milestone diamond ──
   if (node.isMilestone) {
@@ -78,6 +100,7 @@ export default function NetworkNode({
         >
           {node.duration}d
         </text>
+        {connector}
       </g>
     );
   }
@@ -154,6 +177,7 @@ export default function NetworkNode({
       >
         {formatDate(node.earlyStart)}
       </text>
+      {connector}
     </g>
   );
 }

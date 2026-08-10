@@ -1,25 +1,56 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { GanttTask } from "@/components/gantt/types";
 import type { BudgetItem, BudgetMapping } from "@/types/budget";
+import type { Baseline } from "@/types/baseline";
+import type { ProjectSnapshotSummary } from "@/types/snapshot";
 import SCurveChart from "@/components/charts/SCurve";
 import type { SCurveLineData } from "@/components/charts/SCurve";
+import SnapshotsBoardView from "@/components/views/SnapshotsBoardView";
 import {
   computeScheduleSCurve,
   computeBudgetSCurve,
   computeEarnedValueSCurve,
   diagnoseSCurve,
 } from "@/lib/scheduling/scurve";
+import { projectCompletion } from "@/lib/scheduling/projection";
+import { createSnapshotFromTasks, mergeSnapshotSources } from "@/lib/scheduling/snapshots";
+import { createProjectDate, formatProjectDate } from "@/lib/date/projectDate";
+import {
+  listProjectSnapshots,
+  loadProjectSnapshot,
+  saveProjectSnapshot,
+} from "@/app/actions/snapshots";
 
 // ── Types ──
 
-type SubView = "schedule" | "budget" | "earnedValue";
+// «Proyección» mira hacia adelante y «Cortes» mira hacia atrás: las dos
+// responden a cómo se mueve el cronograma en el tiempo, que es de lo que
+// va esta vista.
+type SubView = "schedule" | "budget" | "earnedValue" | "projection" | "cortes";
 
 interface SCurveViewProps {
   tasks: GanttTask[];
   budgetMappings: BudgetMapping[];
   budgetItems: BudgetItem[];
+  /** Fecha de corte del proyecto, en formato `YYYY-MM-DD`. */
+  statusDate?: string;
+  /** Para marcar y comparar cortes en la sub-vista Cortes. */
+  projectId?: string;
+  baselines?: Baseline[];
+}
+
+/**
+ * Por encima de este horizonte, una fecha de fin de obra deja de ser una
+ * fecha y pasa a ser un chiste: nadie planifica a un siglo. Es una decisión
+ * de presentación, no de la lógica de proyección (que a propósito no capa
+ * nada): la vista es la que decide cómo mostrarlo.
+ */
+const PROJECTION_HORIZON_YEARS = 50;
+
+function isProjectionAbsurdlyFar(finishDate: Date, from: Date): boolean {
+  return finishDate.getFullYear() - from.getFullYear() > PROJECTION_HORIZON_YEARS;
 }
 
 // ── Tab style helpers ──
@@ -56,8 +87,64 @@ export default function SCurveView({
   tasks,
   budgetMappings,
   budgetItems,
+  statusDate,
+  projectId,
+  baselines,
 }: SCurveViewProps) {
   const [activeSubView, setActiveSubView] = useState<SubView>("schedule");
+
+  // ── Cortes (se leen solo al abrir esta sub-vista) ──
+  const [snapshotSummaries, setSnapshotSummaries] = useState<ProjectSnapshotSummary[]>([]);
+  const [snapshotsLoaded, setSnapshotsLoaded] = useState(false);
+  // Cargando mientras la sub-vista está abierta y la carga no terminó: no es
+  // un estado propio, se deriva para no disparar un setState síncrono en el
+  // efecto de abajo.
+  const snapshotsLoading = activeSubView === "cortes" && Boolean(projectId) && !snapshotsLoaded;
+
+  useEffect(() => {
+    if (activeSubView !== "cortes" || snapshotsLoaded || !projectId) return;
+    let cancelado = false;
+    void listProjectSnapshots(projectId).then((stored) => {
+      if (cancelado) return;
+      setSnapshotSummaries(mergeSnapshotSources(stored, baselines ?? [], projectId));
+      setSnapshotsLoaded(true);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [activeSubView, snapshotsLoaded, projectId, baselines]);
+
+  const handleMarkSnapshot = useCallback(
+    (name: string) => {
+      if (!projectId) return;
+      const snapshot = createSnapshotFromTasks(tasks, {
+        projectId,
+        name,
+        origin: "manual",
+        capturedAt: new Date(),
+      });
+      void saveProjectSnapshot(snapshot).then((result) => {
+        if (!result.success) return;
+        setSnapshotSummaries((prev) =>
+          mergeSnapshotSources(
+            [
+              {
+                id: snapshot.id,
+                name: snapshot.name,
+                origin: snapshot.origin,
+                capturedAt: snapshot.capturedAt,
+                taskCount: snapshot.tasks.length,
+              },
+              ...prev,
+            ],
+            baselines ?? [],
+            projectId,
+          ),
+        );
+      });
+    },
+    [projectId, tasks, baselines],
+  );
 
   // ── Schedule S-Curve ──
   const scheduleData = useMemo(
@@ -161,6 +248,64 @@ export default function SCurveView({
     [tasks, budgetMappings, budgetItems],
   );
 
+  // ── Projection ──
+  const projection = useMemo(
+    () =>
+      projectCompletion(
+        tasks,
+        statusDate ? createProjectDate(statusDate) : new Date(),
+      ),
+    [tasks, statusDate],
+  );
+
+  // Ritmo minúsculo, fecha absurda: aquí se decide cómo mostrarlo (M... ver
+  // comentario junto a `PROJECTION_HORIZON_YEARS`).
+  const projectionTooFar =
+    projection.available &&
+    isProjectionAbsurdlyFar(projection.pessimistic.finishDate, projection.statusDate);
+
+  const projectionEmptyMessage = !projection.available
+    ? projection.message
+    : "Al ritmo actual la obra no tiene fin previsible: la proyección más pesimista cae a más de 50 años del corte. Registra más avance o revisa si el cronograma refleja el ritmo real.";
+
+  const projectionLines: SCurveLineData[] = useMemo(() => {
+    if (!projection.available) return [];
+    return [
+      {
+        label: "Avance real",
+        points: projection.achieved.map((p) => ({
+          date: p.date,
+          value: p.cumulativeValue,
+        })),
+        color: "var(--aia-arch-main)",
+      },
+      {
+        label: "Optimista",
+        points: projection.optimistic.points.map((p) => ({
+          date: p.date,
+          value: p.cumulativeValue,
+        })),
+        color: "var(--aia-proj-main)",
+      },
+      {
+        label: "Probable",
+        points: projection.probable.points.map((p) => ({
+          date: p.date,
+          value: p.cumulativeValue,
+        })),
+        color: "var(--aia-corp-main)",
+      },
+      {
+        label: "Pesimista",
+        points: projection.pessimistic.points.map((p) => ({
+          date: p.date,
+          value: p.cumulativeValue,
+        })),
+        color: "var(--aia-alert-main)",
+      },
+    ];
+  }, [projection]);
+
   return (
     <div
       data-testid="s-curve-view"
@@ -214,6 +359,18 @@ export default function SCurveView({
           style={tabStyle(activeSubView === "earnedValue")}
         >
           Valor Ganado
+        </button>
+        <button
+          onClick={() => setActiveSubView("projection")}
+          style={tabStyle(activeSubView === "projection")}
+        >
+          Proyección
+        </button>
+        <button
+          onClick={() => setActiveSubView("cortes")}
+          style={tabStyle(activeSubView === "cortes")}
+        >
+          Cortes
         </button>
       </div>
 
@@ -300,6 +457,53 @@ export default function SCurveView({
               <EmptyState message="Sin datos suficientes para generar la curva de valor ganado. Agrega tareas con presupuesto y avance." />
             )}
           </>
+        )}
+
+        {activeSubView === "projection" && (
+          <div data-testid="s-curve-projection">
+            {projection.available && !projectionTooFar ? (
+              <>
+                <section
+                  data-testid="s-curve-projection-dates"
+                  className="mb-4 grid gap-2 md:grid-cols-3"
+                >
+                  {[projection.optimistic, projection.probable, projection.pessimistic].map(
+                    (line) => (
+                      <article key={line.label} className="apple-section px-3 py-2">
+                        <p className="text-[0.6875rem] font-semibold uppercase text-[var(--color-text-muted)]">
+                          {line.label}
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-[var(--color-text-strong)]">
+                          {formatProjectDate(line.finishDate)}
+                        </p>
+                      </article>
+                    ),
+                  )}
+                </section>
+                <SCurveChart
+                  lines={projectionLines}
+                  yFormat={(v) => `${Math.round(v)}%`}
+                  showLegend={true}
+                />
+              </>
+            ) : (
+              <div data-testid="s-curve-projection-empty">
+                <EmptyState message={projectionEmptyMessage} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeSubView === "cortes" && (
+          <SnapshotsBoardView
+            tasks={tasks}
+            summaries={snapshotSummaries}
+            isLoading={snapshotsLoading}
+            loadSnapshot={(snapshotId) =>
+              projectId ? loadProjectSnapshot(projectId, snapshotId) : Promise.resolve(null)
+            }
+            onMarkSnapshot={handleMarkSnapshot}
+          />
         )}
       </div>
     </div>

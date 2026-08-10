@@ -8,6 +8,14 @@ import SCurveView from "./SCurveView";
 import type { GanttTask } from "@/components/gantt/types";
 import type { BudgetItem, BudgetMapping } from "@/types/budget";
 
+// La sub-vista Cortes solo lee/escribe fotos al abrirse; sin este mock,
+// importar las acciones tira de `pg` en el entorno jsdom del test.
+jest.mock("@/app/actions/snapshots", () => ({
+  listProjectSnapshots: jest.fn(async () => []),
+  loadProjectSnapshot: jest.fn(async () => null),
+  saveProjectSnapshot: jest.fn(async () => ({ success: true })),
+}));
+
 function task(overrides: Partial<GanttTask> & { id: string | number; name: string }): GanttTask {
   return {
     start: new Date(2026, 0, 1),

@@ -1,20 +1,37 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GanttTask } from "@/components/gantt/types";
 import { computeNetworkLayout } from "@/lib/layout/networkLayout";
+import { resolveDependencyDraft } from "@/lib/gantt/networkDependencyEditing";
 import NetworkNode from "@/components/network/NetworkNode";
 import NetworkArrow from "@/components/network/NetworkArrow";
-import { RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
+import { RotateCcw, Trash2, ZoomIn, ZoomOut } from "lucide-react";
 
 interface NetworkDiagramViewProps {
   tasks: GanttTask[];
   onTaskClick?: (task: GanttTask) => void;
+  onCreateDependency?: (
+    fromId: string | number,
+    toId: string | number,
+    type: "FS" | "SS" | "FF" | "SF",
+  ) => void;
+  onDeleteDependency?: (dependency: {
+    from: string | number;
+    to: string | number;
+  }) => void;
+  onRejectEdit?: (reason: string) => void;
+  /** Vuelta a otra vista sin abrir una entrada nueva en el menú lateral. */
+  onNavigate?: (view: "gantt") => void;
 }
 
 export default function NetworkDiagramView({
   tasks,
   onTaskClick,
+  onCreateDependency,
+  onDeleteDependency,
+  onRejectEdit,
+  onNavigate,
 }: NetworkDiagramViewProps) {
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
@@ -22,6 +39,56 @@ export default function NetworkDiagramView({
   const [selectedTaskId, setSelectedTaskId] = useState<
     string | number | null
   >(null);
+  const [connectFromId, setConnectFromId] = useState<string | number | null>(
+    null,
+  );
+  const [selectedEdge, setSelectedEdge] = useState<{
+    from: string | number;
+    to: string | number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (connectFromId === null) return;
+    const cancelar = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setConnectFromId(null);
+    };
+    window.addEventListener("keydown", cancelar);
+    return () => window.removeEventListener("keydown", cancelar);
+  }, [connectFromId]);
+
+  // Elegir un origen para una dependencia nueva y elegir una flecha para
+  // borrarla son dos modos que no pueden convivir: si había un origen a
+  // medio elegir, empezar a conectar de nuevo lo suelta.
+  const handleStartConnection = useCallback((taskId: string | number) => {
+    setSelectedEdge(null);
+    setConnectFromId((current) => (current === taskId ? null : taskId));
+  }, []);
+
+  const handleSelectEdge = useCallback(
+    (edge: { fromTaskId: string | number; toTaskId: string | number }) => {
+      setConnectFromId(null);
+      setSelectedEdge({ from: edge.fromTaskId, to: edge.toTaskId });
+    },
+    [],
+  );
+
+  const handleDeleteSelectedEdge = useCallback(() => {
+    if (!selectedEdge) return;
+    onDeleteDependency?.(selectedEdge);
+    setSelectedEdge(null);
+  }, [selectedEdge, onDeleteDependency]);
+
+  useEffect(() => {
+    if (!selectedEdge) return;
+    const borrar = (event: KeyboardEvent) => {
+      if (event.key === "Delete" || event.key === "Backspace") {
+        handleDeleteSelectedEdge();
+      }
+      if (event.key === "Escape") setSelectedEdge(null);
+    };
+    window.addEventListener("keydown", borrar);
+    return () => window.removeEventListener("keydown", borrar);
+  }, [selectedEdge, handleDeleteSelectedEdge]);
 
   const panRef = useRef<{
     dragging: boolean;
@@ -84,13 +151,30 @@ export default function NetworkDiagramView({
   // ── Node click ──
   const handleNodeClick = useCallback(
     (taskId: string | number) => {
+      setSelectedEdge(null);
+
+      if (connectFromId !== null) {
+        const draft = resolveDependencyDraft(tasks, connectFromId, taskId);
+        setConnectFromId(null);
+        if (!draft.ok) {
+          onRejectEdit?.(draft.message);
+          return;
+        }
+        onCreateDependency?.(
+          draft.dependency.from,
+          draft.dependency.to,
+          draft.dependency.type,
+        );
+        return;
+      }
+
       setSelectedTaskId(taskId);
       if (onTaskClick) {
         const task = tasks.find((t) => t.id === taskId);
         if (task) onTaskClick(task);
       }
     },
-    [tasks, onTaskClick],
+    [connectFromId, tasks, onCreateDependency, onRejectEdit, onTaskClick],
   );
 
   // ── Reset view ──
@@ -124,6 +208,11 @@ export default function NetworkDiagramView({
             <NetworkArrow
               key={`${edge.fromTaskId}-${edge.toTaskId}`}
               edge={edge}
+              isSelected={
+                selectedEdge?.from === edge.fromTaskId &&
+                selectedEdge?.to === edge.toTaskId
+              }
+              onSelect={onDeleteDependency ? handleSelectEdge : undefined}
             />
           ))}
           {/* Nodes on top */}
@@ -132,14 +221,36 @@ export default function NetworkDiagramView({
               key={node.taskId}
               node={node}
               onClick={handleNodeClick}
+              onStartConnection={handleStartConnection}
               isSelected={selectedTaskId === node.taskId}
+              isConnectSource={connectFromId === node.taskId}
             />
           ))}
         </g>
       </svg>
 
+      {connectFromId !== null && (
+        <div
+          data-testid="network-connect-hint"
+          className="absolute left-4 top-4 apple-section px-3 py-2 text-xs"
+        >
+          Elige la actividad que va después. Escape cancela.
+        </div>
+      )}
+
       {/* Zoom controls */}
       <div className="absolute bottom-4 right-4 flex gap-2">
+        {selectedEdge && (
+          <button
+            data-testid="network-delete-dependency"
+            onClick={handleDeleteSelectedEdge}
+            className="apple-icon-button"
+            title="Borrar la dependencia elegida"
+            type="button"
+          >
+            <Trash2 size={15} />
+          </button>
+        )}
         <button
           onClick={() => setZoom((z) => Math.min(z + 0.2, 3))}
           className="apple-icon-button"
@@ -163,13 +274,39 @@ export default function NetworkDiagramView({
         </button>
       </div>
 
-      {/* Empty state */}
-      {layout.nodes.length === 0 && (
-        <div className="apple-empty-state absolute inset-0">
+      {/* Estado vacío: sin tareas, o con tareas pero sin dependencias */}
+      {layout.nodes.length === 0 ? (
+        <div
+          data-testid="network-empty-state"
+          className="apple-empty-state absolute inset-0"
+        >
           <p>
-            No hay tareas para mostrar en el diagrama de red
+            No hay actividades que dibujar todavía. Importa un archivo de
+            Microsoft Project o crea las actividades en el Gantt, y aquí
+            verás cómo se encadenan: aquí mismo puedes dibujar y borrar
+            dependencias con dos clics, sin salir del diagrama.
           </p>
+          {onNavigate && (
+            <button
+              type="button"
+              onClick={() => onNavigate("gantt")}
+              className="apple-button-secondary mt-3"
+            >
+              Volver al Gantt
+            </button>
+          )}
         </div>
+      ) : (
+        layout.edges.length === 0 && (
+          <div
+            data-testid="network-empty-state"
+            className="apple-section absolute bottom-4 left-4 max-w-sm px-3 py-2 text-xs"
+          >
+            Ninguna actividad depende de otra todavía. Haz clic en el punto
+            al costado de una actividad y luego en la que va después para
+            dibujar la primera dependencia.
+          </div>
+        )
       )}
     </div>
   );
