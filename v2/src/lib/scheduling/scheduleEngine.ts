@@ -122,7 +122,7 @@ export function validateDependencies(
         kind: "selfDependency",
         severity: "high",
         taskIds: [dep.from],
-        message: `La tarea ${dep.from} no puede depender de si misma.`,
+        message: `La tarea ${dep.from} no puede depender de sí misma.`,
       });
     }
   }

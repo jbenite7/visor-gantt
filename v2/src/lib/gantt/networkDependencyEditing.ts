@@ -1,14 +1,18 @@
 import type { GanttDependency, GanttTask } from "@/components/gantt/types";
 import { validateDependencies } from "@/lib/scheduling/scheduleEngine";
-import { addPredecessor, removeDependency } from "@/lib/gantt/dependencyEditing";
+import { removeDependency } from "@/lib/gantt/dependencyEditing";
 
 /**
  * Resolución de una dependencia dibujada en el Diagrama de Red.
  *
- * No hay validación propia: el rechazo de ciclos sale de `validateDependencies`
+ * No hay validación propia para "misma tarea", "tarea inexistente" ni
+ * "ciclo": las tres salen de una única llamada a `validateDependencies`
  * (`src/lib/scheduling/scheduleEngine.ts`), la misma función que corre el
  * recálculo cuando la dependencia se crea desde la tabla. Si hubiera dos
- * fuentes de verdad, el diagrama y la tabla podrían discrepar.
+ * fuentes de verdad, el diagrama y la tabla podrían discrepar — de hecho ya
+ * había pasado con la redacción del mensaje de "misma tarea" antes de este
+ * refactor. Los mensajes que ve el usuario aquí siguen siendo propios (en
+ * lenguaje de obra), solo la decisión de aceptar o rechazar se comparte.
  */
 
 export type DependencyDraftRejection =
@@ -39,7 +43,17 @@ export function resolveDependencyDraft(
   toId: string | number,
   type: GanttDependency["type"] = "FS",
 ): DependencyDraftResult {
-  if (fromId === toId) {
+  const dependency: GanttDependency = { from: fromId, to: toId, type };
+
+  // Un único estado hipotético (las dependencias actuales más la flecha que
+  // se está dibujando) y una única llamada a `validateDependencies`: de ahí
+  // salen "misma tarea", "tarea inexistente" y "ciclo". El orden de los
+  // `if` de abajo es el de precedencia: si varios motivos aplican a la vez,
+  // gana el más específico para el usuario.
+  const hypotheticalDependencies = [...tasks.flatMap((task) => task.dependencies), dependency];
+  const issues = validateDependencies(tasks, hypotheticalDependencies);
+
+  if (issues.some((issue) => issue.kind === "selfDependency")) {
     return {
       ok: false,
       reason: "mismaTarea",
@@ -47,9 +61,7 @@ export function resolveDependencyDraft(
     };
   }
 
-  const from = tasks.find((task) => task.id === fromId);
-  const to = tasks.find((task) => task.id === toId);
-  if (!from || !to) {
+  if (issues.some((issue) => issue.kind === "missingTask")) {
     return {
       ok: false,
       reason: "tareaInexistente",
@@ -57,7 +69,11 @@ export function resolveDependencyDraft(
     };
   }
 
-  const alreadyDrawn = to.dependencies.some(
+  // La duplicidad exacta no tiene equivalente en `validateDependencies`: esa
+  // función valida un cronograma completo, no si "esta flecha concreta ya
+  // estaba dibujada". Es la única comprobación que se queda en esta capa.
+  const to = tasks.find((task) => task.id === toId);
+  const alreadyDrawn = to?.dependencies.some(
     (dep) => dep.from === fromId && dep.to === toId && dep.type === type,
   );
   if (alreadyDrawn) {
@@ -68,8 +84,6 @@ export function resolveDependencyDraft(
     };
   }
 
-  const dependency: GanttDependency = { from: fromId, to: toId, type };
-  const issues = validateDependencies(addPredecessor(tasks, toId, dependency));
   if (issues.some((issue) => issue.kind === "cycle")) {
     return {
       ok: false,

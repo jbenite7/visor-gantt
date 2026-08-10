@@ -76,6 +76,20 @@ describe("resolveDependencyDraft", () => {
     expect(resultado.reason).toBe("tareaInexistente");
   });
 
+  test("si varios motivos aplican a la vez, gana el más específico: misma tarea antes que ciclo", () => {
+    const tareas = [
+      task({ id: 1, dependencies: [{ from: 3, to: 1, type: "FS" }] }),
+      task({ id: 2, dependencies: [{ from: 1, to: 2, type: "FS" }] }),
+      task({ id: 3, dependencies: [{ from: 2, to: 3, type: "FS" }] }),
+    ];
+
+    const resultado = resolveDependencyDraft(tareas, 1, 1);
+
+    expect(resultado.ok).toBe(false);
+    if (resultado.ok) return;
+    expect(resultado.reason).toBe("mismaTarea");
+  });
+
   test("el mismo par con otro tipo sí se acepta", () => {
     const tareas = [
       task({ id: 1 }),
