@@ -12,13 +12,23 @@ import path from "node:path";
  * este nombre está reservado.
  */
 const SRC_DIR = path.resolve(__dirname, "../..");
-const ESTE_ARCHIVO = "copyProductividad.test.ts";
+/**
+ * Los archivos que hablan **de** la palabra en vez de usarla en pantalla.
+ *
+ * `docsConsistency.test.ts` comprueba que el registro de pendientes explica por
+ * qué el nombre está reservado, así que tiene que nombrarlo. Es la excepción
+ * que confirma la regla, y se declara por nombre para que se vea.
+ */
+const ARCHIVOS_QUE_HABLAN_DE_LA_PALABRA = new Set([
+  "copyProductividad.test.ts",
+  "docsConsistency.test.ts",
+]);
 
 function archivosDeInterfaz(dir: string): string[] {
   return readdirSync(dir).flatMap((entry) => {
     const full = path.join(dir, entry);
     if (statSync(full).isDirectory()) return archivosDeInterfaz(full);
-    if (entry === ESTE_ARCHIVO) return [];
+    if (ARCHIVOS_QUE_HABLAN_DE_LA_PALABRA.has(entry)) return [];
     return /\.(ts|tsx)$/.test(entry) ? [full] : [];
   });
 }
