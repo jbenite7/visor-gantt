@@ -6,16 +6,18 @@ import { join } from "node:path";
 /**
  * Ningún test queda apagado sin que alguien lo haya decidido.
  *
- * El 2026-08-10, resolviendo un conflicto de fusión, un fichero pasó a
- * **ejecutar cero tests sin dar error**. La suite completa siguió en verde
- * porque los otros 174 ficheros compensaban, y solo se cazó porque alguien
- * corrió ese fichero por separado antes de fusionar.
+ * Este guardián nació de un susto que **resultó no serlo**, y conviene dejarlo
+ * escrito para que nadie lo repita como cierto: el 2026-08-10, resolviendo un
+ * conflicto de fusión, una llave suelta dejó un fichero sin compilar. Se contó
+ * primero como «la suite siguió en verde porque los otros 174 compensaban».
+ * **Era falso.** Jest falló con `TS1005: '}' expected` y reportó
+ * «1 failed, 174 passed»: dijo exactamente qué fichero, y no se le escapó nada.
  *
- * **Jest ya cubre la mitad de ese riesgo**: un fichero sin un solo `test`
- * falla con «Your test suite must contain at least one test». Lo que Jest
- * **no** cubre es un `describe.skip` o un `test.skip` — ahí informa
- * «2 skipped» y devuelve éxito. Un conflicto que deje un `.skip` de más apaga
- * un fichero entero y la suite se queda verde.
+ * El agujero de verdad apareció al ir a comprobarlo, y es otro. **Jest ya cubre
+ * el caso del fichero sin tests**: falla con «Your test suite must contain at
+ * least one test». Lo que **no** cubre es un `describe.skip` o un `test.skip`
+ * — ahí informa «2 skipped» y devuelve **éxito**. Ese sí apaga un fichero
+ * entero sin que nada se ponga rojo. Verificado reproduciéndolo, no deducido.
  *
  * Este guardián cierra esa mitad: los saltados permitidos se declaran aquí,
  * uno por uno y con su motivo. Cualquier otro rompe la comprobación.
