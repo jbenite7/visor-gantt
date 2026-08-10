@@ -820,6 +820,16 @@ export function ProjectProvider({
       const removed = tasks.filter((t) => doomed.has(t.id)).length;
       if (removed === 0) return;
 
+      // Se cuentan antes de retirarlas, porque después ya no están. El borrado
+      // ya las quitaba a propósito; lo que faltaba era decirlo.
+      const dependenciasRetiradas = tasks.reduce(
+        (total, t) =>
+          total +
+          (t.dependencies?.filter((d) => doomed.has(d.from) || doomed.has(d.to))
+            .length ?? 0),
+        0,
+      );
+
       commitTaskChange(
         removed === 1 ? "Delete task" : `Delete ${removed} tasks`,
         (prev) =>
@@ -840,11 +850,20 @@ export function ProjectProvider({
       );
       setSelectedTaskIds([]);
 
+      const tareasTexto =
+        removed === 1 ? "1 tarea eliminada" : `${removed} tareas eliminadas`;
+      const dependenciasTexto =
+        dependenciasRetiradas === 1
+          ? "1 dependencia retirada"
+          : `${dependenciasRetiradas} dependencias retiradas`;
+
       setLastAction({
         kind: "delete",
         count: removed,
         description:
-          removed === 1 ? "1 tarea eliminada" : `${removed} tareas eliminadas`,
+          dependenciasRetiradas > 0
+            ? `${tareasTexto} · ${dependenciasTexto}`
+            : tareasTexto,
         token: nextActionToken(),
       });
     },
