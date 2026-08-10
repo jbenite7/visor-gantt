@@ -7,6 +7,7 @@ import type { PlanningAuditEvent } from "@/types/audit";
 import type { Observation } from "@/lib/observations/observations";
 import dynamic from "next/dynamic";
 import ScheduleSkeleton from "@/components/gantt/ScheduleSkeleton";
+import LocationCorrectionPanel from "@/components/lob/LocationCorrectionPanel";
 
 /**
  * Las vistas distintas del Gantt se cargan al abrirlas. Antes las 14 viajaban en
@@ -48,6 +49,11 @@ import type { ProjectCalendar } from "@/types/calendar";
 import { DEFAULT_PROJECT_CALENDAR } from "@/types/calendar";
 import type { Baseline } from "@/types/baseline";
 import { applyBaselineToTasks, saveBaseline } from "@/lib/scheduling/baseline";
+import {
+  EMPTY_DETECTION_DICTIONARY,
+  rememberCorrection,
+  type DetectionDictionary,
+} from "@/lib/scheduling/detection/dictionary";
 import type {
   ConflictResolution,
   MatrixPlan,
@@ -147,6 +153,8 @@ interface GanttViewProps {
   budgetMappings?: BudgetMappingType[];
   baselines?: Baseline[];
   matrixPlan?: MatrixPlan;
+  /** Lo que el usuario ya corrigió a mano sobre la detección automática. */
+  detectionDictionary?: DetectionDictionary;
   mppTaskColumns?: MppTaskColumn[];
   mppResourceColumns?: MppResourceColumn[];
   mppAssignmentColumns?: MppAssignmentColumn[];
@@ -172,6 +180,7 @@ function GanttViewInner({
   initialBudgetMappings,
   initialBaselines,
   initialMatrixPlan,
+  initialDetectionDictionary,
   initialMppTaskColumns,
   initialMppResourceColumns,
   initialMppAssignmentColumns,
@@ -192,6 +201,7 @@ function GanttViewInner({
   initialBudgetMappings: BudgetMappingType[];
   initialBaselines: Baseline[];
   initialMatrixPlan?: MatrixPlan;
+  initialDetectionDictionary?: DetectionDictionary;
   initialMppTaskColumns: MppTaskColumn[];
   initialMppResourceColumns: MppResourceColumn[];
   initialMppAssignmentColumns: MppAssignmentColumn[];
@@ -361,6 +371,30 @@ function GanttViewInner({
       setScale("day");
     }
   }, [activeView, setScale]);
+
+  /**
+   * El diccionario de correcciones del usuario. P3 dejó el motor listo para
+   * consultarlo y nadie podía escribirlo: aquí se cierra el ciclo.
+   */
+  const [detectionDictionary, setDetectionDictionary] =
+    useState<DetectionDictionary>(
+      initialDetectionDictionary ?? EMPTY_DETECTION_DICTIONARY,
+    );
+
+  const handleCorrectLocation = useCallback(
+    (input: { taskName: string; value: string; note: string }) => {
+      setDetectionDictionary((current) =>
+        rememberCorrection(current, {
+          kind: "ubicacion",
+          name: input.taskName,
+          value: input.value,
+          note: input.note,
+          recordedAt: new Date().toISOString(),
+        }),
+      );
+    },
+    [],
+  );
 
   /* ── Baselines ── */
   const [baselines, setBaselines] = useState<Baseline[]>(initialBaselines);
@@ -542,8 +576,13 @@ function GanttViewInner({
   }, [calculatedTasks]);
 
   const automaticLOB = useMemo(
-    () => generateAutomaticLOBFromTasks(calculatedTasks, syncedMatrixPlan),
-    [calculatedTasks, syncedMatrixPlan],
+    () =>
+      generateAutomaticLOBFromTasks(
+        calculatedTasks,
+        syncedMatrixPlan,
+        detectionDictionary,
+      ),
+    [calculatedTasks, detectionDictionary, syncedMatrixPlan],
   );
   const bottlenecks = useMemo(
     () => detectBottlenecks({ tasks: calculatedTasks, resources: calculatedResources, assignments: calculatedAssignments }),
@@ -1186,6 +1225,7 @@ function GanttViewInner({
         baselines,
         calendar,
         matrixPlan: syncedMatrixPlan,
+        detectionDictionary,
         mppTaskColumns,
         mppResourceColumns,
         mppAssignmentColumns,
@@ -1217,7 +1257,7 @@ function GanttViewInner({
       updateSaveStatus("error");
       setTimeout(() => updateSaveStatus("idle"), 3000);
     }
-  }, [projectId, projectName, initialStatusDate, calculatedTasks, calculatedResources, calculatedAssignments, budgetItems, budgetMappings, baselines, calendar, syncedMatrixPlan, mppTaskColumns, mppResourceColumns, mppAssignmentColumns, calculatedMpp.customFieldDefinitions, calculatedMpp.engineVersion, calculatedMpp.calculatedAt, taskColumnSettings, resourceColumnSettings, assignmentColumnSettings, uiSettings, planningAuditEvents, observations, updateSaveStatus]);
+  }, [projectId, projectName, initialStatusDate, calculatedTasks, calculatedResources, calculatedAssignments, budgetItems, budgetMappings, baselines, calendar, syncedMatrixPlan, mppTaskColumns, mppResourceColumns, mppAssignmentColumns, calculatedMpp.customFieldDefinitions, calculatedMpp.engineVersion, calculatedMpp.calculatedAt, taskColumnSettings, resourceColumnSettings, assignmentColumnSettings, uiSettings, planningAuditEvents, observations, detectionDictionary, updateSaveStatus]);
 
   // Use a ref to avoid the interval effect depending on doSave's reference
   const doSaveRef = useRef(doSave);
@@ -1546,6 +1586,10 @@ function GanttViewInner({
     baselines,
     calendar,
     syncedMatrixPlan,
+    // Sin esta línea, corregir una ubicación no se guarda: es exactamente el
+    // bug que M24 tuvo con las observaciones, y reaparece con cada dato nuevo
+    // del proyecto que se olvide aquí.
+    detectionDictionary,
     taskColumnSettings,
     resourceColumnSettings,
     assignmentColumnSettings,
@@ -2204,12 +2248,19 @@ function GanttViewInner({
           )}
 
           {activeView === "lob" && (
-            <div className="min-h-0 min-w-0 flex-1">
-              <LineOfBalance
-                activities={automaticLOB.activities}
-                units={automaticLOB.units}
-                scale={scale}
-                onScaleChange={setScale}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-auto">
+              <div className="min-h-0 min-w-0 flex-1">
+                <LineOfBalance
+                  activities={automaticLOB.activities}
+                  units={automaticLOB.units}
+                  scale={scale}
+                  onScaleChange={setScale}
+                />
+              </div>
+              <LocationCorrectionPanel
+                tasks={calculatedTasks}
+                dictionary={detectionDictionary}
+                onCorrect={handleCorrectLocation}
               />
             </div>
           )}
@@ -2313,6 +2364,7 @@ export default function GanttView({
   budgetMappings = [],
   baselines = [],
   matrixPlan,
+  detectionDictionary,
   mppTaskColumns = [],
   mppResourceColumns = [],
   mppAssignmentColumns = [],
@@ -2349,6 +2401,7 @@ export default function GanttView({
         initialBudgetMappings={budgetMappings}
         initialBaselines={baselines}
         initialMatrixPlan={matrixPlan}
+        initialDetectionDictionary={detectionDictionary}
         initialMppTaskColumns={mppTaskColumns}
         initialMppResourceColumns={mppResourceColumns}
         initialMppAssignmentColumns={mppAssignmentColumns}

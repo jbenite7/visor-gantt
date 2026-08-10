@@ -93,6 +93,8 @@ export default async function ProjectPage({
       budgetMappings={project.budgetMappings}
       baselines={serializedBaselines}
       matrixPlan={project.matrixPlan}
+      observations={project.observations}
+      detectionDictionary={project.detectionDictionary}
       mppTaskColumns={project.mppTaskColumns}
       mppResourceColumns={project.mppResourceColumns}
       mppAssignmentColumns={project.mppAssignmentColumns}

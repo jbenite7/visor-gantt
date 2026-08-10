@@ -18,6 +18,10 @@ import { createProjectDate } from "@/lib/date/projectDate";
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
 import * as mppCalculationEngine from "@/lib/mpp/mppCalculationEngine";
 import type { MatrixPlan } from "@/types/matrix";
+import {
+  EMPTY_DETECTION_DICTIONARY,
+  rememberCorrection,
+} from "@/lib/scheduling/detection/dictionary";
 
 jest.mock("@/app/actions/project", () => ({
   saveProject: jest.fn(async () => ({ success: true, id: "test-project" })),
@@ -2500,6 +2504,106 @@ describe("GanttView · el menú refleja el proyecto real (R0)", () => {
 
     expect(screen.getByTestId("sidebar-blurb-resources")).toHaveTextContent(
       "2 recursos asignados",
+    );
+  });
+});
+
+describe("GanttView · corregir ubicaciones desde la Línea de Balance (R4)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  const tareasDeObra = () => [
+    makeTask({ id: 1, name: "Mampostería Piso 1" }),
+    makeTask({ id: 2, name: "Mampostería Piso 2" }),
+    makeTask({ id: 3, name: "Mampostería" }),
+  ];
+
+  test("la Línea de Balance ofrece el panel de correcciones", () => {
+    render(<GanttView projectId="1" tasks={tareasDeObra()} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-lob"));
+
+    expect(screen.getByTestId("location-correction-panel")).toBeInTheDocument();
+  });
+
+  test("corregir una ubicación se guarda con el proyecto", async () => {
+    render(<GanttView projectId="1" tasks={tareasDeObra()} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-lob"));
+    mockedSaveProject.mockClear();
+
+    fireEvent.change(
+      screen.getByLabelText("Nivel corregido de Mampostería"),
+      { target: { value: "3" } },
+    );
+    fireEvent.change(
+      screen.getByLabelText("Motivo de la corrección de Mampostería"),
+      { target: { value: "Va en el piso 3" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Corregir Mampostería" }));
+
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+
+    const guardado = latestSavedProject();
+    expect(guardado.detectionDictionary?.corrections).toEqual([
+      expect.objectContaining({
+        kind: "ubicacion",
+        value: "3",
+        note: "Va en el piso 3",
+      }),
+    ]);
+  });
+
+  test("la corrección cambia lo que el panel muestra, no solo lo que se guarda", async () => {
+    render(<GanttView projectId="1" tasks={tareasDeObra()} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-lob"));
+
+    expect(screen.getByTestId("correction-detected-3")).toHaveTextContent(
+      "Obra general",
+    );
+
+    fireEvent.change(
+      screen.getByLabelText("Nivel corregido de Mampostería"),
+      { target: { value: "3" } },
+    );
+    fireEvent.change(
+      screen.getByLabelText("Motivo de la corrección de Mampostería"),
+      { target: { value: "Va en el piso 3" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Corregir Mampostería" }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("correction-detected-3")).toHaveTextContent(
+        "Piso 3",
+      ),
+    );
+    expect(screen.getByTestId("correction-source-3")).toHaveTextContent(
+      "Corregida a mano",
+    );
+  });
+
+  test("un proyecto que ya traía correcciones las respeta al abrir", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={tareasDeObra()}
+        detectionDictionary={rememberCorrection(EMPTY_DETECTION_DICTIONARY, {
+          kind: "ubicacion",
+          name: "Mampostería",
+          value: "5",
+          note: "Corregido en obra",
+          recordedAt: "2026-08-08T10:00:00.000Z",
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-lob"));
+
+    expect(screen.getByTestId("correction-detected-3")).toHaveTextContent(
+      "Piso 5",
     );
   });
 });
