@@ -3,9 +3,12 @@
 import { useCallback, useRef } from "react";
 import type { MppCalculationSpec } from "@/types/mppColumns";
 import type { UILocale } from "@/types/ui";
+import { pickColumnLabel } from "@/lib/gantt/columnLabel";
 
 interface ColumnHeaderProps {
   label: string;
+  /** Forma corta declarada por la columna. Sin ella, no se abrevia. */
+  shortLabel?: string;
   locale?: UILocale;
   width?: number;
   align?: "left" | "right" | "center";
@@ -23,7 +26,9 @@ const MIN_COLUMN_WIDTH = 50;
  */
 export default function ColumnHeader({
   label,
+  shortLabel,
   locale = "es",
+  width,
   align = "left",
   onResize,
   isResizable = true,
@@ -66,7 +71,13 @@ export default function ColumnHeader({
 
   const resizeLabel =
     locale === "en" ? `Resize column ${label}` : `Redimensionar columna ${label}`;
-  const title = calculationSpec
+  /**
+   * Abreviar por el ancho de esta columna, no por el del panel entero: una
+   * columna ancha no tiene por qué encogerse porque otra sea estrecha (R2).
+   */
+  const displayLabel = pickColumnLabel({ label, shortLabel, width: width ?? 0 });
+
+  const calculationTitle = calculationSpec
     ? [
         calculationSpec.isCalculated
           ? locale === "en"
@@ -90,15 +101,20 @@ export default function ColumnHeader({
         .join(" | ")
     : undefined;
 
+  // El nombre completo nunca se pierde: abreviar la cabecera no puede costar
+  // saber de qué columna se trata.
+  const title = calculationTitle ? `${label} | ${calculationTitle}` : label;
+
   return (
     <th
       ref={thRef}
       data-testid="column-header"
+      data-full-label={label}
       className="gantt-column-header"
       data-align={align}
       title={title}
     >
-      {label}
+      {displayLabel}
 
       {/* Resize Handle */}
       {isResizable && onResize && (

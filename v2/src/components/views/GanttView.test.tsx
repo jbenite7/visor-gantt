@@ -18,6 +18,10 @@ import { createProjectDate } from "@/lib/date/projectDate";
 import { generateScheduleFromMatrix } from "@/lib/matrix/matrixGenerator";
 import * as mppCalculationEngine from "@/lib/mpp/mppCalculationEngine";
 import type { MatrixPlan } from "@/types/matrix";
+import {
+  EMPTY_DETECTION_DICTIONARY,
+  rememberCorrection,
+} from "@/lib/scheduling/detection/dictionary";
 
 jest.mock("@/app/actions/project", () => ({
   saveProject: jest.fn(async () => ({ success: true, id: "test-project" })),
@@ -2482,7 +2486,7 @@ describe("GanttView · el menú refleja el proyecto real (R0)", () => {
     render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
 
     expect(screen.getByTestId("sidebar-blurb-matrix")).toHaveTextContent(
-      /Todavía no hay matriz/,
+      /Sin matriz todavía/,
     );
   });
 
@@ -2500,6 +2504,237 @@ describe("GanttView · el menú refleja el proyecto real (R0)", () => {
 
     expect(screen.getByTestId("sidebar-blurb-resources")).toHaveTextContent(
       "2 recursos asignados",
+    );
+  });
+});
+
+describe("GanttView · corregir ubicaciones desde la Línea de Balance (R4)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  const tareasDeObra = () => [
+    makeTask({ id: 1, name: "Mampostería Piso 1" }),
+    makeTask({ id: 2, name: "Mampostería Piso 2" }),
+    makeTask({ id: 3, name: "Mampostería" }),
+  ];
+
+  test("la Línea de Balance ofrece el panel de correcciones", () => {
+    render(<GanttView projectId="1" tasks={tareasDeObra()} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-lob"));
+
+    expect(screen.getByTestId("location-correction-panel")).toBeInTheDocument();
+  });
+
+  test("corregir una ubicación se guarda con el proyecto", async () => {
+    render(<GanttView projectId="1" tasks={tareasDeObra()} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-lob"));
+    mockedSaveProject.mockClear();
+
+    fireEvent.change(
+      screen.getByLabelText("Nivel corregido de Mampostería"),
+      { target: { value: "3" } },
+    );
+    fireEvent.change(
+      screen.getByLabelText("Motivo de la corrección de Mampostería"),
+      { target: { value: "Va en el piso 3" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Corregir Mampostería" }));
+
+    await waitFor(() => expect(mockedSaveProject).toHaveBeenCalled());
+
+    const guardado = latestSavedProject();
+    expect(guardado.detectionDictionary?.corrections).toEqual([
+      expect.objectContaining({
+        kind: "ubicacion",
+        value: "3",
+        note: "Va en el piso 3",
+      }),
+    ]);
+  });
+
+  test("la corrección cambia lo que el panel muestra, no solo lo que se guarda", async () => {
+    render(<GanttView projectId="1" tasks={tareasDeObra()} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-lob"));
+
+    expect(screen.getByTestId("correction-detected-3")).toHaveTextContent(
+      "Obra general",
+    );
+
+    fireEvent.change(
+      screen.getByLabelText("Nivel corregido de Mampostería"),
+      { target: { value: "3" } },
+    );
+    fireEvent.change(
+      screen.getByLabelText("Motivo de la corrección de Mampostería"),
+      { target: { value: "Va en el piso 3" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Corregir Mampostería" }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("correction-detected-3")).toHaveTextContent(
+        "Piso 3",
+      ),
+    );
+    expect(screen.getByTestId("correction-source-3")).toHaveTextContent(
+      "Corregida a mano",
+    );
+  });
+
+  test("un proyecto que ya traía correcciones las respeta al abrir", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={tareasDeObra()}
+        detectionDictionary={rememberCorrection(EMPTY_DETECTION_DICTIONARY, {
+          kind: "ubicacion",
+          name: "Mampostería",
+          value: "5",
+          note: "Corregido en obra",
+          recordedAt: "2026-08-08T10:00:00.000Z",
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-lob"));
+
+    expect(screen.getByTestId("correction-detected-3")).toHaveTextContent(
+      "Piso 5",
+    );
+  });
+});
+
+describe("Recursos sin recursos: la vista enseña en vez de mostrar cinco pestañas vacías (F7)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("sin recursos muestra el estado vacío y esconde las cinco sub-pestañas", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+        resources={[]}
+        assignments={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+
+    expect(await screen.findByTestId("resources-empty-state")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Uso de Recursos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Asignaciones" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("resource-sheet-view")).not.toBeInTheDocument();
+  });
+
+  test("crear el primer recurso desde el estado vacío abre la hoja con sus pestañas", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+        resources={[]}
+        assignments={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+    fireEvent.click(await screen.findByTestId("resources-empty-create"));
+
+    expect(screen.queryByTestId("resources-empty-state")).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Uso de Recursos" })).toBeInTheDocument();
+  });
+
+  test("con recursos importados del .mpp no hay estado vacío", async () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1, name: "Excavación" })]}
+        resources={[
+          { uid: 145, name: "Ayudante armado", type: "work", rate: 0, availability: 100 },
+        ]}
+        assignments={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+
+    expect(await screen.findByRole("button", { name: "Uso de Recursos" })).toBeInTheDocument();
+    expect(screen.queryByTestId("resources-empty-state")).not.toBeInTheDocument();
+  });
+});
+
+describe("Recursos: la segunda salida existe porque el presupuesto no los necesita (R9)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("«Abrir el presupuesto» lleva al presupuesto, no a la hoja de recursos", async () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} resources={[]} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+    // La vista se carga con `next/dynamic`: hay que esperar a que monte.
+    fireEvent.click(await screen.findByTestId("resources-empty-budget"));
+
+    // Presupuesto y Mapeo funcionan con cero cuadrillas: esconder las cinco
+    // pestañas en bloque taparía dos pantallas que sí sirven.
+    expect(screen.queryByTestId("resources-empty-state")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Presupuesto/i }),
+    ).toBeInTheDocument();
+  });
+
+  test("una vez elegida la salida, el estado vacío no vuelve a interponerse", async () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} resources={[]} />);
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+    fireEvent.click(await screen.findByTestId("resources-empty-create"));
+    fireEvent.click(screen.getByTestId("sidebar-view-gantt"));
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+
+    expect(screen.queryByTestId("resources-empty-state")).not.toBeInTheDocument();
+  });
+});
+
+describe("Recursos: el recurso fantasma de MS Project no llega a la pantalla (R9)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("un recurso sin nombre no cuenta como recurso ni pinta fila", async () => {
+    // Los tres .mpp reales del repositorio traen el recurso nulo de MS Project
+    // (UID 0, nombre vacío) — DA PORTO tiene 213 asignaciones colgando de él.
+    // Contarlo daría «1 recurso» y una fila en blanco sin explicación.
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        resources={[{ uid: 0, name: "", type: "work" }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("sidebar-view-resources"));
+
+    expect(await screen.findByTestId("resources-empty-state")).toBeInTheDocument();
+  });
+
+  test("el menú tampoco lo cuenta", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        resources={[{ uid: 0, name: "", type: "work" }]}
+      />,
+    );
+
+    expect(screen.getByTestId("sidebar-blurb-resources")).toHaveTextContent(
+      /Sin recursos todavía/,
     );
   });
 });

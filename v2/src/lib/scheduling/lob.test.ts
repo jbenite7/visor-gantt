@@ -8,6 +8,10 @@ import type { LOBActivity, LOBUnit } from "@/types/lob";
 import type { GanttTask } from "@/components/gantt/types";
 import type { MatrixPlan } from "@/types/matrix";
 import type { ActivityMapping } from "./lob";
+import {
+  EMPTY_DETECTION_DICTIONARY,
+  rememberCorrection,
+} from "./detection/dictionary";
 
 // ---------------------------------------------------------------------------
 // computeLOBLayout
@@ -768,5 +772,86 @@ describe("Línea de Balance · ubicación con el motor nuevo", () => {
     expect(muro).toBeDefined();
     expect(muro?.taskIds).toEqual([4, 5]);
     expect(muro?.unitLabel).toBe("Sótano");
+  });
+});
+
+describe("generateAutomaticLOBFromTasks · correcciones a mano (R4)", () => {
+  const base = {
+    duration: 3,
+    progress: 0,
+    isCritical: false,
+    isMilestone: false,
+    isSummary: false,
+    outlineLevel: 1,
+    dependencies: [],
+  };
+
+  const lobTask = (id: number, name: string, dia: number): GanttTask => ({
+    ...base,
+    id,
+    name,
+    start: new Date(`2026-08-0${dia}`),
+    finish: new Date(`2026-08-0${dia + 2}`),
+  });
+
+  /**
+   * La tarea sin piso en el nombre es la que el motor no sabe ubicar: se queda
+   * fuera de la Línea de Balance y el usuario no tiene forma de meterla. Es el
+   * caso que R4 resuelve.
+   */
+  const tareas = () => [
+    lobTask(1, "Mampostería Piso 1", 1),
+    lobTask(2, "Mampostería Piso 2", 4),
+    lobTask(3, "Mampostería", 7),
+  ];
+
+  const corregir = (name: string, value: string) =>
+    rememberCorrection(EMPTY_DETECTION_DICTIONARY, {
+      kind: "ubicacion",
+      name,
+      value,
+      note: "Corregido a mano en obra",
+      recordedAt: "2026-08-08T10:00:00.000Z",
+    });
+
+  test("sin corrección, la tarea sin piso se queda fuera de la línea", () => {
+    const resultado = generateAutomaticLOBFromTasks(tareas());
+
+    expect(resultado.units).toHaveLength(2);
+  });
+
+  test("una corrección guardada mete esa tarea en la línea, con su piso", () => {
+    const resultado = generateAutomaticLOBFromTasks(
+      tareas(),
+      undefined,
+      corregir("Mampostería", "3"),
+    );
+
+    expect(resultado.units).toHaveLength(3);
+    expect(resultado.units.map((unit) => unit.unitIndex)).toEqual([0, 1, 2]);
+  });
+
+  test("corregir una tarea no toca a las demás", () => {
+    const sinTocar = generateAutomaticLOBFromTasks(tareas());
+    const corregido = generateAutomaticLOBFromTasks(
+      tareas(),
+      undefined,
+      corregir("Mampostería", "3"),
+    );
+
+    // Las dos primeras conservan su fecha: la corrección solo añadió la tercera.
+    expect(corregido.units.slice(0, 2).map((u) => u.plannedDate)).toEqual(
+      sinTocar.units.map((u) => u.plannedDate),
+    );
+  });
+
+  test("una corrección que no apunta a ninguna tarea no cambia nada", () => {
+    const resultado = generateAutomaticLOBFromTasks(
+      tareas(),
+      undefined,
+      corregir("Actividad que no existe", "9"),
+    );
+
+    expect(resultado.units).toHaveLength(2);
   });
 });

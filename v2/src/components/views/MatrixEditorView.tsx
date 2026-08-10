@@ -9,6 +9,8 @@ import {
   RefreshCw,
   RotateCcw,
   Trash2,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import type { GanttTask } from "@/components/gantt/types";
 import type {
@@ -42,6 +44,7 @@ import type { ProjectCalendar } from "@/types/calendar";
 import { approveCellFeedback, dismissCellFeedback } from "@/lib/matrix/feedback";
 import { templateFromPlan } from "@/lib/matrix/templateCatalog";
 import { describeDraftChanges } from "@/lib/matrix/draftState";
+import { useDraftHistory } from "@/lib/matrix/useDraftHistory";
 import {
   planFromProposal,
   proposeMatrixFromTasks,
@@ -53,6 +56,7 @@ import LocationBulkActions from "@/components/matrix/LocationBulkActions";
 import ProposalReview from "@/components/matrix/ProposalReview";
 import RecipeEditor from "@/components/matrix/RecipeEditor";
 import TemplatePicker from "@/components/matrix/TemplatePicker";
+import MatrixIntro from "@/components/matrix/MatrixIntro";
 import {
   canAddChild,
   getAreaLeaves,
@@ -327,9 +331,20 @@ export default function MatrixEditorView({
   onRemoveArea,
   applyLabel = "Aplicar",
 }: MatrixEditorViewProps) {
-  const [draft, setDraft] = useState<MatrixPlan | undefined>(
-    matrixPlan ? clonePlan(matrixPlan) : undefined,
-  );
+  /**
+   * El borrador vive en una pila propia: era la única acción destructiva de la
+   * app sin vuelta atrás. No usa `runUndoable` porque aquello opera sobre el
+   * proyecto persistido y esto todavía no lo es (R1).
+   */
+  const {
+    draft,
+    commitDraft,
+    resetDraft,
+    undoDraft,
+    redoDraft,
+    canUndo: canUndoDraftChange,
+    canRedo: canRedoDraftChange,
+  } = useDraftHistory<MatrixPlan>(matrixPlan ? clonePlan(matrixPlan) : undefined);
   /**
    * El borrador se perdía sin decir nada al cambiar de pestaña o recargar, y
    * «Deshacer» lo tiraba entero sin avisar de cuánto (M28).
@@ -352,8 +367,9 @@ export default function MatrixEditorView({
     if (!window.confirm(`${cambiosPendientes.message} Se van a descartar. ¿Seguro?`)) {
       return;
     }
-    setDraft(matrixPlan ? clonePlan(matrixPlan) : draft);
-  }, [cambiosPendientes, draft, matrixPlan, tieneCambios]);
+    // Recargar desde el proyecto tira la pila: describe un borrador que ya no existe.
+    resetDraft(matrixPlan ? clonePlan(matrixPlan) : draft);
+  }, [cambiosPendientes, draft, matrixPlan, resetDraft, tieneCambios]);
 
   /**
    * El aviso de que el calendario mueve las fechas más de la cuenta. Se
@@ -498,7 +514,7 @@ export default function MatrixEditorView({
     setSelection(scopes.map((scope) => ({ scopeId: scope.id, areaId })));
 
   const applyToSelection = (patch: Parameters<typeof applyBulkCellEdit>[2]) => {
-    setDraft((current) =>
+    commitDraft((current) =>
       current
         ? applyBulkCellEdit(current, effectiveSelection, patch, new Date().toISOString())
         : current,
@@ -573,7 +589,7 @@ export default function MatrixEditorView({
       name: "Programación Matricial",
       startDate: firstTaskStart ?? new Date().toISOString().slice(0, 10),
     });
-    setDraft(plan);
+    commitDraft(plan);
     const firstScope = getScopeLeaves(plan.scopeTree)[0]?.node;
     const firstArea = getAreaLeaves(plan.areas)[0]?.node;
     if (firstScope && firstArea) {
@@ -598,7 +614,7 @@ export default function MatrixEditorView({
       lastEditedFrom: "matrix",
     };
 
-    setDraft({
+    commitDraft({
       ...draft,
       cells: existing
         ? draft.cells.map((cell) => (cell.id === existing.id ? nextCell : cell))
@@ -634,9 +650,27 @@ export default function MatrixEditorView({
     });
   };
 
+  /**
+   * `Cmd+Z` / `Ctrl+Z` deshace dentro del editor, y con `Shift` rehace. El
+   * historial general de la app no puede hacerlo: el borrador no es parte del
+   * proyecto hasta que se aplica.
+   */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      if (event.key.toLowerCase() !== "z") return;
+      event.preventDefault();
+      if (event.shiftKey) redoDraft();
+      else undoDraft();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [redoDraft, undoDraft]);
+
   const applyNextDraft = (nextPlan: MatrixPlan) => {
     const next = reconcileMatrixCells(nextPlan);
-    setDraft(next);
+    commitDraft(next);
     const firstScope = getScopeLeaves(next.scopeTree)[0]?.node;
     const firstArea = getAreaLeaves(next.areas)[0]?.node;
     if (
@@ -657,7 +691,7 @@ export default function MatrixEditorView({
     if (!draft) return;
     const timestamp = new Date().toISOString();
     const next = reconcileMatrixCells(draft, timestamp);
-    setDraft({
+    commitDraft({
       ...next,
       cells: next.cells.map((cell) => ({
         ...cell,
@@ -818,7 +852,7 @@ export default function MatrixEditorView({
     const cellCount = draft.cells.filter((cell) => ids.includes(cell.scopeId)).length;
     if (
       !window.confirm(
-        `Se eliminarán ${ids.length} alcances y ${cellCount} celdas. Esta acción no se puede deshacer.`,
+        `Se eliminarán ${ids.length} alcances y ${cellCount} celdas. Puedes deshacerlo con ⌘Z mientras no apliques.`,
       )
     ) {
       return;
@@ -844,7 +878,7 @@ export default function MatrixEditorView({
     const cellCount = draft.cells.filter((cell) => ids.includes(cell.areaId)).length;
     if (
       !window.confirm(
-        `Se eliminarán ${ids.length} ubicaciones y ${cellCount} celdas. Esta acción no se puede deshacer.`,
+        `Se eliminarán ${ids.length} ubicaciones y ${cellCount} celdas. Puedes deshacerlo con ⌘Z mientras no apliques.`,
       )
     ) {
       return;
@@ -908,21 +942,38 @@ export default function MatrixEditorView({
 
   const replaceRecipe = (recipe: ActivityRecipe) => {
     if (!draft) return;
-    setDraft({
+    commitDraft({
       ...draft,
       recipes: draft.recipes.map((item) => (item.id === recipe.id ? recipe : item)),
     });
   };
 
+  /**
+   * El plan base sobre el que aplicar una plantilla o una propuesta.
+   *
+   * Desde la portada no hay borrador todavía: `pickTemplate` y `acceptProposal`
+   * abrían con `if (!draft) return`, así que cablearlos directo daría un botón
+   * que no hace nada — el defecto que este proyecto persigue. Se crea el plan
+   * base en el mismo gesto (R8).
+   */
+  const planBase = (): MatrixPlan =>
+    draft ??
+    createDefaultMatrixPlan({
+      name: "Programación Matricial",
+      startDate:
+        tasks[0]?.start.toISOString().slice(0, 10) ??
+        new Date().toISOString().slice(0, 10),
+    });
+
   const pickTemplate = (template: MatrixTemplate) => {
-    if (!draft) return;
+    const base = planBase();
     setProposal(null);
     applyNextDraft(
       createMatrixPlanFromTemplate({
         template,
-        id: draft.id,
-        name: draft.name,
-        startDate: draft.startDate,
+        id: base.id,
+        name: base.name,
+        startDate: base.startDate,
       }),
     );
   };
@@ -937,11 +988,12 @@ export default function MatrixEditorView({
   };
 
   const acceptProposal = (acceptance: ProposalAcceptance) => {
-    if (!draft || !proposal) return;
+    if (!proposal) return;
+    const base = planBase();
     const next = planFromProposal(proposal, acceptance, {
-      id: draft.id,
-      name: draft.name,
-      startDate: draft.startDate,
+      id: base.id,
+      name: base.name,
+      startDate: base.startDate,
       editedAt: new Date().toISOString(),
     });
     setProposal(null);
@@ -950,12 +1002,12 @@ export default function MatrixEditorView({
 
   const approveFeedback = (cellId: string) => {
     if (!draft) return;
-    setDraft(approveCellFeedback(draft, cellId, new Date().toISOString()));
+    commitDraft(approveCellFeedback(draft, cellId, new Date().toISOString()));
   };
 
   const dismissFeedback = (cellId: string) => {
     if (!draft) return;
-    setDraft(dismissCellFeedback(draft, cellId, new Date().toISOString()));
+    commitDraft(dismissCellFeedback(draft, cellId, new Date().toISOString()));
   };
 
   const renderScopeTree = (nodes: ScopeNode[], depth = 1): ReactNode =>
@@ -1141,19 +1193,13 @@ export default function MatrixEditorView({
 
   if (!draft) {
     return (
-      <div
-        data-testid="matrix-editor-empty"
-        className="apple-module h-full flex items-center justify-center"
-      >
-        <button
-          type="button"
-          onClick={createDraft}
-          className="apple-button-primary inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold"
-        >
-          <Grid3X3 size={16} />
-          Crear matriz
-        </button>
-      </div>
+      <MatrixIntro
+        ownTemplates={ownTemplates}
+        canGenerateFromSchedule={tasks.length > 0}
+        onPickTemplate={pickTemplate}
+        onGenerateFromSchedule={() => setProposal(proposeMatrixFromTasks(tasks))}
+        onCreateBlank={createDraft}
+      />
     );
   }
 
@@ -1191,6 +1237,30 @@ export default function MatrixEditorView({
           >
             <Check size={14} />
             <span className="min-w-0 whitespace-normal text-left leading-tight">Activar todas las celdas</span>
+          </button>
+          {/* Deshacer visible: un atajo que no se ve es una función que nadie
+              alcanza, que es justo el patrón que este proyecto persigue. */}
+          <button
+            type="button"
+            data-testid="matrix-undo"
+            onClick={undoDraft}
+            disabled={!canUndoDraftChange}
+            title="Deshacer el último cambio del borrador (⌘Z)"
+            className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Undo2 size={14} />
+            <span>Deshacer</span>
+          </button>
+          <button
+            type="button"
+            data-testid="matrix-redo"
+            onClick={redoDraft}
+            disabled={!canRedoDraftChange}
+            title="Rehacer el cambio deshecho (⇧⌘Z)"
+            className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Redo2 size={14} />
+            <span>Rehacer</span>
           </button>
           {tieneCambios && (
             <span
@@ -1310,7 +1380,7 @@ export default function MatrixEditorView({
           Nombre
           <input
             value={draft.name}
-            onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+            onChange={(event) => commitDraft({ ...draft, name: event.target.value })}
             className={`${matrixInputClass} py-1.5 font-normal`}
           />
         </label>
@@ -1319,7 +1389,7 @@ export default function MatrixEditorView({
           <input
             type="date"
             value={draft.startDate}
-            onChange={(event) => setDraft({ ...draft, startDate: event.target.value })}
+            onChange={(event) => commitDraft({ ...draft, startDate: event.target.value })}
             className={`${matrixInputClass} py-1.5 font-normal`}
           />
         </label>

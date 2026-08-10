@@ -26,6 +26,10 @@ import {
   saveProject,
   saveMatrixTemplate,
 } from "./project";
+import {
+  EMPTY_DETECTION_DICTIONARY,
+  rememberCorrection,
+} from "@/lib/scheduling/detection/dictionary";
 
 const template: MatrixTemplate = {
   id: "template-edificio",
@@ -344,5 +348,63 @@ describe("deleteProject", () => {
     const llamadas = query.mock.calls.map((call) => String(call[0]));
     expect(llamadas).toContain("ROLLBACK");
     expect(llamadas).not.toContain("COMMIT");
+  });
+});
+
+describe("ProjectData · el diccionario de correcciones viaja con el proyecto (R4)", () => {
+  beforeEach(() => {
+    query.mockReset();
+  });
+
+  function proyectoBase() {
+    return {
+      name: "Estación 16",
+      tasks: [],
+      resources: [],
+      assignments: [],
+      budgetItems: [],
+      budgetMappings: [],
+      baselines: [],
+      calendar,
+    };
+  }
+
+  test("una corrección guardada sobrevive al viaje de ida y vuelta", async () => {
+    const dictionary = rememberCorrection(EMPTY_DETECTION_DICTIONARY, {
+      kind: "ubicacion",
+      name: "Instalación de redes secas",
+      value: "4",
+      note: "Va en el piso 4, no en obra general",
+      recordedAt: "2026-08-08T10:00:00.000Z",
+    });
+
+    query.mockResolvedValueOnce({ rows: [{ id: "project-1" }] });
+    await saveProject({ ...proyectoBase(), detectionDictionary: dictionary });
+
+    const serializado = JSON.parse(query.mock.calls[0][1][1]);
+    expect(serializado.detectionDictionary.corrections).toHaveLength(1);
+    expect(serializado.detectionDictionary.corrections[0].value).toBe("4");
+
+    query.mockResolvedValueOnce({
+      rows: [{ name: "Estación 16", project_data: serializado }],
+    });
+    const cargado = await loadProject("project-1");
+
+    expect(cargado?.detectionDictionary).toEqual(dictionary);
+  });
+
+  test("un proyecto viejo sin diccionario se lee como diccionario vacío", async () => {
+    query.mockResolvedValueOnce({ rows: [{ id: "project-2" }] });
+    await saveProject(proyectoBase());
+
+    const serializado = JSON.parse(query.mock.calls[0][1][1]);
+    delete (serializado as { detectionDictionary?: unknown }).detectionDictionary;
+
+    query.mockResolvedValueOnce({
+      rows: [{ name: "Antiguo", project_data: serializado }],
+    });
+    const cargado = await loadProject("project-2");
+
+    expect(cargado?.detectionDictionary).toEqual(EMPTY_DETECTION_DICTIONARY);
   });
 });

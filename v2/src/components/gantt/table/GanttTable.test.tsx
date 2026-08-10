@@ -167,7 +167,9 @@ describe("GanttTable", () => {
       "Comienzo",
       "Fin",
       "Predecesoras",
-      "% completado",
+      // Con 100 px de ancho, «% completado» no cabe: se abrevia en vez de
+      // cortarse a mitad de palabra. El nombre completo vive en el `title`.
+      "%",
       "Crítica",
     ]);
 
@@ -201,7 +203,10 @@ describe("GanttTable", () => {
         const headers = screen.getAllByRole("columnheader").map((header) => header.textContent);
         expect(headers).toContain("Comienzo");
         expect(headers).toContain("Fin");
-        expect(headers).toContain("Pred.");
+        // «Predecesoras» conserva su nombre completo aunque el panel sea
+        // estrecho: su columna mide 180 px y le sobra sitio. Antes se abreviaba
+        // porque la decisión la tomaba el ancho del panel entero (R2).
+        expect(headers).toContain("Predecesoras");
         expect(headers).not.toContain("Resumen");
         expect(headers).not.toContain("Crítica");
       });
@@ -1767,5 +1772,45 @@ describe("la columna Predecesoras muestra el dato, no el control (E40)", () => {
     expect(
       screen.getByTestId("cell-predecessors-2").querySelector("button"),
     ).not.toBeNull();
+  });
+});
+
+describe("GanttTable · encabezados que abrevian en vez de cortarse (R2)", () => {
+  function renderConAncho(predecessorsWidth: number) {
+    render(
+      <GanttTable
+        tasks={[makeTask({ id: 1 })]}
+        columnSettings={{
+          visible: ["id", "name", "predecessors"],
+          widths: { predecessors: predecessorsWidth },
+          labelLocale: "es",
+        }}
+      />,
+    );
+    return screen
+      .getAllByTestId("column-header")
+      .find((node) => node.getAttribute("data-full-label") === "Predecesoras");
+  }
+
+  test("una columna estrecha muestra la abreviatura, no el título partido", () => {
+    const encabezado = renderConAncho(60);
+
+    expect(encabezado).toBeDefined();
+    expect(encabezado).toHaveTextContent("Pred.");
+  });
+
+  test("el nombre completo sigue accesible en el title del encabezado", () => {
+    const encabezado = renderConAncho(60);
+
+    expect(encabezado).toHaveAttribute(
+      "title",
+      expect.stringContaining("Predecesoras"),
+    );
+  });
+
+  test("con ancho de sobra se muestra el título completo", () => {
+    const encabezado = renderConAncho(200);
+
+    expect(encabezado).toHaveTextContent("Predecesoras");
   });
 });

@@ -253,6 +253,21 @@ export function formatLocationLabel(location: LocationMatch): string {
   return `${location.label} ${location.raw}`;
 }
 
+/**
+ * El patrón de eje con principio y fin, aparte del recorrido de prioridad.
+ *
+ * La precedencia no cambia: el módulo sigue ganando al eje porque es la unidad
+ * de producción. Lo que cambia es que deja de **descartar** el tramo. Es dato
+ * adicional, no un cambio de criterio: `label` y `value` siguen siendo los del
+ * módulo, y todo lo que ordena por `value` no se entera.
+ */
+/** Las ubicaciones cuyo `span` no tiene ya un significado propio. */
+const SPAN_CARRIERS = new Set(["Módulo", "Edificio"]);
+
+const AXIS_SPAN_PATTERN = LOCATION_PATTERNS.find(
+  (pattern) => pattern.label === "Eje" && pattern.spanOf != null,
+);
+
 export function extractLocation(text: string): LocationMatch | null {
   const normalized = normalizeName(text);
   for (const pattern of LOCATION_PATTERNS) {
@@ -267,7 +282,24 @@ export function extractLocation(text: string): LocationMatch | null {
       raw: match[1] ?? match[0],
       value,
     };
-    if (span) result.span = span;
+    if (span) {
+      result.span = span;
+      return result;
+    }
+
+    // El patrón ganador no es de tramo, pero el nombre puede llevar uno
+    // detrás: «Módulo 1.1 (Ejes A-D)» es el módulo 1.1 **y** el tramo A-D.
+    //
+    // Solo módulo y edificio, a propósito. En un piso, `span` ya significa otra
+    // cosa —«Escalera Piso 1 a 2» cruza dos pisos— y meter ahí un tramo de ejes
+    // pondría dos significados distintos en el mismo campo: quien lea el `span`
+    // de un piso creería que cruza del 2 al 4 cuando son los ejes B a D.
+    if (SPAN_CARRIERS.has(pattern.label) && AXIS_SPAN_PATTERN) {
+      const axisMatch = normalized.match(AXIS_SPAN_PATTERN.regex);
+      const axisSpan = axisMatch ? AXIS_SPAN_PATTERN.spanOf?.(axisMatch) : null;
+      if (axisSpan) result.span = axisSpan;
+    }
+
     return result;
   }
   return null;

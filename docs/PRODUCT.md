@@ -49,7 +49,7 @@ Ordenado por convicción. Cada corte es un «no» que concentra el producto.
 |---|---|---|---|
 | C1 | **Fundir «Seguimiento» y «Hoja Tareas» dentro de Gantt** | Son la misma tabla con variantes; el usuario no debería elegir entre tres versiones de lo mismo. Pasan a ser modos del Gantt (o presets de rol, que ya existen) | Propuesto |
 | C2 | **Fundir «Conflictos» dentro de «Cuellos»** | Ambas responden «¿qué está mal en el plan?»; comparten hasta el icono `AlertTriangle`. Una sola vista «Problemas» con dos secciones | Propuesto |
-| C3 | **Sacar «Diagrama Red» de la barra principal** | 207 caracteres de contenido y ningún job de CUSTOMER.md lo pide; es paridad con MS Project, no valor de obra | Propuesto |
+| C3 | **Sacar «Diagrama Red» de la barra principal** | 207 caracteres de contenido y ningún job de CUSTOMER.md lo pide; es paridad con MS Project, no valor de obra | **Revertido 2026-08-08** — P5 le da un editor de dependencias: deja de ser paridad vacía y pasa a ser el sitio donde se dibujan las relaciones entre tareas. El motivo original —«ningún contenido»— dejó de ser cierto |
 | C4 | **Vistas vacías: o se llenan o se ocultan** | «Unidad Típica», «Conflictos» y «Recursos» aparecen vacías sin decir por qué. Si el proyecto no tiene esos datos, la vista no debería ocupar un lugar en la barra | Propuesto |
 | C5 | **«Matriz» con 12 caracteres no es una vista** | Es un botón «Crear matriz» disfrazado de sección. O se convierte en una acción dentro de Nuevo Proyecto, o muestra para qué sirve antes de pedir crearla | Propuesto |
 | C6 | **`/gantt-demo` enlazado desde la home** | Es una demo de desarrollo (8 tareas de ejemplo) enlazada como «Ver Demo Gantt» junto a los proyectos reales del usuario | Propuesto |
@@ -88,7 +88,7 @@ Auditado el 2026-08-05:
 |---|---|---|---|
 | ~~Ver el cronograma sin cuenta (2 pasos, no 6)~~ | Big Hire — funcional | — | **descartado por el usuario (2026-08-06)** |
 | Cada vista explica su propósito | Emocional — control | **2** | backlog (E8/F2) |
-| De 14 vistas a 9 (C1, C2, C3) | Emocional — sobrecarga | **3** | propuesto |
+| De 14 vistas a 11 (C1, C2; C3 revertido) | Emocional — sobrecarga | **3** | **hecho 2026-08-08** — el menú quedó en 11 entradas; el Diagrama de Red vuelve a la barra con el editor de dependencias de P5 |
 | Estados vacíos que enseñan | Emocional | **4** | backlog (F3/E6) |
 | Importación legible (progreso, cancelar) | Funcional | **5** | backlog (E4) |
 | 404 y salir con dignidad | Confianza | **6** | backlog (F5) |
@@ -195,7 +195,7 @@ sobreviviendo en el único sitio donde más caro sale.
 |---|---|---|
 | C1 · Fundir Seguimiento y Hoja de Tareas en Gantt | ✅ hecho |
 | C2 · Fundir Conflictos en Cuellos → «Problemas» | ✅ hecho |
-| C3 · Sacar Diagrama de Red de la barra | ✅ hecho |
+| C3 · Sacar Diagrama de Red de la barra | ↩️ revertido — P5 le da contenido real (editor de dependencias) |
 | C4 · Vistas vacías: o se llenan o se ocultan | ⚠️ **a medias** — Unidad Típica sí; **Recursos no** |
 | C5 · «Matriz» con 12 caracteres no es una vista | ❌ **sin hacer** |
 | C6 · `/gantt-demo` enlazado desde la home | ✅ hecho |
@@ -346,3 +346,77 @@ no es que falten pruebas — es que **las pruebas prueban lo que se les ocurrió
 falta alguien que use el producto sin saber cómo se construyó.
 
 **7/10.** Se pasa de «esto esconde su músculo» a «esto ya no engaña, pero todavía cansa».
+
+---
+
+# Revisión en frío de cierre — 2026-08-08 (tercera pasada)
+
+**Veredicto: 9/10.** Es el **techo alcanzable** de esta app, no una nota perfecta: con E51 descartado en
+firme, el usuario nuevo seguirá necesitando 6 pasos hasta el valor, y esa fila no se puede aprobar.
+
+**Acotada a propósito** a las dos filas que fallaron el 2026-08-08. Las cinco que ya pasaban no se repiten:
+volver a puntuarlas no daría información y sí ruido. Mismo método que las dos revisiones anteriores, sobre
+**build de producción** (`next start`), con el `.mpp` real de obra y con la demo para el caso sin datos.
+
+## Fila 6 — estados vacíos a la altura: **pasa**
+
+**F6 · La puerta de la Matriz.** Medido: de **12 caracteres a 841**.
+
+Antes: un botón que decía «Crear matriz» y nada más, con las 26 tareas de P4 construidas detrás. Ahora la
+puerta dice qué es la programación matricial en lenguaje de obra —«cruzas **qué se hace** con **dónde se
+hace**»—, qué obtienes en tres líneas concretas, y ofrece **tres** entradas: tres plantillas de fábrica con
+su resumen («1 alcance · 2 ubicaciones · 3 recetas»), generar la matriz desde el cronograma, y empezar en
+blanco como tercera opción y no como única.
+
+Un detalle que cambia el gesto: pulsar una plantilla **aterriza directo en la cuadrícula poblada**. Antes
+había que crear la matriz y luego ir a «Plantillas».
+
+**F7 · Recursos.** De **217 a 1.011 caracteres**, y con una decisión medida detrás.
+
+La duda era llenar o esconder. Se midieron los tres `.mpp` reales del repositorio: **17, 1 y 0 recursos con
+nombre**. Las dos caras de esa cifra mandan: un tercio de las obras usa la hoja en serio —esconderla
+escondería contenido real—, pero **dos de tres llegan vacías**, así que este estado es el caso mayoritario y
+tiene que enseñar. La vista explica qué es una hoja de recursos, de dónde salen, qué hay en cada una de las
+cinco sub-pestañas, y ofrece **dos salidas**: crear el primer recurso o **abrir el presupuesto** — la segunda
+existe porque Presupuesto y Mapeo funcionan con cero cuadrillas, y esconder las cinco en bloque habría tapado
+dos pantallas que sí sirven.
+
+## Fila 1 — pasos hasta el valor: **sigue sin pasar, y es correcto que así sea**
+
+6 pasos frente a los 2 del visor 1.0. **Decisión del usuario tomada dos veces y declarada firme**: la cuenta
+se queda. No se reabre y no debe reaparecer como pendiente. Es el único motivo por el que el techo es 9 y no
+10, y conviene decirlo en vez de perseguir un número que ya no está disponible.
+
+## Lo que esta revisión encontró, midiendo
+
+**Mi propio arreglo de R0 se rompía en el caso vacío.** Sin datos, las descripciones del menú eran frases
+completas: la entrada «Matriz» ocupaba **152 px** y «Recursos» **140**, frente a 52 del resto. El menú pedía
+**881 px en 624 disponibles** — no cabía. Es exactamente el fallo que R0 vino a arreglar, reaparecido en el
+estado vacío, que es justo el que F6 y F7 sirven.
+
+Corregido durante la revisión: la descripción pasa a ser **etiqueta, no párrafo** («Sin matriz todavía»).
+De 881 px a **731**, y la entrada más alta de 152 a **77**. La explicación completa ya vive dentro de la
+vista desde F6 y F7: **la puerta dice cuánto hay, la habitación explica qué es.**
+
+## Lo que sigue abierto, y no cuenta para esta nota
+
+- **Las superficies siguen siendo ~19** contando sub-pestañas y vistas alcanzables por preset. El menú tiene
+  11 entradas y la agrupación ayuda, pero el recorte «de 14 a 9» sigue siendo contabilidad. Registrado en la
+  revisión anterior; no era una de las dos filas de esta.
+- **Otros estados vacíos siguen diciendo «0»** —Curva S, Problemas, Diagrama de Red— con el texto que los
+  explicaría ya escrito en `viewHelp.ts`, a un clic de «?». No entraban en F6 ni F7.
+- **La suite E2E es inestable bajo carga en esta máquina**: tres corridas completas, tres fallos distintos,
+  **los tres verdes en aislamiento**. El único fallo real fue uno propio —el recorrido fijaba la cara vieja de
+  Recursos— y está corregido.
+
+## Nota del revisor
+
+Las tres revisiones cuentan la misma historia en tres actos. La primera dijo que el producto **escondía su
+músculo**; la segunda, que **ya no engañaba pero todavía cansaba**; esta encuentra que las dos puertas que
+seguían mudas ya hablan.
+
+Lo que no cambia entre las tres es el método que las hizo útiles: **medir en vez de opinar**. El 12→841 de la
+Matriz, el 17/1/0 de los recursos y el 881→731 del menú son los tres momentos en que este cierre dejó de ser
+una impresión. Y el tercero salió de dudar del propio trabajo terminado el día anterior.
+
+**9/10 — DONE, con el techo dicho.**

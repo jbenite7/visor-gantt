@@ -12,6 +12,7 @@ import { classifyActivityFamily, type ActivityFamilyResult } from "./activityFam
 import { UNIT_PATTERNS, buildWbsBreadcrumb, buildWbsNameMap } from "./unitPatterns";
 import { formatLocationLabel } from "./detection/location";
 import { resolveTaskLocation } from "./detection/taskLocation";
+import type { DetectionDictionary } from "./detection/dictionary";
 
 // ── Layout types ──────────────────────────────────────────────────
 
@@ -476,8 +477,9 @@ function detectTaskUnit(
   task: GanttTask,
   tasks: GanttTask[],
   nameByWbs: Map<string, string>,
+  dictionary?: DetectionDictionary,
 ): { label: string; key: string; index: number } | null {
-  const { location } = resolveTaskLocation(task, tasks, undefined, nameByWbs);
+  const { location } = resolveTaskLocation(task, tasks, dictionary, nameByWbs);
   return location ? describeUnit(location) : null;
 }
 
@@ -571,12 +573,13 @@ function taskDurationDays(task: GanttTask): number {
 function generateTextLOBFromTasks(
   tasks: GanttTask[],
   matrixPlan?: MatrixPlan,
+  dictionary?: DetectionDictionary,
 ): AutomaticLOBResult {
   // Una sola vez para todo el cronograma: la herencia lo consulta por tarea.
   const nameByWbs = buildWbsNameMap(tasks);
   const candidates = tasks
     .filter((task) => !task.isSummary && !task.isMilestone)
-    .map((task) => ({ task, unit: detectTaskUnit(task, tasks, nameByWbs) }))
+    .map((task) => ({ task, unit: detectTaskUnit(task, tasks, nameByWbs, dictionary) }))
     .filter((entry): entry is { task: GanttTask; unit: { label: string; key: string; index: number } } => entry.unit !== null);
 
   const activityGroups = new Map<string, Array<typeof candidates[number]>>();
@@ -762,8 +765,13 @@ function generateWBSLOBFromTasks(tasks: GanttTask[]): AutomaticLOBResult {
 export function generateAutomaticLOBFromTasks(
   tasks: GanttTask[],
   matrixPlan?: MatrixPlan,
+  /**
+   * Lo que el usuario corrigió a mano. Va antes que lo automático por la
+   * cascada de P3: una corrección humana no se equivoca por parecido.
+   */
+  dictionary?: DetectionDictionary,
 ): AutomaticLOBResult {
-  const textResult = generateTextLOBFromTasks(tasks, matrixPlan);
+  const textResult = generateTextLOBFromTasks(tasks, matrixPlan, dictionary);
   if (textResult.activities.length > 0) return textResult;
   return generateWBSLOBFromTasks(tasks);
 }
