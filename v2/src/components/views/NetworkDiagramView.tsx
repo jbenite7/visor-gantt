@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GanttTask } from "@/components/gantt/types";
 import { computeNetworkLayout } from "@/lib/layout/networkLayout";
+import { resolveDependencyDraft } from "@/lib/gantt/networkDependencyEditing";
 import NetworkNode from "@/components/network/NetworkNode";
 import NetworkArrow from "@/components/network/NetworkArrow";
 import { RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
@@ -10,11 +11,19 @@ import { RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 interface NetworkDiagramViewProps {
   tasks: GanttTask[];
   onTaskClick?: (task: GanttTask) => void;
+  onCreateDependency?: (
+    fromId: string | number,
+    toId: string | number,
+    type: "FS" | "SS" | "FF" | "SF",
+  ) => void;
+  onRejectEdit?: (reason: string) => void;
 }
 
 export default function NetworkDiagramView({
   tasks,
   onTaskClick,
+  onCreateDependency,
+  onRejectEdit,
 }: NetworkDiagramViewProps) {
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
@@ -22,6 +31,22 @@ export default function NetworkDiagramView({
   const [selectedTaskId, setSelectedTaskId] = useState<
     string | number | null
   >(null);
+  const [connectFromId, setConnectFromId] = useState<string | number | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (connectFromId === null) return;
+    const cancelar = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setConnectFromId(null);
+    };
+    window.addEventListener("keydown", cancelar);
+    return () => window.removeEventListener("keydown", cancelar);
+  }, [connectFromId]);
+
+  const handleStartConnection = useCallback((taskId: string | number) => {
+    setConnectFromId((current) => (current === taskId ? null : taskId));
+  }, []);
 
   const panRef = useRef<{
     dragging: boolean;
@@ -84,13 +109,28 @@ export default function NetworkDiagramView({
   // ── Node click ──
   const handleNodeClick = useCallback(
     (taskId: string | number) => {
+      if (connectFromId !== null) {
+        const draft = resolveDependencyDraft(tasks, connectFromId, taskId);
+        setConnectFromId(null);
+        if (!draft.ok) {
+          onRejectEdit?.(draft.message);
+          return;
+        }
+        onCreateDependency?.(
+          draft.dependency.from,
+          draft.dependency.to,
+          draft.dependency.type,
+        );
+        return;
+      }
+
       setSelectedTaskId(taskId);
       if (onTaskClick) {
         const task = tasks.find((t) => t.id === taskId);
         if (task) onTaskClick(task);
       }
     },
-    [tasks, onTaskClick],
+    [connectFromId, tasks, onCreateDependency, onRejectEdit, onTaskClick],
   );
 
   // ── Reset view ──
@@ -132,11 +172,22 @@ export default function NetworkDiagramView({
               key={node.taskId}
               node={node}
               onClick={handleNodeClick}
+              onStartConnection={handleStartConnection}
               isSelected={selectedTaskId === node.taskId}
+              isConnectSource={connectFromId === node.taskId}
             />
           ))}
         </g>
       </svg>
+
+      {connectFromId !== null && (
+        <div
+          data-testid="network-connect-hint"
+          className="absolute left-4 top-4 apple-section px-3 py-2 text-xs"
+        >
+          Elige la actividad que va después. Escape cancela.
+        </div>
+      )}
 
       {/* Zoom controls */}
       <div className="absolute bottom-4 right-4 flex gap-2">
