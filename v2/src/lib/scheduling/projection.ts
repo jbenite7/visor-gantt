@@ -131,3 +131,111 @@ export function measurePace(points: ProjectionPoint[]): PaceMeasurement | null {
     recentPace: rawRecentPace > 0 ? rawRecentPace : overallPace,
   };
 }
+
+/** Días de obra medidos por debajo de los cuales el ritmo no es un ritmo. */
+export const MIN_ELAPSED_DAYS = 7;
+
+export type ProjectionUnavailableReason = "sinTareas" | "sinAvance" | "pocosDias";
+
+export interface ProjectionLine {
+  label: string;
+  finishDate: Date;
+  points: ProjectionPoint[];
+}
+
+export interface ProjectionUnavailable {
+  available: false;
+  reason: ProjectionUnavailableReason;
+  /** Qué falta para poder proyectar, en lenguaje de obra. */
+  message: string;
+}
+
+export interface ProjectionAvailable {
+  available: true;
+  statusDate: Date;
+  achieved: ProjectionPoint[];
+  pace: PaceMeasurement;
+  optimistic: ProjectionLine;
+  probable: ProjectionLine;
+  pessimistic: ProjectionLine;
+}
+
+export type Projection = ProjectionAvailable | ProjectionUnavailable;
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function buildLine(
+  label: string,
+  from: Date,
+  achievedPercent: number,
+  pace: number,
+): ProjectionLine {
+  const remaining = Math.max(100 - achievedPercent, 0);
+  const days = pace > 0 ? Math.ceil(remaining / pace) : 0;
+  const finishDate = addDays(from, days);
+  return {
+    label,
+    finishDate,
+    points: [
+      { date: from, cumulativeValue: achievedPercent },
+      { date: finishDate, cumulativeValue: 100 },
+    ],
+  };
+}
+
+/**
+ * Proyecta el fin de obra desde el ritmo real logrado. Tres líneas: la
+ * probable sigue el ritmo reciente, la optimista el más rápido de los dos
+ * ritmos medidos y la pesimista el más lento.
+ */
+export function projectCompletion(
+  tasks: GanttTask[],
+  statusDate: Date,
+): Projection {
+  if (tasks.length === 0) {
+    return {
+      available: false,
+      reason: "sinTareas",
+      message:
+        "No hay cronograma que proyectar. Importa un archivo de Microsoft Project o crea las actividades de la obra.",
+    };
+  }
+
+  const achieved = computeAchievedSCurve(tasks, statusDate);
+  const pace = measurePace(achieved);
+
+  if (!pace) {
+    return {
+      available: false,
+      reason: "sinAvance",
+      message:
+        "Ninguna actividad tiene avance registrado, así que no hay ritmo que medir. Anota el porcentaje ejecutado de las actividades que ya arrancaron y la proyección aparece sola.",
+    };
+  }
+
+  if (pace.elapsedDays < MIN_ELAPSED_DAYS) {
+    return {
+      available: false,
+      reason: "pocosDias",
+      message: `Solo hay ${pace.elapsedDays} día(s) de obra medidos hasta la fecha de corte. Se necesitan al menos ${MIN_ELAPSED_DAYS} para que el ritmo signifique algo.`,
+    };
+  }
+
+  const from = achieved[achieved.length - 1].date;
+  const fastest = Math.max(pace.overallPace, pace.recentPace);
+  const slowest = Math.min(pace.overallPace, pace.recentPace);
+
+  return {
+    available: true,
+    statusDate: from,
+    achieved,
+    pace,
+    optimistic: buildLine("Optimista", from, pace.achievedPercent, fastest),
+    probable: buildLine("Probable", from, pace.achievedPercent, pace.recentPace),
+    pessimistic: buildLine("Pesimista", from, pace.achievedPercent, slowest),
+  };
+}

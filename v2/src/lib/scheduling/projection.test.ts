@@ -1,6 +1,6 @@
 import type { GanttTask } from "@/components/gantt/types";
 import { createProjectDate } from "@/lib/date/projectDate";
-import { computeAchievedSCurve, measurePace } from "./projection";
+import { computeAchievedSCurve, measurePace, projectCompletion } from "./projection";
 
 function task(overrides: Partial<GanttTask> & { id: string | number }): GanttTask {
   return {
@@ -154,5 +154,104 @@ describe("measurePace", () => {
     expect(pace.achievedPercent).toBeCloseTo(25, 6);
     expect(pace.overallPace).toBeCloseTo(0.625, 6);
     expect(pace.recentPace).toBeCloseTo(pace.overallPace, 6);
+  });
+});
+
+describe("projectCompletion", () => {
+  function obra(primero: number, segundo: number): GanttTask[] {
+    return [
+      task({ id: 1, start: createProjectDate("2026-01-01"), finish: createProjectDate("2026-01-10"), progress: primero }),
+      task({ id: 2, start: createProjectDate("2026-01-11"), finish: createProjectDate("2026-01-20"), progress: segundo }),
+      task({ id: 3, start: createProjectDate("2026-01-21"), finish: createProjectDate("2026-01-30"), progress: 0 }),
+      task({ id: 4, start: createProjectDate("2026-01-31"), finish: createProjectDate("2026-02-09"), progress: 0 }),
+    ];
+  }
+
+  const corte = createProjectDate("2026-01-20");
+
+  function iso(date: Date): string {
+    const mes = String(date.getMonth() + 1).padStart(2, "0");
+    const dia = String(date.getDate()).padStart(2, "0");
+    return `${date.getFullYear()}-${mes}-${dia}`;
+  }
+
+  test("ritmo constante: las tres líneas caen el mismo día", () => {
+    const resultado = projectCompletion(obra(100, 100), corte);
+
+    expect(resultado.available).toBe(true);
+    if (!resultado.available) return;
+    expect(iso(resultado.probable.finishDate)).toBe("2026-02-09");
+    expect(iso(resultado.optimistic.finishDate)).toBe("2026-02-09");
+    expect(iso(resultado.pessimistic.finishDate)).toBe("2026-02-09");
+  });
+
+  test("ritmo que se acelera: la probable coincide con la optimista y la pesimista se va más lejos", () => {
+    const resultado = projectCompletion(obra(30, 100), corte);
+
+    expect(resultado.available).toBe(true);
+    if (!resultado.available) return;
+    expect(iso(resultado.probable.finishDate)).toBe("2026-02-27");
+    expect(iso(resultado.optimistic.finishDate)).toBe("2026-02-27");
+    expect(iso(resultado.pessimistic.finishDate)).toBe("2026-03-03");
+  });
+
+  test("ritmo que se frena: la probable coincide con la pesimista", () => {
+    const resultado = projectCompletion(obra(100, 30), corte);
+
+    expect(resultado.available).toBe(true);
+    if (!resultado.available) return;
+    expect(iso(resultado.probable.finishDate)).toBe("2026-03-15");
+    expect(iso(resultado.optimistic.finishDate)).toBe("2026-03-03");
+    expect(iso(resultado.pessimistic.finishDate)).toBe("2026-03-15");
+  });
+
+  test("cada línea arranca en el avance logrado y termina en el 100 %", () => {
+    const resultado = projectCompletion(obra(100, 100), corte);
+
+    expect(resultado.available).toBe(true);
+    if (!resultado.available) return;
+    expect(resultado.probable.points).toHaveLength(2);
+    expect(resultado.probable.points[0].cumulativeValue).toBeCloseTo(50, 6);
+    expect(iso(resultado.probable.points[0].date)).toBe("2026-01-20");
+    expect(resultado.probable.points[1].cumulativeValue).toBe(100);
+  });
+
+  test("avance cero: no proyecta y dice qué falta", () => {
+    const resultado = projectCompletion(obra(0, 0), corte);
+
+    expect(resultado.available).toBe(false);
+    if (resultado.available) return;
+    expect(resultado.reason).toBe("sinAvance");
+    expect(resultado.message).toMatch(/avance/i);
+  });
+
+  test("sin tareas: no proyecta y dice qué falta", () => {
+    const resultado = projectCompletion([], corte);
+
+    expect(resultado.available).toBe(false);
+    if (resultado.available) return;
+    expect(resultado.reason).toBe("sinTareas");
+    expect(resultado.message).toMatch(/cronograma/i);
+  });
+
+  test("por debajo del umbral mínimo de días medidos no se proyecta", () => {
+    const resultado = projectCompletion(
+      [task({ id: 1, start: createProjectDate("2026-01-01"), duration: 10, progress: 50 })],
+      createProjectDate("2026-01-03"),
+    );
+
+    expect(resultado.available).toBe(false);
+    if (resultado.available) return;
+    expect(resultado.reason).toBe("pocosDias");
+    expect(resultado.message).toContain("7");
+  });
+
+  test("justo en el umbral sí se proyecta", () => {
+    const resultado = projectCompletion(
+      [task({ id: 1, start: createProjectDate("2026-01-01"), duration: 10, progress: 50 })],
+      createProjectDate("2026-01-07"),
+    );
+
+    expect(resultado.available).toBe(true);
   });
 });
