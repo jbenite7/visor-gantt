@@ -4,7 +4,26 @@
 
 **Goal:** Que alguien sin cuenta vea su `.mpp` en **3 pasos**, en solo lectura, con un enlace que caduca a los 7 días y la opción de quedárselo creando cuenta — cerrando la única fila que separa la app del 10/10.
 
-**Architecture:** Un proyecto temporal es una fila de `projects` con `share_token` y `expires_at`; la ruta pública `/ver/<token>` lo muestra reutilizando `GanttView`, que ya sabe montarse sin sesión porque `/gantt-demo` lo hace. La garantía de solo lectura **no vive en la interfaz**: `saveProject` rechaza toda escritura sobre una fila con `expires_at IS NOT NULL`, de modo que aunque se escapara un control en pantalla no se guardaría nada. Adoptar es poner esas dos columnas a `NULL`.
+> ## ⚠️ NO EJECUTAR EL BLOQUE B TODAVÍA — el plan va por detrás de la spec
+>
+> **El 2026-08-10, después de escribir este plan, la spec cambió de sitio la garantía de solo lectura.** El
+> plan de abajo —en particular la **Task 4**, y las referencias a la invariante en las tareas 9, 10 y 12— la
+> pone dentro de `saveProject`, con el argumento de que por ahí «pasa todo guardado».
+>
+> **Eso es falso, y está verificado en el código:** `src/app/actions/snapshots.ts:120` inserta en
+> `project_snapshots` sin pasar por `saveProject`. Las escrituras sobre `projects` sí son solo tres, todas en
+> `project.ts`, pero la tabla de fotos quedaba fuera de la invariante.
+>
+> **La decisión vigente es la de la spec:** la comprobación va **donde se canjea el token**, de modo que una
+> sesión de `/ver/<token>` nunca llega a tener permiso de escritura, y una tabla nueva nace protegida sin que
+> nadie tenga que acordarse. Ver «La garantía de solo lectura» en
+> [la spec](../specs/2026-08-10-ver-sin-cuenta-design.md).
+>
+> **Qué hacer:** el Bloque A (tareas 1-3) no está afectado y se puede ejecutar. El Bloque B necesita
+> reescribirse contra la decisión nueva antes de tocarlo. Quien retome esto: reescribe primero, implementa
+> después.
+
+**Architecture:** Un proyecto temporal es una fila de `projects` con `share_token` y `expires_at`; la ruta pública `/ver/<token>` lo muestra reutilizando `GanttView`, que ya sabe montarse sin sesión porque `/gantt-demo` lo hace. La garantía de solo lectura **no vive en la interfaz**: la sesión que sale de canjear el token es de solo lectura, así que ninguna escritura —ni la del proyecto ni la de las fotos— llega a autorizarse. Adoptar es poner `share_token` y `expires_at` a `NULL`.
 
 **Tech Stack:** Next.js 16 (App Router) · TypeScript · React · PostgreSQL (`pg`) · Jest + Testing Library · Playwright.
 

@@ -81,9 +81,19 @@ todos es la clase de red con agujeros que este trabajo lleva semanas encontrando
 
 La garantía **no vive en la interfaz**:
 
-1. **El servidor es la cerradura.** `saveProject` **rechaza cualquier escritura** sobre un proyecto con
-   `expires_at IS NOT NULL`. No «si no hay sesión»: siempre. Un proyecto temporal es inmutable hasta que se
-   adopta. Aunque un control se escapara en la pantalla, no se guarda nada.
+1. **La cerradura está donde se canjea el enlace, no en cada escritura.** Quien llega por `/ver/<token>`
+   obtiene una sesión de **solo lectura**: se comprueba una vez, al resolver el token, y ninguna escritura
+   posterior necesita acordarse de nada.
+
+   > **Corregido el 2026-08-10.** El diseño ponía la invariante dentro de `saveProject`, «por donde pasa todo
+   > guardado». El carril B verificó que **eso no era cierto**: `snapshots.ts` inserta en `project_snapshots`
+   > por su cuenta, sin pasar por ahí. Las escrituras sobre `projects` sí son solo tres, todas en
+   > `project.ts` —el `UPDATE`, el `INSERT` y el `DELETE`—, pero la tabla de fotos quedaba fuera.
+   >
+   > Repartir la comprobación por cada escritura habría sido la misma forma que acabamos de desmontar en los
+   > E2E: una lista que hay que ampliar cada vez que aparece una tabla nueva, y que falla justo cuando alguien
+   > se olvida. Comprobar al canjear el token no tiene ese modo de fallo — una tabla nueva nace protegida,
+   > porque el permiso de escribir nunca llegó a existir.
 2. **La interfaz es la cortesía.** `GanttView` recibe `readOnly` y esconde lo que no aplica —editar, deshacer,
    línea base, observaciones, aplicar matriz— para no prometer lo que no da.
 3. **Un guardián** comprueba que la regla del servidor existe, no que alguien se acordó de tapar los botones.
@@ -117,8 +127,10 @@ base de datos sería más infraestructura de la que el problema pide.
 ## Cómo se prueba
 
 - **Módulos puros con test propio**: el token, la caducidad y el contador del freno se prueban sin DB ni DOM.
-- **La invariante del servidor**: un test que intenta guardar sobre un proyecto temporal y comprueba que se
-  rechaza. Es el que sostiene toda la garantía.
+- **La invariante del servidor**: un test que, con una sesión salida de `/ver/<token>`, intenta guardar el
+  proyecto **y también tomar una foto** (`project_snapshots`), y comprueba que se rechazan las dos. Las dos,
+  no solo la primera: fue justo la segunda la que se escapó del diseño original. Es el test que sostiene
+  toda la garantía.
 - **La ruta pública**: un test que abre `/ver/<token>` sin sesión y comprueba que se ve el cronograma; otro
   con el token caducado que comprueba que no.
 - **La adopción**: guardar tras adoptar debe funcionar; antes de adoptar, no.
@@ -127,9 +139,12 @@ base de datos sería más infraestructura de la que el problema pide.
 
 ## Riesgos
 
-1. **El más caro: que se escape un camino de escritura.** Mitigado por diseño —la invariante está en
-   `saveProject`, por donde pasa todo guardado— y por el test que lo fija. Si aparece otro camino de
-   escritura en el futuro, la invariante debe moverse con él.
+1. **El más caro: que se escape un camino de escritura.** Este riesgo **ya se materializó en el papel**, antes
+   de escribir una línea: la primera versión confiaba en `saveProject` como puerta única, y no lo era —
+   `snapshots.ts` escribe en `project_snapshots` sin pasar por ahí. Por eso la comprobación se movió al
+   canje del token: una sesión que nunca recibió permiso de escritura no puede escapársele a una tabla nueva.
+   Lo que queda por vigilar ya no es «¿añadimos la regla a la escritura nueva?», sino que **nadie fabrique una
+   sesión con permisos saltándose el canje**.
 2. **Exponer el analizador.** El freno lo acota; el límite de 50 MB ya existe. Si la app llega a estar en
    internet abierto, esto se revisa con datos de uso, no antes.
 3. **Datos de terceros en la base.** Un cronograma de obra lleva precios y plazos. Por eso caduca, por eso el
