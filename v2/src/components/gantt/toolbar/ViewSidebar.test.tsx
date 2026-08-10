@@ -124,3 +124,42 @@ describe("el menú se puede recorrer sin conocer atajos (E14, M27)", () => {
     expect(onViewChange).toHaveBeenCalledWith("matrix");
   });
 });
+
+describe("ViewSidebar · descripción por entrada (R0)", () => {
+  test("la Matriz anuncia cuántas ubicaciones hay detrás", () => {
+    render(
+      <ViewSidebar
+        activeView="gantt"
+        onViewChange={jest.fn()}
+        blurbContext={{ areaCount: 26, resourceCount: 0 }}
+      />,
+    );
+
+    expect(screen.getByTestId("sidebar-blurb-matrix")).toHaveTextContent(
+      "26 ubicaciones programadas",
+    );
+  });
+
+  test("sin recursos, Recursos explica para qué sirve en vez de quedarse mudo", () => {
+    render(
+      <ViewSidebar
+        activeView="gantt"
+        onViewChange={jest.fn()}
+        blurbContext={{ areaCount: 0, resourceCount: 0 }}
+      />,
+    );
+
+    expect(screen.getByTestId("sidebar-blurb-resources")).toHaveTextContent(
+      "Todavía no hay recursos",
+    );
+  });
+
+  test("el nombre completo sigue siendo el rótulo accesible del botón", () => {
+    render(<ViewSidebar activeView="gantt" onViewChange={jest.fn()} />);
+
+    expect(screen.getByTestId("sidebar-view-matrix")).toHaveAttribute(
+      "aria-label",
+      "Matriz",
+    );
+  });
+});

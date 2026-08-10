@@ -14,11 +14,15 @@ import {
   MessageSquare,
 } from "lucide-react";
 import type { ViewType } from "./viewTypes";
+import {
+  viewSidebarBlurb,
+  type ViewSidebarContext,
+} from "@/lib/gantt/viewSidebarBlurb";
 import type { UILocale } from "@/types/ui";
 
 type ViewGroupId = "trabajo" | "analisis" | "ajustes";
 
-interface ViewTab {
+export interface ViewTab {
   id: ViewType;
   labelEs: string;
   labelEn: string;
@@ -43,7 +47,7 @@ const VIEW_GROUPS: { id: ViewGroupId; labelEs: string; labelEn: string }[] = [
   { id: "ajustes", labelEs: "Ajustes", labelEn: "Settings" },
 ];
 
-const VIEW_TABS: ViewTab[] = [
+export const VIEW_TABS: ViewTab[] = [
   { id: "gantt", labelEs: "Gantt", labelEn: "Gantt", icon: BarChart3, group: "trabajo" },
   // La Matriz volvió al menú: solo se llegaba por ⌘K, que es como no existir (M27).
   { id: "matrix", labelEs: "Matriz", labelEn: "Matrix", icon: Grid3x3, group: "trabajo" },
@@ -65,9 +69,16 @@ interface ViewSidebarProps {
   activeView: ViewType;
   onViewChange: (view: ViewType) => void;
   locale?: UILocale;
+  /** Conteos reales del proyecto: sin ellos la entrada explica para qué sirve. */
+  blurbContext?: ViewSidebarContext;
 }
 
-export default function ViewSidebar({ activeView, onViewChange, locale = "es" }: ViewSidebarProps) {
+export default function ViewSidebar({
+  activeView,
+  onViewChange,
+  locale = "es",
+  blurbContext,
+}: ViewSidebarProps) {
   return (
     <nav
       data-testid="view-sidebar"
@@ -89,6 +100,7 @@ export default function ViewSidebar({ activeView, onViewChange, locale = "es" }:
             const isActive = activeView === tab.id;
             const Icon = tab.icon;
             const label = locale === "en" ? tab.labelEn : tab.labelEs;
+            const blurb = viewSidebarBlurb(tab.id, blurbContext);
 
             return (
               <button
@@ -98,12 +110,20 @@ export default function ViewSidebar({ activeView, onViewChange, locale = "es" }:
                 aria-selected={isActive}
                 aria-label={label}
                 onClick={() => onViewChange(tab.id)}
-                title={label}
+                title={blurb ? `${label} — ${blurb}` : label}
                 className="project-view-sidebar__item"
                 type="button"
               >
                 <Icon className="project-view-sidebar__icon" aria-hidden />
                 <span className="project-view-sidebar__label">{label}</span>
+                {blurb && (
+                  <span
+                    data-testid={`sidebar-blurb-${tab.id}`}
+                    className="project-view-sidebar__blurb"
+                  >
+                    {blurb}
+                  </span>
+                )}
               </button>
             );
           })}
