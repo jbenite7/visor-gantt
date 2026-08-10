@@ -64,9 +64,12 @@ export function computeAchievedSCurve(
 ): ProjectionPoint[] {
   if (tasks.length === 0) return [];
 
+  // Las tareas resumen agregan a sus hijas: contarlas junto a ellas duplica
+  // el trabajo. El avance logrado solo se mide sobre tareas operativas.
+  const operationalTasks = tasks.filter((task) => !task.isSummary);
+
   let totalWork = 0;
-  for (const task of tasks) totalWork += safeDuration(task);
-  if (totalWork <= 0) return [];
+  for (const task of operationalTasks) totalWork += safeDuration(task);
 
   const start = dateOnly(earliestStart(tasks));
   const end = dateOnly(statusDate);
@@ -75,10 +78,10 @@ export function computeAchievedSCurve(
   const points: ProjectionPoint[] = [];
   for (const day of eachDay(start, end)) {
     let done = 0;
-    for (const task of tasks) {
+    for (const task of operationalTasks) {
       done += safeDuration(task) * achievedFraction(task, day);
     }
-    points.push({ date: day, cumulativeValue: (done / totalWork) * 100 });
+    points.push({ date: day, cumulativeValue: totalWork > 0 ? (done / totalWork) * 100 : 0 });
   }
   return points;
 }

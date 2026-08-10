@@ -69,6 +69,30 @@ describe("computeAchievedSCurve", () => {
       computeAchievedSCurve(obraConDosBloquesTerminados(), createProjectDate("2025-12-20")),
     ).toEqual([]);
   });
+
+  test("una tarea resumen no se cuenta junto a sus hijas", () => {
+    // El capítulo agrega a sus dos hijas: contarlo sumaría el trabajo dos veces.
+    const conResumen = computeAchievedSCurve([
+      task({ id: "cap", isSummary: true, start: createProjectDate("2026-01-01"), finish: createProjectDate("2026-01-20"), duration: 20, progress: 100 }),
+      task({ id: 1, start: createProjectDate("2026-01-01"), finish: createProjectDate("2026-01-10"), duration: 10, progress: 100 }),
+      task({ id: 2, start: createProjectDate("2026-01-11"), finish: createProjectDate("2026-01-20"), duration: 10, progress: 100 }),
+    ], createProjectDate("2026-01-20"));
+
+    const sinResumen = computeAchievedSCurve([
+      task({ id: 1, start: createProjectDate("2026-01-01"), finish: createProjectDate("2026-01-10"), duration: 10, progress: 100 }),
+      task({ id: 2, start: createProjectDate("2026-01-11"), finish: createProjectDate("2026-01-20"), duration: 10, progress: 100 }),
+    ], createProjectDate("2026-01-20"));
+
+    expect(conResumen).toEqual(sinResumen);
+  });
+
+  test("un proyecto que solo tiene resúmenes no inventa avance", () => {
+    const puntos = computeAchievedSCurve([
+      task({ id: "cap", isSummary: true, duration: 20, progress: 100 }),
+    ], createProjectDate("2026-01-20"));
+
+    expect(puntos.every((p) => p.cumulativeValue === 0)).toBe(true);
+  });
 });
 
 describe("measurePace", () => {
