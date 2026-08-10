@@ -425,7 +425,8 @@ test("captura auditoria visual final desktop y mobile", async ({ page }) => {
     await expect(page.locator("body")).toBeVisible();
     await capture(page, viewport, "login");
 
-    await page.goto("/upload");
+    // La subida vive en la home desde que se retiró /upload el 2026-08-10.
+    await page.goto("/");
     await expect(page.locator("body")).toBeVisible();
     await capture(page, viewport, "upload");
 
