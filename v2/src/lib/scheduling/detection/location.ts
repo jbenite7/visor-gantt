@@ -1,3 +1,4 @@
+import { parseAxisLabel } from "./axisLabel";
 import { normalizeName } from "./normalize";
 
 /**
@@ -15,12 +16,41 @@ export interface LocationMatch {
   raw: string;
   /** Número ordenable. Los sótanos son negativos. */
   value: number;
+  /** Presente solo cuando la ubicación es un tramo. */
+  span?: LocationSpan;
+}
+
+/**
+ * Una ubicación con principio y fin.
+ *
+ * Un eje no es un punto: `Ejes A-D` dice «voy del A al D». Y una tarea de
+ * transición entre pisos —`Piso 1 a 2`— es lo mismo. Reducir cualquiera de
+ * los dos a su primer valor es descartar la mitad del dato sin avisar.
+ *
+ * `from` coincide siempre con `value`, para que todo lo que hoy ordena por
+ * `value` siga funcionando sin enterarse de que existen los tramos.
+ */
+export interface LocationSpan {
+  rawFrom: string;
+  rawTo: string;
+  from: number;
+  to: number;
+  /**
+   * Cierto cuando el principio y el fin pertenecen a rejillas distintas.
+   *
+   * `Ejes J-DB08` va de la letra J a la serie DB: `from` y `to` son números de
+   * rejillas distintas y **no se pueden restar ni comparar**. Los textos crudos
+   * siguen siendo la verdad; estos números solo sirven dentro de una rejilla.
+   */
+  crossesGrids?: boolean;
 }
 
 export interface LocationPattern {
   label: string;
   regex: RegExp;
   valueOf: (match: RegExpMatchArray) => number;
+  /** Solo los patrones de tramo lo aportan. */
+  spanOf?: (match: RegExpMatchArray) => LocationSpan | null;
 }
 
 /**
@@ -63,6 +93,27 @@ const leadingNumber = (match: RegExpMatchArray): number => Number.parseInt(match
  *   sistemas distintos.
  */
 export const LOCATION_PATTERNS: LocationPattern[] = [
+  {
+    label: "Piso",
+    // Una tarea que cruza dos niveles —«Piso 1 a 2»— es un tramo, igual que
+    // un rango de ejes. Va delante del patrón de piso normal porque si no,
+    // aquel cazaría el primer número y se comería el resto sin avisar.
+    //
+    // El número final se limita a dos dígitos y no puede ir seguido de «%»,
+    // con o sin espacio delante: sin eso, «Piso 2 - 100% avance», «Piso 3 -
+    // 2026 entrega» y «Piso 2 - 50 % avance» —basura de avances y fechas
+    // pegada con guion— se leerían como un tramo real.
+    regex: /\b(?:PISO|NIVEL|PLANTA)\s*[-#:]?\s*(\d+)\s*(?:-|\bA\b)\s*(\d{1,2})(?!\s*%)\b/i,
+    valueOf: (match) => Number(match[1]),
+    spanOf: (match) => {
+      const from = Number(match[1]);
+      const to = Number(match[2]);
+      // Una transición sube de piso. Si no sube, no es una transición, y el
+      // nombre debe caer al patrón de piso normal (sin tramo).
+      if (!(to > from)) return null;
+      return { rawFrom: match[1], rawTo: match[2], from, to };
+    },
+  },
   {
     label: "Piso",
     regex: /\b(?:PISO|NIVEL|PLANTA)\s*[-#:]?\s*(\d+)\b/i,
@@ -127,6 +178,46 @@ export const LOCATION_PATTERNS: LocationPattern[] = [
     regex: /\b(?:APARTAMENTO|APTO|UNIDAD)\s*[-#:]?\s*(\d+[A-Z]?)\b/i,
     valueOf: leadingNumber,
   },
+  // ── Obra lineal ──────────────────────────────────────────────────────
+  // Va DESPUÉS del vocabulario vertical a propósito. La spec decide que el
+  // módulo gana al eje (D3), pero nunca decidió que el edificio ganara al
+  // apartamento ni el módulo a la torre: «Edificio 2 - Apto 302» es un
+  // apartamento, y colocarlo antes colapsaba decenas de filas de la Línea de
+  // Balance en tres.
+  {
+    label: "Módulo",
+    // Decimal a propósito: 1.1 y 1.2 son submódulos del módulo 1, y como
+    // enteros se fundirían en uno.
+    // La tilde va como alternativa, igual que en `S[OÓ]TANO`: estos patrones
+    // se recorren también sobre el nombre sin normalizar, y el archivo real
+    // escribe «Módulo».
+    regex: /\bM[OÓ]DULO\s*[-#:]?\s*(\d+(?:\.\d+)?)\b/i,
+    valueOf: (match) => Number(match[1]),
+  },
+  {
+    label: "Edificio",
+    regex: /\bEDIFICIO\s*[-#:]?\s*(\d+)\b/i,
+    valueOf: (match) => Number(match[1]),
+  },
+  {
+    label: "Eje",
+    // Dos etiquetas alrededor del separador: un guion decorativo no basta.
+    regex: /\bEJES?\b\s*[-#:]?\s*([A-Z]{0,3}\d{0,3}|[A-Z])\s*(?:-|\bA\b)\s*([A-Z]{0,3}\d{0,3}|[A-Z])\b/i,
+    valueOf: (match) => parseAxisLabel(match[1])?.index ?? Number.NaN,
+    spanOf: (match) => {
+      const from = parseAxisLabel(match[1]);
+      const to = parseAxisLabel(match[2]);
+      if (!from || !to) return null;
+      const span: LocationSpan = { rawFrom: from.raw, rawTo: to.raw, from: from.index, to: to.index };
+      if (from.family !== to.family) span.crossesGrids = true;
+      return span;
+    },
+  },
+  {
+    label: "Eje",
+    regex: /\bEJES?\b\s*[-#:]?\s*([A-Z]{1,3}\d{1,3}|[A-Z]|\d{1,3})\b/i,
+    valueOf: (match) => parseAxisLabel(match[1])?.index ?? Number.NaN,
+  },
   { label: "Zona", regex: /\b[AÁ]REA\s*[A-Z]-(\d+)\b/i, valueOf: numeric },
   { label: "Zona", regex: /\b[AÁ]REA\s*[-#:]?\s*(\d+)\b/i, valueOf: numeric },
   {
@@ -169,7 +260,15 @@ export function extractLocation(text: string): LocationMatch | null {
     if (!match) continue;
     const value = pattern.valueOf(match);
     if (!Number.isFinite(value)) continue;
-    return { label: pattern.label, raw: match[1] ?? match[0], value };
+
+    const span = pattern.spanOf?.(match) ?? undefined;
+    const result: LocationMatch = {
+      label: pattern.label,
+      raw: match[1] ?? match[0],
+      value,
+    };
+    if (span) result.span = span;
+    return result;
   }
   return null;
 }

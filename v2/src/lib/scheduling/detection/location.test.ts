@@ -206,3 +206,212 @@ describe("unidades nombradas con letra", () => {
     expect(extract("SECTOR PRIVADO")).toBeNull();
   });
 });
+
+
+describe("extractLocation · la ubicación puede ser un tramo", () => {
+  test("lo que ya resolvía sigue sin tramo: nada cambia para obra vertical", () => {
+    expect(extractLocation("LOSA AÉREA PISO 5")?.span).toBeUndefined();
+    expect(extractLocation("COLUMNAS SÓTANO 2")?.span).toBeUndefined();
+  });
+
+  test("el tipo admite un tramo con principio y fin", () => {
+    // Este test fija la forma del dato antes de que ningún patrón lo use.
+    const conTramo = {
+      label: "Eje",
+      raw: "A",
+      value: 1,
+      span: { rawFrom: "A", rawTo: "D", from: 1, to: 4 },
+    };
+
+    expect(conTramo.span.from).toBe(conTramo.value);
+    expect(conTramo.span.to).toBeGreaterThan(conTramo.span.from);
+  });
+});
+
+describe("extractLocation · ejes (nombres reales de la Estación 16)", () => {
+  test("un rango de ejes da un tramo con principio y fin", () => {
+    const eje = extractLocation("Lucarnas (Ejes DB4-DB8)");
+    expect(eje?.span).toEqual({ rawFrom: "DB4", rawTo: "DB8", from: 4, to: 8 });
+  });
+
+  test("el rango también con la palabra en singular", () => {
+    expect(extractLocation("Construcción Losa Aérea (Eje D-H)")?.span).toEqual({
+      rawFrom: "D",
+      rawTo: "H",
+      from: 4,
+      to: 8,
+    });
+  });
+
+  test("un rango entre familias distintas se admite y conserva los dos textos", () => {
+    // Fragmento de «Módulo 2.2 (Ejes J-DB08)», un nombre real del archivo. En
+    // el nombre entero gana el módulo; aquí se prueba solo la parte del eje,
+    // que cruza dos rejillas. El dato lo dice; ordenarlas entre sí es
+    // problema de quien las dibuje, no del extractor.
+    const eje = extractLocation("Ejes J-DB08");
+    expect(eje?.span?.rawFrom).toBe("J");
+    expect(eje?.span?.rawTo).toBe("DB08");
+  });
+
+  test("cuando el nombre trae módulo y eje, gana el módulo", () => {
+    // El módulo es la unidad de producción; el eje dice dónde está ese módulo.
+    const match = extractLocation("Módulo 1.1 (Ejes A-D)");
+    expect(match?.label).toBe("Módulo");
+    expect(match?.value).toBe(1.1);
+    expect(match?.span).toBeUndefined();
+  });
+
+  test("el rango numérico también: «Eje 3-H» es un caso real del archivo", () => {
+    expect(extractLocation("Solución apuntalamiento (Eje 3-H)")?.span?.rawFrom).toBe("3");
+  });
+
+  test("un eje suelto resuelve sin tramo", () => {
+    const eje = extractLocation("Refuerzo (eje A)");
+    expect(eje?.label).toBe("Eje");
+    expect(eje?.value).toBe(1);
+    expect(eje?.span).toBeUndefined();
+  });
+
+  test("«eje» sin etiqueta detrás no resuelve", () => {
+    expect(extractLocation("Replanteo de ejes")).toBeNull();
+    expect(extractLocation("Nivelación hasta nivel superior")).toBeNull();
+  });
+
+  test("un guion decorativo no convierte un eje suelto en rango", () => {
+    // Exige dos etiquetas alrededor del separador, no una sola.
+    expect(extractLocation("Losa aérea - Eje D")?.span).toBeUndefined();
+  });
+
+  test("un tramo entre rejillas distintas se marca como tal", () => {
+    // «J» es una letra y «DB08» es de la serie DB: sus numeros no se pueden restar.
+    expect(extractLocation("Ejes J-DB08")?.span?.crossesGrids).toBe(true);
+    expect(extractLocation("Lucarnas (Ejes H-DB4)")?.span?.crossesGrids).toBe(true);
+    expect(extractLocation("Excavación eje (Eje 3-H)")?.span?.crossesGrids).toBe(true);
+  });
+
+  test("un tramo dentro de la misma rejilla no lleva la marca", () => {
+    expect(extractLocation("Construcción Losa Aérea (Eje D-H)")?.span?.crossesGrids).toBeUndefined();
+    expect(extractLocation("Lucarnas (Ejes DB4-DB8)")?.span?.crossesGrids).toBeUndefined();
+  });
+
+  test("una transición entre pisos no habla de rejillas", () => {
+    expect(extractLocation("Piso 1 a 2")?.span?.crossesGrids).toBeUndefined();
+  });
+});
+
+describe("extractLocation · módulo y edificio", () => {
+  test("el módulo admite decimal, porque 1.1 y 1.2 son submódulos del 1", () => {
+    expect(extractLocation("Módulo 1.1 (Ejes A-D)")).toMatchObject({
+      label: "Módulo",
+      raw: "1.1",
+      value: 1.1,
+    });
+    expect(extractLocation("Modulo 2.2")?.value).toBe(2.2);
+  });
+
+  test("el módulo gana al eje: es la unidad de producción de esa obra", () => {
+    // «Módulo 1.1 (Ejes A-D)» tiene los dos. El módulo es donde se trabaja;
+    // el eje dice dónde está ese módulo.
+    expect(extractLocation("Módulo 1.1 (Ejes A-D)")?.label).toBe("Módulo");
+  });
+
+  test("un módulo entero también", () => {
+    expect(extractLocation("Excavación Módulo 3")?.value).toBe(3);
+  });
+
+  test("el edificio resuelve por su número", () => {
+    expect(extractLocation("Inicio de obra Edificio 1 (Sur)")).toMatchObject({
+      label: "Edificio",
+      value: 1,
+    });
+    expect(extractLocation("Edificio 2 (Norte)")?.value).toBe(2);
+  });
+
+  test("«EDIFICIO DESCENDENTE» no es una ubicación: no lleva número", () => {
+    expect(extractLocation("EDIFICIO DESCENDENTE")).toBeNull();
+  });
+
+  test("los ejes de obra vertical siguen intactos", () => {
+    expect(extractLocation("LOSA AÉREA PISO 5")?.label).toBe("Piso");
+    expect(extractLocation("COLUMNAS SÓTANO 3")?.value).toBe(-3);
+  });
+});
+
+describe("extractLocation · tareas que cruzan dos pisos", () => {
+  test("«Piso 1 a 2» es un tramo, no el piso 1 a secas", () => {
+    // Es un caso real del archivo de la Estación 16, y hasta ahora el
+    // extractor devolvía el primer número y descartaba el resto en silencio.
+    expect(extractLocation("Piso 1 a 2 (eje A)")).toMatchObject({
+      label: "Piso",
+      value: 1,
+      span: { rawFrom: "1", rawTo: "2", from: 1, to: 2 },
+    });
+  });
+
+  test("también con guion", () => {
+    expect(extractLocation("Escalera piso 2-3")?.span).toEqual({
+      rawFrom: "2",
+      rawTo: "3",
+      from: 2,
+      to: 3,
+    });
+  });
+
+  test("un piso normal sigue sin tramo", () => {
+    expect(extractLocation("Piso 2 (eje B a D)")?.span).toBeUndefined();
+    expect(extractLocation("LOSA AÉREA PISO 5")?.span).toBeUndefined();
+  });
+
+  test("un guion seguido de un numero cualquiera no es una transicion", () => {
+    // Los porcentajes de avance son corrientes en los nombres de obra.
+    expect(extractLocation("Piso 2 - 100% avance")?.span).toBeUndefined();
+    expect(extractLocation("Piso 2 - 50% avance")?.span).toBeUndefined();
+    expect(extractLocation("Piso 2 - 50 % avance")?.span).toBeUndefined();
+    expect(extractLocation("Piso 3 - 2026 entrega")?.span).toBeUndefined();
+    // Pero el piso se sigue reconociendo, como antes.
+    expect(extractLocation("Piso 2 - 100% avance")?.value).toBe(2);
+  });
+
+  test("una transicion va hacia arriba, nunca hacia atras", () => {
+    expect(extractLocation("Piso 10 a 9")?.span).toBeUndefined();
+    expect(extractLocation("Piso 10 a 9")?.value).toBe(10);
+  });
+
+  test("el orden por value no cambia: un tramo ordena por donde empieza", () => {
+    expect(extractLocation("Piso 1 a 2 (eje A)")!.value).toBeLessThan(
+      extractLocation("LOSA AÉREA PISO 5")!.value,
+    );
+  });
+});
+
+describe("extractLocation · el vocabulario de obra lineal no pisa al vertical", () => {
+  // Los tres casos que cazó la revisión final de la rama. Ninguno estaba en el
+  // fixture de DA PORTO, así que ningún test los veía.
+
+  test("«Módulo» con tilde se reconoce, porque así lo escribe el archivo real", () => {
+    // Igual que el del sótano: `typicalUnit.ts` y `matrixProposal.ts` recorren
+    // estos patrones sobre el nombre **tal cual**, no sobre el normalizado. Sin
+    // la alternativa con tilde, «Excavación Módulo 1.1» y «Excavación Módulo
+    // 2.1» quedaban como dos sistemas distintos con una ubicación cada uno, y
+    // la matriz salía sin ninguna receta.
+    const modulo = LOCATION_PATTERNS.find((pattern) => pattern.label === "Módulo")!;
+    expect(new RegExp(modulo.regex.source, "i").test("Excavación Módulo 2.1")).toBe(true);
+    expect(new RegExp(modulo.regex.source, "i").test("Excavación Modulo 2.1")).toBe(true);
+  });
+
+  test("un apartamento gana al edificio que lo contiene", () => {
+    // La spec decide que el módulo gana al eje, pero nunca decidió que el
+    // edificio ganara al apartamento: eso salió de dónde se pegó el bloque.
+    expect(extractLocation("Edificio 2 - Apto 302")?.label).toBe("Apartamento");
+    expect(extractLocation("EDIFICIO 1 APARTAMENTO 401")?.label).toBe("Apartamento");
+  });
+
+  test("la torre gana al edificio y al módulo", () => {
+    expect(extractLocation("Edificio 2 Torre 1")?.label).toBe("Torre");
+    expect(extractLocation("Torre 1 Modulo 2")?.label).toBe("Torre");
+  });
+
+  test("y aun así el módulo sigue ganando al eje, que es lo que sí decide la spec", () => {
+    expect(extractLocation("Módulo 1.1 (Ejes A-D)")?.label).toBe("Módulo");
+  });
+});

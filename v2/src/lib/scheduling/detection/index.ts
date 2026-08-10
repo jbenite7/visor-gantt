@@ -7,7 +7,13 @@ export {
   ROOF_LOCATION_VALUE,
   type LocationMatch,
   type LocationPattern,
+  type LocationSpan,
 } from "./location";
+export {
+  compareAxisLabels,
+  parseAxisLabel,
+  type AxisLabel,
+} from "./axisLabel";
 export {
   SIMILARITY_THRESHOLD,
   bestMatchByTokens,

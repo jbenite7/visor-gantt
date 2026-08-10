@@ -14,4 +14,13 @@ describe("superficie pública del motor de detección", () => {
   test("no expone el fixture de pruebas al producto", () => {
     expect("DA_PORTO_NAMES" in detection).toBe(false);
   });
+
+  test("expone también el vocabulario de obra lineal", () => {
+    expect(typeof detection.parseAxisLabel).toBe("function");
+    expect(typeof detection.compareAxisLabels).toBe("function");
+  });
+
+  test("tampoco expone el fixture de la Estación 16", () => {
+    expect("ESTACION_16_NAMES" in detection).toBe(false);
+  });
 });
