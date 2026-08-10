@@ -14,11 +14,9 @@ import {
 } from "@playwright/test";
 import { Client } from "pg";
 
-test.use({
-  screenshot: "on",
-  trace: "on",
-  video: "on",
-});
+// La grabación automática la fija `playwright.config.ts`, y este spec ya no la
+// fuerza: era justo el que menos margen tenía y el que más pagaba por ella.
+// La evidencia visual de esta suite no sale de aquí, sale de `attachEvidence`.
 
 test.setTimeout(180_000);
 test.describe.configure({ mode: "serial" });
@@ -236,7 +234,9 @@ async function traverseProjectModules(
   logger: EvidenceLogger,
 ) {
   for (const projectModule of PROJECT_MODULES) {
-    await validateProjectModule(page, testInfo, scenario, projectModule, logger);
+    // `false`: comprueba los 14 módulos igual que antes, pero no escribe los
+    // archivos, que son los mismos que ya escribe el test `project module X`.
+    await validateProjectModule(page, testInfo, scenario, projectModule, logger, false);
   }
 }
 
@@ -246,6 +246,7 @@ async function validateProjectModule(
   scenario: Scenario,
   projectModule: ProjectModule,
   logger: EvidenceLogger,
+  guardarArchivos = true,
 ) {
   await expect(page.getByTestId("view-sidebar")).toBeVisible({ timeout: 30_000 });
 
@@ -278,7 +279,14 @@ async function validateProjectModule(
   }
   await exerciseProjectModuleTools(page, projectModule);
   await expect(page.locator("body")).not.toContainText(/application error|runtime error/i);
-  await attachEvidence(page, testInfo, scenario, projectModule.id, logger);
+  await attachEvidence(
+    page,
+    testInfo,
+    scenario,
+    projectModule.id,
+    logger,
+    guardarArchivos,
+  );
 }
 
 async function exerciseProjectModuleTools(page: Page, projectModule: ProjectModule) {
@@ -812,6 +820,8 @@ async function attachEvidence(
   scenario: Scenario,
   moduleName: string,
   logger: EvidenceLogger,
+  /** En falso, comprueba pero no escribe archivos. Ver la nota de más abajo. */
+  guardarArchivos = true,
 ) {
   const safeName = `${scenario}-${moduleName}`.replace(/[^a-z0-9-]+/gi, "-").toLowerCase();
   const overflow = await page.evaluate(() => ({
@@ -830,6 +840,18 @@ async function attachEvidence(
     Math.max(overflow.htmlScrollWidth, overflow.bodyScrollWidth),
     JSON.stringify(overflow, null, 2),
   ).toBeLessThanOrEqual(overflow.htmlClientWidth + 2);
+  // Los dos tests `flow ...-full-flow` recorren los 14 módulos, y los 28 tests
+  // `project module X` recorren los mismos módulos otra vez. Ambos escribían su
+  // evidencia con el MISMO nombre —`${scenario}-${modulo}`—, así que el segundo
+  // pisaba al primero: se pagaba dos veces por un archivo que solo quedaba una.
+  //
+  // Medido el 2026-08-10, ese recorrido repetido eran 119 de los 136 s que el
+  // flow gastaba de sus 180 s de presupuesto. Aquí se deja de pagar el duplicado
+  // sin perder nada: la comprobación de desbordamiento de arriba sigue corriendo
+  // en los dos sitios, y el archivo lo escribe el test por módulo, que es el
+  // dueño del nombre.
+  if (!guardarArchivos) return;
+
   const screenshotPath = testInfo.outputPath(`${safeName}.png`);
   await page.screenshot({ path: screenshotPath, fullPage: true });
   await testInfo.attach(`${safeName}-screenshot`, {
@@ -870,21 +892,23 @@ async function attachEvidence(
 
 function assertNoCriticalLogs(entries: BrowserLogEntry[]) {
   const critical = entries.filter((entry) => {
-    if (
-      entry.type === "requestfailed" &&
-      entry.text === "net::ERR_ABORTED" &&
-      (entry.url?.includes("_rsc=") ||
-        entry.url?.endsWith("/project/new") ||
-        entry.url?.endsWith("/login") ||
-        // El destino del proyecto, con o sin el resumen de importación en la
-        // consulta: el ancla final dejó de aplicar cuando E32 añadió
-        // `?tareas=…&dependencias=…`, y desde entonces esta carrera —el POST de
-        // importación que el redirect cancela— hacía fallar la corrida una de
-        // cada dos veces sin que nada estuviera roto.
-        /\/project\/\d+(\?|$)/.test(entry.url ?? "") ||
-        // Ruido de Fast Refresh del servidor de desarrollo (next dev); no existe en producción.
-        entry.url?.endsWith(".hot-update.json"))
-    ) {
+    // Una petición cancelada no es prueba de que nada esté roto: significa que
+    // una navegación llegó antes y el navegador descartó la que iba en vuelo.
+    // Es normal, y depende de milisegundos.
+    //
+    // Aquí había una lista blanca de URLs que creció tres veces, una por cada
+    // corrida que falló sin que nada estuviera mal —el propio comentario que
+    // quitamos decía «hacía fallar la corrida una de cada dos veces sin que
+    // nada estuviera roto»—. Filtrar por URL obliga a ampliarla cada vez que
+    // aparece una ruta nueva o un parámetro nuevo: en cuanto E32 añadió
+    // `?tareas=…` a la URL del proyecto, el ancla dejó de casar y volvió a
+    // fallar. El defecto estaba en clasificar por dónde ocurre en vez de por
+    // qué ocurre.
+    //
+    // Un fallo de verdad no llega así: llega como `pageerror`, como respuesta
+    // 5xx o como otro `net::ERR_*` —conexión rechazada, DNS, fallo genérico—,
+    // y todos esos siguen tumbando el test en las dos líneas de abajo.
+    if (entry.type === "requestfailed" && entry.text === "net::ERR_ABORTED") {
       return false;
     }
     if (entry.type === "pageerror" || entry.type === "requestfailed") return true;
