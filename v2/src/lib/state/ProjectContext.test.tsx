@@ -629,3 +629,37 @@ describe("el impacto de una edición se puede ver (E31)", () => {
   });
 });
 
+
+describe("ProjectProvider · un proyecto que llega con enlaces rotos", () => {
+  function montar(tasks: GanttTask[]): () => ProjectContextValue {
+    let ctx: ProjectContextValue | undefined;
+    render(
+      <ProjectProvider initialTasks={tasks}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+    return () => ctx!;
+  }
+
+  test("se abre igual, y cuenta cuántos venían rotos", () => {
+    const ctx = montar([
+      task({ id: 1 }),
+      task({ id: 2, dependencies: [{ from: 99, to: 2, type: "FS" }] }),
+    ]);
+
+    // El proyecto se abre: no se bloquea nada.
+    expect(ctx().tasks).toHaveLength(2);
+    expect(ctx().lastRejection).toBeNull();
+    // Y se sabe qué se limpió al abrirlo.
+    expect(ctx().loadedOrphanCount).toBe(1);
+  });
+
+  test("un proyecto sano abre con el contador a cero", () => {
+    const ctx = montar([
+      task({ id: 1 }),
+      task({ id: 2, dependencies: [{ from: 1, to: 2, type: "FS" }] }),
+    ]);
+
+    expect(ctx().loadedOrphanCount).toBe(0);
+  });
+});

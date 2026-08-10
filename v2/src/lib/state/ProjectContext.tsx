@@ -220,6 +220,8 @@ export interface ProjectContextValue {
   toggleObservation: (id: string) => void;
   deleteObservation: (id: string) => void;
   lastAction: LastAction | null;
+  /** Cuántas dependencias rotas traía el proyecto al abrirse. */
+  loadedOrphanCount: number;
   lastRejection: LastRejection | null;
   /** Qué actividades movió la última edición aceptada. */
   lastChange: { taskIds: (string | number)[]; token: number } | null;
@@ -296,6 +298,15 @@ export function ProjectProvider({
       }),
     [initialTasks, normalizedInitialCalendar],
   );
+  /**
+   * Cuántas dependencias rotas traía el proyecto al abrirse.
+   *
+   * Se informa, no se bloquea. Si una huérfana preexistente impidiera editar,
+   * un proyecto viejo con un enlace roto quedaría inservible para siempre: el
+   * usuario no la causó y no puede arreglarla desde ahí.
+   */
+  const loadedOrphanCount = initialSchedule.orphanedDependencies.length;
+
   const [tasks, setTasksState] = useState<GanttTask[]>(initialSchedule.tasks);
   const [planningAuditEvents, setPlanningAuditEvents] =
     useState<PlanningAuditEvent[]>(initialPlanningAuditEvents);
@@ -895,6 +906,7 @@ export function ProjectProvider({
       toggleObservation,
       deleteObservation,
       lastAction,
+      loadedOrphanCount,
       lastRejection,
       lastChange,
       reportInvalidEdit,
