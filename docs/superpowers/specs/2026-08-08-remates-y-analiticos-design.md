@@ -30,8 +30,8 @@ La arena se volvió suelo firme. P5 deja de estar bloqueado.
 
 # P6 · Remates
 
-Cuatro piezas, ninguna arriesgada. Cierra P2 sin asteriscos, sube la app a su techo alcanzable y deja la
-documentación diciendo la verdad.
+Ocho bloques. Cierra P2 sin asteriscos, sube la app a su techo alcanzable, absorbe los doce pendientes que
+los dos carriles dejaron por escrito, y deja la documentación diciendo la verdad.
 
 ## R0 · La Matriz y Recursos se anuncian por lo que son — *primero de todo*
 
@@ -126,6 +126,62 @@ cierre registrado en [`goals/cerrar-backlog-ux/goal.md`](../../../goals/cerrar-b
 principal por falta de contenido. P5 le da un editor de dependencias, que lo convierte en el sitio donde se
 dibujan las relaciones entre tareas. **La decisión se revierte con motivo escrito**, para que no quede como una
 contradicción silenciosa entre dos documentos.
+
+## R4 · Corregir a mano la ubicación detectada
+
+**El hueco.** P3 dejó el motor exponiendo el diccionario de correcciones y su API, pero **la pantalla que lo
+usaría quedó en otro proyecto** ([`motor-deteccion/goal.md:96`](../../../goals/motor-deteccion/goal.md)). El
+motor aprende de las correcciones del usuario, pero el usuario no tiene dónde corregir.
+
+**Qué se añade.** Desde la Línea de Balance, corregir la ubicación que el motor asignó a una tarea. La
+corrección entra al diccionario y, por la cascada de P3, **gana a la detección automática** la próxima vez.
+Cierra el ciclo de aprendizaje que P3 construyó a medias.
+
+**Cómo se prueba.** Corregir una tarea, volver a detectar, y comprobar que el motor respeta la corrección.
+Y que corregir una tarea no altera las demás con nombre parecido — la corrección es puntual, no una regla.
+
+## R5 · El módulo conserva su tramo de ejes
+
+**El hueco.** `Módulo 1.1 (Ejes A-D)` resuelve como `Módulo 1.1` **sin el tramo**, porque el módulo gana al eje
+por diseño ([`obra-lineal/goal.md:98-107`](../../../goals/obra-lineal/goal.md)). La idea que ordena P3b —«una
+ubicación puede ser un tramo, no un punto»— no llega a las tareas de módulo del archivo insignia.
+
+**Qué cambia.** La precedencia se mantiene: el módulo sigue ganando, porque es la unidad de producción. Lo que
+se añade es que **conserve el `span` del eje** en vez de descartarlo. Es dato adicional, no un cambio de
+criterio.
+
+**Cómo se prueba.** Con los nombres reales de la Estación 16: las tareas de módulo con paréntesis de ejes
+resuelven con módulo **y** tramo. Y las que no lo llevan siguen resolviendo igual que hoy — sin regresión.
+
+## R6 · Los pendientes que esperan un dato
+
+Cuatro pendientes no están bloqueados por falta de trabajo, sino por **falta de un dato que hoy no existe**.
+Subirlos como tareas normales produciría trabajo imposible el primer día. Entran con la única forma ejecutable
+que tienen: dejar preparado lo que sí depende de nosotros y **escribir el disparador** que los desbloquea.
+
+| Pendiente | Qué falta | Qué sí se hace ahora |
+|---|---|---|
+| «Productividad» es ritmo, no productividad (P3+P4) | Cantidad de obra ejecutada | Se nombra **«Ritmo»** en toda la interfaz, sin excepción, y se documenta qué dato haría posible la productividad real |
+| Abscisas `K12+340` (P3b) | Un `.mpp` real de túnel o vía | Se escribe el caso de prueba **en espera**, listo para activarse en cuanto llegue un archivo |
+| RUM en obra (E47) | Usuarios reales en campo | Nada de código: se registra como medición pendiente, no como deuda técnica |
+| Presupuesto desde PDC | Es integración entre apps | **Fuera de alcance del goal maestro** — se deja el punto de entrada documentado y no se pule la carga manual |
+
+El valor de esta tabla es que ninguno de los cuatro vuelva a aparecer en una auditoría futura como si fuera
+trabajo olvidado. Tienen dueño: el dato que les falta.
+
+## R7 · Las decisiones que se toman cuando llega su caso
+
+Cuatro pendientes son decisiones diferidas con motivo, no trabajo sin hacer. Se resuelven **cuando aparezca el
+caso que las obliga**, y hasta entonces se quedan escritas:
+
+- **Cómo dibujar un tramo en la Línea de Balance.** Hoy cada unidad es una fila; un tramo ocupa varias. El
+  motor ya tiene el dato tras R5; la vista decidirá cuando se aborde la Línea de Balance de obra lineal.
+- **El orden entre familias de eje** (letras, números, series como `DB`). Se resolvió por familia y luego por
+  índice, «lo único defendible» sin conocer la geometría real. Queda como supuesto declarado, no verificado.
+- **Deshacer granular más allá de R1.** R1 cubre las operaciones del borrador; el deshacer paso a paso dentro
+  de la matriz ya construida sigue siendo proyecto propio.
+- **«Fin cambia la duración»**: si el motor no lo soporta limpiamente, el campo queda en solo lectura. Es un
+  límite aceptado con salida honesta, no una implementación a medias.
 
 ---
 
