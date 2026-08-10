@@ -11,15 +11,31 @@ import {
   computeEarnedValueSCurve,
   diagnoseSCurve,
 } from "@/lib/scheduling/scurve";
+import { projectCompletion } from "@/lib/scheduling/projection";
+import { createProjectDate, formatProjectDate } from "@/lib/date/projectDate";
 
 // ── Types ──
 
-type SubView = "schedule" | "budget" | "earnedValue";
+type SubView = "schedule" | "budget" | "earnedValue" | "projection";
 
 interface SCurveViewProps {
   tasks: GanttTask[];
   budgetMappings: BudgetMapping[];
   budgetItems: BudgetItem[];
+  /** Fecha de corte del proyecto, en formato `YYYY-MM-DD`. */
+  statusDate?: string;
+}
+
+/**
+ * Por encima de este horizonte, una fecha de fin de obra deja de ser una
+ * fecha y pasa a ser un chiste: nadie planifica a un siglo. Es una decisión
+ * de presentación, no de la lógica de proyección (que a propósito no capa
+ * nada): la vista es la que decide cómo mostrarlo.
+ */
+const PROJECTION_HORIZON_YEARS = 50;
+
+function isProjectionAbsurdlyFar(finishDate: Date, from: Date): boolean {
+  return finishDate.getFullYear() - from.getFullYear() > PROJECTION_HORIZON_YEARS;
 }
 
 // ── Tab style helpers ──
@@ -56,6 +72,7 @@ export default function SCurveView({
   tasks,
   budgetMappings,
   budgetItems,
+  statusDate,
 }: SCurveViewProps) {
   const [activeSubView, setActiveSubView] = useState<SubView>("schedule");
 
@@ -161,6 +178,64 @@ export default function SCurveView({
     [tasks, budgetMappings, budgetItems],
   );
 
+  // ── Projection ──
+  const projection = useMemo(
+    () =>
+      projectCompletion(
+        tasks,
+        statusDate ? createProjectDate(statusDate) : new Date(),
+      ),
+    [tasks, statusDate],
+  );
+
+  // Ritmo minúsculo, fecha absurda: aquí se decide cómo mostrarlo (M... ver
+  // comentario junto a `PROJECTION_HORIZON_YEARS`).
+  const projectionTooFar =
+    projection.available &&
+    isProjectionAbsurdlyFar(projection.pessimistic.finishDate, projection.statusDate);
+
+  const projectionEmptyMessage = !projection.available
+    ? projection.message
+    : "Al ritmo actual la obra no tiene fin previsible: la proyección más pesimista cae a más de 50 años del corte. Registra más avance o revisa si el cronograma refleja el ritmo real.";
+
+  const projectionLines: SCurveLineData[] = useMemo(() => {
+    if (!projection.available) return [];
+    return [
+      {
+        label: "Avance real",
+        points: projection.achieved.map((p) => ({
+          date: p.date,
+          value: p.cumulativeValue,
+        })),
+        color: "var(--aia-arch-main)",
+      },
+      {
+        label: "Optimista",
+        points: projection.optimistic.points.map((p) => ({
+          date: p.date,
+          value: p.cumulativeValue,
+        })),
+        color: "var(--aia-proj-main)",
+      },
+      {
+        label: "Probable",
+        points: projection.probable.points.map((p) => ({
+          date: p.date,
+          value: p.cumulativeValue,
+        })),
+        color: "var(--aia-corp-main)",
+      },
+      {
+        label: "Pesimista",
+        points: projection.pessimistic.points.map((p) => ({
+          date: p.date,
+          value: p.cumulativeValue,
+        })),
+        color: "var(--aia-alert-main)",
+      },
+    ];
+  }, [projection]);
+
   return (
     <div
       data-testid="s-curve-view"
@@ -214,6 +289,12 @@ export default function SCurveView({
           style={tabStyle(activeSubView === "earnedValue")}
         >
           Valor Ganado
+        </button>
+        <button
+          onClick={() => setActiveSubView("projection")}
+          style={tabStyle(activeSubView === "projection")}
+        >
+          Proyección
         </button>
       </div>
 
@@ -300,6 +381,41 @@ export default function SCurveView({
               <EmptyState message="Sin datos suficientes para generar la curva de valor ganado. Agrega tareas con presupuesto y avance." />
             )}
           </>
+        )}
+
+        {activeSubView === "projection" && (
+          <div data-testid="s-curve-projection">
+            {projection.available && !projectionTooFar ? (
+              <>
+                <section
+                  data-testid="s-curve-projection-dates"
+                  className="mb-4 grid gap-2 md:grid-cols-3"
+                >
+                  {[projection.optimistic, projection.probable, projection.pessimistic].map(
+                    (line) => (
+                      <article key={line.label} className="apple-section px-3 py-2">
+                        <p className="text-[0.6875rem] font-semibold uppercase text-[var(--color-text-muted)]">
+                          {line.label}
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-[var(--color-text-strong)]">
+                          {formatProjectDate(line.finishDate)}
+                        </p>
+                      </article>
+                    ),
+                  )}
+                </section>
+                <SCurveChart
+                  lines={projectionLines}
+                  yFormat={(v) => `${Math.round(v)}%`}
+                  showLegend={true}
+                />
+              </>
+            ) : (
+              <div data-testid="s-curve-projection-empty">
+                <EmptyState message={projectionEmptyMessage} />
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

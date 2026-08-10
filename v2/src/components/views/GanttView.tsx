@@ -2259,6 +2259,7 @@ function GanttViewInner({
               tasks={calculatedTasks}
               budgetMappings={budgetMappings}
               budgetItems={budgetItems}
+              statusDate={initialStatusDate}
             />
           )}
 
