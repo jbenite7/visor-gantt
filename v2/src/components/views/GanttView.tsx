@@ -2062,6 +2062,7 @@ function GanttViewInner({
                 )
               }
               onRejectEdit={reportInvalidEdit}
+              onNavigate={setActiveView}
             />
           )}
 

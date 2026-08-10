@@ -21,6 +21,8 @@ interface NetworkDiagramViewProps {
     to: string | number;
   }) => void;
   onRejectEdit?: (reason: string) => void;
+  /** Vuelta a otra vista sin abrir una entrada nueva en el menú lateral. */
+  onNavigate?: (view: "gantt") => void;
 }
 
 export default function NetworkDiagramView({
@@ -29,6 +31,7 @@ export default function NetworkDiagramView({
   onCreateDependency,
   onDeleteDependency,
   onRejectEdit,
+  onNavigate,
 }: NetworkDiagramViewProps) {
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
@@ -271,13 +274,39 @@ export default function NetworkDiagramView({
         </button>
       </div>
 
-      {/* Empty state */}
-      {layout.nodes.length === 0 && (
-        <div className="apple-empty-state absolute inset-0">
+      {/* Estado vacío: sin tareas, o con tareas pero sin dependencias */}
+      {layout.nodes.length === 0 ? (
+        <div
+          data-testid="network-empty-state"
+          className="apple-empty-state absolute inset-0"
+        >
           <p>
-            No hay tareas para mostrar en el diagrama de red
+            No hay actividades que dibujar todavía. Importa un archivo de
+            Microsoft Project o crea las actividades en el Gantt, y aquí
+            verás cómo se encadenan: aquí mismo puedes dibujar y borrar
+            dependencias con dos clics, sin salir del diagrama.
           </p>
+          {onNavigate && (
+            <button
+              type="button"
+              onClick={() => onNavigate("gantt")}
+              className="apple-button-secondary mt-3"
+            >
+              Volver al Gantt
+            </button>
+          )}
         </div>
+      ) : (
+        layout.edges.length === 0 && (
+          <div
+            data-testid="network-empty-state"
+            className="apple-section absolute bottom-4 left-4 max-w-sm px-3 py-2 text-xs"
+          >
+            Ninguna actividad depende de otra todavía. Haz clic en el punto
+            al costado de una actividad y luego en la que va después para
+            dibujar la primera dependencia.
+          </div>
+        )
       )}
     </div>
   );
