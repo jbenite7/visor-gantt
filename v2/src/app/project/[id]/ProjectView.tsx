@@ -221,12 +221,9 @@ export default function ProjectView({
             uiSettings={uiSettings}
             planningAuditEvents={planningAuditEvents}
             observations={observations}
-            onTaskClick={(task) => console.log("Clicked:", task.name)}
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-muted)]">
-            Cargando cronograma...
-          </div>
+          <ScheduleSkeleton />
         )}
       </div>
     </div>

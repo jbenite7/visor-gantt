@@ -83,11 +83,30 @@ describe("barrido de tildes (E21)", () => {
     return true;
   }
 
-  /** Literales de texto: comillas dobles y plantillas con backticks. */
+  /**
+   * Literales de texto: comillas dobles, plantillas con backticks **y texto JSX
+   * suelto**.
+   *
+   * El tercero se descubrió en la revisión en frío final: «Triple restriccion»
+   * vivía directamente entre etiquetas, sin comillas de ninguna clase, en la
+   * pantalla que más se mira. No era un literal, así que ningún barrido lo veía.
+   */
   function literalesDeCopy(contenido: string): string[] {
+    const jsx: string[] = [];
+    for (const linea of contenido.split("\n")) {
+      const texto = linea.trim();
+      // Texto JSX: una línea de prosa suelta, sin etiquetas ni código alrededor.
+      if (!/^[A-ZÁÉÍÓÚÑ¿¡][^<>{}=;]{8,160}$/.test(texto)) continue;
+      if (/^(import|export|const|let|type|interface|return|function)\b/.test(texto)) {
+        continue;
+      }
+      jsx.push(`"${texto}"`);
+    }
+
     return [
       ...(contenido.match(/"[^"\n]{3,200}"/g) ?? []),
       ...(contenido.match(/`[^`]{3,300}`/g) ?? []),
+      ...jsx,
     ];
   }
 
@@ -111,6 +130,19 @@ describe("barrido de tildes (E21)", () => {
     expect(culpables).toEqual([]);
   });
 
+  test("caza el texto JSX suelto, que no es un literal de ninguna clase", () => {
+    // El agujero que encontró la revisión en frío: prosa entre etiquetas.
+    expect(
+      literalesDeCopy("            Triple restriccion: cronograma y costo.\n"),
+    ).toContain('"Triple restriccion: cronograma y costo."');
+  });
+
+  test("no confunde una línea de código con prosa", () => {
+    expect(
+      literalesDeCopy("const sesionCaducada = params?.motivo;\n"),
+    ).not.toContain('"const sesionCaducada = params?.motivo;"');
+  });
+
   test("caza también las plantillas con backticks, que se le escapaban", () => {
     // El agujero real: cuatro avisos de confirmación antes de borrar vivían en
     // plantillas y el detector solo miraba comillas dobles. Los encontró el
@@ -126,6 +158,24 @@ describe("barrido de tildes (E21)", () => {
         esCopyDeUsuario(l),
       ),
     ).toEqual([]);
+  });
+
+  test("no queda inglés colado dentro de una frase en español", () => {
+    const culpables: string[] = [];
+
+    for (const archivo of archivosDeUI("src")) {
+      const contenido = readFileSync(archivo, "utf8");
+      for (const literal of literalesDeCopy(contenido)) {
+        if (!esCopyDeUsuario(literal)) continue;
+        // Una frase española que contiene una palabra inglesa de acción.
+        if (/\b(hay|para|crear|el|la|los|las|de|con)\b/i.test(literal) &&
+            /\b(Click|Save|Delete|Cancel|Loading|Search)\b/.test(literal)) {
+          culpables.push(`${archivo} → ${literal}`);
+        }
+      }
+    }
+
+    expect(culpables).toEqual([]);
   });
 
   test("el propio detector caza el caso que motivó el barrido", () => {
@@ -155,6 +205,24 @@ describe("no queda código muerto de subida (E17)", () => {
     expect(existsSync("src/components/upload/HomeMppUploadAction.tsx")).toBe(
       true,
     );
+  });
+
+  test("no queda ningún console.log de depuración en la interfaz", () => {
+    // Lo encontró la revisión en frío: `console.log("Clicked:", task.name)`
+    // vivía en la página del proyecto, en inglés y en producción.
+    const culpables: string[] = [];
+
+    for (const archivo of archivosDeUI("src")) {
+      if (archivo.startsWith("src/lib")) continue;
+      const contenido = readFileSync(archivo, "utf8");
+      contenido.split("\n").forEach((linea, i) => {
+        if (/console\.log\(/.test(linea) && !linea.trim().startsWith("//")) {
+          culpables.push(`${archivo}:${i + 1}`);
+        }
+      });
+    }
+
+    expect(culpables).toEqual([]);
   });
 
   test("nadie lo importa: no queda una referencia colgando", () => {

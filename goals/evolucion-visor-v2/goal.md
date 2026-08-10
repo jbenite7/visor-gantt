@@ -1,6 +1,6 @@
 ---
 tipo: goal
-estado: abierto
+estado: cerrado
 fecha: 2026-08-06
 areas: [producto, ux, cronograma, matriz]
 fuente: docs/superpowers/specs/2026-08-06-supergoal-backlog-ux-design.md
@@ -123,8 +123,13 @@ sería un proyecto en sí mismo, no incluido aquí.
 1. Los cinco proyectos **cerrados o descartados con motivo escrito** — nada en el limbo.
 2. Ninguna acción del usuario puede perder trabajo sin aviso.
 3. Ninguna función construida queda inalcanzable, y ningún control promete lo que no hace.
-4. Una **revisión en frío final** de toda la app, con su veredicto registrado, que supere el 6/10 de la
-   revisión del 2026-08-05.
+4. ✅ **Revisión en frío final ejecutada el 2026-08-08: veredicto 7/10**, registrado en
+   [docs/PRODUCT.md](../../docs/PRODUCT.md). Supera el 6/10 del 2026-08-05. Encontró **cuatro defectos vivos
+   en producción** que sobrevivieron a 1.400 tests en verde —entre ellos un aviso de importación muerto por
+   una línea sin probar en la costura, y un test que defendía la pérdida del borrador de la Matriz—, los
+   cuatro corregidos con su test de regresión. Lo que sigue abierto: el recorte del menú es contabilidad
+   (~19 superficies reales), y cinco estados vacíos dicen «0» en vez de enseñar, teniendo el texto ya
+   escrito en `viewHelp.ts`.
 
 ## Fuera de alcance
 

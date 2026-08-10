@@ -114,3 +114,97 @@ que sobra — y lo que sobra es la primera impresión del producto: **catorce pu
 El visor 1.0 gana en una sola cosa, y es la que más importa: llega al valor en 2 pasos con 7 pestañas.
 v2 tiene mucho más músculo y lo esconde detrás de una cuenta y de una barra que no se puede leer de un
 vistazo. Eso es lo que separa este producto de «insanely great».
+
+---
+
+# Revisión en frío final — 2026-08-08
+
+**Veredicto: 7/10.** Supera el 6/10 del 2026-08-05, pero no por goleada, y el motivo de la subida no es el
+recorte del menú: es que **los controles dejaron de mentir y el trabajo dejó de perderse**.
+
+Método: build de producción en `localhost:3100`, con base de datos real y el `.mpp` de obra
+**«20260312 DA PORTO TORRE 3» (240 tareas, 212 dependencias)** — no la demo de 8 tareas. Recorrido de las 11
+vistas midiendo contenido, más un **revisor independiente** que auditó el código sin conocer la narrativa de
+quien lo escribió. Sus hallazgos se verificaron uno a uno antes de aceptarlos: dos eran ciertos, dos no.
+
+## Lo que mejoró, con evidencia
+
+| Lo que decía la revisión de 2026-08-05 | Hoy |
+|---|---|
+| «404: plywood puro, en inglés, sin marca» | Página propia en español, con marca y salida a los cronogramas |
+| «Unidad Típica: 0 sistemas repetidos» | **3 sistemas, 15 niveles** ordenados desde sótano 3, con el motor de detección de P3 |
+| «Conflictos: 0 violaciones · 0 desviaciones» | **1 violación de restricción y 2 desviaciones atípicas** reales, con tabla |
+| «Copiar Excel copia un CSV» | «Copiar para Excel» copia TSV —que Excel pega sin diálogo— y hay «Descargar CSV» con `;` |
+| «PDF es el diálogo de impresión» | «Imprimir o PDF», y el `title` lo explica |
+| «Productividad es 1/duración» | «Ritmo (1/día)», con nota de qué es y qué falta para tener productividad real |
+| «La Matriz solo se llega por ⌘K» | En el menú, grupo «Trabajo» |
+| «La API de Last Planner no la llama nadie» | Pestaña «Compromiso semanal» dentro de Observaciones |
+| «Catorce puertas y ninguna señal» | Once, agrupadas en Trabajo · Análisis · Ajustes, con títulos de intención |
+
+Y la paleta tolera erratas: teclear `diagrma` encuentra «Abrir Diagrama de Red».
+
+## Lo que esta revisión encontró, y nadie había visto
+
+Cuatro defectos **vivos en producción** el día que se declaró el trabajo terminado:
+
+1. **El aviso de columnas descartadas al importar estaba muerto por una línea.** La ruta mandaba
+   `?descartadas=…` y `app/project/[id]/page.tsx` no lo leía, así que `discardedColumns` llegaba siempre
+   vacío y el botón nunca se pintaba. **Las dos piezas tenían test y las dos pasaban; lo que no tenía test
+   era la costura.** Corregido, con un test que ahora falla si alguien añade un parámetro y olvida leerlo.
+2. **La Matriz destruía el borrador al cambiar de vista, y había un test defendiéndolo.** El editor se
+   desmonta, su borrador vive en estado local, y el `cleanup` apagaba el único aviso que existía. El aviso
+   cubría cerrar la pestaña —lo raro— y no cambiar de vista —lo frecuente—. Peor: un test afirmaba que eso
+   estaba bien («el borrador se pierde, así que ya no hay nada pendiente»). Corregido: salir pregunta antes,
+   y el test reescrito exige lo contrario de lo que defendía.
+3. **Copy sin tildes y en inglés en pantallas visibles.** «Triple restriccion» en el tablero ejecutivo —la
+   pantalla que más se mira— y «No hay recursos. **Click** "Agregar Recurso"». El detector de tildes no los
+   veía: solo miraba literales entre comillas y plantillas, y **el texto JSX suelto no es ninguna de las
+   dos**. Tercer punto ciego del mismo detector en tres revisiones distintas.
+4. **`console.log("Clicked:", task.name)` en producción**, en inglés, en la página del proyecto.
+
+Los cuatro corregidos, cada uno con un test que impide la regresión.
+
+## Lo que sigue mal, y por qué no da más de 7
+
+- **«De 14 vistas a 9» es contabilidad, no recorte.** El menú tiene 11 entradas, pero `tracking`, `taskSheet`
+  y `network` siguen vivas tras presets y ⌘K, Recursos esconde **5 sub-pestañas** y Observaciones ganó una
+  sexta. Superficies reales: **~19**, más que las ~18 que denunció la revisión anterior. La agrupación por
+  intención ayuda de verdad —«Análisis» concentra lo que antes era lista plana—, pero el diagnóstico de fondo
+  no está cerrado: hoy es «once puertas, tres puertas secretas, y la señal solo si pides ayuda».
+- **Los estados vacíos siguen diciendo «0» en vez de enseñar.** Unidad Típica y el Ejecutivo sin datos sí
+  explican; Recursos, Problemas, Curva S, Línea de Balance y Diagrama de Red no. Lo irónico: **el texto que
+  lo explicaría ya está escrito** en `src/lib/gantt/viewHelp.ts`, con un campo `needs` que dice literalmente
+  «Si el .mpp no traía recursos, esta vista sale vacía». Está a un `?` de distancia, en vez de en el hueco.
+- **Quedan tests que pasarían con el código roto.** `src/__tests__/integration/mpp-import.test.ts:790` hace
+  `currentState = "idle"; expect(currentState).toBe("idle")` —tautología pura, pasa con el parser borrado—,
+  y `e2e/final-visual-audit.spec.ts:421` comprueba `expect(page.locator("body")).toBeVisible()`, que pasa con
+  una pantalla en blanco o un 500.
+- **La entrada sigue siendo el punto débil**, por decisión firme del usuario: 6 pasos hasta el valor frente a
+  los 2 del visor 1.0. No se reabre. Pero en esa pantalla, «Entrar con Microsoft 365 no está disponible
+  todavía» ocupa el mismo peso visual que el botón que sí funciona.
+
+## Hallazgos del revisor independiente que **no** se confirmaron
+
+Se comprueban y se descartan, para que nadie los persiga otra vez:
+
+- **«Un proyecto guardado con la vista `conflictos` abre en blanco».** No hay camino: `UISettings` no guarda
+  la vista activa, solo el preset de rol, y ningún preset apunta a `conflictos`. Se dejó `normalizeViewType`
+  como red —con su test— por si algún día se persiste la vista activa, que es el cambio que lo reabriría.
+- **«`ResourceAssignmentInspector.test.tsx` prueba un componente que no existe».** El nombre engaña, pero el
+  archivo prueba `AssignmentSheetView` y `ResourceSheetView`, que existen y funcionan.
+- **«`budgetToCSV` sigue sin botón».** Cierto, y **deliberado**: M16 está congelado por decisión del
+  2026-08-06 hasta que el presupuesto venga de PDC. No es un olvido.
+
+## Nota del revisor
+
+La revisión anterior decía que las ocho fases habían arreglado lo que **estaba roto** y no podían arreglar lo
+que **sobra**. Un año de trabajo después, en escala de días: lo roto está mucho mejor —nada se pierde en
+silencio, ningún botón miente— y lo que sobra sigue sobrando, solo que ahora está mejor ordenado.
+
+Lo que este recorrido enseña, y vale más que el número: **cuatro defectos vivos sobrevivieron a 1.400 tests
+en verde, a un lint limpio y a un build correcto.** Ninguno era difícil. Todos eran invisibles desde dentro:
+una costura sin probar, un test defendiendo una pérdida de datos, y copy que ningún barrido miraba. La lección
+no es que falten pruebas — es que **las pruebas prueban lo que se les ocurrió a quien las escribió**, y hace
+falta alguien que use el producto sin saber cómo se construyó.
+
+**7/10.** Se pasa de «esto esconde su músculo» a «esto ya no engaña, pero todavía cansa».

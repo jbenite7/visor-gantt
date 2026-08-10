@@ -1966,24 +1966,28 @@ describe("el aviso al cerrar no se queda encendido de más (M28)", () => {
     mockedSaveProject.mockClear();
   });
 
-  test("salir de la matriz sin aplicar deja de contar como trabajo pendiente", async () => {
-    render(
-      <GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />,
-    );
+  test("salir de la matriz con un borrador pregunta antes de destruirlo", async () => {
+    // Este test afirmaba lo contrario: que perder el borrador al cambiar de
+    // vista era aceptable «porque ya no hay nada pendiente». La revisión en
+    // frío del 2026-08-08 lo señaló como lo que era —un test defendiendo una
+    // pérdida de datos— y M28 dice «avisa antes de salir», no «antes de cerrar».
+    const confirmar = jest.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
 
     fireEvent.click(screen.getByTestId("sidebar-view-matrix"));
     await screen.findByRole("button", { name: /Crear matriz/i });
     fireEvent.click(screen.getByRole("button", { name: /Crear matriz/i }));
 
-    // Volver al Gantt desmonta el editor: el borrador se pierde, así que ya no
-    // hay nada pendiente por lo que preguntar al cerrar.
     fireEvent.click(screen.getByTestId("sidebar-view-gantt"));
-    await screen.findByTestId("gantt-view");
 
-    const event = new Event("beforeunload", { cancelable: true });
-    window.dispatchEvent(event);
+    expect(confirmar).toHaveBeenCalledWith(
+      expect.stringMatching(/sin aplicar/i),
+    );
+    // Y al decir que no, el borrador sigue vivo.
+    expect(screen.getByTestId("matrix-editor")).toBeInTheDocument();
 
-    expect(event.defaultPrevented).toBe(false);
+    confirmar.mockRestore();
   });
 });
 
@@ -2370,4 +2374,79 @@ describe("el diálogo de conflictos no se queda viejo (M26)", () => {
 
     expect(screen.queryByTestId("conflict-chooser")).not.toBeInTheDocument();
   }, 20_000);
+});
+
+describe("salir de la Matriz con un borrador sin aplicar (M28)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  function abrirMatriz() {
+    const matrixPlan = createSingleCellMatrixPlan();
+    const generated = generateScheduleFromMatrix(matrixPlan);
+    render(
+      <GanttView
+        projectId="1"
+        projectName="Con matriz"
+        tasks={generated.tasks}
+        matrixPlan={matrixPlan}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("command-palette-open"));
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "matriz" },
+    });
+    fireEvent.keyDown(window, { key: "Enter" });
+    expect(screen.getByTestId("matrix-editor")).toBeInTheDocument();
+  }
+
+  /** Desactivar una celda basta: el borrador deja de coincidir con lo aplicado. */
+  function ensuciarElBorrador() {
+    // La celda de la matriz de prueba: alcance «Estructura» × ubicación «Piso 1».
+    fireEvent.click(screen.getByTestId("matrix-cell-select-cell-estructura-piso-1"));
+    const casilla = within(screen.getByTestId("matrix-cell-panel")).getByRole(
+      "checkbox",
+    );
+    fireEvent.click(casilla);
+    expect(screen.getByTestId("matrix-dirty")).toBeInTheDocument();
+  }
+
+  test("sin cambios, cambiar de vista no pregunta nada", () => {
+    const confirmar = jest.spyOn(window, "confirm").mockReturnValue(true);
+    abrirMatriz();
+
+    fireEvent.click(screen.getByTestId("sidebar-view-gantt"));
+
+    expect(confirmar).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("matrix-editor")).not.toBeInTheDocument();
+  });
+
+  test("con un borrador sin aplicar, salir pregunta antes", () => {
+    const confirmar = jest.spyOn(window, "confirm").mockReturnValue(true);
+    abrirMatriz();
+
+    ensuciarElBorrador();
+    fireEvent.click(screen.getByTestId("sidebar-view-gantt"));
+
+    expect(confirmar).toHaveBeenCalledWith(
+      expect.stringMatching(/sin aplicar/i),
+    );
+  });
+
+  test("si el usuario dice que no, se queda en la Matriz y conserva el borrador", () => {
+    jest.spyOn(window, "confirm").mockReturnValue(false);
+    abrirMatriz();
+
+    ensuciarElBorrador();
+    fireEvent.click(screen.getByTestId("sidebar-view-gantt"));
+
+    // El editor sigue montado: el borrador no se ha destruido.
+    expect(screen.getByTestId("matrix-editor")).toBeInTheDocument();
+    expect(screen.getByTestId("matrix-dirty")).toBeInTheDocument();
+  });
 });
