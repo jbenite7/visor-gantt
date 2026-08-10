@@ -304,3 +304,39 @@ describe("rewriteSuccessors", () => {
     expect(result.find((t) => t.id === 3)?.dependencies).toEqual([]);
   });
 });
+
+describe("recalculateSchedule · las huérfanas dejan de perderse en silencio", () => {
+  test("una dependencia hacia una actividad que no existe se retira y se reporta", () => {
+    const resultado = recalculateSchedule([
+      task({ id: 1 }),
+      task({ id: 2, dependencies: [{ from: 99, to: 2, type: "FS" }] }),
+    ]);
+
+    // Se sigue limpiando igual que antes: el cronograma queda sin el enlace roto.
+    expect(resultado.tasks.find((t) => t.id === 2)!.dependencies).toEqual([]);
+    // Pero ahora se sabe cuál era.
+    expect(resultado.orphanedDependencies).toEqual([{ from: 99, to: 2, type: "FS" }]);
+  });
+
+  test("un cronograma sano no reporta ninguna huérfana", () => {
+    const resultado = recalculateSchedule([
+      task({ id: 1 }),
+      task({ id: 2, dependencies: [{ from: 1, to: 2, type: "FS" }] }),
+    ]);
+
+    expect(resultado.orphanedDependencies).toEqual([]);
+    expect(resultado.issues).toEqual([]);
+  });
+
+  test("las huérfanas se reportan sin bloquear: no entran en issues", () => {
+    // `issues` bloquea la edición. Una huérfana preexistente no puede impedir
+    // que se siga trabajando, así que viaja aparte.
+    const resultado = recalculateSchedule([
+      task({ id: 1 }),
+      task({ id: 2, dependencies: [{ from: 99, to: 2, type: "FS" }] }),
+    ]);
+
+    expect(resultado.orphanedDependencies).toHaveLength(1);
+    expect(resultado.issues).toEqual([]);
+  });
+});

@@ -220,6 +220,8 @@ export interface ProjectContextValue {
   toggleObservation: (id: string) => void;
   deleteObservation: (id: string) => void;
   lastAction: LastAction | null;
+  /** Cuántas dependencias rotas traía el proyecto al abrirse. */
+  loadedOrphanCount: number;
   lastRejection: LastRejection | null;
   /** Qué actividades movió la última edición aceptada. */
   lastChange: { taskIds: (string | number)[]; token: number } | null;
@@ -296,6 +298,15 @@ export function ProjectProvider({
       }),
     [initialTasks, normalizedInitialCalendar],
   );
+  /**
+   * Cuántas dependencias rotas traía el proyecto al abrirse.
+   *
+   * Se informa, no se bloquea. Si una huérfana preexistente impidiera editar,
+   * un proyecto viejo con un enlace roto quedaría inservible para siempre: el
+   * usuario no la causó y no puede arreglarla desde ahí.
+   */
+  const loadedOrphanCount = initialSchedule.orphanedDependencies.length;
+
   const [tasks, setTasksState] = useState<GanttTask[]>(initialSchedule.tasks);
   const [planningAuditEvents, setPlanningAuditEvents] =
     useState<PlanningAuditEvent[]>(initialPlanningAuditEvents);
@@ -350,6 +361,22 @@ export function ProjectProvider({
     (updater: (prev: GanttTask[]) => GanttTask[]) => {
       const result = recalculateSchedule(updater(tasks), { calendar });
       setScheduleIssues(result.issues);
+
+      // Cualquier huérfana que llegue hasta aquí la introduce ESTA edición.
+      //
+      // Las que trae el proyecto al abrirse no sobreviven al montaje: el
+      // `recalculateSchedule` inicial ya las retira, así que el estado editable
+      // nace limpio. Por eso no hay que descontarlas — y descontarlas sería un
+      // fallo: un proyecto que abrió con una huérfana aceptaría en silencio una
+      // huérfana nueva, que es justo lo que este cambio viene a impedir.
+      if (result.orphanedDependencies.length > 0) {
+        rejectWith(
+          [{ message: "Esa actividad no existe en el cronograma." }],
+          "Esa actividad no existe en el cronograma.",
+        );
+        return;
+      }
+
       if (result.issues.length > 0) {
         rejectWith(result.issues, "El cambio deja el cronograma en conflicto.");
       } else {
@@ -367,7 +394,7 @@ export function ProjectProvider({
         publishChange(changedTaskIds(tasks, result.tasks));
       }
     },
-    [calendar, rejectWith, tasks],
+    [calendar, loadedOrphanCount, rejectWith, tasks],
   );
 
   const commitTaskChange = useCallback(
@@ -377,6 +404,22 @@ export function ProjectProvider({
     ) => {
       const previous = tasks;
       const result = recalculateSchedule(updater(previous), { calendar });
+
+      // Cualquier huérfana que llegue hasta aquí la introduce ESTA edición.
+      //
+      // Las que trae el proyecto al abrirse no sobreviven al montaje: el
+      // `recalculateSchedule` inicial ya las retira, así que el estado editable
+      // nace limpio. Por eso no hay que descontarlas — y descontarlas sería un
+      // fallo: un proyecto que abrió con una huérfana aceptaría en silencio una
+      // huérfana nueva, que es justo lo que este cambio viene a impedir.
+      if (result.orphanedDependencies.length > 0) {
+        setScheduleIssues(result.issues);
+        rejectWith(
+          [{ message: "Esa actividad no existe en el cronograma." }],
+          "Esa actividad no existe en el cronograma.",
+        );
+        return;
+      }
 
       if (result.issues.length > 0) {
         setScheduleIssues(result.issues);
@@ -412,7 +455,7 @@ export function ProjectProvider({
 
       history.push(command);
     },
-    [calendar, history, rejectWith, tasks],
+    [calendar, history, loadedOrphanCount, rejectWith, tasks],
   );
 
   const updateCalendar = useCallback(
@@ -777,6 +820,16 @@ export function ProjectProvider({
       const removed = tasks.filter((t) => doomed.has(t.id)).length;
       if (removed === 0) return;
 
+      // Se cuentan antes de retirarlas, porque después ya no están. El borrado
+      // ya las quitaba a propósito; lo que faltaba era decirlo.
+      const dependenciasRetiradas = tasks.reduce(
+        (total, t) =>
+          total +
+          (t.dependencies?.filter((d) => doomed.has(d.from) || doomed.has(d.to))
+            .length ?? 0),
+        0,
+      );
+
       commitTaskChange(
         removed === 1 ? "Delete task" : `Delete ${removed} tasks`,
         (prev) =>
@@ -797,11 +850,20 @@ export function ProjectProvider({
       );
       setSelectedTaskIds([]);
 
+      const tareasTexto =
+        removed === 1 ? "1 tarea eliminada" : `${removed} tareas eliminadas`;
+      const dependenciasTexto =
+        dependenciasRetiradas === 1
+          ? "1 dependencia retirada"
+          : `${dependenciasRetiradas} dependencias retiradas`;
+
       setLastAction({
         kind: "delete",
         count: removed,
         description:
-          removed === 1 ? "1 tarea eliminada" : `${removed} tareas eliminadas`,
+          dependenciasRetiradas > 0
+            ? `${tareasTexto} · ${dependenciasTexto}`
+            : tareasTexto,
         token: nextActionToken(),
       });
     },
@@ -895,6 +957,7 @@ export function ProjectProvider({
       toggleObservation,
       deleteObservation,
       lastAction,
+      loadedOrphanCount,
       lastRejection,
       lastChange,
       reportInvalidEdit,
