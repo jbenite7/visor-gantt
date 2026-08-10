@@ -82,3 +82,49 @@ export function computeAchievedSCurve(
   }
   return points;
 }
+
+/** Ventana de días con la que se mide el ritmo reciente. */
+export const RECENT_WINDOW_DAYS = 14;
+
+export interface PaceMeasurement {
+  /** Días de obra medidos hasta la fecha de corte, inclusive. */
+  elapsedDays: number;
+  /** Avance logrado al corte, 0–100. */
+  achievedPercent: number;
+  /** Puntos porcentuales por día desde el inicio de obra. */
+  overallPace: number;
+  /** Puntos porcentuales por día en los últimos `RECENT_WINDOW_DAYS`. */
+  recentPace: number;
+}
+
+/**
+ * Mide el ritmo logrado. Devuelve `null` cuando no hay nada que medir: sin
+ * serie o sin un solo punto de avance registrado.
+ *
+ * Si la obra se detuvo justo en la ventana reciente, el ritmo reciente sería
+ * cero y la proyección se iría al infinito. En ese caso se cae al ritmo medio,
+ * que es el dato que sí existe.
+ */
+export function measurePace(points: ProjectionPoint[]): PaceMeasurement | null {
+  if (points.length === 0) return null;
+
+  const elapsedDays = points.length;
+  const achievedPercent = points[points.length - 1].cumulativeValue;
+  if (achievedPercent <= 0) return null;
+
+  const overallPace = achievedPercent / elapsedDays;
+
+  const windowSize = Math.min(RECENT_WINDOW_DAYS, points.length - 1);
+  const rawRecentPace =
+    windowSize > 0
+      ? (achievedPercent - points[points.length - 1 - windowSize].cumulativeValue) /
+        windowSize
+      : overallPace;
+
+  return {
+    elapsedDays,
+    achievedPercent,
+    overallPace,
+    recentPace: rawRecentPace > 0 ? rawRecentPace : overallPace,
+  };
+}
