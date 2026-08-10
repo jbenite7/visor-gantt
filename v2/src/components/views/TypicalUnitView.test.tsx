@@ -76,7 +76,7 @@ describe("las etiquetas no prometen lo que el número no es (M2)", () => {
     render(<TypicalUnitView tasks={tasksConSistemaRepetido} />);
 
     expect(screen.queryByText(/unidades\/día/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/^Productividad$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Product[a-zá-ú]+dad$/i)).not.toBeInTheDocument();
   });
 
   test("explica de dónde sale el número", () => {

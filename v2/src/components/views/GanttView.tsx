@@ -1379,7 +1379,7 @@ function GanttViewInner({
         id: "view-unidad-tipica",
         label: locale === "en" ? "Open Typical Unit" : "Abrir Unidad Típica",
         hint: locale === "en" ? "Review repetitive systems by level" : "Revisa sistemas repetidos por nivel",
-        keywords: "unidad tipica típica niveles productividad repetitivo",
+        keywords: "unidad tipica típica niveles ritmo repetitivo",
       },
       {
         id: "view-calendario",

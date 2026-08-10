@@ -33,7 +33,7 @@ export default function TypicalUnitView({ tasks }: TypicalUnitViewProps) {
             {analysis.groups.length} sistemas repetidos detectados
           </p>
           {/*
-            «Productividad · unidades/día» prometía algo que el número no era:
+            El rótulo anterior prometía algo que el número no era:
             es el inverso de la duración, y no hay ninguna cantidad de obra
             detrás. Se llama por su nombre y se explica de dónde sale (M2).
           */}
@@ -43,7 +43,7 @@ export default function TypicalUnitView({ tasks }: TypicalUnitViewProps) {
           >
             El <strong>ritmo (1/día)</strong> es el inverso de la duración:
             cuántos niveles por día da el paso actual. Cuando la matriz aporte
-            cantidades de obra, aquí habrá productividad real.
+            cantidades de obra ejecutada, este número podrá medir rendimiento real.
           </p>
         </div>
         <div className="inline-flex rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-elevated)] p-1">
