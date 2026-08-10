@@ -1446,7 +1446,7 @@ export default function MatrixEditorView({
             renderAreaTree(draft.areas)
           ) : (
             <div className="apple-section px-3 py-6 text-sm text-[var(--color-text-muted)]">
-              Sin ubicaciones. Agrega la primera ubicacion para construir la matriz.
+              Sin ubicaciones. Agrega la primera ubicación para construir la matriz.
             </div>
           )}
         </div>

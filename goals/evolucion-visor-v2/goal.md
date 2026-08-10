@@ -142,6 +142,13 @@ sería un proyecto en sí mismo, no incluido aquí.
    > justo donde más caro sale. Queda como **F6**, con **F7** (Recursos) al lado: las dos suben la app a su
    > 9/10 y ninguna pide construir nada nuevo, solo enseñar lo que ya está.
 
+   > **Segunda pasada independiente, el mismo día y sin conocerse: también 7/10.** Recorrió el `.mpp` real
+   > de obra en vez de la demo y encontró **cuatro defectos vivos en producción** que sobrevivieron a 1.400
+   > tests en verde: un aviso de importación muerto porque nadie probó la costura entre dos piezas que sí
+   > tenían test, un test que **defendía** la pérdida del borrador de la Matriz al cambiar de vista, copy sin
+   > tildes en el tablero ejecutivo, y un `console.log` en producción. Los cuatro corregidos con su test de
+   > regresión. Detalle en [`docs/PRODUCT.md`](../../docs/PRODUCT.md), «Segunda pasada independiente».
+
 ## Fuera de alcance
 
 - **E51** (abrir un `.mpp` sin cuenta): descartado en firme por el usuario. No reabrir.

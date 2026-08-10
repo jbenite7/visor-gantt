@@ -128,7 +128,7 @@ export default function ExecutivePlanningDashboard({
               Dashboard ejecutivo
             </h2>
             <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-              Triple restriccion: cronograma, costo, alcance y avance.
+              Triple restricción: cronograma, costo, alcance y avance.
             </p>
           </div>
           <div
@@ -274,7 +274,7 @@ export default function ExecutivePlanningDashboard({
           </div>
           <p className="mt-2 text-sm text-[var(--color-text-muted)]">
             Usa este tablero como semaforo de decision: si cronograma, costo o alcance
-            estan en atencion, valida la causa antes de aprobar recuperaciones o cambios de linea base.
+            están en atención, valida la causa antes de aprobar recuperaciones o cambios de linea base.
           </p>
         </section>
       </div>

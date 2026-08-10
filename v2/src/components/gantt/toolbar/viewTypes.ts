@@ -23,3 +23,15 @@ export type ViewType =
   | "unidadTipica"
   | "calendario"
   | "settings";
+
+/**
+ * Reenruta las vistas que ya no se pintan por separado.
+ *
+ * `conflictos` quedó absorbida en «Problemas» y sigue viva en los ajustes de
+ * proyectos guardados antes del recorte: devolverla tal cual deja la pantalla
+ * en blanco.
+ */
+export function normalizeViewType(view: ViewType): ViewType {
+  if (view === "conflictos") return "bottlenecks";
+  return view;
+}

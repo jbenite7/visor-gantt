@@ -87,6 +87,7 @@ import {
   ProjectToolbar,
   type ViewType,
 } from "@/components/gantt/toolbar";
+import { normalizeViewType } from "@/components/gantt/toolbar/viewTypes";
 import ViewSidebar from "@/components/gantt/toolbar/ViewSidebar";
 import { saveProject, type ProjectData } from "@/app/actions/project";
 import { generateAutomaticLOBFromTasks } from "@/lib/scheduling/lob";
@@ -251,8 +252,11 @@ function GanttViewInner({
         : undefined,
     [initialUISettings.roleViewPreset],
   );
-  const [activeView, setActiveViewState] = useState<ViewType>(
-    initialRoleViewPreset?.view ?? "gantt",
+  const [activeView, setActiveViewState] = useState<ViewType>(() =>
+    // «Conflictos» se fundió en «Problemas» (C2), pero sobrevive en los ajustes
+    // de proyectos guardados antes del recorte: sin reenrutarla, esos proyectos
+    // abren con la barra pintada y nada debajo.
+    normalizeViewType(initialRoleViewPreset?.view ?? "gantt"),
   );
   const [resources, setResources] = useState<Resource[]>(initialResources);
   // Tarea cuyo panel de observaciones está abierto (null = cerrado).
@@ -327,6 +331,9 @@ function GanttViewInner({
   const saveStatusRef = useRef<SaveStatus>("idle");
   /** Borrador de la matriz sin aplicar: cuenta como trabajo pendiente (M28). */
   const matrixDraftDirtyRef = useRef(false);
+  /** Espejo de la vista activa, para consultarla dentro de un `useCallback` estable. */
+  const activeViewRef = useRef<ViewType>(activeView);
+  activeViewRef.current = activeView;
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [projectId, setProjectId] = useState<string | undefined>(initialProjectId);
   const [projectName] = useState<string>(initialProjectName ?? "Sin título");
@@ -918,10 +925,30 @@ function GanttViewInner({
    * matriz reaparecería con un borrador que ya no existe: el editor se
    * remonta por `matrixEditorKey` y el usuario decidiría sobre otra cosa.
    */
-  const setActiveView = useCallback((next: ViewType) => {
-    setPendingMatrixConflicts(null);
-    setActiveViewState(next);
-  }, []);
+  const setActiveView = useCallback(
+    (next: ViewType) => {
+      /**
+       * Salir de la Matriz desmonta el editor y con él su borrador, que vive en
+       * estado local. El aviso al cerrar la pestaña no cubría esto: cambiar de
+       * vista es el gesto mucho más frecuente, y se llevaba el trabajo por
+       * delante sin decir nada (M28).
+       */
+      if (
+        activeViewRef.current === "matrix" &&
+        next !== "matrix" &&
+        matrixDraftDirtyRef.current &&
+        !window.confirm(
+          "La matriz tiene cambios sin aplicar y se perderán al salir. ¿Seguro que quieres cambiar de vista?",
+        )
+      ) {
+        return;
+      }
+
+      setPendingMatrixConflicts(null);
+      setActiveViewState(next);
+    },
+    [],
+  );
 
   /** Aplica un resultado ya calculado: nunca se genera el cronograma dos veces. */
   const commitMatrixResult = useCallback(

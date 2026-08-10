@@ -27,6 +27,8 @@ export default async function ProjectPage({
     dependencias:
       typeof query.dependencias === "string" ? query.dependencias : undefined,
     recursos: typeof query.recursos === "string" ? query.recursos : undefined,
+    descartadas:
+      typeof query.descartadas === "string" ? query.descartadas : undefined,
   });
   const project = await loadProject(id);
 

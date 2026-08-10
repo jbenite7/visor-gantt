@@ -248,3 +248,80 @@ Dos filas separan el 7 del 9:
 
 **Con F6 y F7 hechos, esta app llega a 9/10**, que es su máximo posible mientras la cuenta siga siendo
 obligatoria.
+
+---
+
+## Segunda pasada independiente — 2026-08-08
+
+Dos revisiones en frío se hicieron el mismo día **sin conocerse**, con métodos distintos —esta segunda sobre
+el `.mpp` de obra **DA PORTO TORRE 3 (240 tareas, 212 dependencias)**, no la demo— y **las dos llegaron a
+7/10**. Que dos lecturas independientes converjan en la nota es mejor señal que cualquiera de las dos por
+separado.
+
+Lo que la primera no vio, porque no se puede ver sin abrir la app y tirar del hilo:
+
+## Lo que esta revisión encontró, y nadie había visto
+
+Cuatro defectos **vivos en producción** el día que se declaró el trabajo terminado:
+
+1. **El aviso de columnas descartadas al importar estaba muerto por una línea.** La ruta mandaba
+   `?descartadas=…` y `app/project/[id]/page.tsx` no lo leía, así que `discardedColumns` llegaba siempre
+   vacío y el botón nunca se pintaba. **Las dos piezas tenían test y las dos pasaban; lo que no tenía test
+   era la costura.** Corregido, con un test que ahora falla si alguien añade un parámetro y olvida leerlo.
+2. **La Matriz destruía el borrador al cambiar de vista, y había un test defendiéndolo.** El editor se
+   desmonta, su borrador vive en estado local, y el `cleanup` apagaba el único aviso que existía. El aviso
+   cubría cerrar la pestaña —lo raro— y no cambiar de vista —lo frecuente—. Peor: un test afirmaba que eso
+   estaba bien («el borrador se pierde, así que ya no hay nada pendiente»). Corregido: salir pregunta antes,
+   y el test reescrito exige lo contrario de lo que defendía.
+3. **Copy sin tildes y en inglés en pantallas visibles.** «Triple restriccion» en el tablero ejecutivo —la
+   pantalla que más se mira— y «No hay recursos. **Click** "Agregar Recurso"». El detector de tildes no los
+   veía: solo miraba literales entre comillas y plantillas, y **el texto JSX suelto no es ninguna de las
+   dos**. Tercer punto ciego del mismo detector en tres revisiones distintas.
+4. **`console.log("Clicked:", task.name)` en producción**, en inglés, en la página del proyecto.
+
+Los cuatro corregidos, cada uno con un test que impide la regresión.
+
+## Lo que sigue mal, y por qué no da más de 7
+
+- **«De 14 vistas a 9» es contabilidad, no recorte.** El menú tiene 11 entradas, pero `tracking`, `taskSheet`
+  y `network` siguen vivas tras presets y ⌘K, Recursos esconde **5 sub-pestañas** y Observaciones ganó una
+  sexta. Superficies reales: **~19**, más que las ~18 que denunció la revisión anterior. La agrupación por
+  intención ayuda de verdad —«Análisis» concentra lo que antes era lista plana—, pero el diagnóstico de fondo
+  no está cerrado: hoy es «once puertas, tres puertas secretas, y la señal solo si pides ayuda».
+- **Los estados vacíos siguen diciendo «0» en vez de enseñar.** Unidad Típica y el Ejecutivo sin datos sí
+  explican; Recursos, Problemas, Curva S, Línea de Balance y Diagrama de Red no. Lo irónico: **el texto que
+  lo explicaría ya está escrito** en `src/lib/gantt/viewHelp.ts`, con un campo `needs` que dice literalmente
+  «Si el .mpp no traía recursos, esta vista sale vacía». Está a un `?` de distancia, en vez de en el hueco.
+- **Quedan tests que pasarían con el código roto.** `src/__tests__/integration/mpp-import.test.ts:790` hace
+  `currentState = "idle"; expect(currentState).toBe("idle")` —tautología pura, pasa con el parser borrado—,
+  y `e2e/final-visual-audit.spec.ts:421` comprueba `expect(page.locator("body")).toBeVisible()`, que pasa con
+  una pantalla en blanco o un 500.
+- **La entrada sigue siendo el punto débil**, por decisión firme del usuario: 6 pasos hasta el valor frente a
+  los 2 del visor 1.0. No se reabre. Pero en esa pantalla, «Entrar con Microsoft 365 no está disponible
+  todavía» ocupa el mismo peso visual que el botón que sí funciona.
+
+## Hallazgos del revisor independiente que **no** se confirmaron
+
+Se comprueban y se descartan, para que nadie los persiga otra vez:
+
+- **«Un proyecto guardado con la vista `conflictos` abre en blanco».** No hay camino: `UISettings` no guarda
+  la vista activa, solo el preset de rol, y ningún preset apunta a `conflictos`. Se dejó `normalizeViewType`
+  como red —con su test— por si algún día se persiste la vista activa, que es el cambio que lo reabriría.
+- **«`ResourceAssignmentInspector.test.tsx` prueba un componente que no existe».** El nombre engaña, pero el
+  archivo prueba `AssignmentSheetView` y `ResourceSheetView`, que existen y funcionan.
+- **«`budgetToCSV` sigue sin botón».** Cierto, y **deliberado**: M16 está congelado por decisión del
+  2026-08-06 hasta que el presupuesto venga de PDC. No es un olvido.
+
+## Nota del revisor
+
+La revisión anterior decía que las ocho fases habían arreglado lo que **estaba roto** y no podían arreglar lo
+que **sobra**. Un año de trabajo después, en escala de días: lo roto está mucho mejor —nada se pierde en
+silencio, ningún botón miente— y lo que sobra sigue sobrando, solo que ahora está mejor ordenado.
+
+Lo que este recorrido enseña, y vale más que el número: **cuatro defectos vivos sobrevivieron a 1.400 tests
+en verde, a un lint limpio y a un build correcto.** Ninguno era difícil. Todos eran invisibles desde dentro:
+una costura sin probar, un test defendiendo una pérdida de datos, y copy que ningún barrido miraba. La lección
+no es que falten pruebas — es que **las pruebas prueban lo que se les ocurrió a quien las escribió**, y hace
+falta alguien que use el producto sin saber cómo se construyó.
+
+**7/10.** Se pasa de «esto esconde su músculo» a «esto ya no engaña, pero todavía cansa».
