@@ -2486,7 +2486,7 @@ describe("GanttView · el menú refleja el proyecto real (R0)", () => {
     render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
 
     expect(screen.getByTestId("sidebar-blurb-matrix")).toHaveTextContent(
-      /Todavía no hay matriz/,
+      /Sin matriz todavía/,
     );
   });
 
@@ -2734,7 +2734,7 @@ describe("Recursos: el recurso fantasma de MS Project no llega a la pantalla (R9
     );
 
     expect(screen.getByTestId("sidebar-blurb-resources")).toHaveTextContent(
-      /Todavía no hay recursos/,
+      /Sin recursos todavía/,
     );
   });
 });

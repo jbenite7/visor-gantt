@@ -150,7 +150,7 @@ describe("ViewSidebar · descripción por entrada (R0)", () => {
     );
 
     expect(screen.getByTestId("sidebar-blurb-resources")).toHaveTextContent(
-      "Todavía no hay recursos",
+      "Sin recursos todavía",
     );
   });
 
