@@ -173,3 +173,50 @@ export function summarizeSnapshot(
     taskCount: snapshot.tasks.length,
   };
 }
+
+function summariesDiverge(
+  a: ProjectSnapshotSummary,
+  b: ProjectSnapshotSummary,
+): boolean {
+  return (
+    a.name !== b.name ||
+    a.taskCount !== b.taskCount ||
+    a.capturedAt.getTime() !== b.capturedAt.getTime()
+  );
+}
+
+/**
+ * Fusiona las fotos de la tabla con las líneas base que aún viven en el blob.
+ *
+ * La identidad es el `id`: una línea base copiada a la tabla conserva el
+ * suyo, así que la misma foto nunca se lista dos veces. Cuando el id
+ * coincide en las dos fuentes gana la fila de la tabla, que es la que se
+ * puede leer entera; pero como el guardado es atómico solo sobre el blob,
+ * las dos fuentes pueden divergir si un guardado se cayó a medias. Cuando
+ * eso pasa no se resuelve en silencio: queda registrado con `console.warn`.
+ */
+export function mergeSnapshotSources(
+  stored: ProjectSnapshotSummary[],
+  baselines: Baseline[],
+  projectId: string,
+): ProjectSnapshotSummary[] {
+  const byId = new Map<string, ProjectSnapshotSummary>();
+
+  for (const baseline of baselines) {
+    const summary = summarizeSnapshot(baselineToSnapshot(baseline, projectId));
+    byId.set(summary.id, summary);
+  }
+  for (const summary of stored) {
+    const fromBlob = byId.get(summary.id);
+    if (fromBlob && summariesDiverge(fromBlob, summary)) {
+      console.warn(
+        `[mergeSnapshotSources] La foto "${summary.id}" difiere entre el blob y la tabla; gana la tabla.`,
+      );
+    }
+    byId.set(summary.id, summary);
+  }
+
+  return [...byId.values()].sort(
+    (a, b) => b.capturedAt.getTime() - a.capturedAt.getTime(),
+  );
+}

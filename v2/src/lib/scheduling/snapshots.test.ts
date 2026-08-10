@@ -1,11 +1,12 @@
 import type { GanttTask } from "@/components/gantt/types";
 import type { Baseline } from "@/types/baseline";
 import { createProjectDate } from "@/lib/date/projectDate";
-import type { ProjectSnapshot } from "@/types/snapshot";
+import type { ProjectSnapshot, ProjectSnapshotSummary } from "@/types/snapshot";
 import {
   baselineToSnapshot,
   compareSnapshotToTasks,
   createSnapshotFromTasks,
+  mergeSnapshotSources,
   summarizeSnapshot,
 } from "./snapshots";
 
@@ -235,5 +236,133 @@ describe("compareSnapshotToTasks", () => {
       "sinCambio",
       "eliminada",
     ]);
+  });
+});
+
+describe("mergeSnapshotSources", () => {
+  const enTabla: ProjectSnapshotSummary = {
+    id: "foto-import",
+    name: "Importación del 5 de febrero",
+    origin: "import",
+    capturedAt: createProjectDate("2026-02-05"),
+    taskCount: 12,
+  };
+
+  const lineaBase: Baseline = {
+    id: "baseline-1",
+    name: "Contractual",
+    createdAt: createProjectDate("2026-01-05"),
+    tasks: [
+      {
+        taskId: 7,
+        baselineStart: createProjectDate("2026-01-01"),
+        baselineFinish: createProjectDate("2026-01-08"),
+        baselineDuration: 8,
+      },
+    ],
+  };
+
+  test("una línea base que aún no está en la tabla también aparece como foto", () => {
+    const fotos = mergeSnapshotSources([enTabla], [lineaBase], "p1");
+
+    expect(fotos.map((foto) => foto.id)).toEqual(["foto-import", "baseline-1"]);
+    expect(fotos[1]).toEqual({
+      id: "baseline-1",
+      name: "Contractual",
+      origin: "baseline",
+      capturedAt: createProjectDate("2026-01-05"),
+      taskCount: 1,
+    });
+  });
+
+  test("una línea base ya copiada a la tabla no se muestra dos veces", () => {
+    const yaCopiada: ProjectSnapshotSummary = {
+      id: "baseline-1",
+      name: "Contractual",
+      origin: "baseline",
+      capturedAt: createProjectDate("2026-01-05"),
+      taskCount: 1,
+    };
+
+    const fotos = mergeSnapshotSources([yaCopiada], [lineaBase], "p1");
+
+    expect(fotos).toHaveLength(1);
+    expect(fotos[0].id).toBe("baseline-1");
+  });
+
+  test("la foto de la tabla gana cuando las dos fuentes traen el mismo id", () => {
+    const yaCopiada: ProjectSnapshotSummary = {
+      id: "baseline-1",
+      name: "Contractual (renombrada)",
+      origin: "baseline",
+      capturedAt: createProjectDate("2026-01-05"),
+      taskCount: 9,
+    };
+
+    const fotos = mergeSnapshotSources([yaCopiada], [lineaBase], "p1");
+
+    expect(fotos[0].name).toBe("Contractual (renombrada)");
+    expect(fotos[0].taskCount).toBe(9);
+  });
+
+  test("cuando la tabla y el blob divergen para el mismo id, queda registro en consola", () => {
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    const yaCopiada: ProjectSnapshotSummary = {
+      id: "baseline-1",
+      name: "Contractual (renombrada)",
+      origin: "baseline",
+      capturedAt: createProjectDate("2026-01-05"),
+      taskCount: 9,
+    };
+
+    mergeSnapshotSources([yaCopiada], [lineaBase], "p1");
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0][0]).toEqual(
+      expect.stringContaining("baseline-1"),
+    );
+
+    warnSpy.mockRestore();
+  });
+
+  test("cuando coinciden en las dos fuentes no se registra ninguna divergencia", () => {
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    const yaCopiada: ProjectSnapshotSummary = {
+      id: "baseline-1",
+      name: "Contractual",
+      origin: "baseline",
+      capturedAt: createProjectDate("2026-01-05"),
+      taskCount: 1,
+    };
+
+    mergeSnapshotSources([yaCopiada], [lineaBase], "p1");
+
+    expect(warnSpy).not.toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+  });
+
+  test("se ordenan de la foto más nueva a la más vieja", () => {
+    const vieja: ProjectSnapshotSummary = {
+      id: "foto-vieja",
+      name: "Diciembre",
+      origin: "import",
+      capturedAt: createProjectDate("2025-12-01"),
+      taskCount: 3,
+    };
+
+    const fotos = mergeSnapshotSources([vieja, enTabla], [lineaBase], "p1");
+
+    expect(fotos.map((foto) => foto.id)).toEqual([
+      "foto-import",
+      "baseline-1",
+      "foto-vieja",
+    ]);
+  });
+
+  test("sin ninguna fuente devuelve lista vacía", () => {
+    expect(mergeSnapshotSources([], [], "p1")).toEqual([]);
   });
 });
