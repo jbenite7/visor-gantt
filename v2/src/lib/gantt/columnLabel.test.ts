@@ -28,12 +28,12 @@ describe("pickColumnLabel (R2: abreviar en vez de cortar)", () => {
   });
 
   test("el ancho justo de la última letra todavía cuenta como que cabe", () => {
-    // 5 caracteres × 7,2 px = 36 px, más 16 px de padding = 52 px exactos.
+    // 5 caracteres × 7,2 px = 36 px, más 20 px de padding = 56 px exactos.
     expect(
-      pickColumnLabel({ label: "Fecha", shortLabel: "Fec.", width: 52 }),
+      pickColumnLabel({ label: "Fecha", shortLabel: "Fec.", width: 56 }),
     ).toBe("Fecha");
     expect(
-      pickColumnLabel({ label: "Fecha", shortLabel: "Fec.", width: 51 }),
+      pickColumnLabel({ label: "Fecha", shortLabel: "Fec.", width: 55 }),
     ).toBe("Fec.");
   });
 

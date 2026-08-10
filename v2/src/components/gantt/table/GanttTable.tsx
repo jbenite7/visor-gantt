@@ -412,7 +412,6 @@ export default function GanttTable({
       ),
     [displayColumnWidths, displayColumns],
   );
-  const useCompactColumnLabels = tablePanelWidth > 0 && tablePanelWidth < READABLE_TABLE_WIDTH;
 
   const applySettings = useCallback(
     (next: TaskColumnSettings) => {
@@ -1252,15 +1251,16 @@ export default function GanttTable({
           <tr>
             {displayColumns.map((col) => {
               const label =
-                useCompactColumnLabels && COMPACT_COLUMN_LABELS[col.key]
-                  ? COMPACT_COLUMN_LABELS[col.key][effectiveLocale]
-                  : effectiveLocale === "en"
-                    ? col.labelEn ?? col.label
-                    : col.labelEs ?? col.label;
+                effectiveLocale === "en"
+                  ? col.labelEn ?? col.label
+                  : col.labelEs ?? col.label;
+              const shortLabel =
+                effectiveLocale === "en" ? col.shortLabelEn : col.shortLabelEs;
               return (
                 <ColumnHeader
                   key={col.key}
                   label={label}
+                  shortLabel={shortLabel}
                   locale={effectiveLocale}
                   width={displayColumnWidths[col.key] ?? col.width}
                   align={col.align}

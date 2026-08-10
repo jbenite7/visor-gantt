@@ -1238,3 +1238,26 @@ describe("MatrixEditorView · deshacer se puede ver, no solo teclear (R1)", () =
     );
   });
 });
+
+describe("MatrixEditorView · descartar de verdad (R1)", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("al confirmar, el borrador vuelve al plan aplicado y la pila se vacía", () => {
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+    renderEditor();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Activar todas las celdas/i }),
+    );
+    fireEvent.click(screen.getByTestId("matrix-discard"));
+
+    // Sin esta prueba, la rama del «sí» no se ejecutaba en ningún test: los dos
+    // que había respondían «no» o no tenían cambios, así que un fallo dentro de
+    // `descartarCambios` pasaba desapercibido.
+    expect(screen.queryByTestId("matrix-dirty")).not.toBeInTheDocument();
+    expect(screen.getByTestId("matrix-undo")).toBeDisabled();
+    expect(screen.getByTestId("matrix-editor")).toBeInTheDocument();
+  });
+});

@@ -367,7 +367,7 @@ export default function MatrixEditorView({
       return;
     }
     // Recargar desde el proyecto tira la pila: describe un borrador que ya no existe.
-    recommitDraft(matrixPlan ? clonePlan(matrixPlan) : draft);
+    resetDraft(matrixPlan ? clonePlan(matrixPlan) : draft);
   }, [cambiosPendientes, draft, matrixPlan, resetDraft, tieneCambios]);
 
   /**
