@@ -20,6 +20,7 @@ jest.mock("@/lib/auth/rbac", () => ({
 
 import {
   createMatrixPlanFromTemplate,
+  deleteProject,
   loadProject,
   listMatrixTemplates,
   saveProject,
@@ -296,5 +297,52 @@ describe("matrix template actions", () => {
         }),
       }),
     );
+  });
+});
+
+describe("deleteProject", () => {
+  beforeEach(() => {
+    query.mockReset();
+    query.mockResolvedValue({ rows: [] });
+  });
+
+  test("borra el proyecto y sus fotos en la misma transacción", async () => {
+    const resultado = await deleteProject("project-1");
+
+    expect(resultado).toEqual({ success: true });
+
+    const llamadas = query.mock.calls.map((call) => String(call[0]));
+    expect(llamadas).toEqual(
+      expect.arrayContaining([
+        "BEGIN",
+        expect.stringContaining("DELETE FROM project_snapshots"),
+        expect.stringContaining("DELETE FROM projects"),
+        "COMMIT",
+      ]),
+    );
+    // Las fotos se borran antes que el proyecto, dentro de la transacción.
+    const indiceSnapshots = llamadas.findIndex((sql) =>
+      sql.includes("DELETE FROM project_snapshots"),
+    );
+    const indiceProjects = llamadas.findIndex((sql) => sql.includes("DELETE FROM projects"));
+    expect(indiceSnapshots).toBeGreaterThanOrEqual(0);
+    expect(indiceSnapshots).toBeLessThan(indiceProjects);
+  });
+
+  test("si el borrado falla, hace ROLLBACK y no deja nada a medias", async () => {
+    query.mockImplementation(async (text: string) => {
+      if (text.includes("DELETE FROM projects")) {
+        throw new Error("bloqueo de fila");
+      }
+      return { rows: [] };
+    });
+
+    const resultado = await deleteProject("project-1");
+
+    expect(resultado.success).toBe(false);
+    expect(resultado.error).toContain("bloqueo de fila");
+    const llamadas = query.mock.calls.map((call) => String(call[0]));
+    expect(llamadas).toContain("ROLLBACK");
+    expect(llamadas).not.toContain("COMMIT");
   });
 });

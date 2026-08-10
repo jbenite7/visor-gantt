@@ -607,7 +607,22 @@ export async function deleteProject(
 
     const client = await pool.connect();
     try {
-      await client.query(`DELETE FROM projects WHERE id = $1`, [projectId]);
+      // `project_snapshots.project_id` es TEXT y no tiene clave foránea a
+      // `projects.id` porque el tipo de esa columna es ambiguo entre las
+      // fuentes del esquema (SERIAL en unas, UUID en otras): un FK con el
+      // tipo equivocado rompería la migración en el entorno que no coincida.
+      // Sin FK no hay `ON DELETE CASCADE`, así que las fotos se limpian a
+      // mano aquí, en la misma transacción que borra el proyecto, para que
+      // no queden huérfanas ni el borrado quede a medias.
+      await client.query("BEGIN");
+      try {
+        await client.query(`DELETE FROM project_snapshots WHERE project_id = $1`, [projectId]);
+        await client.query(`DELETE FROM projects WHERE id = $1`, [projectId]);
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
       return { success: true };
     } finally {
       client.release();
