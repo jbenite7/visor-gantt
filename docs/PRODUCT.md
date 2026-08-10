@@ -241,6 +241,27 @@ justo el error que este supergoal se propuso erradicar.
 
 Dos filas separan el 7 del 9:
 
+### La medición que decide F7 — hecha el 2026-08-08
+
+La pregunta era: ¿«Recursos» se **llena** con un estado vacío que enseña, o se **esconde** de la barra como
+se hizo con el Diagrama de Red? Dependía de un dato que nadie tenía: si los `.mpp` reales traen recursos.
+Se parsearon los tres archivos de obra del repositorio con el `mpp-parser`:
+
+| Archivo | Tareas | Recursos **con nombre** | Asignaciones |
+|---|---|---|---|
+| `20260430 PROGRAMACION ESTACION 16 - ML1 R2.mpp` | 301 | **17** — «Ayudante armado», «Oficial acero»… | 449 |
+| `20260530 cronograma plan de acción v1.mpp` | 1.891 | **1** — «ENCOFRADO MURO-LOSA» | 1.475 |
+| `20260312 DA PORTO TORRE 3.mpp` | 240 | **0** | 213 |
+
+**Veredicto: se llena, no se esconde.** Un tercio de los archivos reales usa la hoja de recursos en serio —17
+cuadrillas y 449 asignaciones—, así que esconderla escondería una vista con contenido. Pero dos de tres
+llegan vacíos, así que el estado vacío tiene que enseñar: es el caso mayoritario, no el borde.
+
+**Cuidado con los conteos crudos:** los tres archivos traen además el **recurso nulo de MS Project** (UID 0,
+nombre vacío), y DA PORTO tiene 213 asignaciones apuntando a él. Contar `resources.length` da 18, 2 y 1;
+contar los que tienen nombre da 17, 1 y 0. La diferencia decide si la vista se ve vacía o con una fila en
+blanco, así que la cifra que vale es la segunda.
+
 - **Fila 6** (estados vacíos a la altura) → **F6 y F7**. Las dos son trabajo de una sesión y no requieren
   construir nada nuevo: el material ya existe, hay que enseñarlo.
 - **Fila 2** (≤3 pasos) → **cerrada por decisión del usuario.** Con E51 descartado en firme, el techo real
