@@ -21,6 +21,12 @@ export interface ColumnConfig {
   label: string;
   labelEn?: string;
   labelEs?: string;
+  /**
+   * Forma corta del título. Si no se declara, la columna no se abrevia — pero
+   * tampoco se corta a mitad de palabra: se queda con el título completo.
+   */
+  shortLabelEs?: string;
+  shortLabelEn?: string;
   width: number;
   align: "left" | "right" | "center";
   defaultVisible: boolean;
