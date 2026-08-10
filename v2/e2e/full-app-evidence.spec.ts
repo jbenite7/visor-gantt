@@ -851,7 +851,12 @@ function assertNoCriticalLogs(entries: BrowserLogEntry[]) {
       (entry.url?.includes("_rsc=") ||
         entry.url?.endsWith("/project/new") ||
         entry.url?.endsWith("/login") ||
-        /\/project\/\d+$/.test(entry.url ?? "") ||
+        // El destino del proyecto, con o sin el resumen de importación en la
+        // consulta: el ancla final dejó de aplicar cuando E32 añadió
+        // `?tareas=…&dependencias=…`, y desde entonces esta carrera —el POST de
+        // importación que el redirect cancela— hacía fallar la corrida una de
+        // cada dos veces sin que nada estuviera roto.
+        /\/project\/\d+(\?|$)/.test(entry.url ?? "") ||
         // Ruido de Fast Refresh del servidor de desarrollo (next dev); no existe en producción.
         entry.url?.endsWith(".hot-update.json"))
     ) {
