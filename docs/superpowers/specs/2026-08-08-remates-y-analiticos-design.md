@@ -30,7 +30,30 @@ La arena se volvió suelo firme. P5 deja de estar bloqueado.
 
 # P6 · Remates
 
-Tres piezas pequeñas, ninguna arriesgada. Cierra P2 sin asteriscos y deja la documentación diciendo la verdad.
+Cuatro piezas, ninguna arriesgada. Cierra P2 sin asteriscos, sube la app a su techo alcanzable y deja la
+documentación diciendo la verdad.
+
+## R0 · La Matriz y Recursos se anuncian por lo que son — *primero de todo*
+
+**El hallazgo que duele.** La revisión en frío del 2026-08-08 lo dijo sin rodeos: **«Matriz» sigue siendo un
+botón de 12 caracteres**, idéntico al de agosto, con **26 tareas de trabajo construidas detrás** que no se
+intuyen desde la puerta. Recursos está igual (F7).
+
+**Por qué encabeza este proyecto.** Es el patrón que el goal maestro existía para eliminar —función construida
+que nadie puede alcanzar— sobreviviendo justo donde más caro sale: todo P4 está detrás de esa puerta muda. Y
+**no pide construir nada nuevo, solo enseñar lo que ya está**. Es la mejor relación entre esfuerzo y resultado
+de todo lo que queda: las dos filas suben la app de 7/10 a su techo de 9/10.
+
+Va **antes que P5** por eso mismo. Construir tres analíticos nuevos mientras la matriz sigue escondida sería
+repetir el error que este goal vino a corregir.
+
+**Qué cambia.** La entrada del menú deja de ser una etiqueta desnuda y dice qué hay dentro y en qué estado —
+si hay matriz, cuántas ubicaciones; si no la hay, para qué sirve crearla. Lo mismo para Recursos. El texto
+existente ya está escrito en la ayuda por vista (E8): esto es sacarlo a la puerta, no redactarlo de cero.
+
+**Cómo se prueba.** Un test por entrada afectada: con datos, la entrada refleja el contenido real; sin datos,
+explica para qué sirve en vez de quedarse muda. Y un test que falla si alguna entrada del menú vuelve a ser
+solo una etiqueta sin descripción — el mismo patrón del detector de copy que ya protege el reverso de la valla.
 
 ## R1 · Deshacer en el editor de matriz
 
@@ -93,6 +116,11 @@ dejando solo el caso realmente abierto (el editor de matriz, que R1 resuelve) y 
 **Error 2 — la excusa de E38 no existe.** La línea 94 justifica el estado parcial diciendo que los encabezados
 «tienen sistema responsivo propio con abreviaturas». **No existe tal sistema**: es truncamiento CSS, algo peor
 de lo que el documento admite. Se corrige describiendo lo que había, y R2 lo cierra.
+
+**Error 3 — `DESIGN.md` y `PRODUCT.md` muestran como abiertas cosas ya cerradas.** Varias filas de la auditoría
+UX (#4 a #25) y el «Outcome Roadmap» siguen marcadas `open` con fecha del 2026-08-05, pero P2 las resolvió esta
+semana. Quien lea esos documentos sueltos concluirá que hay deuda que no existe. Se sincronizan contra el
+cierre registrado en [`goals/cerrar-backlog-ux/goal.md`](../../../goals/cerrar-backlog-ux/goal.md).
 
 **Además — `PRODUCT.md` registra C3 revertido.** El corte C3 proponía sacar el Diagrama de Red de la barra
 principal por falta de contenido. P5 le da un editor de dependencias, que lo convierte en el sitio donde se
@@ -180,20 +208,26 @@ diagrama y desde la tabla produce **el mismo resultado** — si divergen, hay do
 
 # Cierre del goal maestro
 
-## La revisión en frío final
+## La revisión en frío ya se hizo — y dictó la prioridad
 
-**Mismo método y mismo archivo real que la revisión del 2026-08-05**, recorriendo la app sin sesión previa. Es
-la única forma de que el «superar el 6/10» signifique algo: cambiar la vara haría la nota incomparable.
+**Ejecutada el 2026-08-08**: NOT DONE, **7/10**, sobre el build de producción y con el mismo método
+(`steve-jobs-design-review`) que la del 2026-08-05, para que la comparación valga. Registrada al final de
+[`PRODUCT.md`](../../PRODUCT.md). Supera el 6/10 anterior, y el veredicto sigue siendo «no terminado»: ambas
+cosas son ciertas.
 
-Su veredicto escrito es lo que cierra el goal maestro, junto con P6 y P5 entregados.
+Falla en dos de sus siete filas. **Una ya está decidida**: con E51 descartado en firme, el usuario nuevo
+seguirá necesitando 6 pasos, así que el techo real de esta app es **9/10**, no 10. La otra es el hallazgo que
+reordena este spec, y por eso encabeza P6.
 
 ## Condición de hecho
 
-1. R1, R2 y R3 entregados: ninguna acción destructiva sin vuelta atrás, ningún encabezado cortado a mitad de
-   palabra, y cero afirmaciones falsas en `EXPERIMENTS.md` y `PRODUCT.md`.
-2. A1, A2 y A3 entregados, cada uno con su estado vacío que **enseña** en lugar de quedarse en blanco.
-3. La revisión en frío ejecutada, con nota registrada y comparable con el 6/10 anterior.
+1. **F6 y F7 entregados**: la Matriz y Recursos se anuncian desde el menú por lo que contienen.
+2. R1, R2 y R3 entregados: ninguna acción destructiva sin vuelta atrás, ningún encabezado cortado a mitad de
+   palabra, y cero afirmaciones falsas en `EXPERIMENTS.md`, `PRODUCT.md` y `DESIGN.md`.
+3. A1, A2 y A3 entregados, cada uno con su estado vacío que **enseña** en lugar de quedarse en blanco.
 4. Los cinco proyectos del goal maestro **cerrados o descartados con motivo escrito** — nada en el limbo.
+5. **Una revisión en frío de cierre** que confirme que F6/F7 subieron la app a su techo de 9/10. Es una
+   comprobación acotada a lo que falló, no una novena auditoría completa.
 
 ## Fuera de alcance
 
