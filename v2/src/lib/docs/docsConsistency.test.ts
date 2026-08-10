@@ -31,3 +31,26 @@ describe("Sincronía entre EXPERIMENTS.md y DESIGN.md (R3)", () => {
     expect(mentiras).toEqual([]);
   });
 });
+
+describe("EXPERIMENTS.md dice la verdad sobre sí mismo (R3)", () => {
+  const experiments = readDoc("EXPERIMENTS.md");
+
+  test("E38 ya no atribuye a los encabezados un sistema responsivo que no tenían", () => {
+    expect(experiments).not.toContain(
+      "tienen sistema responsivo propio con abreviaturas",
+    );
+  });
+
+  test("la cobertura del deshacer solo declara abiertos los casos que siguen abiertos", () => {
+    expect(experiments).not.toContain(
+      "`handleSyncMatrixFromGantt`, el reset de columnas",
+    );
+    expect(experiments).toContain(
+      "el borrado de proyecto (permanente en servidor)",
+    );
+  });
+
+  test("el borrado de proyecto se declara irreversible por diseño, no como deuda", () => {
+    expect(experiments).toContain("irreversible por diseño");
+  });
+});

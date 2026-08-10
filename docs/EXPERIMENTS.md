@@ -91,7 +91,7 @@ ICE = Impacto · Confianza · Facilidad (1-10 cada uno; score = promedio). Orige
 | E35 | Anunciar el tipo de dependencia durante el arrastre y permitir corregirlo al soltar | #34 | 3 | 7 | 8 | 6 | **7,0** | 0 dependencias creadas con un tipo que el usuario no eligió | **shipped 2026-08-08** — el arrastre anuncia el tipo real; **FF y SF pasan de inalcanzables a creables** |
 | E36 | Modo Simple/Avanzado: que haga lo que promete, o eliminarlo | #39 | 2 | 6 | 8 | 7 | **7,0** | El modo cambia algo perceptible además de un desplegable | **shipped 2026-08-08** — Simple esconde las columnas MPP; por defecto solo en la primera visita |
 | E37 | Significante visual de celda editable + entrada en edición por teclado (Enter/F2), sin tooltip en inglés | #40 | 2 | 6 | 9 | 8 | **7,7** | La tabla es editable con teclado; 0 textos en inglés en UI española | **shipped 2026-08-08** — señal al pasar por encima y entrada en edición con Enter o F2 |
-| E38 | Etiquetas completas en la barra de vistas y encabezados de tabla | #41 | 2 | 6 | 9 | 8 | **7,7** | 0 etiquetas truncadas a 1280 px de ancho | **parcial** — barra hecha (E38a); encabezados comprimidos de la tabla siguen open (tienen sistema responsivo propio con abreviaturas) |
+| E38 | Etiquetas completas en la barra de vistas y encabezados de tabla | #41 | 2 | 6 | 9 | 8 | **7,7** | 0 etiquetas truncadas a 1280 px de ancho | **shipped 2026-08-08** — barra hecha (E38a); los encabezados eran **truncamiento CSS** (`ellipsis`) más un mapa parcial de 8 abreviaturas que se activaba por ancho de panel, no por columna. R2 lo cierra: cada columna declara su forma corta y se elige por su propio ancho |
 
 **Orden recomendado de ejecución:** ~~E1, E2, E3~~ → ~~E23, E25, E26~~ (hechos) →
 E5, E6, E7, E11, E34 (alto ICE, baratos) → E24, E27, E28, E30, E32 → el resto.
@@ -243,10 +243,14 @@ exactamente ese escenario.
 
 **Evidencia:** 630 tests (5 nuevos de los helpers + 2 de la primitiva), lint limpio, `next build` correcto.
 
-**Cobertura declarada — lo que NO cubre (queda abierto):** editar un recurso o una partida (sobrescriben sin
-copia de seguridad), `handleSyncMatrixFromGantt`, el reset de columnas en las tres tablas, los borrados de
-`MatrixEditorView` (piden confirmación pero no son deshacibles) y el borrado de proyecto (permanente en
-servidor). Por eso el hallazgo #27 queda como **parcial**, no resuelto.
+**Cobertura declarada — corregida el 2026-08-08.** El párrafo original quedó congelado el 2026-08-05 y
+declaraba cinco casos sin cubrir; **cuatro ya estaban resueltos** vía `runUndoable` cuando se escribió, y se
+ha comprobado en el código antes de corregirlo: editar recurso y editar partida (`GanttView.tsx:748`, `:785`),
+`handleSyncMatrixFromGantt` (`:1069`) y el reset de columnas en las tres tablas (`:1082`, `:1096`, `:1151`).
+
+Queda **un** caso realmente abierto: los borrados de `MatrixEditorView`, que piden confirmación y no eran
+deshacibles — **cerrado por R1**, que le da al borrador su propia pila.
+Y el borrado de proyecto (permanente en servidor), que es **irreversible por diseño** y no cuenta como deuda.
 
 ### E23 + E25 + E26 · El usuario ya sabe por qué no se aplicó su cambio — shipped 2026-08-05
 
