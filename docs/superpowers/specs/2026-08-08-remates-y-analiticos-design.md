@@ -9,10 +9,14 @@ resumen: "Los dos proyectos que cierran el goal maestro: rematar lo que P2 dejó
 # Remates y analíticos avanzados — diseño
 
 Cierra el goal maestro [evolución visor-gantt v2](../../../goals/evolucion-visor-v2/goal.md). Cuatro
-proyectos entregados (P1, P2, P3, P4) más P3b. Quedan dos proyectos y una revisión final.
+proyectos entregados (P1, P2, P3, P4) más P3b, y la revisión en frío ya ejecutada con 7/10. Quedan dos
+proyectos.
 
-**Se ejecutan en secuencia, un solo carril**: P6 primero, P5 después, revisión en frío al final. No hay
-reparto de territorios porque no hay otro carril vivo. Cada proyecto tendrá **su propio plan**.
+**Se ejecutan en secuencia, un solo carril**: P6 primero, P5 después. No hay reparto de territorios porque no
+hay otro carril vivo. Cada proyecto tendrá **su propio plan**.
+
+P6 absorbe además **los doce pendientes** que los dos carriles dejaron declarados al cerrar, para que ninguno
+quede como trabajo huérfano en una auditoría futura.
 
 ## El hallazgo que reabre P5
 
@@ -85,17 +89,22 @@ producen **una** entrada en el historial general.
 
 ## R2 · Encabezados con abreviatura real
 
-**El problema.** [`globals.css:1919-1937`](../../../v2/src/app/globals.css) aplica
-`white-space: nowrap; overflow: hidden; text-overflow: ellipsis` a `.gantt-column-header`. En columnas angostas
-el título se corta a mitad de palabra, con el `title` del navegador como único respaldo.
+**El sistema existe, y es a medias.** [`GanttTable.tsx:163`](../../../v2/src/components/gantt/table/GanttTable.tsx)
+define `COMPACT_COLUMN_LABELS` con `Dur.`, `Pred.`, `EDT`, `Crit.` — **8 de 14 columnas**, en español e inglés.
+Se activa por el ancho **del panel entero** (`READABLE_TABLE_WIDTH = 800`), no por el de cada columna.
 
-**La decisión: cada columna declara su forma corta.** «Duración» → «Dur.», «Predecesoras» → «Pred.». Cuando el
-ancho disponible no admite el título completo, se usa la abreviatura **en vez de** cortar. El nombre completo
-permanece accesible en el `title`.
+*(Corrección: la auditoría del 2026-08-08 afirmó que este sistema no existía y que `EXPERIMENTS.md` mentía al
+mencionarlo. La afirmación era falsa; el documento decía la verdad. Ver R3.)*
 
-**Dónde vive.** La forma corta es un campo más de la definición de columna, junto al `label` que ya existe.
-Ninguna columna queda sin abreviatura: si no se declara una, se usa el `label` completo y esa columna
-simplemente no se abrevia — pero nunca se corta a mitad de palabra.
+**Los dos huecos reales.** Primero, **las 6 columnas sin abreviatura** se siguen cortando a mitad de palabra
+por [`globals.css:1919-1937`](../../../v2/src/app/globals.css) (`text-overflow: ellipsis`). Segundo, la
+decisión es **global**: un panel ancho con una columna estrecha corta esa columna igual, porque nadie mira su
+ancho individual.
+
+**La decisión: completar lo que hay, no reemplazarlo.** Se extienden las abreviaturas a las 14 columnas y la
+elección pasa a ser **por columna**, según su ancho, en vez de por el del panel. El nombre completo permanece
+accesible en el `title`. Si una columna no declara forma corta, se usa el `label` completo — pero nunca se
+corta a mitad de palabra.
 
 **Cómo se prueba.** Tests puros sobre la función que elige entre forma larga y corta según el ancho: no
 requiere medir el DOM. Más un test que recorre todas las definiciones de columna y falla si alguna abreviatura
@@ -113,9 +122,17 @@ editar partida (`:773`), `handleSyncMatrixFromGantt` (`:1033`) y el reset de col
 dejando solo el caso realmente abierto (el editor de matriz, que R1 resuelve) y el borrado de proyecto, que es
 **irreversible por diseño** ([`project.ts:597`](../../../v2/src/app/actions/project.ts)) y no cuenta como deuda.
 
-**Error 2 — la excusa de E38 no existe.** La línea 94 justifica el estado parcial diciendo que los encabezados
-«tienen sistema responsivo propio con abreviaturas». **No existe tal sistema**: es truncamiento CSS, algo peor
-de lo que el documento admite. Se corrige describiendo lo que había, y R2 lo cierra.
+**Error 2 — el error era de la auditoría, no del documento.** La línea 94 justifica el estado parcial de E38
+diciendo que los encabezados «tienen sistema responsivo propio con abreviaturas». La auditoría del 2026-08-08
+lo declaró falso. **Se equivocó la auditoría**: `COMPACT_COLUMN_LABELS` existe
+([`GanttTable.tsx:163`](../../../v2/src/components/gantt/table/GanttTable.tsx)) y cubre 8 de las 14 columnas.
+
+Lo que sí falta —y es lo que E38 debería decir— es que el sistema es **parcial en dos sentidos**: seis columnas
+sin abreviatura, y una decisión que mira el ancho del panel en vez del de cada columna. Se corrige el texto
+para que describa ese estado real, y R2 lo cierra.
+
+La lección merece quedar escrita: **una auditoría que declara falso lo que no encontró produce trabajo
+inventado.** Aquí habría llevado a construir desde cero un sistema que ya existía a medias.
 
 **Error 3 — `DESIGN.md` y `PRODUCT.md` muestran como abiertas cosas ya cerradas.** Varias filas de la auditoría
 UX (#4 a #25) y el «Outcome Roadmap» siguen marcadas `open` con fecha del 2026-08-05, pero P2 las resolvió esta
