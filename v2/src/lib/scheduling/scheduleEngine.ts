@@ -22,6 +22,14 @@ export interface RecalculateScheduleOptions {
 export interface RecalculateScheduleResult {
   tasks: GanttTask[];
   issues: ScheduleIssue[];
+  /**
+   * Dependencias que apuntaban a una actividad inexistente y se retiraron.
+   *
+   * Va aparte de `issues` a propósito: `issues` bloquea la edición y esto no
+   * siempre debe bloquear. Al cargar un proyecto se informa; al editar, quien
+   * llama lo convierte en rechazo.
+   */
+  orphanedDependencies: GanttDependency[];
 }
 
 function dependencyKey(dep: GanttDependency): string {
@@ -177,14 +185,23 @@ export function recalculateSchedule(
         taskIds: [],
         message: issue.message,
       })),
+      // Sin calendario válido no se llega a tocar ninguna dependencia.
+      orphanedDependencies: [],
     };
   }
+
+  // Se mira qué va a quitar `normalizeDependencies` ANTES de que lo quite.
+  // El filtrado no cambia: lo único que cambia es que deja de perderse el dato.
+  const activeTaskIds = new Set(tasks.filter(isActiveTask).map((task) => task.id));
+  const orphanedDependencies = collectDependencies(tasks).filter(
+    (dep) => !activeTaskIds.has(dep.from) || !activeTaskIds.has(dep.to),
+  );
 
   const canonicalTasks = normalizeDependencies(tasks);
   const dependencies = collectDependencies(canonicalTasks);
   const issues = validateDependencies(canonicalTasks, dependencies);
   if (issues.length > 0) {
-    return { tasks: canonicalTasks, issues };
+    return { tasks: canonicalTasks, issues, orphanedDependencies };
   }
 
   const projectStart =
@@ -200,6 +217,7 @@ export function recalculateSchedule(
 
   return {
     issues: [],
+    orphanedDependencies,
     tasks: canonicalTasks.map((task) => {
       const cpm = cpmById.get(task.id);
       if (!cpm) return task;

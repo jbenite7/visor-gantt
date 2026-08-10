@@ -159,38 +159,19 @@ describe("paridad diagrama ↔ tabla (A3)", () => {
     expect(esqueleto(desdeDiagrama().tasks)).toEqual(antesTabla);
   });
 
-  // ── DIVERGENCIA CONOCIDA, encontrada por esta misma prueba ──────────────
-  //
-  // Este test NO afirma paridad: la fija tal como es hoy, porque hoy NO la hay.
-  //
-  // Por el diagrama, una dependencia hacia una actividad inexistente se rechaza
-  // con su motivo. Por la tabla se descarta **en silencio**: el usuario teclea
-  // un predecesor equivocado y no pasa nada ni se le dice por qué.
-  //
-  // La causa está en `normalizeDependencies` (`scheduleEngine.ts:92`), que filtra
-  // las dependencias huérfanas **antes** de que `validateDependencies` pueda
-  // verlas, así que `missingTask` nunca llega a dispararse por ese camino.
-  //
-  // No se arregla aquí a propósito. Ese filtrado es correcto para su otro caso
-  // —al borrar una actividad, las referencias que quedan colgando deben
-  // desaparecer sin molestar a nadie— y distinguir «referencia huérfana por un
-  // borrado» de «el usuario escribió mal un id» es una decisión de producto que
-  // toca el motor compartido, no un remate de esta tarea.
-  //
-  // Cuando se arregle, este test se pondrá rojo. Es lo que se busca: obliga a
-  // actualizarlo a mano y a leer este comentario antes de darlo por bueno.
-  test("hoy la tabla descarta en silencio una dependencia hacia una actividad inexistente, y el diagrama sí la explica", () => {
+  // Las dos puertas coinciden desde el 2026-08-10. Antes no: la tabla descartaba
+  // la huérfana en silencio y el diagrama la explicaba. Se unificó hacia el
+  // diagrama, y este test es lo que impide que vuelvan a separarse.
+  test("una dependencia hacia una actividad que no existe se rechaza igual por las dos puertas", () => {
     const desdeTabla = montar([task({ id: 1 }), task({ id: 2 })]);
     const antesTabla = esqueleto(desdeTabla().tasks);
     act(() =>
       desdeTabla().updateTask(2, "dependencies", [{ from: 99, to: 2, type: "FS" }]),
     );
 
-    // El cronograma no se mueve, pero tampoco hay explicación: ese es el fallo.
     expect(esqueleto(desdeTabla().tasks)).toEqual(antesTabla);
-    expect(desdeTabla().lastRejection).toBeNull();
+    expect(desdeTabla().lastRejection).not.toBeNull();
 
-    // El diagrama, en cambio, sí dice por qué.
     const desdeDiagrama = montar([task({ id: 1 }), task({ id: 2 })]);
     const draft = resolveDependencyDraft(desdeDiagrama().tasks, 99, 2);
 
@@ -198,5 +179,40 @@ describe("paridad diagrama ↔ tabla (A3)", () => {
     if (draft.ok) return;
     expect(draft.reason).toBe("tareaInexistente");
     expect(esqueleto(desdeDiagrama().tasks)).toEqual(antesTabla);
+  });
+
+  test("una huérfana que ya venía en el proyecto no impide seguir editando", () => {
+    // El riesgo que ordena este diseño: si una huérfana preexistente bloqueara,
+    // un proyecto viejo con un enlace roto quedaría inservible para siempre.
+    const ctx = montar([
+      task({ id: 1 }),
+      task({ id: 2, dependencies: [{ from: 99, to: 2, type: "FS" }] }),
+      task({ id: 3 }),
+    ]);
+
+    act(() => ctx().updateTask(3, "name", "Renombrada en obra"));
+
+    expect(ctx().tasks.find((t) => t.id === 3)!.name).toBe("Renombrada en obra");
+    expect(ctx().lastRejection).toBeNull();
+  });
+
+  // Este test nació afirmando lo contrario, y era un fallo del diseño: se
+  // descontaban las huérfanas que traía el proyecto, así que uno abierto con
+  // una rota aceptaba en silencio una rota nueva — justo lo que este cambio
+  // viene a impedir. Se corrigió el 2026-08-10 tras comprobar que la
+  // precargada no sobrevive al montaje, así que no hay nada que descontar.
+  test("un proyecto que ya traía una huérfana rechaza igual una huérfana nueva", () => {
+    const ctx = montar([
+      task({ id: 1 }),
+      task({ id: 2, dependencies: [{ from: 99, to: 2, type: "FS" }] }),
+      task({ id: 3 }),
+    ]);
+
+    act(() =>
+      ctx().updateTask(3, "dependencies", [{ from: 77, to: 3, type: "FS" }]),
+    );
+
+    expect(ctx().lastRejection).not.toBeNull();
+    expect(ctx().tasks.find((t) => t.id === 3)!.dependencies).toEqual([]);
   });
 });
