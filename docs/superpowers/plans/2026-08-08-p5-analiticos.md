@@ -10,6 +10,47 @@
 
 Spec: [2026-08-08-remates-y-analiticos-design.md](../specs/2026-08-08-remates-y-analiticos-design.md), sección «P5 · Analíticos avanzados» (A1, A2, A3). La sección «P6 · Remates» tiene plan propio y no se toca aquí.
 
+## Corrección del 2026-08-10 — leer antes de la Tarea 5
+
+El carril B contrastó este plan contra el código y encontró **dos inexactitudes y un fallo con consecuencia
+real**. Todo verificado. Manda esta sección sobre lo que diga el resto del plan.
+
+**1. `init-schema.sql` sí se ejecuta — pero solo una vez.** `docker-compose.yml:54` lo monta en
+`/docker-entrypoint-initdb.d/`, y PostgreSQL corre esa carpeta **al inicializar un volumen nuevo**. Con un
+volumen ya existente no vuelve a correr nunca, y los `CREATE TABLE IF NOT EXISTS` perezosos tapan la diferencia
+en silencio. **Esa es la trampa que el migrador tiene que resolver**, y es distinta de «nadie lo ejecuta».
+
+**2. Son cinco fuentes de esquema, no tres**, y ninguna coincide con otra:
+
+| Fuente | Tablas |
+|---|---|
+| `v2/scripts/init-schema.sql` | **13** — el juego completo |
+| `v2/scripts/setup_db.js` | 6 — **ninguna de las 7 de auth/RBAC** |
+| `v2/src/lib/db.ts` | 2 — `projects`, `matrix_templates` |
+| `v2/src/app/actions/project.ts` | 1 — `matrix_templates` |
+| `v2/src/lib/auth/rbac.ts` | 7 — las de auth |
+
+Las rutas perezosas cubren **9 de 13**. Cuatro no las crea nunca la aplicación: `tasks`, `resources`,
+`dependencies` y `holidays`.
+
+**3. El fallo que la Tarea 5 debe llevarse por delante: un cronograma sin festivos, en silencio.**
+
+De esas cuatro huérfanas, tres son casi vestigiales. Pero **`holidays` sí se lee**, en
+`v2/src/lib/scheduling/calendar.ts:27`, y el bloque entero está envuelto en un `try/catch` que hace
+`console.error("Failed to load holidays:", err)` **y sigue**. No hay respaldo en código: `this.holidays` queda
+como un `Set` vacío.
+
+Consecuencia: en cualquier instalación que no venga de un volumen Docker limpio ni de correr `setup_db.js` a
+mano, **el cronograma se calcula como si en Colombia no hubiera festivos** — unos 18 al año. Un cronograma de
+obra de un año se desvía casi tres semanas laborales, sin un solo aviso.
+
+Es exactamente el fallo que este supergoal persigue: **dato equivocado en silencio**. Por eso entra aquí:
+
+- El migrador fija `holidays` como parte del esquema base, no como tabla opcional.
+- El `catch` de `calendar.ts:27` **distingue los dos casos**: «la tabla no existe o no se pudo consultar» es un
+  error que debe verse; «la tabla existe y está vacía» es un dato legítimo. Hoy los confunde y calla los dos.
+- Un test cubre cada rama: sin tabla, con tabla vacía, y con festivos cargados.
+
 ## Restricciones globales
 
 - **TDD estricto**: test primero, verlo fallar por el motivo esperado, luego el código mínimo. Innegociable en este repo.
