@@ -2450,3 +2450,56 @@ describe("salir de la Matriz con un borrador sin aplicar (M28)", () => {
     expect(screen.getByTestId("matrix-dirty")).toBeInTheDocument();
   });
 });
+
+describe("GanttView · el menú refleja el proyecto real (R0)", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    mockedSaveProject.mockClear();
+  });
+
+  test("la Matriz del menú cuenta las ubicaciones del plan cargado", () => {
+    const matrixPlan = createSingleCellMatrixPlan();
+    const generated = generateScheduleFromMatrix(matrixPlan);
+
+    render(
+      <GanttView
+        projectId="1"
+        tasks={generated.tasks}
+        matrixPlan={matrixPlan}
+      />,
+    );
+
+    // El fixture tiene una sola ubicación: exigir el número es lo que prueba
+    // que el conteo llega de verdad. Con `/ubicaciones/` a secas, este test
+    // pasaría igual con el cableado roto, porque el texto de «todavía no hay
+    // matriz» también la menciona.
+    expect(screen.getByTestId("sidebar-blurb-matrix")).toHaveTextContent(
+      "1 ubicación programada",
+    );
+  });
+
+  test("sin matriz, la entrada explica para qué sirve en vez de contar cero", () => {
+    render(<GanttView projectId="1" tasks={[makeTask({ id: 1 })]} />);
+
+    expect(screen.getByTestId("sidebar-blurb-matrix")).toHaveTextContent(
+      /Todavía no hay matriz/,
+    );
+  });
+
+  test("Recursos cuenta los que trae el proyecto", () => {
+    render(
+      <GanttView
+        projectId="1"
+        tasks={[makeTask({ id: 1 })]}
+        resources={[
+          { uid: 1, name: "Oficial", type: "work" },
+          { uid: 2, name: "Ayudante", type: "work" },
+        ]}
+      />,
+    );
+
+    expect(screen.getByTestId("sidebar-blurb-resources")).toHaveTextContent(
+      "2 recursos asignados",
+    );
+  });
+});

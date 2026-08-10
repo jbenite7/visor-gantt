@@ -925,6 +925,15 @@ function GanttViewInner({
    * matriz reaparecería con un borrador que ya no existe: el editor se
    * remonta por `matrixEditorKey` y el usuario decidiría sobre otra cosa.
    */
+  /** Lo que el menú necesita para decir qué hay dentro de cada puerta (R0). */
+  const sidebarBlurbContext = useMemo(
+    () => ({
+      areaCount: syncedMatrixPlan?.areas.length ?? matrixPlan?.areas.length ?? 0,
+      resourceCount: calculatedResources.length,
+    }),
+    [calculatedResources.length, matrixPlan, syncedMatrixPlan],
+  );
+
   const setActiveView = useCallback(
     (next: ViewType) => {
       /**
@@ -1909,7 +1918,12 @@ function GanttViewInner({
 
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         {/* Sidebar de navegación de vistas */}
-        <ViewSidebar activeView={activeView} onViewChange={setActiveView} locale={locale} />
+        <ViewSidebar
+          activeView={activeView}
+          onViewChange={setActiveView}
+          locale={locale}
+          blurbContext={sidebarBlurbContext}
+        />
 
         {/* Contenido de la vista activa */}
         <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
