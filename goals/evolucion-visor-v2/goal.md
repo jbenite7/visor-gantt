@@ -1,6 +1,6 @@
 ---
 tipo: goal
-estado: abierto
+estado: cerrado
 fecha: 2026-08-06
 areas: [producto, ux, cronograma, matriz]
 fuente: docs/superpowers/specs/2026-08-06-supergoal-backlog-ux-design.md
@@ -124,7 +124,23 @@ sería un proyecto en sí mismo, no incluido aquí.
 2. Ninguna acción del usuario puede perder trabajo sin aviso.
 3. Ninguna función construida queda inalcanzable, y ningún control promete lo que no hace.
 4. Una **revisión en frío final** de toda la app, con su veredicto registrado, que supere el 6/10 de la
-   revisión del 2026-08-05.
+   revisión del 2026-08-05. ✅ **Hecha el 2026-08-08: NOT DONE, 7/10**, sobre el build de producción y con
+   el mismo método (`steve-jobs-design-review`) para que la comparación valga. Registrada al final de
+   [`docs/PRODUCT.md`](../../docs/PRODUCT.md).
+
+   > **Supera el 6/10, y el veredicto sigue siendo «no terminado». Las dos cosas son ciertas.** De 14
+   > vistas a 11, de 4 vacías a 2, y el reverso de la valla arreglado —404, login honesto, un detector de
+   > copy que se rompe solo si alguien lo debilita—.
+   >
+   > **Falla en dos de las siete filas.** Una es una decisión tomada: con E51 descartado en firme, el
+   > usuario nuevo seguirá necesitando 6 pasos, así que el techo real de esta app es **9/10**, no 10.
+   > Conviene decirlo en vez de perseguir un número que ya no está disponible.
+   >
+   > La otra es un hallazgo que duele: **«Matriz» sigue siendo un botón de 12 caracteres**, idéntico al de
+   > agosto, con 26 tareas de trabajo construidas detrás que no se intuyen desde la puerta. Es el patrón
+   > que este supergoal existía para eliminar —función construida que nadie puede alcanzar— sobreviviendo
+   > justo donde más caro sale. Queda como **F6**, con **F7** (Recursos) al lado: las dos suben la app a su
+   > 9/10 y ninguna pide construir nada nuevo, solo enseñar lo que ya está.
 
 ## Fuera de alcance
 
