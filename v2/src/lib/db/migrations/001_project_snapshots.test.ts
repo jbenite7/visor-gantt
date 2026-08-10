@@ -50,6 +50,16 @@ describe("migración 001 · tabla project_snapshots", () => {
     expect(client.sql[1]).toContain("DROP TABLE IF EXISTS project_snapshots");
   });
 
+  test("up restringe origin a los tres valores del tipo SnapshotOrigin, en su mismo orden", async () => {
+    const client = fakeClient();
+
+    await migration001ProjectSnapshots.up(client);
+
+    expect(client.sql.join("\n")).toContain(
+      "origin TEXT NOT NULL CHECK (origin IN ('import', 'manual', 'baseline'))",
+    );
+  });
+
   test("down borra exactamente lo que up creó, no unos nombres escritos a mano", async () => {
     const client = fakeClient();
     await migration001ProjectSnapshots.up(client);

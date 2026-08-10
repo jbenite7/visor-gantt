@@ -20,7 +20,13 @@ export const migration001ProjectSnapshots: Migration = {
         project_id TEXT NOT NULL,
         id TEXT NOT NULL,
         name TEXT NOT NULL,
-        origin TEXT NOT NULL,
+        -- La unión de TypeScript (SnapshotOrigin, en src/types/snapshot.ts)
+        -- no llega a la base: cualquier escritura fuera del código tipado
+        -- (script de mantenimiento, migración de datos, consulta a mano)
+        -- podría colar un cuarto valor. Este CHECK es lo que impide que el
+        -- tipo y la base se desincronicen; si se añade un origen nuevo, hay
+        -- que actualizar los dos sitios, en el mismo orden.
+        origin TEXT NOT NULL CHECK (origin IN ('import', 'manual', 'baseline')),
         captured_at TIMESTAMPTZ NOT NULL,
         tasks JSONB NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
