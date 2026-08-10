@@ -49,7 +49,7 @@ Ordenado por convicción. Cada corte es un «no» que concentra el producto.
 |---|---|---|---|
 | C1 | **Fundir «Seguimiento» y «Hoja Tareas» dentro de Gantt** | Son la misma tabla con variantes; el usuario no debería elegir entre tres versiones de lo mismo. Pasan a ser modos del Gantt (o presets de rol, que ya existen) | Propuesto |
 | C2 | **Fundir «Conflictos» dentro de «Cuellos»** | Ambas responden «¿qué está mal en el plan?»; comparten hasta el icono `AlertTriangle`. Una sola vista «Problemas» con dos secciones | Propuesto |
-| C3 | **Sacar «Diagrama Red» de la barra principal** | 207 caracteres de contenido y ningún job de CUSTOMER.md lo pide; es paridad con MS Project, no valor de obra | Propuesto |
+| C3 | **Sacar «Diagrama Red» de la barra principal** | 207 caracteres de contenido y ningún job de CUSTOMER.md lo pide; es paridad con MS Project, no valor de obra | **Revertido 2026-08-08** — P5 le da un editor de dependencias: deja de ser paridad vacía y pasa a ser el sitio donde se dibujan las relaciones entre tareas. El motivo original —«ningún contenido»— dejó de ser cierto |
 | C4 | **Vistas vacías: o se llenan o se ocultan** | «Unidad Típica», «Conflictos» y «Recursos» aparecen vacías sin decir por qué. Si el proyecto no tiene esos datos, la vista no debería ocupar un lugar en la barra | Propuesto |
 | C5 | **«Matriz» con 12 caracteres no es una vista** | Es un botón «Crear matriz» disfrazado de sección. O se convierte en una acción dentro de Nuevo Proyecto, o muestra para qué sirve antes de pedir crearla | Propuesto |
 | C6 | **`/gantt-demo` enlazado desde la home** | Es una demo de desarrollo (8 tareas de ejemplo) enlazada como «Ver Demo Gantt» junto a los proyectos reales del usuario | Propuesto |
@@ -88,7 +88,7 @@ Auditado el 2026-08-05:
 |---|---|---|---|
 | ~~Ver el cronograma sin cuenta (2 pasos, no 6)~~ | Big Hire — funcional | — | **descartado por el usuario (2026-08-06)** |
 | Cada vista explica su propósito | Emocional — control | **2** | backlog (E8/F2) |
-| De 14 vistas a 9 (C1, C2, C3) | Emocional — sobrecarga | **3** | propuesto |
+| De 14 vistas a 11 (C1, C2; C3 revertido) | Emocional — sobrecarga | **3** | **hecho 2026-08-08** — el menú quedó en 11 entradas; el Diagrama de Red vuelve a la barra con el editor de dependencias de P5 |
 | Estados vacíos que enseñan | Emocional | **4** | backlog (F3/E6) |
 | Importación legible (progreso, cancelar) | Funcional | **5** | backlog (E4) |
 | 404 y salir con dignidad | Confianza | **6** | backlog (F5) |
@@ -195,7 +195,7 @@ sobreviviendo en el único sitio donde más caro sale.
 |---|---|---|
 | C1 · Fundir Seguimiento y Hoja de Tareas en Gantt | ✅ hecho |
 | C2 · Fundir Conflictos en Cuellos → «Problemas» | ✅ hecho |
-| C3 · Sacar Diagrama de Red de la barra | ✅ hecho |
+| C3 · Sacar Diagrama de Red de la barra | ↩️ revertido — P5 le da contenido real (editor de dependencias) |
 | C4 · Vistas vacías: o se llenan o se ocultan | ⚠️ **a medias** — Unidad Típica sí; **Recursos no** |
 | C5 · «Matriz» con 12 caracteres no es una vista | ❌ **sin hacer** |
 | C6 · `/gantt-demo` enlazado desde la home | ✅ hecho |

@@ -54,3 +54,18 @@ describe("EXPERIMENTS.md dice la verdad sobre sí mismo (R3)", () => {
     expect(experiments).toContain("irreversible por diseño");
   });
 });
+
+describe("PRODUCT.md registra C3 revertido (R3)", () => {
+  const product = readDoc("PRODUCT.md");
+
+  test("la reversión de C3 está escrita con su motivo", () => {
+    expect(product).toContain("Revertido 2026-08-08");
+    expect(product).toContain("editor de dependencias");
+  });
+
+  test("el Outcome Roadmap ya no anuncia el recorte a 9 vistas como propuesto", () => {
+    expect(product).not.toContain(
+      "| De 14 vistas a 9 (C1, C2, C3) | Emocional — sobrecarga | **3** | propuesto |",
+    );
+  });
+});
