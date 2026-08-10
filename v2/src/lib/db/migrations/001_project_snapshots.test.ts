@@ -50,17 +50,23 @@ describe("migración 001 · tabla project_snapshots", () => {
     expect(client.sql[1]).toContain("DROP TABLE IF EXISTS project_snapshots");
   });
 
-  test("up y down componen: revertir deja el mismo estado que antes de aplicar", async () => {
+  test("down borra exactamente lo que up creó, no unos nombres escritos a mano", async () => {
     const client = fakeClient();
-
     await migration001ProjectSnapshots.up(client);
-    const sqlDespuesDeUp = [...client.sql];
-    client.sql.length = 0;
 
+    // Los nombres salen del SQL que up ejecutó de verdad. Si up los cambia y
+    // down no, este test lo caza; con literales fijos, no.
+    const sqlDeUp = client.sql.join("\n");
+    const tabla = sqlDeUp.match(/CREATE TABLE IF NOT EXISTS (\w+)/)?.[1];
+    const indice = sqlDeUp.match(/CREATE INDEX IF NOT EXISTS (\w+)/)?.[1];
+    expect(tabla).toBeTruthy();
+    expect(indice).toBeTruthy();
+
+    const antes = client.sql.length;
     await migration001ProjectSnapshots.down(client);
+    const sqlDeDown = client.sql.slice(antes).join("\n");
 
-    expect(sqlDespuesDeUp.some((s) => s.includes("CREATE TABLE"))).toBe(true);
-    expect(client.sql[0]).toContain("DROP INDEX IF EXISTS idx_project_snapshots_project");
-    expect(client.sql[1]).toContain("DROP TABLE IF EXISTS project_snapshots");
+    expect(sqlDeDown).toContain(`DROP INDEX IF EXISTS ${indice}`);
+    expect(sqlDeDown).toContain(`DROP TABLE IF EXISTS ${tabla}`);
   });
 });
