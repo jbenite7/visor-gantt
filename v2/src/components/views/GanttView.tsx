@@ -123,6 +123,7 @@ import { detectDeepChanges } from "@/lib/gantt/deepChanges";
 import { resolveInteractionMode } from "@/lib/gantt/interactionMode";
 import { fuzzyMatches } from "@/lib/gantt/fuzzyMatch";
 import { buildExecutivePlanningSummary } from "@/lib/gantt/executiveDashboard";
+import { dependenciesAfterRemoval } from "@/lib/gantt/networkDependencyEditing";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 const AUTOSAVE_DELAY_MS = 750;
@@ -2118,7 +2119,20 @@ function GanttViewInner({
           )}
 
           {activeView === "network" && (
-            <NetworkDiagramView tasks={calculatedTasks} onTaskClick={onTaskClick} />
+            <NetworkDiagramView
+              tasks={calculatedTasks}
+              onTaskClick={onTaskClick}
+              onCreateDependency={createDependency}
+              onDeleteDependency={(dependency) =>
+                updateTask(
+                  dependency.to,
+                  "dependencies",
+                  dependenciesAfterRemoval(calculatedTasks, dependency),
+                )
+              }
+              onRejectEdit={reportInvalidEdit}
+              onNavigate={setActiveView}
+            />
           )}
 
           {activeView === "resources" &&
@@ -2352,6 +2366,9 @@ function GanttViewInner({
               tasks={calculatedTasks}
               budgetMappings={budgetMappings}
               budgetItems={budgetItems}
+              statusDate={initialStatusDate}
+              projectId={projectId}
+              baselines={baselines}
             />
           )}
 

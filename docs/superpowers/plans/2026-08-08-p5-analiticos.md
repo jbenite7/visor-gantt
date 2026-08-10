@@ -12,8 +12,26 @@ Spec: [2026-08-08-remates-y-analiticos-design.md](../specs/2026-08-08-remates-y-
 
 ## Corrección del 2026-08-10 — leer antes de la Tarea 5
 
-El carril B contrastó este plan contra el código y encontró **dos inexactitudes y un fallo con consecuencia
-real**. Todo verificado. Manda esta sección sobre lo que diga el resto del plan.
+El carril B contrastó este plan contra el código y encontró **dos inexactitudes reales sobre el esquema**, más
+un tercer hallazgo —«el cronograma se calcula sin festivos»— que **resultó falso en su consecuencia y ya está
+retirado**. Manda esta sección sobre lo que diga el resto del plan.
+
+> **Lo retirado, y por qué importa que quede escrito.** Se vio el `catch` mudo sobre la tabla de festivos y se
+> dio por hecho el impacto sin comprobar **quién llamaba a esa clase**. No la llamaba nadie vivo: los festivos
+> los calcula `withColombiaHolidays` en `v2/src/lib/import/mpp-project.ts:116`, en la ruta que sí alimenta al
+> visor. Los cronogramas **siempre** tuvieron sus festivos.
+>
+> La verificación independiente destapó algo distinto y peor, ya arreglado en la rama
+> `fix/importacion-muerta`: la página `/upload` era una **segunda ruta de importación** que decía «importado
+> con N tareas» y guardaba en tablas que ningún lector consulta. Se retiró, junto con el `init()` podrido.
+>
+> **La lección, que vale para toda tarea de este plan: ver el síntoma no es verificar la consecuencia.** Antes
+> de afirmar un impacto, comprueba quién llama al código que lo produciría.
+
+**Qué queda de esto para la Tarea 5.** El requisito de «fijar `holidays` como esquema base» **se retira**: si
+no la lee nadie, fijarla es cementar esquema muerto. La pregunta honesta es la contraria — si `holidays`,
+`tasks`, `resources` y `dependencies` **deberían existir siquiera**. Eso sí es trabajo del migrador, pero es
+*retirar* esquema huérfano, no *fijarlo*. Decídelo con la medición delante, no por inercia.
 
 **1. `init-schema.sql` sí se ejecuta — pero solo una vez.** `docker-compose.yml:54` lo monta en
 `/docker-entrypoint-initdb.d/`, y PostgreSQL corre esa carpeta **al inicializar un volumen nuevo**. Con un
@@ -33,23 +51,13 @@ en silencio. **Esa es la trampa que el migrador tiene que resolver**, y es disti
 Las rutas perezosas cubren **9 de 13**. Cuatro no las crea nunca la aplicación: `tasks`, `resources`,
 `dependencies` y `holidays`.
 
-**3. El fallo que la Tarea 5 debe llevarse por delante: un cronograma sin festivos, en silencio.**
+**3. Las cuatro tablas huérfanas.** De las trece, `tasks`, `resources`, `dependencies` y `holidays` no las crea
+nunca la aplicación. Ninguna tiene lector vivo: el proyecto real vive en `projects.project_data` como JSONB.
+`holidays` la consultaba `CalendarService`, que ya se retiró en `fix/importacion-muerta` junto con la ruta
+`/upload` que era su único llamador.
 
-De esas cuatro huérfanas, tres son casi vestigiales. Pero **`holidays` sí se lee**, en
-`v2/src/lib/scheduling/calendar.ts:27`, y el bloque entero está envuelto en un `try/catch` que hace
-`console.error("Failed to load holidays:", err)` **y sigue**. No hay respaldo en código: `this.holidays` queda
-como un `Set` vacío.
-
-Consecuencia: en cualquier instalación que no venga de un volumen Docker limpio ni de correr `setup_db.js` a
-mano, **el cronograma se calcula como si en Colombia no hubiera festivos** — unos 18 al año. Un cronograma de
-obra de un año se desvía casi tres semanas laborales, sin un solo aviso.
-
-Es exactamente el fallo que este supergoal persigue: **dato equivocado en silencio**. Por eso entra aquí:
-
-- El migrador fija `holidays` como parte del esquema base, no como tabla opcional.
-- El `catch` de `calendar.ts:27` **distingue los dos casos**: «la tabla no existe o no se pudo consultar» es un
-  error que debe verse; «la tabla existe y está vacía» es un dato legítimo. Hoy los confunde y calla los dos.
-- Un test cubre cada rama: sin tabla, con tabla vacía, y con festivos cargados.
+La Tarea 5 debe **decidir explícitamente** qué hace con esas cuatro: retirarlas del esquema o dejarlas
+documentadas como reservadas. Lo que no vale es cementarlas en una migración sin haber preguntado si sirven.
 
 ## Restricciones globales
 
@@ -2626,6 +2634,15 @@ git add v2/src/lib/scheduling/snapshots.ts v2/src/lib/scheduling/snapshots.test.
 ```
 
 ## Tarea 12: Fusionar las dos fuentes de fotos sin duplicar ninguna
+
+> **Añadido tras la verificación del 2026-08-10.** El caso que el test debe cubrir no es solo el duplicado por
+> doble migración. Como el guardado es **atómico sobre `project_data`** y las fotos pasan a una tabla aparte,
+> **las dos fuentes pueden divergir**: si un guardado falla a medias, una línea base puede existir en el blob y
+> no en la tabla, o al revés. La fusión tiene que resolver ese desajuste, no solo el empate.
+>
+> Casos obligatorios del test: la misma foto en ambos sitios (no se duplica), solo en el blob (aparece), solo en
+> la tabla (aparece), y la misma `id` con contenido distinto en cada sitio — ahí **gana la tabla**, que es la
+> fuente nueva, y el hecho debe quedar registrado en lugar de resolverse en silencio.
 
 **Archivos:**
 - Modificar: `src/lib/scheduling/snapshots.ts` (se añade al final)
