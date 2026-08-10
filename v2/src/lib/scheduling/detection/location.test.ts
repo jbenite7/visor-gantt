@@ -459,3 +459,37 @@ describe("El módulo conserva su tramo de ejes (R5)", () => {
     expect(result?.span?.crossesGrids).toBe(true);
   });
 });
+
+/**
+ * Abscisas de obra lineal: `K12+340` es el kilómetro 12 más 340 metros.
+ *
+ * **En espera de un dato, no de trabajo.** El patrón no se implementa porque
+ * no hay ningún `.mpp` real de túnel o de vía sobre el que verificarlo, y
+ * escribirlo a ciegas produciría un extractor que acierta con el ejemplo
+ * inventado y falla con la nomenclatura real — que es exactamente lo que pasó
+ * con el vocabulario vertical antes de tener la Estación 16.
+ *
+ * **Disparador:** en cuanto llegue un `.mpp` de túnel o vía, se sustituyen
+ * estos nombres por los reales del archivo, se quita el `.skip` y se
+ * implementa el patrón hasta que pase.
+ */
+describe("Abscisas de obra lineal — en espera de un .mpp real (R6)", () => {
+  test.skip("«Excavación K12+340» ubica en el kilómetro 12 más 340 metros", () => {
+    const result = extractLocation("Excavación K12+340");
+
+    expect(result?.label).toBe("Abscisa");
+    expect(result?.value).toBe(12340);
+  });
+
+  test.skip("«Revestimiento K12+340 a K12+560» resuelve como tramo", () => {
+    const result = extractLocation("Revestimiento K12+340 a K12+560");
+
+    expect(result?.label).toBe("Abscisa");
+    expect(result?.span).toEqual({
+      rawFrom: "K12+340",
+      rawTo: "K12+560",
+      from: 12340,
+      to: 12560,
+    });
+  });
+});
