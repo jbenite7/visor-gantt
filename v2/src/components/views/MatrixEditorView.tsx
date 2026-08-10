@@ -56,6 +56,7 @@ import LocationBulkActions from "@/components/matrix/LocationBulkActions";
 import ProposalReview from "@/components/matrix/ProposalReview";
 import RecipeEditor from "@/components/matrix/RecipeEditor";
 import TemplatePicker from "@/components/matrix/TemplatePicker";
+import MatrixIntro from "@/components/matrix/MatrixIntro";
 import {
   canAddChild,
   getAreaLeaves,
@@ -947,15 +948,32 @@ export default function MatrixEditorView({
     });
   };
 
+  /**
+   * El plan base sobre el que aplicar una plantilla o una propuesta.
+   *
+   * Desde la portada no hay borrador todavía: `pickTemplate` y `acceptProposal`
+   * abrían con `if (!draft) return`, así que cablearlos directo daría un botón
+   * que no hace nada — el defecto que este proyecto persigue. Se crea el plan
+   * base en el mismo gesto (R8).
+   */
+  const planBase = (): MatrixPlan =>
+    draft ??
+    createDefaultMatrixPlan({
+      name: "Programación Matricial",
+      startDate:
+        tasks[0]?.start.toISOString().slice(0, 10) ??
+        new Date().toISOString().slice(0, 10),
+    });
+
   const pickTemplate = (template: MatrixTemplate) => {
-    if (!draft) return;
+    const base = planBase();
     setProposal(null);
     applyNextDraft(
       createMatrixPlanFromTemplate({
         template,
-        id: draft.id,
-        name: draft.name,
-        startDate: draft.startDate,
+        id: base.id,
+        name: base.name,
+        startDate: base.startDate,
       }),
     );
   };
@@ -970,11 +988,12 @@ export default function MatrixEditorView({
   };
 
   const acceptProposal = (acceptance: ProposalAcceptance) => {
-    if (!draft || !proposal) return;
+    if (!proposal) return;
+    const base = planBase();
     const next = planFromProposal(proposal, acceptance, {
-      id: draft.id,
-      name: draft.name,
-      startDate: draft.startDate,
+      id: base.id,
+      name: base.name,
+      startDate: base.startDate,
       editedAt: new Date().toISOString(),
     });
     setProposal(null);
@@ -1174,19 +1193,13 @@ export default function MatrixEditorView({
 
   if (!draft) {
     return (
-      <div
-        data-testid="matrix-editor-empty"
-        className="apple-module h-full flex items-center justify-center"
-      >
-        <button
-          type="button"
-          onClick={createDraft}
-          className="apple-button-primary inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold"
-        >
-          <Grid3X3 size={16} />
-          Crear matriz
-        </button>
-      </div>
+      <MatrixIntro
+        ownTemplates={ownTemplates}
+        canGenerateFromSchedule={tasks.length > 0}
+        onPickTemplate={pickTemplate}
+        onGenerateFromSchedule={() => setProposal(proposeMatrixFromTasks(tasks))}
+        onCreateBlank={createDraft}
+      />
     );
   }
 

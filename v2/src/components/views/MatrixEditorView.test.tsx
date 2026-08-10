@@ -1261,3 +1261,49 @@ describe("MatrixEditorView · descartar de verdad (R1)", () => {
     expect(screen.getByTestId("matrix-editor")).toBeInTheDocument();
   });
 });
+
+describe("MatrixEditorView · la portada de la Matriz (R8)", () => {
+  function renderVacio() {
+    const onApplyMatrixPlan = jest.fn();
+    render(
+      <MatrixEditorView
+        tasks={[]}
+        onApplyMatrixPlan={onApplyMatrixPlan}
+        onSyncFromGantt={jest.fn()}
+      />,
+    );
+    return { onApplyMatrixPlan };
+  }
+
+  test("sin matriz, la puerta explica qué hay dentro en vez de pedir un clic a ciegas", () => {
+    renderVacio();
+
+    expect(screen.getByTestId("matrix-editor-empty")).toBeInTheDocument();
+    expect(screen.getByTestId("matrix-intro-benefits")).toBeInTheDocument();
+    expect(screen.getByTestId("template-picker")).toBeInTheDocument();
+  });
+
+  test("elegir una plantilla de fábrica aterriza en la cuadrícula ya poblada", () => {
+    renderVacio();
+
+    const primera = screen
+      .getByTestId("template-picker")
+      .querySelectorAll("li button")[0];
+    fireEvent.click(primera);
+
+    // Un solo gesto: de la portada a la matriz con celdas, sin pasar por
+    // «Crear matriz» y luego «Plantillas».
+    expect(screen.getByTestId("matrix-editor")).toBeInTheDocument();
+    expect(
+      screen.getAllByTestId(/^matrix-cell-select-/).length,
+    ).toBeGreaterThan(0);
+  });
+
+  test("crear en blanco sigue llevando a la matriz vacía de siempre", () => {
+    renderVacio();
+
+    fireEvent.click(screen.getByTestId("matrix-create-blank"));
+
+    expect(screen.getByTestId("matrix-editor")).toBeInTheDocument();
+  });
+});
