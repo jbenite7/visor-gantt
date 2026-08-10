@@ -210,8 +210,11 @@ async function validateAppModule(
       await expect(page.getByRole("heading", { name: /mis proyectos/i })).toBeVisible();
     }
     if (moduleName === "Upload") {
-      await page.goto("/upload", { waitUntil: "domcontentloaded" });
-      await expect(page.getByRole("heading", { name: /importar proyecto/i })).toBeVisible();
+      // La subida vive en la home. La antigua página /upload se retiró el
+      // 2026-08-10: llamaba a `uploadProject`, que guardaba en tablas que ningún
+      // lector consultaba, así que decía «importado» y el proyecto no aparecía.
+      await page.goto("/", { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: /mis proyectos/i })).toBeVisible();
       await expect(page.getByLabel(/seleccionar archivo \.mpp/i)).toBeVisible();
     }
     if (moduleName === "Crear Proyecto") {
@@ -427,7 +430,7 @@ async function importMppThroughUi(page: Page, testInfo: TestInfo): Promise<strin
     contentType: "application/json",
   });
 
-  await page.goto("/upload", { waitUntil: "domcontentloaded" });
+  await page.goto("/", { waitUntil: "domcontentloaded" });
 
   const uploadButton = page.getByRole("button", { name: /subir archivo \.mpp/i });
   await expect(uploadButton).toBeVisible();

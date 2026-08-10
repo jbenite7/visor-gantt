@@ -14,30 +14,32 @@ export class CalendarService {
   };
 
   /**
-   * Initialize the service by loading holidays from DB.
-   * Use simple caching strategies in real apps.
+   * Carga los días festivos que este calendario debe respetar.
+   *
+   * Antes esto era un `init()` que consultaba la tabla de festivos en la base de
+   * datos con un `try/catch` que hacía `console.error` y seguía. Esa tabla no la
+   * poblaba nadie —ni `init-schema.sql` ni `setup_db.js` insertan una sola fila—,
+   * así que el conjunto quedaba vacío y el cálculo salía **sin festivos, en
+   * silencio**. En la auditoría del 2026-08-10 ese fallo mudo hizo creer que los
+   * cronogramas se calculaban sin los ~18 festivos colombianos.
+   *
+   * No era cierto: la ruta viva (`/api/import-mpp` → `buildProjectDataFromMpp`)
+   * aplica `withColombiaHolidays`, que los **calcula** —incluidos los movidos por
+   * la ley Emiliani y los derivados de Pascua— y los guarda en el calendario del
+   * proyecto. La tabla nunca participó.
+   *
+   * Ahora los festivos entran explícitamente y el silencio desaparece: si nadie
+   * los pasa, el calendario declara que no tiene, en vez de fingir que no existen.
+   *
+   * @param dates fechas no laborables en formato `YYYY-MM-DD`.
    */
-  async init(countryCode: string = "CO"): Promise<void> {
-    try {
-      // Hybrid Strategy: DB First
-      const { default: pool } = await import("@/lib/db");
-      const client = await pool.connect();
-      try {
-        const res = await client.query(
-          "SELECT date FROM holidays WHERE country_code = $1",
-          [countryCode],
-        );
-        res.rows.forEach((row) => {
-          // Normalize date to YYYY-MM-DD
-          const d = new Date(row.date);
-          this.holidays.add(d.toISOString().split("T")[0]);
-        });
-      } finally {
-        client.release();
-      }
-    } catch (err) {
-      console.error("Failed to load holidays:", err);
-    }
+  setHolidays(dates: readonly string[]): void {
+    this.holidays = new Set(dates);
+  }
+
+  /** Cuántos festivos respeta hoy. Permite distinguir «ninguno» de «no cargados». */
+  get holidayCount(): number {
+    return this.holidays.size;
   }
 
   setWorkDays(projectWeekDays: { [key: number]: boolean }) {
