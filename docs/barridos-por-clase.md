@@ -374,27 +374,39 @@ en mi informe. Era falso, y me lo hicieron medir antes de anotarlo.**
 |---|---|---|
 | el limpio, solo el push con `origin main` | `main` | `790e22e` — lo habría permitido |
 | el mío, que terminaba en `date "+%H:%M:%S"` | `"+%H` | no resuelve → **cae al `HEAD` del worktree** |
+| el mismo push con un simple `\| tail -3` detrás | `tail` | no resuelve → **cae al `HEAD` del worktree** |
 
-El culpable es el **formato de hora**. Mi comando terminaba en `date "+%H:%M:%S"`, y ese token
-contiene dos puntos. La rama `*:*` del `case` está para reconocer refspecs tipo `<sha>:main`, así
-que se lo tragó y dejó `src='"+%H'`. Dos detalles lo rematan: el bucle se queda con el **último**
-token que encaje, de modo que cualquier cosa escrita **detrás** del push manda sobre el ref; y
-cuando `src` no resuelve, la función **cae a `HEAD` sin decirlo**.
+En mi caso el culpable parecía ser el **formato de hora**: `date "+%H:%M:%S"` lleva dos puntos, la
+rama `*:*` del `case` está para reconocer refspecs tipo `<sha>:main`, y se lo tragó dejando
+`src='"+%H'`. Pero eso hace pensar que hace falta un comando rebuscado, y **no hace falta**: la
+tercera fila es un `| tail -3` pelado, lo más común del mundo al publicar, y rompe igual.
+
+Los dos detalles que lo explican: el bucle **se queda con el último token que encaje**, así que
+cualquier cosa escrita *detrás* del push manda sobre el ref —no hacen falta dos puntos, basta una
+palabra—; y cuando `src` no resuelve, la función **cae a `HEAD` sin decirlo**. El fallo no es de
+comandos raros: es del caso normal.
 
 Lo grave no es el fallo de parseo —un comando compuesto es difícil de leer—, es el **silencio**:
 denegó presentando `d6329b6` como «lo que publica este push», que es una afirmación falsa dicha con
-total aplomo. Y me llevó a deducir una causa equivocada que estuvo a punto de quedar escrita aquí
-como hallazgo. La diferencia con las otras dos veces de hoy es que esta se midió a tiempo, y no
-porque yo dudara: porque me lo exigieron.
+total aplomo. **Un fallback que adivina y no lo dice es peor que un error: un error se investiga,
+una afirmación se cree.** Por eso me llevó a deducir una causa equivocada que estuvo a punto de
+quedar escrita aquí como hallazgo.
+
+La diferencia con las otras dos veces de hoy es que esta se midió a tiempo, y **no porque yo
+dudara: porque me lo exigieron**. Conviene decir la otra mitad, o la lección sale al revés: **la
+hipótesis alternativa de quien me frenó —«el comando no nombraba el ref»— también era falsa.** Sí
+lo nombraba. Ninguno de los dos lo tenía. No acertó quien dudó: acertó **medir**.
 
 Misma familia que las otras dos de este censo: **`%run-%` llamado «marcador»**, **`HEAD` presentado
 como «lo que publica el push»**. Ninguna está rota. Las tres dicen medir algo más preciso de lo que
 miden, y las tres solo se notan cuando alguien se sale del caso normal.
 
 **Y una tercera, encontrada al escribir esto:** el gate también bloqueó el comando que *añadía este
-texto al documento*, porque las palabras del push aparecían dentro de la prosa. Detecta por el
-texto del comando, no por lo que el comando hace — así que hablar de publicar cuenta como publicar.
-Inofensivo aquí, y de la misma familia otra vez.
+texto al documento*, porque las palabras del push aparecían dentro de la prosa. **Detecta por el
+texto del comando, no por lo que el comando hace**, así que **hablar de publicar cuenta como
+publicar**. Inofensivo aquí —se escribe con el editor y ya—, y de la misma familia otra vez:
+`%run-%` llamado marcador, `HEAD` llamado lo-que-publica, y ahora hablar de publicar contado como
+publicar.
 
 El arreglo natural no es solo resolver mejor el ref: es **negarse a adivinar**. Un push sin refspec
 depende del upstream de la rama y el gate no puede saber qué viaja; y un token ambiguo no es un
