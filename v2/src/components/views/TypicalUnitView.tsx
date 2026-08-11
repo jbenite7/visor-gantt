@@ -112,7 +112,7 @@ export default function TypicalUnitView({ tasks }: TypicalUnitViewProps) {
                     {group.levelCount} niveles · {formatNumber(group.averageProductivity)} 1/día
                   </p>
                   {group.family.reviewReason && (
-                    <p className="mt-1 text-xs text-[var(--color-warning,#b45309)]">
+                    <p className="mt-1 text-xs text-[var(--aia-warn-main)]">
                       {group.family.reviewReason}
                     </p>
                   )}

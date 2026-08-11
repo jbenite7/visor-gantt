@@ -2242,7 +2242,7 @@ function GanttViewInner({
                     border: "1px solid var(--color-hairline)",
                     cursor: "pointer",
                     background: resourceSubView === "sheet" ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
-                    color: resourceSubView === "sheet" ? "#ffffff" : "var(--color-text-muted)",
+                    color: resourceSubView === "sheet" ? "var(--color-text-on-primary)" : "var(--color-text-muted)",
                   }}
                 >
                   {resourceViewLabels.sheet}
@@ -2258,7 +2258,7 @@ function GanttViewInner({
                     border: "1px solid var(--color-hairline)",
                     cursor: "pointer",
                     background: resourceSubView === "usage" ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
-                    color: resourceSubView === "usage" ? "#ffffff" : "var(--color-text-muted)",
+                    color: resourceSubView === "usage" ? "var(--color-text-on-primary)" : "var(--color-text-muted)",
                   }}
                 >
                   {resourceViewLabels.usage}
@@ -2274,7 +2274,7 @@ function GanttViewInner({
                     border: "1px solid var(--color-hairline)",
                     cursor: "pointer",
                     background: resourceSubView === "assignments" ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
-                    color: resourceSubView === "assignments" ? "#ffffff" : "var(--color-text-muted)",
+                    color: resourceSubView === "assignments" ? "var(--color-text-on-primary)" : "var(--color-text-muted)",
                   }}
                 >
                   {resourceViewLabels.assignments}
@@ -2290,7 +2290,7 @@ function GanttViewInner({
                     border: "1px solid var(--color-hairline)",
                     cursor: "pointer",
                     background: resourceSubView === "budget" ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
-                    color: resourceSubView === "budget" ? "#ffffff" : "var(--color-text-muted)",
+                    color: resourceSubView === "budget" ? "var(--color-text-on-primary)" : "var(--color-text-muted)",
                   }}
                 >
                   {resourceViewLabels.budget}
@@ -2306,7 +2306,7 @@ function GanttViewInner({
                     border: "1px solid var(--color-hairline)",
                     cursor: "pointer",
                     background: resourceSubView === "mapping" ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
-                    color: resourceSubView === "mapping" ? "#ffffff" : "var(--color-text-muted)",
+                    color: resourceSubView === "mapping" ? "var(--color-text-on-primary)" : "var(--color-text-muted)",
                   }}
                 >
                   {resourceViewLabels.mapping}
