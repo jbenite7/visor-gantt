@@ -11,6 +11,12 @@ jest.mock("@/app/actions/auth", () => ({
   loginAction: jest.fn(),
 }));
 
+// Desde E51 la página lleva la entrada sin cuenta, que navega al enlace
+// temporal. Fuera del router de Next no hay a dónde navegar.
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: jest.fn() }),
+}));
+
 import LoginPage from "./page";
 
 describe("la entrada no castiga al que se equivoca (E9)", () => {
