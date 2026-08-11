@@ -351,7 +351,7 @@ function GanttViewInner({
    * Un conflicto no se arregla reintentando: el reintento manda la misma
    * versión vieja y vuelve a chocar. Lo que hace falta es traer lo que hay.
    */
-  const esConflictoDeVersion = Boolean(saveError?.includes("Otra pestaña"));
+  const [esConflictoDeVersion, setEsConflictoDeVersion] = useState(false);
   /**
    * Espejo del estado de guardado para el aviso al cerrar. Va en un ref
    * porque `beforeunload` se registra una sola vez y consulta al dispararse:
@@ -1324,6 +1324,10 @@ function GanttViewInner({
         // para el usuario -el del conflicto entre pestañas, el de permisos-
         // pasan intactos.
         setSaveError(humanSaveError(result.error));
+        // Por el dato y no por la frase: antes esto se decidía buscando «Otra
+        // pestaña» dentro del mensaje, así que reescribir el copy apagaba el
+        // botón de «Recargar» sin que nadie lo notara.
+        setEsConflictoDeVersion(Boolean(result.conflict));
         updateSaveStatus("error");
         setTimeout(() => updateSaveStatus("idle"), 3000);
       }

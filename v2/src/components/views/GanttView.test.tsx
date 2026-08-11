@@ -2910,3 +2910,53 @@ describe("un fallo de guardado se cuenta en cristiano", () => {
     expect(document.body.textContent).toContain("Otra pestaña guardó");
   });
 });
+
+/**
+ * El botón de «Recargar» aparecía solo si el mensaje contenía «Otra pestaña».
+ *
+ * La interfaz leía el copy para decidir qué hacer: una corrección de redacción
+ * —lo más normal— habría hecho desaparecer el botón, dejando al usuario
+ * reintentando algo que nunca puede funcionar.
+ */
+describe("el conflicto se reconoce por el dato, no por la redacción", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    (saveProject as jest.Mock).mockClear();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  async function guardarCon(resultado: Record<string, unknown>) {
+    (saveProject as jest.Mock).mockResolvedValueOnce(resultado);
+    render(<GanttView tasks={[makeTask({ id: 1 })]} projectId="p1" />);
+    fireEvent.change(screen.getByTestId("role-view-preset-select"), {
+      target: { value: "tracking" },
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+      await Promise.resolve();
+    });
+  }
+
+  test("con el dato de conflicto se ofrece recargar, aunque el texto cambie", async () => {
+    await guardarCon({
+      success: false,
+      conflict: true,
+      // Redacción distinta a propósito: lo que manda es el dato.
+      error: "Alguien más guardó esto antes que tú.",
+    });
+
+    expect(document.body.textContent).toMatch(/recargar/i);
+  });
+
+  test("sin conflicto no se ofrece recargar: ahí no arregla nada", async () => {
+    await guardarCon({
+      success: false,
+      error: "El proyecto ya no existe: no se guardó nada.",
+    });
+
+    expect(document.body.textContent).not.toMatch(/recargar/i);
+  });
+});

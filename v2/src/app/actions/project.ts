@@ -242,6 +242,11 @@ export async function saveProject(
   success: boolean;
   id?: string;
   error?: string;
+  /**
+   * Otra pestaña se adelantó. Es un dato y no una frase a propósito: la
+   * pantalla lo usa para ofrecer «Recargar», que es lo único que arregla esto.
+   */
+  conflict?: boolean;
   /** La versión ya incrementada, para que el cliente guarde la siguiente vez. */
   version?: number;
 }> {
@@ -285,12 +290,21 @@ export async function saveProject(
         );
 
         if (res.rowCount === 0) {
+          // `conflict` es un DATO, no una frase. La pantalla decidía si
+          // enseñar el botón de «Recargar» buscando «Otra pestaña» dentro del
+          // mensaje: una corrección de redacción habría hecho desaparecer el
+          // botón y dejado al usuario reintentando algo que nunca funciona —el
+          // reintento manda la misma versión vieja y vuelve a chocar.
+          //
+          // Un proyecto que ya no existe NO es conflicto: ahí recargar no trae
+          // nada, y ofrecerlo sería otra promesa incumplida.
+          const seAdelantoOtraPestana = projectData.version !== undefined;
           return {
             success: false,
-            error:
-              projectData.version === undefined
-                ? "El proyecto ya no existe: no se guardó nada."
-                : "Otra pestaña guardó este proyecto mientras lo editabas. Recarga para no perder lo suyo ni lo tuyo.",
+            conflict: seAdelantoOtraPestana,
+            error: seAdelantoOtraPestana
+              ? "Otra pestaña guardó este proyecto mientras lo editabas. Recarga para no perder lo suyo ni lo tuyo."
+              : "El proyecto ya no existe: no se guardó nada.",
           };
         }
 
