@@ -29,6 +29,7 @@ export default async function ProjectPage({
     recursos: typeof query.recursos === "string" ? query.recursos : undefined,
     descartadas:
       typeof query.descartadas === "string" ? query.descartadas : undefined,
+    sinFoto: typeof query.sinFoto === "string" ? query.sinFoto : undefined,
   });
   const project = await loadProject(id);
 

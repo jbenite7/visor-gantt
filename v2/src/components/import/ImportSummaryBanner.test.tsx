@@ -83,3 +83,46 @@ describe("las pérdidas de la importación se anuncian (E33)", () => {
     expect(screen.getByTestId("import-warnings-toggle")).toHaveTextContent("2");
   });
 });
+
+/**
+ * Si la foto del cronograma no se guardó, se dice aquí.
+ *
+ * El tablero de Cortes explica que «cada vez que importas … se guarda una
+ * foto». Cuando no ocurre y nadie lo cuenta, el usuario se encuentra un tablero
+ * vacío que contradice ese texto y no sabe por qué.
+ */
+describe("cuando no se pudo guardar la foto del cronograma", () => {
+  test("se avisa, sin dar la importación por fallida", () => {
+    render(
+      <ImportSummaryBanner
+        summary={{
+          tasks: 239,
+          dependencies: 212,
+          resources: 17,
+          discardedColumns: [],
+          snapshotMissing: true,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("import-sin-foto")).toBeInTheDocument();
+    // La importación sí salió bien: el conteo sigue ahí.
+    expect(screen.getByRole("status")).toHaveTextContent("239");
+  });
+
+  test("si la foto se guardó, no se dice nada", () => {
+    render(
+      <ImportSummaryBanner
+        summary={{
+          tasks: 239,
+          dependencies: 212,
+          resources: 17,
+          discardedColumns: [],
+          snapshotMissing: false,
+        }}
+      />,
+    );
+
+    expect(screen.queryByTestId("import-sin-foto")).not.toBeInTheDocument();
+  });
+});
