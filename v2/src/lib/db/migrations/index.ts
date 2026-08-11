@@ -4,6 +4,7 @@ import { migration002BaselinesAsSnapshots } from "./002_baselines_as_snapshots";
 import { migration003ShareColumns } from "./003_share_columns";
 import { migration004ProjectOwnership } from "./004_project_ownership";
 import { migration005ProjectVersion } from "./005_project_version";
+import { migration006ProjectMembersUserIndex } from "./006_project_members_user_index";
 
 /**
  * Todas las migraciones del proyecto, **en orden de id**.
@@ -18,4 +19,5 @@ export const ALL_MIGRATIONS: Migration[] = [
   migration003ShareColumns,
   migration004ProjectOwnership,
   migration005ProjectVersion,
+  migration006ProjectMembersUserIndex,
 ];
