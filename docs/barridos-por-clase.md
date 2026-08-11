@@ -413,4 +413,33 @@ depende del upstream de la rama y el gate no puede saber qué viaja; y un token 
 refspec. Mejor denegar pidiendo que se nombre el ref, que resolver un `HEAD` cualquiera y llamarlo
 «lo que publica el push».
 
-*Sin tocar: es herramienta de la coordinadora y cambia quién puede publicar qué.*
+**Arreglado el mismo día, y esta nota decía lo contrario.** Se escribió como «sin tocar: es
+herramienta de la coordinadora», y **el usuario pidió arreglarlo** poco después. Una nota falsa en
+el censo es peor que ninguna, así que aquí queda qué cambió y qué no.
+
+El arreglo no es resolver mejor el ref: es **negarse a adivinar**. `cas_push_sha` ahora lee solo el
+tramo del propio comando —cortando en el primer operador, para que lo escrito detrás no pueda
+cambiar el veredicto—, y cuando el comando **no nombra ningún ref devuelve vacío**; entonces el gate
+deniega admitiendo que no lo sabe y pidiendo que se nombre. **Coste aceptado:** un push sin refspec
+deja de pasar. Dependía del upstream de la rama, que el hook no puede conocer, así que **denegar
+diciendo «no lo sé» es mejor que permitir habiendo adivinado**.
+
+Dos cosas del arreglo valen más que el parche, y las dos son sobre las pruebas:
+
+- **Una trampa que no puede saltar no es una prueba.** Los tres primeros tests pasaban porque en el
+  repositorio de prueba `HEAD` coincidía con `main`: el fallback **mentía acertando** y la prueba no
+  veía nada. Hubo que montar `HEAD` en una rama distinta de todas las publicables.
+- **Una mutación que no pone nada en rojo delata una defensa supuesta, no probada.** Al mutar el
+  corte por operadores no falló ningún test: esa mitad del arreglo no estaba cubierta —protegía «el
+  primer refspec manda»—. El caso que sí la distingue es `git ␟push␟ && echo main`, donde el único
+  ref del comando está detrás.
+
+**Lo que queda sin arreglar es la tercera grieta**, y se repitió en vivo mientras se arreglaba la
+segunda: el gate bloqueó el `git commit` del propio arreglo **porque el mensaje del commit hablaba
+de publicar**. Hubo que escribir el mensaje en un archivo. Sigue detectando por el texto del
+comando, no por lo que el comando hace.
+
+*Y un aviso que no es del censo pero conviene aquí: `~/.claude/cas` es un **symlink** al repositorio
+del plugin, así que el arreglo está **vivo para todas las sesiones** desde que se guardó, pero
+**sin publicar** — publicarlo es un acto aparte y en repositorio ajeno. Si alguien resetea ese
+repositorio, el comportamiento del gate cambia bajo todas las sesiones sin aviso.*
