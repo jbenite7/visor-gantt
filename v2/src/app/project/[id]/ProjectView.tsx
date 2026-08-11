@@ -86,6 +86,7 @@ export default function ProjectView({
   projectId,
   tasks,
   projectName,
+  statusDate,
   calendar,
   resources,
   assignments,
@@ -111,6 +112,14 @@ export default function ProjectView({
   projectId?: string;
   tasks: SerializedTask[];
   projectName: string;
+  /**
+   * La fecha de corte que traía el `.mpp`.
+   *
+   * Sin ella, la curva S, el tablero ejecutivo, `calculateMppFields` -BCWS
+   * incluido- y los vencidos de Last Planner calculan contra la fecha de hoy
+   * en vez de contra el corte del cronograma, y se equivocan en silencio.
+   */
+  statusDate?: string;
   calendar: ProjectCalendar;
   resources: Resource[];
   assignments: Assignment[];
@@ -204,6 +213,7 @@ export default function ProjectView({
           <GanttView
             projectId={projectId}
             projectName={projectName}
+            statusDate={statusDate}
             tasks={deserializedTasks}
             calendar={calendar}
             resources={resources}

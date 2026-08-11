@@ -86,6 +86,7 @@ export default async function ProjectPage({
       projectId={project.id}
       tasks={serializedTasks}
       projectName={project.name}
+      statusDate={project.statusDate}
       calendar={project.calendar}
       resources={project.resources}
       assignments={project.assignments}
