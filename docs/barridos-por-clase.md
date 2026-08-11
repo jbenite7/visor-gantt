@@ -223,7 +223,28 @@ el DOM, y el chunk que pedía el navegador tenía otro hash que el del disco. **
 código, comprobar que la pantalla es la del código.** El comando que lo dice en un segundo:
 `lsof -p <pid> -a -d cwd`.
 
-**Y lo repetí el mismo día, con otra cara: verifiqué un árbol que no era el que pedía publicar.**
+**El registro de sesiones pierde el frente en cada arranque, y el gate salta con el visto ya
+dado.** Trabajando con varias sesiones sobre este repo, el hook de publicación me frenó dos veces
+con «ejecutor sin frente declarado»: la segunda, cuando ya tenía el visto de la coordinadora. Mi
+fila de `.claude/sesiones.md` había perdido el frente sin que nadie tocara el archivo.
+
+*Medido, no supuesto:* `scripts/session-start.sh:23` llama a `cas_upsert` pasando **`-` como
+frente y `-` como archivos, siempre**, y `cas_upsert` borra la fila y la reescribe entera. No es
+una limpieza periódica ni otra sesión pisando el archivo: **cada `SessionStart` borra el frente
+declarado**. Se repone con `cas-frente.sh`, pero hay que acordarse, y el momento en que se nota es
+el peor: al ir a publicar.
+
+Vive en el plugin `coordinating-agent-sessions`, fuera de este repositorio, así que aquí solo
+queda anotado.
+
+**Falsa alarma que conviene contar, porque es el error del día en pequeño:** avisé de que
+`.claude/vistos/` estaba vacío y que quizá el visto no se había escrito. Estaba vacío **porque
+funcionó**: `consume-visto.sh` borra el visto tras un `git push` correcto del ejecutor. Es de un
+solo uso, por diseño. Acusé antes de leer el script, que es exactamente lo que este documento
+lleva media página pidiendo no hacer.
+
+**Y repetí el error del preview el mismo día, con otra cara: verifiqué un árbol que no era el que
+pedía publicar.**
 Informé «214 suites, 1.924 pruebas» y en `main` había 213 y 1.921. La diferencia era un fichero
 que seguía solo en mi rama: había hecho dos commits **después** de fusionar y medí sobre el
 worktree. La coordinadora lo cazó porque los números no cuadraban por uno.
@@ -239,6 +260,9 @@ git log --oneline main..<rama>            # tiene que dar vacío
 git cat-file -e main:<archivo-nuevo>      # tiene que existir
 ```
 
-Y la corrida de pruebas, en el checkout que está en `main`, no en el worktree. Un recuento que
-baila por uno es la única señal que queda cuando el árbol es el equivocado; no siempre habrá
-alguien mirando.
+Y la corrida de pruebas, en el checkout que está en `main`, no en el worktree.
+
+**La detección se fía al comando, no a la aritmética.** Aquí lo delató un recuento que bailaba por
+uno, pero eso fue suerte: si las dos cifras hubieran coincidido por casualidad, no habría habido
+descuadre y el `git log main..<rama>` habría cantado igual. Fiarse del número enseña a no correr
+el comando, que es justo lo contrario de lo que hay que aprender.
