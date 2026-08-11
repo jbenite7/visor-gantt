@@ -3,6 +3,7 @@ import { humanParserError } from "@/lib/import/parserErrors";
 import { buildProjectDataFromMpp } from "@/lib/import/mpp-project";
 import { createSharedProject } from "@/lib/share/createSharedProject";
 import { checkUploadAllowance } from "@/lib/share/uploadThrottle";
+import { cleanExpiredShares } from "@/lib/share/cleanExpiredShares";
 import type { ProjectData as ParsedMppProject } from "@/lib/parser/mpp-parser";
 
 const DEFAULT_PARSER_URL = "http://mpp-parser:8000";
@@ -99,6 +100,20 @@ export async function POST(request: NextRequest) {
   const parsedProject = (await parserResponse.json()) as ParsedMppProject;
   const projectData = buildProjectDataFromMpp(parsedProject, file.name, {
     calculateFields: false,
+  });
+
+  // El disparador de la limpieza, que la spec dejó exigido: un script sin
+  // llamador no borra nada. Va aquí porque quien crea temporales es exactamente
+  // quien los acumula, y porque el caso que más acumula —alguien prueba la app,
+  // cierra la pestaña y no vuelve— nunca dispararía un borrado «al abrir».
+  //
+  // No se espera su resultado ni se deja que tumbe la subida: limpiar es
+  // higiene, no la tarea del usuario que pasaba por aquí.
+  // El .catch() no es adorno: sin él, un fallo de la limpieza queda como
+  // promesa rechazada sin capturar, y eso puede tumbar el proceso entero. La
+  // higiene no puede llevarse por delante al servidor.
+  void cleanExpiredShares().catch((error) => {
+    console.error("[ver-mpp] la limpieza de caducados falló", error);
   });
 
   const guardado = await createSharedProject(projectData);

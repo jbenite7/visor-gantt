@@ -18,6 +18,11 @@ jest.mock("@/lib/share/uploadThrottle", () => ({
   checkUploadAllowance: (...a: unknown[]) => checkUploadAllowance(...a),
 }));
 
+const cleanExpiredShares = jest.fn(async () => 0);
+jest.mock("@/lib/share/cleanExpiredShares", () => ({
+  cleanExpiredShares: () => cleanExpiredShares(),
+}));
+
 jest.mock("@/lib/import/mpp-project", () => ({
   buildProjectDataFromMpp: () => ({ name: "Estación 16", tasks: [] }),
 }));
@@ -115,6 +120,23 @@ describe("POST /api/ver-mpp", () => {
     const res = await POST(peticion(grande));
 
     expect(res.status).toBe(413);
+  });
+
+  test("barre los caducados al crear uno nuevo: el script tiene quien lo llame", async () => {
+    // Sin disparador, el borrado solo ocurriría «al abrir» un enlace caducado, y
+    // el caso mayoritario —alguien prueba la app, cierra la pestaña y no
+    // vuelve— no se borraría nunca. La spec lo dejó exigido.
+    await POST(peticion(mpp()));
+
+    expect(cleanExpiredShares).toHaveBeenCalled();
+  });
+
+  test("si la limpieza falla, la subida del usuario sigue adelante", async () => {
+    cleanExpiredShares.mockRejectedValue(new Error("base caída"));
+
+    const res = await POST(peticion(mpp()));
+
+    expect(res.status).toBe(200);
   });
 
   test("sin archivo, lo dice", async () => {
