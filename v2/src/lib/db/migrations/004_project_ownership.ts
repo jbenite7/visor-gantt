@@ -21,6 +21,18 @@ export const migration004ProjectOwnership: Migration = {
   id: "004_project_ownership",
 
   async up(client) {
+    // En una base recién creada `users` todavía no existe: la crean
+    // `ensureAuthTables` (rbac.ts), no las migraciones, y nada garantiza el
+    // orden entre las dos cosas. Sin esta comprobación, aplicar el esquema en
+    // una instalación nueva moría con `relation "users" does not exist`.
+    //
+    // Y no hace falta más: sin usuarios no hay a quién asignar proyectos. La
+    // primera persona que entre creará los suyos, y esos ya nacen con dueño.
+    const hayUsuarios = await client.query(
+      `SELECT to_regclass('users') AS existe`,
+    );
+    if (!hayUsuarios.rows[0]?.existe) return;
+
     const admin = await client.query(
       `SELECT u.id
          FROM users u
