@@ -3,8 +3,12 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileUp, Loader2 } from "lucide-react";
+import { SHARE_TTL_DAYS } from "@/lib/share/shareToken";
+import {
+  MAX_FILE_SIZE_MB,
+  archivoDemasiadoGrande,
+} from "@/lib/import/uploadLimits";
 
-const MAX_FILE_SIZE_MB = 50;
 
 /**
  * Ver un cronograma sin crear cuenta. La entrada de E51.
@@ -36,7 +40,7 @@ export default function AnonymousMppUpload({
     // 50 MB por una red de obra es la diferencia entre un aviso y una espera
     // inútil. `file.size` se declara, no se materializa.
     if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-      setError(`El archivo supera el máximo de ${MAX_FILE_SIZE_MB} MB.`);
+      setError(`${archivoDemasiadoGrande()}.`);
       return;
     }
 
@@ -92,7 +96,7 @@ export default function AnonymousMppUpload({
       </label>
 
       <p className="mt-2 max-w-xs text-xs text-[var(--color-text-muted)]">
-        Se abre en solo lectura y el enlace caduca a los 7 días. Si te sirve,
+        Se abre en solo lectura y el enlace caduca a los {SHARE_TTL_DAYS} días. Si te sirve,
         puedes quedártelo creando una cuenta.
       </p>
 

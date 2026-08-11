@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { adoptSharedProject } from "@/lib/share/adoptSharedProject";
+import { SHARE_TTL_DAYS } from "@/lib/share/shareToken";
 
 /**
  * Quedarse el cronograma que se abrió sin cuenta.
@@ -44,7 +45,7 @@ export default async function AdoptarPage({
           {resultado.error}
         </p>
         <p className="mt-3 text-sm text-[var(--color-text-muted)]">
-          Los enlaces sin cuenta caducan a los 7 días. Puedes volver a subir el
+          Los enlaces sin cuenta caducan a los {SHARE_TTL_DAYS} días. Puedes volver a subir el
           archivo desde tus proyectos.
         </p>
         <Link
