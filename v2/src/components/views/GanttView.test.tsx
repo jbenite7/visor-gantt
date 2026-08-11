@@ -2849,3 +2849,64 @@ describe("el comando de exportar descarga de verdad", () => {
     jest.restoreAllMocks();
   });
 });
+
+/**
+ * Lo que ve quien está en obra cuando el guardado falla.
+ *
+ * `saveProject` puede devolver el error crudo de la base, y esto se pinta tal
+ * cual en pantalla: un fallo de conexión enseñaba `ECONNREFUSED 127.0.0.1:5432`
+ * a un jefe de obra.
+ */
+describe("un fallo de guardado se cuenta en cristiano", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    (saveProject as jest.Mock).mockClear();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("el error crudo de la base no llega a pantalla", async () => {
+    (saveProject as jest.Mock).mockResolvedValueOnce({
+      success: false,
+      error: "connect ECONNREFUSED 127.0.0.1:5432",
+    });
+
+    render(<GanttView tasks={[makeTask({ id: 1 })]} projectId="p1" />);
+
+    fireEvent.change(screen.getByTestId("role-view-preset-select"), {
+      target: { value: "tracking" },
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+      await Promise.resolve();
+    });
+
+    expect(document.body.textContent).not.toContain("ECONNREFUSED");
+    expect(document.body.textContent).not.toContain("127.0.0.1");
+  });
+
+  test("el aviso de conflicto entre pestañas sobrevive intacto", async () => {
+    const conflicto =
+      "Otra pestaña guardó este proyecto mientras lo editabas. Recarga para no perder lo suyo ni lo tuyo.";
+    (saveProject as jest.Mock).mockResolvedValueOnce({
+      success: false,
+      error: conflicto,
+    });
+
+    render(<GanttView tasks={[makeTask({ id: 1 })]} projectId="p1" />);
+
+    fireEvent.change(screen.getByTestId("role-view-preset-select"), {
+      target: { value: "tracking" },
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+      await Promise.resolve();
+    });
+
+    expect(document.body.textContent).toContain("Otra pestaña guardó");
+  });
+});
