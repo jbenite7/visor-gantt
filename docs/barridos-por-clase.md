@@ -243,6 +243,38 @@ Así que **cada `SessionStart` borra el frente declarado**. No es una limpieza p
 sesión pisando el archivo. Se repone con `cas-frente.sh`, pero hay que acordarse, y el momento en
 que se nota es el peor: al ir a publicar.
 
+**El mismo fallo tiene un gemelo, y ese sí es silencioso: el visto no lleva escrito para qué es.**
+
+`.claude/vistos/<frente>` es un archivo vacío que dice «hay un push autorizado», no «hay un push
+autorizado *de este sha*». `consume-visto.sh` lo borra ante **cualquier** `git push` correcto del
+ejecutor, sin mirar qué se publica. Así que un visto emitido para un sha lo gasta el push de otro.
+
+*Reproducido sin querer, con las horas medidas:*
+
+```
+14:42:39  la coordinadora crea el visto, pensando en `b2fa250`
+14:42:52  publico `2748dc9` (que también estaba aprobado) → el hook borra el visto
+14:43:33  mido: el directorio está vacío
+```
+
+**Es de la misma familia que el del registro: los dos escriben sin leer antes.** `session-start.sh`
+borra el frente sin mirar cuál era; `consume-visto.sh` borra el visto sin mirar para qué era.
+Misma línea de código con dos nombres — quien arregle una debería arreglar la otra.
+
+Y es **el más grave de los dos, justo por ser el que no molesta**. El del registro frena y se ve;
+este **deja pasar un push que nadie autorizó** para ese contenido, y no deja rastro. La regla que
+lo sostiene —«el visto es sobre un sha, no sobre un frente»— existe solo en la conversación entre
+dos sesiones; el mecanismo no la conoce.
+
+**Se destapó porque se hizo lo correcto, y eso importa para leer bien el episodio.** El visto ajeno
+se gastó al publicar `2748dc9:main` —el sha exacto que estaba aprobado— en vez de la cabeza local,
+que iba un commit por delante. Publicar de más habría sido lo cómodo, no habría producido ningún
+síntoma, y el fallo seguiría oculto. **No es un error de la sesión: es el precio de aplicar la
+regla, y ese precio fue lo que hizo visible que el mecanismo no la sostenía.**
+
+Las dos sesiones llegamos a esta causa a la vez y por caminos distintos —una por las horas, la
+otra por el archivo vacío—, que es la mejor confirmación que tuvimos en todo el día.
+
 **La lectura del código sola no bastaba, y por poco la escribo como prueba.** Enseña el mecanismo,
 no que sea la causa del síntoma. Dos minutos de reproducción cierran la diferencia — y en este
 caso hacía falta doblemente, porque el plugin se sirve desde un directorio distinto del que
