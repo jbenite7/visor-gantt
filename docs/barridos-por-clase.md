@@ -13,6 +13,11 @@ donde puede repetirse este tipo de error».
 Funcionó mejor de lo esperado —doce hallazgos— y produjo algo que una lista no da: **guardianes
 que cierran la clase entera**, no el caso concreto.
 
+Y produjo algo igual de útil: **doce clases que salen limpias**, medidas y anotadas. Saber dónde
+*no* está el problema vale tanto como saber dónde está, y evita que la siguiente sesión repita el
+barrido. Cuatro de esas doce se cerraron midiendo la base entera —297 proyectos— en vez de leer
+código: sin ids repetidos, sin dependencias huérfanas, sin cronogramas que desborden la pila.
+
 ## El método, y la lección que costó tres vueltas
 
 **Medir los datos, no razonar sobre el código.**
@@ -46,6 +51,10 @@ que *hay*.
 | **Lógica que depende de leer un texto** | 2 — botón de recargar, línea real vs planificada |
 | **Tokens de color inexistentes** | 2 — uno con reserva, otro sin ella |
 | **Cálculos con la fuente equivocada** | 2 — diagnóstico de curva S, eje de Línea de Balance |
+| Ordenaciones inestables | limpio — el único `.sort()` sin comparador es una clave de comparación, y es determinista |
+| Desbordamiento de pila en `Math.max(...)` | limpio — el cronograma mayor tiene **494 tareas**; el spread revienta a las 125.000 |
+| Identificadores de tarea repetidos | limpio — 297 proyectos, ninguno |
+| Dependencias huérfanas | limpio — 297 proyectos, ninguna |
 
 ## Guardianes que quedan puestos
 
