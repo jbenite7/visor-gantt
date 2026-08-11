@@ -1,14 +1,25 @@
 /**
  * Las etiquetas del eje de tiempo de la Línea de Balance.
  *
- * **Se leen en UTC a propósito.** Las fechas del cronograma se construyen a
- * medianoche UTC, y el eje las leía con `date.getDate()` y
- * `toLocaleString("es-ES")`, que usan la zona de la máquina: en Bogotá (UTC-5)
- * la medianoche UTC del día 5 es el día 4 por la tarde, así que **cada marca
- * del eje iba corrida un día**. Justo en la pantalla que sirve para ver a qué
- * ritmo avanza cada piso, donde el día es el dato.
+ * **Corrección del 2026-08-11.** Esto se extrajo creyendo que arreglaba un
+ * desfase de un día, y **ese desfase no existía**. La «prueba» usó una fecha a
+ * medianoche UTC, que es una fecha que este código nunca produce: las marcas
+ * del eje se construyen con `setHours(0, 0, 0, 0)`, o sea medianoche **local**,
+ * y sobre esas leer en local o en UTC da exactamente lo mismo. Medido:
  *
- * De paso, formateaba en `es-ES` mientras el resto de la app usa `es-CO`.
+ *     marca real del gráfico : 2026-08-05T05:00:00.000Z
+ *       lectura local        : 5 ago
+ *       lectura UTC          : 5 ago
+ *
+ * Lo que sí queda, y por eso el módulo se conserva:
+ *
+ * 1. La función estaba **encerrada dentro del componente** y no se podía probar.
+ * 2. Formateaba en `es-ES` mientras el resto de la app usa `es-CO`.
+ * 3. Leer UTC es lo correcto para el otro caso que sí llega aquí: una fecha que
+ *    venga de un ISO de solo día (`new Date("2026-08-05")` es medianoche UTC).
+ *    Con marcas locales da igual; con esas, no.
+ *
+ * Se deja escrito el error para que nadie repita la deducción sin medirla.
  */
 export type LobTickScale = "day" | "week" | "month" | "quarter";
 
