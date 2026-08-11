@@ -96,15 +96,65 @@ Dos trampas que costaron una vuelta y merecen quedar escritas:
   cayó del lado seguro —borrar de menos—, pero del lado contrario habría borrado datos
   ajenos.
 
-## Lo que no se tocó, y por qué
+## Lo que quedó pendiente y se resolvió el mismo día
 
-**La suite corre contra `next dev`**, que compila cada ruta la primera vez que se visita.
-Eso ya se sabía: `full-app-evidence.spec.ts` tiene un `beforeAll` que calienta `/login` a
-mano, con un comentario que explica la carrera. Es un parche por ruta, y hay más rutas.
-Correr contra un `next build` + `next start` quitaría de raíz tanto la compilación
-perezosa como el ruido de Fast Refresh —ese `.hot-update.json` que había que perdonar en
-la lista blanca—, pero cambia el entorno bajo el que se firmó toda la evidencia visual
-existente. Es un cambio de más peso que estos, y merece su propia decisión.
+Esta sección quedó escrita como «lo que no se tocó»: la suite corría contra `next dev`,
+que compila cada ruta la primera vez que se visita, y eso obligaba a un `beforeAll` que
+calentaba `/login` a mano. Se dejó fuera porque cambiar de entorno cambia lo que acredita
+la evidencia visual, y eso merecía su propia decisión. Se tomó, y se midió.
+
+### La medida
+
+Mismo commit, misma suite, misma máquina; lo único que cambia es el servidor. Cada corrida
+lleva su `uptime` anotado, porque una comparación bajo cargas distintas no vale nada.
+
+| | Servidor de desarrollo | Producción, corrida 1 | Producción, 2 | Producción, 3 |
+|---|---|---|---|---|
+| Corrida completa | **8,0 min** | 4,5 min | 3,4 min | **3,1 min** |
+| `flow matrix-housing-full-flow` | **108 s — 60 %** del presupuesto | 72 s — 40 % | 57,5 s — 32 % | **52,8 s — 29 %** |
+| `matrix-housing … Hoja Tareas` | 23,4 s | 8,1 s | 7,6 s | 7,1 s |
+| `flow import-mpp-full-flow` | 31,7 s | 24,5 s | 16,9 s | 16,1 s |
+| `load average` al arrancar | 5,06 | 20,92 | 10,94 | 8,33 |
+| Resultado | 50 pasan, 1 omitido | igual | igual | igual |
+
+Los 108 s de la línea base reproducen los 110 s que este mismo documento midió tras el
+arreglo anterior, así que la comparación parte de un suelo verificado.
+
+El dato que más pesa está en la fila del `load average`: la primera corrida de producción
+arrancó con la máquina a **20,92** —peor que el 23 que invalidó una medida del diagnóstico
+original— y aun así tardó **4,5 min contra los 8,0 min** que el servidor de desarrollo
+necesitó con la máquina a 5,06. Producción en su peor día le gana a desarrollo en el mejor.
+Y la varianza entre corridas de producción cae según se descarga la máquina, en vez de
+dispararse.
+
+**El coste es menor de lo que parecía.** `next build --webpack` tarda **19,4 s**. Frente a
+una suite de varios minutos no justifica reutilizar nada, así que se reconstruye en cada
+corrida: nunca se sirve un build viejo, que era el riesgo que hacía dudar del cambio.
+
+### Lo que se cambió
+
+**`webServer` construye y sirve el build.** `next build && next start` en vez de
+`next dev`. `E2E_SERVER=dev` sigue levantando el servidor de desarrollo para depurar con
+recarga en caliente, y `E2E_PORT` permite correr sin pelear por el 3000.
+
+**`reuseExistingServer` pasa a `false`, siempre.** Estaba en `!CI`, que en local reutiliza
+*cualquier cosa* que escuche en el puerto. El 2026-08-10, mientras se medía esto, había un
+`next dev` de otra worktree y de otra rama llevando una hora en el 3000: cualquier corrida
+lanzada en ese momento habría probado código ajeno sin avisar de nada. Con un build viejo
+el fallo sería peor, porque no recompila al cambiar el código. Levantar el servidor propio
+cuesta segundos; probar la rama equivocada cuesta la corrida entera y no se nota.
+
+**El `beforeAll` que calentaba `/login` desaparece.** En un build las rutas vienen
+compiladas de antemano y la carrera que esquivaba no puede ocurrir.
+
+### Lo que esto le hace a la evidencia
+
+La evidencia visual anterior se firmó bajo el servidor de desarrollo. A partir del
+2026-08-10 se regenera contra el build de producción, y **acredita ese entorno**: es el
+mismo que se despliega, así que prueba más de lo que probaba antes. Lo que ya no acredita
+es cómo se veía la app bajo `next dev` — algo que a nadie le importa fuera de la depuración.
+De paso desaparece el ruido de Fast Refresh, esos `.hot-update.json` que la lista blanca de
+`assertNoCriticalLogs` tuvo que perdonar en su día.
 
 **El límite honesto:** con la máquina a load average 23, ninguna suite de 51 tests de
 navegador es inmune. Lo que se ha hecho es devolverle margen y quitarle la varianza que
