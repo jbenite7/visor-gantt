@@ -1173,7 +1173,7 @@ export default function GanttTable({
                   ? `Apply % complete to ${selectedTasks.length} selected tasks`
                   : `Aplicar % completado a ${selectedTasks.length} tareas seleccionadas`}
               </p>
-              <p className="mt-1 text-[0.6875rem] text-[var(--color-text-secondary)]">
+              <p className="mt-1 text-[0.6875rem] text-[var(--color-text-muted)]">
                 {selectedTasks.slice(0, 4).map((task) => task.name).join(" · ")}
                 {selectedTasks.length > 4 ? " · ..." : ""}
               </p>

@@ -86,7 +86,7 @@ export default function ResourceRow({
             fontWeight: 600,
             fontFamily: "var(--font-montserrat)",
             background: badge.bg,
-            color: "#ffffff",
+            color: "var(--color-text-on-primary)",
             textTransform: "uppercase",
             letterSpacing: "0.03em",
           }}

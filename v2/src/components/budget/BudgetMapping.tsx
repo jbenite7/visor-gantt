@@ -508,7 +508,7 @@ export default function BudgetMappingPanel({
                 mappingAmount && parseFloat(mappingAmount) > 0
                   ? "var(--aia-proj-main)"
                   : "var(--gray-300)",
-              color: "#ffffff",
+              color: "var(--color-text-on-primary)",
               fontSize: "0.75rem",
               fontFamily: "var(--font-montserrat)",
               fontWeight: 600,

@@ -495,7 +495,7 @@ export default function ResourceSheetView({
                       style={{
                         padding: "2px 8px",
                         background: addForm.name.trim() ? "var(--aia-corp-main)" : "var(--gray-300)",
-                        color: "#ffffff",
+                        color: "var(--color-text-on-primary)",
                         border: "none",
                         borderRadius: "var(--radius-sm)",
                         fontSize: "0.6875rem",
@@ -611,7 +611,7 @@ export default function ResourceSheetView({
                         style={{
                           padding: "2px 8px",
                           background: editForm.name.trim() ? "var(--aia-corp-main)" : "var(--gray-300)",
-                          color: "#ffffff",
+                          color: "var(--color-text-on-primary)",
                           border: "none",
                           borderRadius: "var(--radius-sm)",
                           fontSize: "0.6875rem",

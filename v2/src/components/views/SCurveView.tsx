@@ -70,7 +70,7 @@ function tabStyle(active: boolean): React.CSSProperties {
   return {
     ...TAB_BASE,
     background: active ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
-    color: active ? "#ffffff" : "var(--color-text-muted)",
+    color: active ? "var(--color-text-on-primary)" : "var(--color-text-muted)",
     boxShadow: active ? "0 8px 18px rgb(39 118 89 / 0.16)" : "var(--shadow-sm)",
   };
 }

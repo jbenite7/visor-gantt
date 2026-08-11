@@ -280,7 +280,7 @@ export default function TaskSheetView({
                 border: `1px solid ${isActive ? "var(--aia-corp-main)" : "var(--color-hairline)"}`,
                 borderRadius: "var(--radius-lg)",
                 background: isActive ? "var(--aia-corp-main)" : "var(--color-bg-elevated)",
-                color: isActive ? "#ffffff" : "var(--color-text-muted)",
+                color: isActive ? "var(--color-text-on-primary)" : "var(--color-text-muted)",
                 cursor: "pointer",
                 whiteSpace: "nowrap",
                 lineHeight: "1.4",
