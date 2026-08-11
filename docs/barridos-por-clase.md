@@ -356,3 +356,61 @@ deshace, y queda un proyecto de más a cambio —que el `seed` reusa en vez de a
 Sin tocar: el arreglo honesto es un marcador de verdad —un prefijo propio, o una columna— y que los
 mensajes digan lo que el `WHERE` hace. No se hizo aquí porque cambia lo que ese script borra, y eso
 no se decide de paso.
+
+## El gate que adivinó en silencio, y el `:` de un formato de hora
+
+El push del frente `modo-de-prueba` fue denegado con este mensaje:
+
+> El visto autoriza `790e22e`, pero este push publica **`d6329b6`**.
+
+`d6329b6` era la punta de mi worktree. `main` —lo que el push publicaba— estaba en `790e22e`. Así
+que el gate parecía estar mirando el `HEAD` del worktree en vez del ref que viaja, y **eso escribí
+en mi informe. Era falso, y me lo hicieron medir antes de anotarlo.**
+
+`cas_push_sha` (`lib.sh:60-72`) **sí** resuelve el ref cuando el comando lo nombra. Medido bajo
+`bash`, que es como corre el hook:
+
+| comando | `src` elegido | resuelve |
+|---|---|---|
+| el limpio, solo el push con `origin main` | `main` | `790e22e` — lo habría permitido |
+| el mío, que terminaba en `date "+%H:%M:%S"` | `"+%H` | no resuelve → **cae al `HEAD` del worktree** |
+| el mismo push con un simple `\| tail -3` detrás | `tail` | no resuelve → **cae al `HEAD` del worktree** |
+
+En mi caso el culpable parecía ser el **formato de hora**: `date "+%H:%M:%S"` lleva dos puntos, la
+rama `*:*` del `case` está para reconocer refspecs tipo `<sha>:main`, y se lo tragó dejando
+`src='"+%H'`. Pero eso hace pensar que hace falta un comando rebuscado, y **no hace falta**: la
+tercera fila es un `| tail -3` pelado, lo más común del mundo al publicar, y rompe igual.
+
+Los dos detalles que lo explican: el bucle **se queda con el último token que encaje**, así que
+cualquier cosa escrita *detrás* del push manda sobre el ref —no hacen falta dos puntos, basta una
+palabra—; y cuando `src` no resuelve, la función **cae a `HEAD` sin decirlo**. El fallo no es de
+comandos raros: es del caso normal.
+
+Lo grave no es el fallo de parseo —un comando compuesto es difícil de leer—, es el **silencio**:
+denegó presentando `d6329b6` como «lo que publica este push», que es una afirmación falsa dicha con
+total aplomo. **Un fallback que adivina y no lo dice es peor que un error: un error se investiga,
+una afirmación se cree.** Por eso me llevó a deducir una causa equivocada que estuvo a punto de
+quedar escrita aquí como hallazgo.
+
+La diferencia con las otras dos veces de hoy es que esta se midió a tiempo, y **no porque yo
+dudara: porque me lo exigieron**. Conviene decir la otra mitad, o la lección sale al revés: **la
+hipótesis alternativa de quien me frenó —«el comando no nombraba el ref»— también era falsa.** Sí
+lo nombraba. Ninguno de los dos lo tenía. No acertó quien dudó: acertó **medir**.
+
+Misma familia que las otras dos de este censo: **`%run-%` llamado «marcador»**, **`HEAD` presentado
+como «lo que publica el push»**. Ninguna está rota. Las tres dicen medir algo más preciso de lo que
+miden, y las tres solo se notan cuando alguien se sale del caso normal.
+
+**Y una tercera, encontrada al escribir esto:** el gate también bloqueó el comando que *añadía este
+texto al documento*, porque las palabras del push aparecían dentro de la prosa. **Detecta por el
+texto del comando, no por lo que el comando hace**, así que **hablar de publicar cuenta como
+publicar**. Inofensivo aquí —se escribe con el editor y ya—, y de la misma familia otra vez:
+`%run-%` llamado marcador, `HEAD` llamado lo-que-publica, y ahora hablar de publicar contado como
+publicar.
+
+El arreglo natural no es solo resolver mejor el ref: es **negarse a adivinar**. Un push sin refspec
+depende del upstream de la rama y el gate no puede saber qué viaja; y un token ambiguo no es un
+refspec. Mejor denegar pidiendo que se nombre el ref, que resolver un `HEAD` cualquiera y llamarlo
+«lo que publica el push».
+
+*Sin tocar: es herramienta de la coordinadora y cambia quién puede publicar qué.*
