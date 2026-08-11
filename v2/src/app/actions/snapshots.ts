@@ -3,6 +3,9 @@
 import pool from "@/lib/db";
 import { migrationClient, runMigrations } from "@/lib/db/migrator";
 import { ALL_MIGRATIONS } from "@/lib/db/migrations";
+import { getCurrentUser } from "@/lib/auth/session";
+import { userHasPermission } from "@/lib/auth/rbac";
+import type { PermissionKey } from "@/types/auth";
 import type {
   ProjectSnapshot,
   ProjectSnapshotSummary,
@@ -16,7 +19,27 @@ import type {
  * Se llama **solo al abrir el tablero**. Nada de esto entra en el camino del
  * guardado: `saveProject` sigue escribiendo un único blob y no sabe que estas
  * filas existen.
+ *
+ * Las tres acciones comprueban sesión y permiso. No lo hacían: el proyecto no
+ * tiene `middleware.ts`, así que la protección es página por página y acción
+ * por acción, y estas se habían quedado fuera de las dos redes. Mientras todo
+ * vivía detrás del login el agujero estaba tapado por la puerta de al lado;
+ * E51 abre una ruta pública y entonces escribir una foto en el proyecto de
+ * otro no pediría más que saber su identificador.
  */
+
+/**
+ * Sesión y permiso, o no se toca la base.
+ *
+ * Devuelve un booleano en vez de lanzar porque las tres acciones ya tienen su
+ * forma de fallar —una devuelve `{success:false}`, otra `[]`, otra `null`— y
+ * cambiar eso rompería a quien las llama.
+ */
+async function tienePermiso(permission: PermissionKey): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user) return false;
+  return userHasPermission(user.id, permission);
+}
 
 interface SerializedSnapshotTask {
   taskId: string | number;
@@ -52,6 +75,8 @@ function serializeTasks(tasks: SnapshotTask[]): SerializedSnapshotTask[] {
 export async function listProjectSnapshots(
   projectId: string,
 ): Promise<ProjectSnapshotSummary[]> {
+  if (!(await tienePermiso("project:read"))) return [];
+
   const client = await pool.connect();
   try {
     await runMigrations(migrationClient(client), ALL_MIGRATIONS);
@@ -82,6 +107,8 @@ export async function loadProjectSnapshot(
   projectId: string,
   snapshotId: string,
 ): Promise<ProjectSnapshot | null> {
+  if (!(await tienePermiso("project:read"))) return null;
+
   const client = await pool.connect();
   try {
     await runMigrations(migrationClient(client), ALL_MIGRATIONS);
@@ -113,6 +140,10 @@ export async function loadProjectSnapshot(
 export async function saveProjectSnapshot(
   snapshot: ProjectSnapshot,
 ): Promise<{ success: boolean; error?: string }> {
+  if (!(await tienePermiso("project:update"))) {
+    return { success: false, error: "No tienes permisos para esta acción" };
+  }
+
   const client = await pool.connect();
   try {
     await runMigrations(migrationClient(client), ALL_MIGRATIONS);

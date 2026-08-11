@@ -554,9 +554,24 @@ export async function createMatrixProject({
 /**
  * Load a project by id. Returns null if not found.
  */
+/**
+ * Leía cualquier proyecto por su identificador, sin pedir nada.
+ *
+ * La página `/project/[id]` sí exige sesión, así que por ahí no se colaba
+ * nadie; pero una acción de servidor es una puerta propia, y esta no tenía
+ * cerradura. Este proyecto no tiene `middleware.ts`: la protección va página
+ * por página y acción por acción, y esta se había quedado fuera de las dos.
+ *
+ * El acceso compartido de E51 **no** pasa por aquí: tendrá su propia entrada,
+ * que autoriza por token y no por sesión. Esta puerta es la de siempre y se
+ * cierra como las demás.
+ */
 export async function loadProject(
   projectId: string,
 ): Promise<ProjectData | null> {
+  const auth = await authorizeProjectAction("project:read");
+  if (!auth.ok) return null;
+
   try {
     const client = await pool.connect();
     try {

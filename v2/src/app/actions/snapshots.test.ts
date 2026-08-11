@@ -10,6 +10,19 @@ jest.mock("@/lib/db", () => ({
   default: { connect },
 }));
 
+const getCurrentUser = jest.fn(async () => ({
+  id: "user-1",
+  email: "aia@example.com",
+}));
+const userHasPermission = jest.fn(async () => true);
+
+jest.mock("@/lib/auth/session", () => ({
+  getCurrentUser: (...args: unknown[]) => getCurrentUser(...args),
+}));
+jest.mock("@/lib/auth/rbac", () => ({
+  userHasPermission: (...args: unknown[]) => userHasPermission(...args),
+}));
+
 import {
   listProjectSnapshots,
   loadProjectSnapshot,
@@ -20,6 +33,8 @@ beforeEach(() => {
   query.mockReset();
   release.mockReset();
   query.mockResolvedValue({ rows: [] });
+  getCurrentUser.mockResolvedValue({ id: "user-1", email: "aia@example.com" });
+  userHasPermission.mockResolvedValue(true);
 });
 
 /** Todo el SQL que la acción ejecutó, en un solo texto. */
@@ -159,5 +174,51 @@ describe("saveProjectSnapshot", () => {
     expect(resultado.success).toBe(false);
     expect(resultado.error).toContain("disco lleno");
     expect(release).toHaveBeenCalled();
+  });
+});
+
+/**
+ * Estas tres acciones no comprobaban nada: ni sesión, ni permiso.
+ *
+ * No hay `middleware.ts` en el proyecto —la protección es página por página y
+ * acción por acción—, así que se habían quedado fuera de las dos redes.
+ * Mientras todo vivía detrás del login importaba poco; E51 abre una ruta
+ * pública, y entonces «escribir una foto en el proyecto de otro» deja de pedir
+ * nada más que saber su identificador.
+ */
+describe("las fotos exigen sesión y permiso", () => {
+  const foto = {
+    projectId: "p1",
+    id: "foto-1",
+    name: "Corte",
+    origin: "manual" as const,
+    capturedAt: createProjectDate("2026-02-05"),
+    tasks: [],
+  } satisfies ProjectSnapshot;
+
+  test("sin sesión no se escribe una foto, y no se llega a tocar la base", async () => {
+    getCurrentUser.mockResolvedValue(null as never);
+
+    const resultado = await saveProjectSnapshot(foto);
+
+    expect(resultado.success).toBe(false);
+    expect(sqlEjecutado()).not.toContain("INSERT INTO project_snapshots");
+  });
+
+  test("con sesión pero sin permiso de edición, tampoco", async () => {
+    userHasPermission.mockResolvedValue(false);
+
+    const resultado = await saveProjectSnapshot(foto);
+
+    expect(resultado.success).toBe(false);
+    expect(sqlEjecutado()).not.toContain("INSERT INTO project_snapshots");
+  });
+
+  test("sin sesión no se listan ni se leen las fotos de un proyecto ajeno", async () => {
+    getCurrentUser.mockResolvedValue(null as never);
+
+    await expect(listProjectSnapshots("p1")).resolves.toEqual([]);
+    await expect(loadProjectSnapshot("p1", "foto-1")).resolves.toBeNull();
+    expect(sqlEjecutado()).not.toContain("FROM project_snapshots");
   });
 });
