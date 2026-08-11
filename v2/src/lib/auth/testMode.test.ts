@@ -28,6 +28,32 @@ describe("modoPruebaActivo", () => {
   test("encendido solo con VISOR_TEST_MODE=1", () => {
     expect(modoPruebaActivo({ VISOR_TEST_MODE: "1" })).toBe(true);
   });
+
+  // El segundo cerrojo: el caso que importa no es el candado bien puesto, sino
+  // la variable que se filtra a un despliegue real.
+  test("apagado en una instalación servida por https, aunque la variable esté puesta", () => {
+    for (const variable of ["PUBLIC_SITE_URL", "NEXT_PUBLIC_SITE_URL", "APP_URL"]) {
+      expect(
+        modoPruebaActivo({
+          VISOR_TEST_MODE: "1",
+          [variable]: "https://visor.aia.com.co",
+        }),
+      ).toBe(false);
+    }
+  });
+
+  test("una URL http de desarrollo no lo apaga", () => {
+    expect(
+      modoPruebaActivo({
+        VISOR_TEST_MODE: "1",
+        PUBLIC_SITE_URL: "http://127.0.0.1:3001",
+      }),
+    ).toBe(true);
+  });
+
+  test("y sin la variable sigue apagado, con https o sin él", () => {
+    expect(modoPruebaActivo({ PUBLIC_SITE_URL: "http://127.0.0.1:3001" })).toBe(false);
+  });
 });
 
 describe("correoDeModoPrueba", () => {

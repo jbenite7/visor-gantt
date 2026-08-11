@@ -67,6 +67,13 @@ Medido el 2026-08-11 contra un `next dev` sin la variable:
 GET /api/modo-prueba -> HTTP 404      (0 cabeceras set-cookie)
 ```
 
+**Segundo cerrojo:** una instalación que se anuncia por `https://`
+—`PUBLIC_SITE_URL`, `NEXT_PUBLIC_SITE_URL` o `APP_URL`— **no enciende el modo ni
+con la variable puesta**. Son las mismas variables que ya deciden si la cookie
+va marcada como `secure`, así que no hay una señal nueva que mantener. En local
+no estorba —nadie configura `https://` para `next dev`— y atrapa el caso que de
+verdad importa: la variable filtrada a un despliegue real.
+
 **Límite conocido y deliberado:** el candado es una variable de entorno, no
 `NODE_ENV`. La suite e2e y la revisión en navegador corren contra un build de
 producción (`next build && next start`), así que atar el modo a

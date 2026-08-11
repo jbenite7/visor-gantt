@@ -31,7 +31,24 @@ const VALOR_QUE_ENCIENDE = "1";
 
 const CORREO_POR_DEFECTO = "modo-prueba@visor.local";
 
+/**
+ * El segundo cerrojo: una instalación servida por `https://` no enciende el
+ * modo ni con la variable puesta.
+ *
+ * Son las mismas variables que ya decide `cookie-security` para marcar la
+ * cookie como `secure`, así que la señal no es nueva ni hay que mantener otra:
+ * si la app se anuncia por https, es un despliegue real y no una máquina de
+ * revisión. Barato en local —nadie configura `https://` para `next dev`— y
+ * atrapa el caso que importa: la variable filtrada a producción.
+ */
+function servidaPorHttps(env: EntornoDeProceso): boolean {
+  const urlConfigurada =
+    env.PUBLIC_SITE_URL ?? env.NEXT_PUBLIC_SITE_URL ?? env.APP_URL;
+  return urlConfigurada ? urlConfigurada.trim().startsWith("https://") : false;
+}
+
 export function modoPruebaActivo(env: EntornoDeProceso): boolean {
+  if (servidaPorHttps(env)) return false;
   return env.VISOR_TEST_MODE === VALOR_QUE_ENCIENDE;
 }
 
