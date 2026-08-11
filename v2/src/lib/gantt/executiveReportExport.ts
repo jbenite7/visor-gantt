@@ -9,8 +9,9 @@ function csvRow(values: string[]): string {
   return values.map(csvCell).join(",");
 }
 
-export function executiveSummaryToCsv(summary: ExecutivePlanningSummary): string {
-  const rows: string[][] = [
+/** Las filas del informe, una sola vez: el CSV y el TSV son el mismo informe. */
+function filasDelInforme(summary: ExecutivePlanningSummary): string[][] {
+  return [
     ["Seccion", "Indicador", "Valor", "Detalle", "Estado", "Recomendacion"],
     ...summary.kpis.map((kpi) => [
       "KPI",
@@ -29,8 +30,30 @@ export function executiveSummaryToCsv(summary: ExecutivePlanningSummary): string
       signal.recommendation,
     ]),
   ];
+}
 
-  return rows.map(csvRow).join("\n");
+export function executiveSummaryToCsv(summary: ExecutivePlanningSummary): string {
+  return filasDelInforme(summary).map(csvRow).join("\n");
+}
+
+/**
+ * El mismo informe, separado por tabuladores.
+ *
+ * «Copiar para Excel» mandaba el CSV con comas, y Excel al pegar no lo reparte:
+ * salía **todo en una columna**. Con tabuladores sí cae en columnas. Es lo que
+ * ya hacía `scheduleExchange.tasksToExcelTsv` para la tabla del cronograma; el
+ * tablero ejecutivo no lo estaba usando.
+ *
+ * Los tabuladores y saltos dentro de una celda se sustituyen por espacios: al
+ * pegar no hay comillas que valgan, así que un tabulador suelto correría las
+ * columnas de esa fila.
+ */
+export function executiveSummaryToTsv(summary: ExecutivePlanningSummary): string {
+  return filasDelInforme(summary)
+    .map((fila) =>
+      fila.map((celda) => celda.replace(/[\t\r\n]+/g, " ")).join("\t"),
+    )
+    .join("\n");
 }
 
 export function executiveReportFileName(baseName = "reporte-ejecutivo"): string {

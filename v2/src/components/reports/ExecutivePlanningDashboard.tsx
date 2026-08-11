@@ -15,6 +15,7 @@ import type { ExecutivePlanningSummary, ExecutiveHealth } from "@/lib/gantt/exec
 import {
   executiveReportFileName,
   executiveSummaryToCsv,
+  executiveSummaryToTsv,
 } from "@/lib/gantt/executiveReportExport";
 
 interface ExecutivePlanningDashboardProps {
@@ -90,10 +91,13 @@ export default function ExecutivePlanningDashboard({
   const [exportStatus, setExportStatus] =
     useState<"idle" | "copied" | "downloaded" | "print" | "error">("idle");
   const exportCsv = useMemo(() => executiveSummaryToCsv(summary), [summary]);
+  // Para el portapapeles va el TSV: Excel al pegar reparte por tabuladores, no
+  // por comas. Con el CSV salía todo en una sola columna.
+  const exportTsv = useMemo(() => executiveSummaryToTsv(summary), [summary]);
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(exportCsv);
+      await navigator.clipboard.writeText(exportTsv);
       setExportStatus("copied");
     } catch {
       setExportStatus("error");
@@ -101,7 +105,11 @@ export default function ExecutivePlanningDashboard({
   };
 
   const handleDownload = () => {
-    const blob = new Blob([exportCsv], { type: "text/csv;charset=utf-8" });
+    // La marca de orden de bytes hace que Excel abra el CSV con las tildes
+    // bien. Sin ella, «Recomendación» llegaba como «RecomendaciÃ³n».
+    const blob = new Blob([`\ufeff${exportCsv}`], {
+      type: "text/csv;charset=utf-8",
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
