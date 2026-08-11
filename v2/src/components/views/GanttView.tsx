@@ -1763,7 +1763,7 @@ function GanttViewInner({
           data-testid="save-status"
           role="status"
         >
-          {saveStatusLabel(saveStatus, lastSavedAt)}
+          {saveStatusLabel(saveStatus, lastSavedAt, { readOnly })}
         </span>
         {saveStatus === "error" && saveError && (
           <span
