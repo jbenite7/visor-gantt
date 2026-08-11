@@ -1,17 +1,14 @@
 import { formatLobTickLabel } from "./lobTickLabel";
 
 /**
- * Las etiquetas del eje de la Línea de Balance salían **un día antes**.
+ * **Estos tests no demuestran un bug arreglado.** Se escribieron creyendo que
+ * el eje se corría un día, y al medirlo resultó que no: las marcas se
+ * construyen a medianoche local, y sobre esas leer local o UTC da lo mismo.
  *
- * Las fechas del cronograma se construyen a medianoche UTC. El eje las leía con
- * `date.getDate()` y `toLocaleString("es-ES")`, que usan la zona de la máquina:
- * en Bogotá (UTC-5), la medianoche UTC del día 5 es el día 4 por la tarde, así
- * que **cada marca del eje iba corrida un día**.
- *
- * Pasa en la pantalla que sirve para ver a qué ritmo avanza cada piso, donde el
- * día importa.
- *
- * Además formateaba en `es-ES` mientras el resto de la app usa `es-CO`.
+ * Se quedan porque fijan el comportamiento correcto para el caso que sí puede
+ * llegar aquí —una fecha a medianoche UTC, como la que produce
+ * `new Date("2026-08-05")`— y porque la función estaba encerrada en el
+ * componente y no se podía probar en absoluto.
  */
 describe("formatLobTickLabel", () => {
   // 5 de agosto de 2026 a medianoche UTC: en Bogotá, el 4 por la tarde.
