@@ -208,3 +208,48 @@ describe("SnapshotsBoardView (A2)", () => {
     expect(screen.getByTestId("snapshots-board")).toHaveTextContent(/Cargando/i);
   });
 });
+
+/**
+ * El tablero de Cortes se tragaba los errores.
+ *
+ * `SCurveView` hacía `if (!result.success) return;`: el motivo llegaba desde el
+ * servidor y se descartaba. El usuario pulsaba «Marcar corte» y no pasaba nada
+ * — ni el corte, ni una explicación. Un fallo mudo es peor que un fallo.
+ */
+describe("cuando marcar un corte falla, se dice por qué", () => {
+  function montar(markError: string | null) {
+    render(
+      <SnapshotsBoardView
+        tasks={[task({ id: 1 })]}
+        summaries={[]}
+        isLoading={false}
+        loadSnapshot={async () => null}
+        onMarkSnapshot={() => {}}
+        markError={markError}
+      />,
+    );
+  }
+
+  test("el motivo del servidor se enseña, no se descarta", () => {
+    montar("No tienes permisos para esta acción");
+
+    expect(screen.getByTestId("snapshot-mark-error")).toHaveTextContent(
+      /no tienes permisos/i,
+    );
+  });
+
+  test("y se anuncia, para que no se lo pierda quien no mira ahí", () => {
+    montar("Se cayó la base");
+
+    expect(screen.getByTestId("snapshot-mark-error")).toHaveAttribute(
+      "role",
+      "alert",
+    );
+  });
+
+  test("sin error, no se pinta ningún aviso", () => {
+    montar(null);
+
+    expect(screen.queryByTestId("snapshot-mark-error")).not.toBeInTheDocument();
+  });
+});

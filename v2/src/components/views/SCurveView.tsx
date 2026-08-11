@@ -114,6 +114,8 @@ export default function SCurveView({
     };
   }, [activeSubView, snapshotsLoaded, projectId, baselines]);
 
+  const [markError, setMarkError] = useState<string | null>(null);
+
   const handleMarkSnapshot = useCallback(
     (name: string) => {
       if (!projectId) return;
@@ -124,7 +126,13 @@ export default function SCurveView({
         capturedAt: new Date(),
       });
       void saveProjectSnapshot(snapshot).then((result) => {
-        if (!result.success) return;
+        if (!result.success) {
+          // El motivo venía del servidor y se tiraba aquí: el usuario pulsaba
+          // «Marcar corte» y no pasaba nada, ni el corte ni la explicación.
+          setMarkError(result.error ?? "No pudimos marcar el corte.");
+          return;
+        }
+        setMarkError(null);
         setSnapshotSummaries((prev) =>
           mergeSnapshotSources(
             [
@@ -503,6 +511,7 @@ export default function SCurveView({
               projectId ? loadProjectSnapshot(projectId, snapshotId) : Promise.resolve(null)
             }
             onMarkSnapshot={handleMarkSnapshot}
+            markError={markError}
           />
         )}
       </div>
