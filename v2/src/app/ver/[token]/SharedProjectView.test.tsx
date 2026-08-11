@@ -5,18 +5,30 @@ import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import SharedProjectView from "./SharedProjectView";
 
+/** Lo que el Gantt recibió de verdad en el último render. */
+let recibido: Record<string, unknown> = {};
+
 jest.mock("@/components/views/GanttView", () => ({
   __esModule: true,
-  default: ({ readOnly }: { readOnly?: boolean }) => (
-    <div data-testid="gantt-view" data-readonly={String(Boolean(readOnly))} />
-  ),
+  default: (props: { readOnly?: boolean }) => {
+    recibido = props;
+    return (
+      <div
+        data-testid="gantt-view"
+        data-readonly={String(Boolean(props.readOnly))}
+      />
+    );
+  },
 }));
 
 const base = {
   token: "tok-123",
   projectName: "Estación 16",
-  tasks: [],
-  calendar: undefined,
+  data: {
+    tasks: [],
+    resources: [{ id: 1, name: "Cuadrilla de obra negra" }],
+    budgetItems: [{ id: "p1", name: "Concreto" }],
+  } as never,
   expiresAt: "2026-08-17T09:00:00.000Z",
 };
 
@@ -48,6 +60,17 @@ describe("SharedProjectView (E51: la pantalla del enlace)", () => {
       expect.stringContaining("/login?next="),
     );
     expect(enlace.getAttribute("href")).toContain("tok-123");
+  });
+
+  test("le pasa al Gantt los recursos y el presupuesto, no solo las tareas", () => {
+    // La barra lateral de este Gantt ofrece Recursos y Presupuesto. Antes solo
+    // le llegaban las tareas, así que el visitante abría esas pantallas y las
+    // veía vacías teniendo el dato la base. Se comprueba el dato que llega, no
+    // la lista de props: es lo que decide lo que el visitante ve.
+    render(<SharedProjectView {...base} />);
+
+    expect(recibido.resources).toHaveLength(1);
+    expect(recibido.budgetItems).toHaveLength(1);
   });
 
   test("deja claro que no se puede editar, para no prometer lo que no da", () => {

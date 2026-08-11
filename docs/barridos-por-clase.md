@@ -100,6 +100,12 @@ salieron de mirar la app funcionando. No pude: la cookie de sesión es `httpOnly
 desde JS, y no escribo contraseñas en formularios. Hace falta otra vía —una sesión ya abierta, o
 un modo de prueba— para revisar Gantt, Matriz, Ejecutivo y Cortes con datos reales.
 
+*Cerrada a medias, y dio fruto enseguida.* La ruta pública `/ver/<token>` monta **el mismo Gantt
+sin pedir sesión**, así que sirve de mirador: se le pone un `share_token` a una copia del
+cronograma de obra real y se navega como visitante. Con eso salieron los dos hallazgos de la
+sección siguiente. No cubre lo que solo existe con cuenta —guardar, adoptar, listar—, pero sí las
+once vistas de análisis.
+
 **3. Nueve campos sin nombre accesible**, repartidos en `MatrixEditorView`, `GanttTable`,
 `DependencyPopover`, `DependencyPanel`, `SnapshotsBoardView` y `EditableCell`. Arreglé los 16 de
 las dos tablas editables —donde estaban concentrados— y dejé estos porque cada uno necesita mirar
@@ -114,6 +120,27 @@ antes de arreglar en bloque.
 **4. Dos rarezas del `.mpp` real, de una tarea cada una:** un resumen sin hijos y un hito con
 duración mayor que cero. Poco alcance; sin comprobar cómo los dibuja el Gantt.
 
+## Lo que se vio al mirar la app funcionando
+
+Dos hallazgos, los dos de la clase «la app promete algo que no cumple», los dos **invisibles
+leyendo el código** porque cada pieza por separado estaba bien.
+
+**1. El enlace público entregaba media app.** `/ver/<token>` monta el Gantt entero, con su barra
+lateral: Recursos, Matriz, Presupuesto, Curva S. Pero la página solo le pasaba **las tareas y el
+calendario**. El visitante abría esas pantallas, las veía vacías y concluía que el cronograma
+venía sin esos datos. La base los tenía: el proyecto de obra trae 213 asignaciones y su
+presupuesto. Arreglado entregando **el proyecto entero** en vez de elegir campos — no es solo un
+arreglo, es quitar el sitio donde olvidarse.
+
+El guardián `projectViewWiring` no lo vio porque **solo miraba la página con sesión**. Ahora cubre
+las dos puertas. Lección: un guardián que comprueba «el camino» tiene que saber cuántos caminos
+hay.
+
+**2. El 404 del enlace hablaba con otra persona.** Ofrecía «Volver a mis cronogramas», que lleva
+al listado y por tanto al login. Quien abre un enlace compartido no tiene cuenta ni la pidió. Y la
+causa probable ahí no es un enlace mal escrito sino que **caducó a los siete días**; no decirlo
+hace pensar que le borraron el cronograma.
+
 ## Dos errores míos de este día, para que no se repitan
 
 **Rompí el build y lo fusioné.** Encadené `build && merge` en un solo comando y no leí la salida.
@@ -122,3 +149,11 @@ duración mayor que cero. Poco alcance; sin comprobar cómo los dibuja el Gantt.
 
 **Deshice una mutación con `git checkout --`** y me llevé por delante un arreglo sin commitear.
 Las mutaciones se deshacen con la copia del fichero, nunca con git.
+
+**Revisé un rato la app equivocada.** El servidor de vista previa corre con `cwd` en el
+**worktree**, y yo editaba y construía en el repo principal. Durante varias vueltas leí en
+pantalla un build anterior a mis cambios y estuve a punto de declarar roto un arreglo que
+funcionaba. Lo cazó una instrumentación: puse un atributo nuevo en el componente, no apareció en
+el DOM, y el chunk que pedía el navegador tenía otro hash que el del disco. **Antes de acusar al
+código, comprobar que la pantalla es la del código.** El comando que lo dice en un segundo:
+`lsof -p <pid> -a -d cwd`.
