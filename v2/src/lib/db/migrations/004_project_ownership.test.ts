@@ -8,6 +8,11 @@ function clienteEspia(rows: Record<string, unknown>[] = []) {
     client: {
       query: async (text: string) => {
         sql.push(text);
+        // La migración comprueba primero que la tabla de usuarios exista: en una
+        // base recién creada la crea rbac.ts, no las migraciones.
+        if (String(text).includes("to_regclass")) {
+          return { rows: [{ existe: "users" }] };
+        }
         return { rows };
       },
     },
@@ -66,5 +71,37 @@ describe("004_project_ownership (los proyectos que ya existen necesitan dueño)"
     // Deshacer no puede llevarse proyectos ni usuarios por delante.
     expect(todo).not.toContain("DROP TABLE");
     expect(todo).not.toContain("DELETE FROM projects");
+  });
+});
+
+/**
+ * En una base recién creada, `users` **todavía no existe**: la crean
+ * `ensureAuthTables` (rbac.ts), no las migraciones. Este caso apareció al
+ * probar contra una base virgen de verdad, y tumbaba el arranque entero con
+ * `relation "users" does not exist`.
+ *
+ * La migración tiene que bastarse sola: si no hay a quién asignar proyectos,
+ * no hay nada que hacer, y desde luego no hay que reventar.
+ */
+describe("sobre una base recién creada", () => {
+  test("sin tabla de usuarios no revienta: no hay a quién asignar nada", async () => {
+    const sql: string[] = [];
+    const client = {
+      query: async (text: string) => {
+        sql.push(text);
+        if (String(text).includes("to_regclass")) {
+          return { rows: [{ existe: null }] };
+        }
+        throw new Error('relation "users" does not exist');
+      },
+    };
+
+    await expect(
+      migration004ProjectOwnership.up(client),
+    ).resolves.toBeUndefined();
+
+    // Comprueba que la tabla existe ANTES de consultarla.
+    expect(sql[0]).toContain("to_regclass");
+    expect(sql.join("\n")).not.toContain("INSERT INTO project_members");
   });
 });

@@ -40,6 +40,7 @@ import {
 } from "@/lib/matrix/templates";
 import type { PermissionKey } from "@/types/auth";
 import { canAccessProject, projectFilterFor } from "@/lib/auth/projectAccess";
+import { ensureSchema } from "@/lib/db/ensureSchema";
 
 /* ── ProjectData y su serialización viven aparte ── */
 // Este módulo es `"use server"`: todo lo que exporte tiene que ser una acción
@@ -78,6 +79,21 @@ async function authorizeProjectAction(
   permission: PermissionKey,
   projectId?: string,
 ): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
+  // El esquema, garantizado en el camino NORMAL y no por casualidad.
+  //
+  // Este fichero consulta `version` y `project_members`, que solo existen si
+  // corrieron las migraciones 004 y 005 — y las migraciones solo se disparaban
+  // desde Cortes y desde la subida sin cuenta. Ninguno de los dos está en el
+  // camino de abrir y guardar un proyecto, así que en una instalación nueva la
+  // primera edición fallaba pidiendo columnas que no existen, y solo se curaba
+  // si antes alguien pasaba por Cortes de casualidad.
+  //
+  // Va aquí porque **las seis acciones pasan por esta función**: un solo sitio
+  // las cubre todas, en vez de seis líneas que alguien tendrá que acordarse de
+  // repetir en la séptima. `ensureSchema` memoriza la promesa, así que a partir
+  // de la primera llamada esto es esperar una promesa ya resuelta.
+  await ensureSchema();
+
   const user = await getCurrentUser();
   if (!user) {
     return { ok: false, error: "No autenticado" };

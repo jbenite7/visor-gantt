@@ -24,6 +24,11 @@ jest.mock("@/lib/auth/rbac", () => ({
   userHasPermission: (...args: unknown[]) => userHasPermission(...args),
 }));
 
+const ensureSchema = jest.fn(async () => {});
+jest.mock('@/lib/db/ensureSchema', () => ({
+  ensureSchema: () => ensureSchema(),
+}));
+
 const canAccessProject = jest.fn(async () => true);
 const projectFilterFor = jest.fn(() => ({ where: "", params: [] as string[] }));
 jest.mock("@/lib/auth/projectAccess", () => ({
@@ -651,5 +656,75 @@ describe("el guardado no miente", () => {
 
     expect(resultado.success).toBe(true);
     expect(resultado.version).toBe(4);
+  });
+});
+
+/**
+ * El esquema tiene que estar puesto en el camino NORMAL, no por casualidad.
+ *
+ * `project.ts` consulta `version` y `project_members`, que solo existen si
+ * corrieron las migraciones 004 y 005. Y las migraciones solo se disparaban
+ * desde Cortes (`snapshots.ts`) y desde la subida sin cuenta
+ * (`createSharedProject`). Ninguno de los dos está en el camino de abrir y
+ * guardar un proyecto.
+ *
+ * En producción eso significa: la app arranca, alguien abre su proyecto y
+ * guarda, y la consulta pide columnas que no existen. Solo se curaba si antes
+ * alguien entraba a Cortes o subía un `.mpp` sin cuenta — por suerte.
+ *
+ * Es el mismo patrón del día: el `init-schema.sql` que nadie ejecuta, el
+ * limpiador sin llamador, la caducidad sin disparador. Esta vez caía justo en
+ * el paso a producción.
+ */
+describe("el esquema está garantizado al abrir y guardar", () => {
+  beforeEach(() => {
+    query.mockReset();
+    release.mockClear();
+    ensureSchema.mockClear();
+    query.mockResolvedValue({ rows: [{ id: "p1", version: 2 }], rowCount: 1 });
+  });
+
+  test("guardar aplica las migraciones antes de tocar la base", async () => {
+    await saveProject({
+      id: "p1",
+      name: "Torre 3",
+      tasks: [],
+      resources: [],
+      assignments: [],
+      budgetItems: [],
+      budgetMappings: [],
+      baselines: [],
+      calendar,
+    });
+
+    expect(ensureSchema).toHaveBeenCalled();
+  });
+
+  test("abrir un proyecto también", async () => {
+    await loadProject("p1");
+
+    expect(ensureSchema).toHaveBeenCalled();
+  });
+
+  test("y listarlos", async () => {
+    await listProjects();
+
+    expect(ensureSchema).toHaveBeenCalled();
+  });
+
+  test("y borrarlos", async () => {
+    await deleteProject("p1");
+
+    expect(ensureSchema).toHaveBeenCalled();
+  });
+
+  test("no depende de que alguien haya pasado por Cortes antes", async () => {
+    // Si este test tuviera que tocar `snapshots.ts` para pasar, el arreglo no
+    // estaría: seguiría dependiendo de la suerte.
+    await loadProject("p1");
+
+    expect(ensureSchema).toHaveBeenCalled();
+    const sql = query.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(sql).not.toContain("project_snapshots");
   });
 });

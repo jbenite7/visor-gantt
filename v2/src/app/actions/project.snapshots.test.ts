@@ -26,6 +26,14 @@ jest.mock("@/lib/auth/session", () => ({
 
 // Esta valla mide qué SQL escribe el guardado, no quién puede guardar. La
 // propiedad del proyecto tiene sus propios tests en `project.test.ts`.
+// Esta valla mide el SQL DEL GUARDADO, no el arranque del esquema. Desde que
+// `authorizeProjectAction` aplica las migraciones -para que el camino normal no
+// dependa de que alguien pase por Cortes-, el SQL de arranque crea
+// `project_snapshots` y la valla lo confundía con una consulta del guardado.
+jest.mock("@/lib/db/ensureSchema", () => ({
+  ensureSchema: jest.fn(async () => {}),
+}));
+
 jest.mock("@/lib/auth/projectAccess", () => ({
   canAccessProject: jest.fn(async () => true),
   projectFilterFor: () => ({ where: "", params: [] }),
