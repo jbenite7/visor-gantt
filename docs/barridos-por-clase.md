@@ -434,12 +434,39 @@ Dos cosas del arreglo valen más que el parche, y las dos son sobre las pruebas:
   primer refspec manda»—. El caso que sí la distingue es `git ␟push␟ && echo main`, donde el único
   ref del comando está detrás.
 
-**Lo que queda sin arreglar es la tercera grieta**, y se repitió en vivo mientras se arreglaba la
-segunda: el gate bloqueó el `git commit` del propio arreglo **porque el mensaje del commit hablaba
-de publicar**. Hubo que escribir el mensaje en un archivo. Sigue detectando por el texto del
-comando, no por lo que el comando hace.
+**La tercera grieta se repitió en vivo mientras se arreglaba la segunda:** el gate bloqueó el
+`git commit` del propio arreglo **porque el mensaje del commit hablaba de publicar**, y hubo que
+escribirlo en un archivo. Detectaba por el texto del comando, no por lo que el comando hace.
+**También arreglada**, a petición del usuario, y es la que más enseña de las tres.
+
+**La solución evidente era ignorar lo que estuviera entre comillas. Habría abierto un agujero peor
+que la molestia.** `bash -c "git push …"` publica de verdad desde dentro de unas comillas: ese
+recorte habría convertido «citar el comando» en la forma de rodear el control. Así que la regla va
+al revés de lo evidente —se busca una **invocación en posición de comando**, y ante cualquier shell
+anidada se detecta igual— con la prioridad escrita en el propio código: *un falso positivo cuesta un
+rodeo; un falso negativo deja publicar sin visto*.
+
+**Y aun así se coló un falso negativo, en la única excepción que la función se permitía.** Se
+recortaba el cuerpo de los heredoc con delimitador entrecomillado (`<<'EOF'`) razonando que «el
+shell garantiza que ahí no se ejecuta nada». Es cierto **a medias**: las comillas impiden la
+**expansión** dentro del cuerpo, no que **quien recibe** el heredoc lo ejecute. `cat <<'EOF'` no
+ejecuta nada; `bash <<'EOF'` le pasa ese texto literal a bash, **que lo corre tal cual**, y el push
+salía sin visto. El recorte depende ahora del receptor, por lista blanca: uno desconocido se mira
+entero.
+
+Tres cosas que deja esto, y valen más que el parche:
+
+- **Arreglar una molestia puede abrir un agujero**, y la forma cómoda de arreglarla suele ser
+  justamente la que lo abre.
+- **El fallo estaba en la excepción**, no en la regla. La regla se revisa; la excepción se da por
+  buena porque «es el caso fácil».
+- **Lo encontró probar rodeos, no leer la lógica.** Los catorce intentos evidentes pasaban. El
+  hallazgo salió de que alguien se pusiera a intentar burlar el control a propósito —y de que la
+  propia función llevara escrita la regla que lo condenaba—.
 
 *Y un aviso que no es del censo pero conviene aquí: `~/.claude/cas` es un **symlink** al repositorio
-del plugin, así que el arreglo está **vivo para todas las sesiones** desde que se guardó, pero
-**sin publicar** — publicarlo es un acto aparte y en repositorio ajeno. Si alguien resetea ese
-repositorio, el comportamiento del gate cambia bajo todas las sesiones sin aviso.*
+del plugin, así que un cambio guardado ahí queda **vivo para todas las sesiones al instante, sin que
+nadie publique nada**. Los tres arreglos estuvieron un rato en ese estado —vivos y sin publicar— y
+ya están publicados (`e1eb986..807e238`). Conviene saberlo para el futuro: en ese repositorio,
+guardar y desplegar son el mismo acto, y eso no se deduce mirándolo, porque el repositorio no sabe
+que hay un symlink apuntándole.*
