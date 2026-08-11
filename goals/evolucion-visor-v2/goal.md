@@ -171,7 +171,13 @@ sería un proyecto en sí mismo, no incluido aquí.
 
 ## Fuera de alcance
 
-- **E51** (abrir un `.mpp` sin cuenta): descartado en firme por el usuario. No reabrir.
+- ~~**E51** (abrir un `.mpp` sin cuenta): descartado en firme por el usuario. No reabrir.~~
+  **REABIERTO por el usuario el 2026-08-10.** Estuvo descartado dos veces —en el grilleo del plan de mejora y
+  de forma definitiva el 2026-08-06— y esa decisión sostenía el techo de 9/10 de la revisión de cierre. Al
+  reabrirse, **el techo vuelve a ser 10**: la fila 2 (llegar al valor en ≤3 pasos) deja de estar cerrada por
+  decisión y pasa a ser trabajo pendiente. Diseñado en
+  [spec](../../docs/superpowers/specs/2026-08-10-ver-sin-cuenta-design.md) y
+  [plan](../../docs/superpowers/plans/2026-08-10-ver-sin-cuenta.md); sin código de producción todavía.
 - **Alimentar el presupuesto desde PDC**: es una integración entre aplicaciones, con su propio diseño.
   Proyecto aparte. Mientras tanto no se invierte en pulir la carga manual de presupuesto.
 - **Partir `GanttView.tsx`**: reconocido como el límite estructural, no abordado aquí.

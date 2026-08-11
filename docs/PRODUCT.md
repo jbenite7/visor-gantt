@@ -351,6 +351,12 @@ falta alguien que use el producto sin saber cómo se construyó.
 
 # Revisión en frío de cierre — 2026-08-08 (tercera pasada)
 
+> **Nota posterior — 2026-08-10: el usuario reabrió E51.** Este veredicto se emitió cuando la fila 2 estaba
+> cerrada por decisión, y de ahí salía el «techo de 9/10». Con E51 reabierto, **ese techo vuelve a ser 10** y
+> la fila 2 pasa de cerrada a pendiente. El 9/10 sigue siendo la nota correcta del 2026-08-08 — lo que cambia
+> es que ya no es el máximo posible. Hay [spec](superpowers/specs/2026-08-10-ver-sin-cuenta-design.md) y
+> [plan](superpowers/plans/2026-08-10-ver-sin-cuenta.md); sin código de producción todavía.
+
 **Veredicto: 9/10.** Es el **techo alcanzable** de esta app, no una nota perfecta: con E51 descartado en
 firme, el usuario nuevo seguirá necesitando 6 pasos hasta el valor, y esa fila no se puede aprobar.
 
