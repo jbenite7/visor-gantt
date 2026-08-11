@@ -206,7 +206,7 @@ al listado y por tanto al login. Quien abre un enlace compartido no tiene cuenta
 causa probable ahí no es un enlace mal escrito sino que **caducó a los siete días**; no decirlo
 hace pensar que le borraron el cronograma.
 
-## Dos errores míos de este día, para que no se repitan
+## Errores míos de este día, para que no se repitan
 
 **Rompí el build y lo fusioné.** Encadené `build && merge` en un solo comando y no leí la salida.
 `main` estuvo sin compilar unos minutos. La suite no lo cazaba porque Jest corre en Node, donde
@@ -222,3 +222,23 @@ funcionaba. Lo cazó una instrumentación: puse un atributo nuevo en el componen
 el DOM, y el chunk que pedía el navegador tenía otro hash que el del disco. **Antes de acusar al
 código, comprobar que la pantalla es la del código.** El comando que lo dice en un segundo:
 `lsof -p <pid> -a -d cwd`.
+
+**Y lo repetí el mismo día, con otra cara: verifiqué un árbol que no era el que pedía publicar.**
+Informé «214 suites, 1.924 pruebas» y en `main` había 213 y 1.921. La diferencia era un fichero
+que seguía solo en mi rama: había hecho dos commits **después** de fusionar y medí sobre el
+worktree. La coordinadora lo cazó porque los números no cuadraban por uno.
+
+Los dos son el mismo fallo, y por eso la regla de arriba se quedaba corta. La buena:
+
+> **Verificar sobre el mismo árbol que se publica, y decir cuál es.**
+
+Cómo se comprueba, en dos órdenes que tardan un segundo y no dependen de que uno se acuerde:
+
+```
+git log --oneline main..<rama>            # tiene que dar vacío
+git cat-file -e main:<archivo-nuevo>      # tiene que existir
+```
+
+Y la corrida de pruebas, en el checkout que está en `main`, no en el worktree. Un recuento que
+baila por uno es la única señal que queda cuando el árbol es el equivocado; no siempre habrá
+alguien mirando.
