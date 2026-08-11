@@ -341,7 +341,14 @@ export function computeEarnedValueSCurve(
 export function diagnoseSCurve(
   tasks: GanttTask[],
   budgetMappings: BudgetMapping[],
-  budgetItems: BudgetItem[]
+  budgetItems: BudgetItem[],
+  /**
+   * La fecha de corte del cronograma. Sin ella se mide contra hoy, que es lo
+   * que hacía siempre: en un cronograma cortado hace dos semanas —el caso
+   * normal— contaba como iniciadas tareas que en el corte no habían empezado y
+   * las acusaba de no reportar avance.
+   */
+  statusDate?: Date,
 ): SCurveDiagnostic[] {
   const diagnostics: SCurveDiagnostic[] = [];
   const budgetMap = buildBudgetMap(budgetMappings);
@@ -383,7 +390,8 @@ export function diagnoseSCurve(
     });
   }
 
-  const startedTasks = operationalTasks.filter((task) => dateOnly(new Date()) >= taskStart(task));
+  const alCorte = dateOnly(statusDate ?? new Date());
+  const startedTasks = operationalTasks.filter((task) => alCorte >= taskStart(task));
   const missingProgress = startedTasks.filter((task) => (task.progress ?? 0) === 0);
   if (startedTasks.length > 0 && missingProgress.length / startedTasks.length >= 0.3) {
     diagnostics.push({
