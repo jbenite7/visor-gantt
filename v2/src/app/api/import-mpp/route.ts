@@ -101,11 +101,18 @@ export async function POST(request: NextRequest) {
 
   // La foto del cronograma importado se toma después de guardar: si falla, la
   // importación ya está a salvo.
-  await captureImportSnapshot({
+  // El tablero de Cortes promete que «cada vez que importas un archivo de
+  // Microsoft Project se guarda una foto del cronograma». Puede no ocurrir, y
+  // antes ese resultado se descartaba: el usuario veía «importado» y luego un
+  // tablero vacío que contradecía su propia explicación.
+  //
+  // La importación ya está a salvo a estas alturas, así que un fallo aquí no la
+  // tumba — solo se cuenta.
+  const foto = await captureImportSnapshot({
     projectId: result.id,
     tasks: projectData.tasks,
     fileName: file.name,
-  });
+  }).catch(() => ({ captured: false }));
 
   const dependencyCount = projectData.tasks.reduce(
     (total, task) => total + (task.dependencies?.length ?? 0),
@@ -121,6 +128,9 @@ export async function POST(request: NextRequest) {
   destination.searchParams.set("tareas", String(projectData.tasks.length));
   destination.searchParams.set("dependencias", String(dependencyCount));
   destination.searchParams.set("recursos", String(projectData.resources.length));
+  if (!foto.captured) {
+    destination.searchParams.set("sinFoto", "1");
+  }
 
   // La importación ligera se queda en las primeras 120 columnas del archivo.
   // Solo son «descartadas» las que caen por ese tope: los campos propios del

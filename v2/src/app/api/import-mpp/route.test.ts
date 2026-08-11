@@ -2,10 +2,15 @@ import { NextRequest } from "next/server";
 import { POST } from "./route";
 import { saveProject } from "@/app/actions/project";
 import { getCurrentUser } from "@/lib/auth/session";
+import { captureImportSnapshot } from "@/lib/import/importSnapshot";
 import type { ProjectData as ParsedMppProject } from "@/lib/parser/mpp-parser";
 
 jest.mock("@/app/actions/project", () => ({
   saveProject: jest.fn(),
+}));
+
+jest.mock("@/lib/import/importSnapshot", () => ({
+  captureImportSnapshot: jest.fn(async () => ({ captured: true })),
 }));
 
 jest.mock("@/lib/auth/session", () => ({
@@ -15,6 +20,13 @@ jest.mock("@/lib/auth/session", () => ({
 const mockedGetCurrentUser = getCurrentUser as jest.MockedFunction<
   typeof getCurrentUser
 >;
+
+// La foto de importación tiene implementación por defecto en todos los tests:
+// sin ella, cualquier `mockClear` la deja devolviendo `undefined` y la ruta
+// revienta al esperar su promesa.
+beforeEach(() => {
+  (captureImportSnapshot as jest.Mock).mockResolvedValue({ captured: true });
+});
 
 function signedIn() {
   mockedGetCurrentUser.mockResolvedValue({
@@ -117,6 +129,9 @@ function importRequest(fileName = "contrato.mpp"): NextRequest {
 describe("/api/import-mpp", () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    // `resetAllMocks` borra también la implementación de la foto de
+    // importación; sin reponerla, la ruta espera una promesa que no existe.
+    (captureImportSnapshot as jest.Mock).mockResolvedValue({ captured: true });
     signedIn();
     global.fetch = jest.fn(async () =>
       Response.json(parsedProject),
@@ -233,5 +248,51 @@ describe("/api/import-mpp", () => {
     expect(response.status).toBe(400);
     expect(global.fetch).not.toHaveBeenCalled();
     expect(saveProject).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * El tablero de Cortes promete que «cada vez que importas un archivo de
+ * Microsoft Project se guarda una foto del cronograma».
+ *
+ * `captureImportSnapshot` puede fallar —lo registra en consola y devuelve
+ * `{captured:false}`—, y la ruta **descartaba ese resultado**. El usuario veía
+ * «importado» y luego un tablero de Cortes vacío que contradecía su propia
+ * explicación. La importación sí está a salvo; lo que faltaba era decirlo.
+ */
+describe("cuando la foto de importación falla, se dice", () => {
+  beforeEach(() => {
+    signedIn();
+    (captureImportSnapshot as jest.Mock).mockResolvedValue({ captured: true });
+  });
+
+  test("el destino lo lleva escrito, para que la pantalla pueda avisar", async () => {
+    (captureImportSnapshot as jest.Mock).mockResolvedValueOnce({
+      captured: false,
+    });
+
+    const res = await POST(importRequest());
+
+    expect(res.headers.get("location")).toContain("sinFoto=1");
+  });
+
+  test("si la foto sale bien, no se avisa de nada", async () => {
+    (captureImportSnapshot as jest.Mock).mockResolvedValueOnce({
+      captured: true,
+    });
+
+    const res = await POST(importRequest());
+
+    expect(res.headers.get("location")).not.toContain("sinFoto");
+  });
+
+  test("una foto fallida no tumba la importación: el proyecto ya está a salvo", async () => {
+    (captureImportSnapshot as jest.Mock).mockRejectedValueOnce(
+      new Error("base caída"),
+    );
+
+    const res = await POST(importRequest());
+
+    expect(res.status).toBe(303);
   });
 });

@@ -15,6 +15,14 @@ export interface ImportSummary {
    * 120 columnas: callarlo hace creer que se importó todo (E33).
    */
   discardedColumns: string[];
+  /**
+   * La foto del cronograma no se pudo guardar.
+   *
+   * El tablero de Cortes explica que «cada vez que importas … se guarda una
+   * foto». Cuando no ocurre, callarlo deja al usuario delante de un tablero
+   * vacío que contradice ese texto.
+   */
+  snapshotMissing?: boolean;
 }
 
 function columnList(raw: string | undefined): string[] {
@@ -42,6 +50,7 @@ export function parseImportSummary(
     dependencies: count(params.dependencias) ?? 0,
     resources: count(params.recursos) ?? 0,
     discardedColumns: columnList(params.descartadas),
+    snapshotMissing: params.sinFoto === "1",
   };
 }
 

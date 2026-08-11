@@ -25,6 +25,16 @@ export default function ImportSummaryBanner({ summary }: ImportSummaryBannerProp
       <CheckCircle2 size={16} aria-hidden />
       <span>{formatImportSummary(summary)}</span>
 
+      {summary.snapshotMissing && (
+        <span
+          data-testid="import-sin-foto"
+          className="import-summary-banner__warnings-toggle"
+        >
+          No pudimos guardar la foto de este corte. El cronograma está
+          importado; en Cortes no aparecerá esta importación.
+        </span>
+      )}
+
       {descartadas.length > 0 && (
         <button
           type="button"

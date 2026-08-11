@@ -4,7 +4,13 @@ describe("parseImportSummary", () => {
   test("lee los conteos que llegan en la URL tras importar", () => {
     expect(
       parseImportSummary({ tareas: "239", dependencias: "212", recursos: "0" }),
-    ).toEqual({ tasks: 239, dependencies: 212, resources: 0, discardedColumns: [] });
+    ).toEqual({
+      tasks: 239,
+      dependencies: 212,
+      resources: 0,
+      discardedColumns: [],
+      snapshotMissing: false,
+    });
   });
 
   test("sin parámetros no hay resumen que mostrar", () => {
@@ -21,6 +27,7 @@ describe("parseImportSummary", () => {
       dependencies: 0,
       resources: 0,
       discardedColumns: [],
+      snapshotMissing: false,
     });
   });
 });
@@ -76,5 +83,23 @@ describe("las pérdidas de la importación se anuncian (E33)", () => {
     });
 
     expect(resumen!.discardedColumns).toEqual(["Texto27", "Número14"]);
+  });
+});
+
+/**
+ * El tablero de Cortes promete una foto por cada importación. Cuando esa foto
+ * no se pudo guardar, la ruta lo marca en el destino; aquí se recoge, para que
+ * la pantalla pueda decirlo en vez de dejar al usuario con un tablero vacío que
+ * contradice su propia explicación.
+ */
+describe("aviso de foto no guardada", () => {
+  test("recoge la marca cuando la foto falló", () => {
+    const resumen = parseImportSummary({ tareas: "10", sinFoto: "1" });
+
+    expect(resumen?.snapshotMissing).toBe(true);
+  });
+
+  test("sin marca, no se inventa un problema", () => {
+    expect(parseImportSummary({ tareas: "10" })?.snapshotMissing).toBe(false);
   });
 });
