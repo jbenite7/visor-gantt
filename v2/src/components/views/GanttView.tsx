@@ -149,6 +149,8 @@ interface GanttViewProps {
   projectName?: string;
   statusDate?: string;
   version?: number;
+  /** Modo mirador de E51: se ve todo, no se toca nada. */
+  readOnly?: boolean;
   tasks: GanttTask[];
   calendar?: ProjectCalendar;
   resources?: Resource[];
@@ -179,6 +181,7 @@ function GanttViewInner({
   initialProjectName,
   initialStatusDate,
   initialVersion,
+  readOnly = false,
   initialResources,
   initialAssignments,
   initialBudgetItems,
@@ -201,6 +204,7 @@ function GanttViewInner({
   initialProjectName?: string;
   initialStatusDate?: string;
   initialVersion?: number;
+  readOnly?: boolean;
   initialResources: Resource[];
   initialAssignments: Assignment[];
   initialBudgetItems: BudgetItem[];
@@ -1254,6 +1258,11 @@ function GanttViewInner({
   }, []);
 
   const doSave = useCallback(async () => {
+    // En modo mirador no se guarda nunca. Es redundante -el servidor rechaza
+    // igual, porque no hay sesión ni pertenencia- y esa redundancia es el
+    // punto: si algún control se escapara, aquí se para antes de viajar.
+    if (readOnly) return;
+
     if (!shouldStartSave({
       hasPendingChanges: isDirtyRef.current,
       saveInFlight: guardadoEnVueloRef.current,
@@ -1715,6 +1724,7 @@ function GanttViewInner({
     <div data-testid="gantt-view" className="app-shell flex h-full min-w-0 flex-col overflow-hidden">
       <div className="gantt-topbar flex min-w-0 shrink-0 items-center gap-[var(--gantt-topbar-gap)] overflow-hidden">
         <ProjectToolbar
+          readOnly={readOnly}
           activeView={activeView}
           onViewChange={setActiveView}
           scale={scale}
@@ -2474,6 +2484,7 @@ export default function GanttView({
   projectName,
   statusDate,
   version,
+  readOnly,
   tasks,
   calendar = DEFAULT_PROJECT_CALENDAR,
   resources = [],
@@ -2514,6 +2525,7 @@ export default function GanttView({
         initialProjectName={projectName}
         initialStatusDate={statusDate}
         initialVersion={version}
+        readOnly={readOnly}
         initialResources={resources}
         initialAssignments={assignments}
         initialBudgetItems={budgetItems}

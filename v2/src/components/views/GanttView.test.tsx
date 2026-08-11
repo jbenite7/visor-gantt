@@ -2738,3 +2738,79 @@ describe("Recursos: el recurso fantasma de MS Project no llega a la pantalla (R9
     );
   });
 });
+
+/**
+ * El modo mirador de E51.
+ *
+ * Es la **cortesía**, no la cerradura: la garantía de que un temporal no se
+ * modifica es que quien llega por `/ver/<token>` no tiene sesión, y toda
+ * escritura exige sesión con permiso —y un temporal, además, no tiene dueño—.
+ * Aquí solo se esconde lo que no aplica, para no prometer lo que no se puede
+ * hacer. Si a alguien se le escapara un control, el servidor lo rechaza igual.
+ */
+describe("GanttView en solo lectura (E51)", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    (saveProject as jest.Mock).mockClear();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("no ofrece agregar ni eliminar tareas", () => {
+    render(<GanttView tasks={[makeTask({ id: 1 })]} readOnly />);
+
+    expect(screen.getByTestId("toolbar-add")).toBeDisabled();
+    expect(screen.getByTestId("toolbar-delete")).toBeDisabled();
+  });
+
+  test("aunque algo marque el proyecto como sucio, no guarda", async () => {
+    // La primera versión de este test solo montaba el componente y comprobaba
+    // que no guardaba. Pasaba SIN la guarda puesta —sin cambios no hay guardado
+    // de todos modos—, así que no protegía nada: lo cazó la mutación.
+    //
+    // Cambiar la escala toca `uiSettings`, que sí marca el proyecto como sucio
+    // y dispara el autoguardado. Con `readOnly` no debe salir nada.
+    render(<GanttView tasks={[makeTask({ id: 1 })]} readOnly />);
+
+    fireEvent.change(screen.getByTestId("role-view-preset-select"), {
+      target: { value: "tracking" },
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+      await Promise.resolve();
+    });
+
+    expect(saveProject as jest.Mock).not.toHaveBeenCalled();
+  });
+
+  test("y sin readOnly ese mismo cambio SÍ guarda: el test de arriba no pasa en vacío", async () => {
+    render(<GanttView tasks={[makeTask({ id: 1 })]} projectId="p1" />);
+
+    fireEvent.change(screen.getByTestId("role-view-preset-select"), {
+      target: { value: "tracking" },
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+      await Promise.resolve();
+    });
+
+    expect(saveProject as jest.Mock).toHaveBeenCalled();
+  });
+
+  test("sin readOnly todo sigue como estaba", () => {
+    render(<GanttView tasks={[makeTask({ id: 1 })]} />);
+
+    expect(screen.getByTestId("toolbar-add")).toBeEnabled();
+  });
+
+  test("lo de mirar sigue estando: las vistas de análisis no se esconden", () => {
+    render(<GanttView tasks={[makeTask({ id: 1 })]} readOnly />);
+
+    expect(screen.getByTestId("sidebar-view-lob")).toBeInTheDocument();
+    expect(screen.getByTestId("sidebar-view-executive")).toBeInTheDocument();
+  });
+});
