@@ -728,3 +728,61 @@ describe("el esquema está garantizado al abrir y guardar", () => {
     expect(sql).not.toContain("project_snapshots");
   });
 });
+
+/**
+ * El rechazo por versión se distingue por un dato, no por su redacción.
+ *
+ * `GanttView` decidía si enseñar el botón de «Recargar» comprobando si el
+ * mensaje contenía «Otra pestaña». Es decir: la interfaz leía el copy para
+ * decidir qué hacer. Una corrección de redacción —lo más normal— habría hecho
+ * desaparecer el botón, dejando al usuario reintentando algo que **nunca** puede
+ * funcionar: el reintento manda la misma versión vieja y vuelve a chocar.
+ */
+describe("un rechazo por versión se puede reconocer sin leer el texto", () => {
+  beforeEach(() => {
+    query.mockReset();
+    release.mockClear();
+    ensureSchema.mockClear();
+    canAccessProject.mockResolvedValue(true);
+  });
+
+  const proyecto = {
+    id: "p1",
+    version: 3,
+    name: "Torre 3",
+    tasks: [],
+    resources: [],
+    assignments: [],
+    budgetItems: [],
+    budgetMappings: [],
+    baselines: [],
+    calendar,
+  };
+
+  test("cuando otra pestaña se adelantó, se dice con un dato", async () => {
+    query.mockResolvedValue({ rows: [], rowCount: 0 });
+
+    const resultado = await saveProject(proyecto);
+
+    expect(resultado.success).toBe(false);
+    expect(resultado.conflict).toBe(true);
+  });
+
+  test("y el proyecto que ya no existe NO es un conflicto: recargar no lo trae", async () => {
+    query.mockResolvedValue({ rows: [], rowCount: 0 });
+
+    const resultado = await saveProject({ ...proyecto, version: undefined });
+
+    expect(resultado.success).toBe(false);
+    expect(resultado.conflict).toBeFalsy();
+  });
+
+  test("un guardado que sale bien no se marca como conflicto", async () => {
+    query.mockResolvedValue({ rows: [{ version: 4 }], rowCount: 1 });
+
+    const resultado = await saveProject(proyecto);
+
+    expect(resultado.success).toBe(true);
+    expect(resultado.conflict).toBeFalsy();
+  });
+});
