@@ -10,12 +10,18 @@ jest.mock("@/lib/db", () => ({
   default: { connect },
 }));
 
+const getCurrentUser = jest.fn(async () => ({
+  id: "user-1",
+  email: "aia@example.com",
+}));
+const userHasPermission = jest.fn(async () => true);
+
 jest.mock("@/lib/auth/session", () => ({
-  getCurrentUser: jest.fn(async () => ({ id: "user-1", email: "aia@example.com" })),
+  getCurrentUser: (...args: unknown[]) => getCurrentUser(...args),
 }));
 
 jest.mock("@/lib/auth/rbac", () => ({
-  userHasPermission: jest.fn(async () => true),
+  userHasPermission: (...args: unknown[]) => userHasPermission(...args),
 }));
 
 import {
@@ -150,6 +156,13 @@ const importedMatrixPlan: MatrixPlan = {
     },
   ],
 };
+
+// La sesión vuelve a estar puesta antes de cada test: si no, el primero que la
+// quite para probar un rechazo se la deja quitada a todos los de abajo.
+beforeEach(() => {
+  getCurrentUser.mockResolvedValue({ id: "user-1", email: "aia@example.com" });
+  userHasPermission.mockResolvedValue(true);
+});
 
 describe("matrix template actions", () => {
   beforeEach(() => {
@@ -406,5 +419,41 @@ describe("ProjectData · el diccionario de correcciones viaja con el proyecto (R
     const cargado = await loadProject("project-2");
 
     expect(cargado?.detectionDictionary).toEqual(EMPTY_DETECTION_DICTIONARY);
+  });
+});
+
+/**
+ * `loadProject` leía cualquier proyecto por su identificador, sin pedir nada.
+ *
+ * La página `/project/[id]` sí exige sesión y redirige al login, así que por
+ * ahí no se colaba nadie. Pero una acción de servidor es una puerta propia, y
+ * esta no tenía cerradura: la protección de este proyecto es página por página
+ * y acción por acción —no hay `middleware.ts`—, y esta se quedó fuera de las
+ * dos redes.
+ *
+ * E51 lo vuelve urgente: abre una ruta pública, y quien llega por ella ejecuta
+ * código de la aplicación que puede invocar acciones de servidor. El acceso
+ * compartido tendrá su propia entrada, que autoriza por token; esta se cierra.
+ */
+describe("loadProject exige sesión y permiso de lectura", () => {
+  beforeEach(() => {
+    query.mockReset();
+    release.mockClear();
+    connect.mockClear();
+    query.mockResolvedValue({ rows: [] });
+  });
+
+  test("sin sesión no devuelve el proyecto, y no llega a consultar la base", async () => {
+    getCurrentUser.mockResolvedValue(null as never);
+
+    await expect(loadProject("project-1")).resolves.toBeNull();
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  test("con sesión pero sin permiso de lectura, tampoco", async () => {
+    userHasPermission.mockResolvedValue(false);
+
+    await expect(loadProject("project-1")).resolves.toBeNull();
+    expect(query).not.toHaveBeenCalled();
   });
 });
