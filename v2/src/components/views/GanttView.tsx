@@ -117,6 +117,7 @@ import {
 } from "@/lib/gantt/roleViewPresets";
 import { normalizeTaskStructure } from "@/lib/gantt/taskStructure";
 import { saveStatusLabel } from "@/lib/gantt/saveStatusLabel";
+import { shouldStartSave } from "@/lib/gantt/saveGuard";
 import { shouldWarnBeforeUnload } from "@/lib/gantt/pendingChanges";
 import { removeAt } from "@/lib/state/undoableCollections";
 import { detectDeepChanges } from "@/lib/gantt/deepChanges";
@@ -147,6 +148,7 @@ interface GanttViewProps {
   projectId?: string;
   projectName?: string;
   statusDate?: string;
+  version?: number;
   tasks: GanttTask[];
   calendar?: ProjectCalendar;
   resources?: Resource[];
@@ -176,6 +178,7 @@ function GanttViewInner({
   initialProjectId,
   initialProjectName,
   initialStatusDate,
+  initialVersion,
   initialResources,
   initialAssignments,
   initialBudgetItems,
@@ -197,6 +200,7 @@ function GanttViewInner({
   initialProjectId?: string;
   initialProjectName?: string;
   initialStatusDate?: string;
+  initialVersion?: number;
   initialResources: Resource[];
   initialAssignments: Assignment[];
   initialBudgetItems: BudgetItem[];
@@ -335,6 +339,13 @@ function GanttViewInner({
   );
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  /** Por qué se rechazó el último guardado, cuando el servidor lo explica. */
+  const [saveError, setSaveError] = useState<string | null>(null);
+  /**
+   * Un conflicto no se arregla reintentando: el reintento manda la misma
+   * versión vieja y vuelve a chocar. Lo que hace falta es traer lo que hay.
+   */
+  const esConflictoDeVersion = Boolean(saveError?.includes("Otra pestaña"));
   /**
    * Espejo del estado de guardado para el aviso al cerrar. Va en un ref
    * porque `beforeunload` se registra una sola vez y consulta al dispararse:
@@ -354,6 +365,16 @@ function GanttViewInner({
   const [helpOpen, setHelpOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const isDirtyRef = useRef(false);
+  /**
+   * Con qué versión se cargó el proyecto, y si hay un guardado viajando.
+   *
+   * Sin la versión, dos pestañas se pisaban: la segunda reescribía el blob con
+   * su copia antigua y las dos decían «Guardado». Sin la guarda de vuelo, el
+   * temporizador podía disparar sobre un guardado aún en curso y el usuario
+   * acababa chocando consigo mismo.
+   */
+  const versionRef = useRef<number | undefined>(initialVersion);
+  const guardadoEnVueloRef = useRef(false);
   const didMountSaveStateRef = useRef(false);
   const didMountObservationsRef = useRef(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1233,14 +1254,22 @@ function GanttViewInner({
   }, []);
 
   const doSave = useCallback(async () => {
-    if (!isDirtyRef.current) return;
+    if (!shouldStartSave({
+      hasPendingChanges: isDirtyRef.current,
+      saveInFlight: guardadoEnVueloRef.current,
+    })) {
+      return;
+    }
 
     isDirtyRef.current = false;
+    guardadoEnVueloRef.current = true;
+    setSaveError(null);
     updateSaveStatus("saving");
 
     try {
       const data: ProjectData = {
         id: projectId,
+        version: versionRef.current,
         name: projectName,
         statusDate: initialStatusDate,
         tasks: calculatedTasks,
@@ -1268,6 +1297,8 @@ function GanttViewInner({
       const result = await saveProject(data);
       if (result.success) {
         setProjectId(result.id);
+        // La versión nueva, para que el siguiente guardado no choque con este.
+        versionRef.current = result.version;
         updateSaveStatus("saved");
         setLastSavedAt(new Date());
         setTimeout(() => updateSaveStatus("idle"), 2000);
@@ -1275,6 +1306,9 @@ function GanttViewInner({
         // Lo que no llegó al servidor sigue pendiente: si no se vuelve a marcar
         // sucio, el aviso al cerrar deja pasar un trabajo que se va a perder.
         isDirtyRef.current = true;
+        // El rechazo por versión no es un fallo de red: hay que decirlo, porque
+        // recargar sin saberlo tiraría el trabajo del usuario.
+        setSaveError(result.error ?? null);
         updateSaveStatus("error");
         setTimeout(() => updateSaveStatus("idle"), 3000);
       }
@@ -1282,6 +1316,8 @@ function GanttViewInner({
       isDirtyRef.current = true;
       updateSaveStatus("error");
       setTimeout(() => updateSaveStatus("idle"), 3000);
+    } finally {
+      guardadoEnVueloRef.current = false;
     }
   }, [projectId, projectName, initialStatusDate, calculatedTasks, calculatedResources, calculatedAssignments, budgetItems, budgetMappings, baselines, calendar, syncedMatrixPlan, mppTaskColumns, mppResourceColumns, mppAssignmentColumns, calculatedMpp.customFieldDefinitions, calculatedMpp.engineVersion, calculatedMpp.calculatedAt, taskColumnSettings, resourceColumnSettings, assignmentColumnSettings, uiSettings, planningAuditEvents, observations, detectionDictionary, updateSaveStatus]);
 
@@ -1719,7 +1755,29 @@ function GanttViewInner({
         >
           {saveStatusLabel(saveStatus, lastSavedAt)}
         </span>
-        {saveStatus === "error" && (
+        {saveStatus === "error" && saveError && (
+          <span
+            data-testid="save-error-message"
+            role="alert"
+            className="max-w-xs truncate text-[length:var(--gantt-topbar-font-size)] font-semibold text-[var(--aia-warn-main)]"
+            title={saveError}
+          >
+            {saveError}
+          </span>
+        )}
+        {saveStatus === "error" && esConflictoDeVersion && (
+          // Reintentar mandaría la misma versión vieja y volvería a chocar
+          // siempre: lo que resuelve un conflicto es traer lo que hay.
+          <button
+            type="button"
+            data-testid="save-reload"
+            onClick={() => window.location.reload()}
+            className="apple-button-secondary inline-flex h-[var(--gantt-topbar-control-height)] shrink-0 items-center rounded-[var(--radius-lg)] px-[var(--gantt-topbar-control-padding-inline)] text-[length:var(--gantt-topbar-font-size)] font-semibold"
+          >
+            Recargar
+          </button>
+        )}
+        {saveStatus === "error" && !esConflictoDeVersion && (
           <button
             type="button"
             data-testid="save-retry"
@@ -2415,6 +2473,7 @@ export default function GanttView({
   projectId,
   projectName,
   statusDate,
+  version,
   tasks,
   calendar = DEFAULT_PROJECT_CALENDAR,
   resources = [],
@@ -2454,6 +2513,7 @@ export default function GanttView({
         initialProjectId={projectId}
         initialProjectName={projectName}
         initialStatusDate={statusDate}
+        initialVersion={version}
         initialResources={resources}
         initialAssignments={assignments}
         initialBudgetItems={budgetItems}
