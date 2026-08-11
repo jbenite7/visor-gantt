@@ -582,3 +582,74 @@ describe("listProjects · la home solo enseña lo tuyo", () => {
     expect(String(sql)).not.toContain("project_members");
   });
 });
+
+/**
+ * Punto 3 de la auditoría: dos pestañas se pisan, y un guardado a la nada dice
+ * «Guardado».
+ *
+ * `saveProject` devolvía `{success:true}` sin mirar `rowCount`: si el proyecto
+ * ya no existía, una tarde de trabajo se tiraba en silencio y ni siquiera
+ * saltaba el aviso al cerrar la pestaña. Y sin control de versión, la pestaña B
+ * reescribía el blob con su copia antigua y borraba lo de la A; ninguna se
+ * enteraba y las dos decían «Guardado».
+ */
+describe("el guardado no miente", () => {
+  const proyecto = {
+    id: "project-1",
+    name: "Torre 3",
+    tasks: [],
+    resources: [],
+    assignments: [],
+    budgetItems: [],
+    budgetMappings: [],
+    baselines: [],
+    calendar,
+  };
+
+  beforeEach(() => {
+    query.mockReset();
+    release.mockClear();
+    canAccessProject.mockResolvedValue(true);
+  });
+
+  test("si el UPDATE no tocó ninguna fila, NO dice que guardó", async () => {
+    // El proyecto ya no existe: alguien lo borró mientras se editaba.
+    query.mockResolvedValue({ rows: [], rowCount: 0 });
+
+    const resultado = await saveProject(proyecto);
+
+    expect(resultado.success).toBe(false);
+    expect(resultado.error).toBeTruthy();
+  });
+
+  test("guarda contra la versión que se cargó, no a ciegas", async () => {
+    query.mockResolvedValue({ rows: [{ version: 4 }], rowCount: 1 });
+
+    await saveProject({ ...proyecto, version: 3 });
+
+    const update = query.mock.calls.find((c) =>
+      String(c[0]).includes("UPDATE projects"),
+    );
+    expect(String(update![0])).toContain("version = $");
+    expect(update![1]).toContain(3);
+  });
+
+  test("si otra pestaña guardó antes, se rechaza y se explica", async () => {
+    // El UPDATE con la versión vieja no encuentra fila que casar.
+    query.mockResolvedValue({ rows: [], rowCount: 0 });
+
+    const resultado = await saveProject({ ...proyecto, version: 3 });
+
+    expect(resultado.success).toBe(false);
+    expect(resultado.error).toMatch(/otra|version|versión|recarga/i);
+  });
+
+  test("al guardar bien, devuelve la versión nueva para el siguiente guardado", async () => {
+    query.mockResolvedValue({ rows: [{ version: 4 }], rowCount: 1 });
+
+    const resultado = await saveProject({ ...proyecto, version: 3 });
+
+    expect(resultado.success).toBe(true);
+    expect(resultado.version).toBe(4);
+  });
+});

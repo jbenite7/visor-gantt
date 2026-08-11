@@ -45,6 +45,14 @@ import { canAccessProject, projectFilterFor } from "@/lib/auth/projectAccess";
 
 export interface ProjectData {
   id?: string;
+  /**
+   * Con qué versión se cargó el proyecto.
+   *
+   * Sin esto, dos pestañas abiertas sobre el mismo proyecto se pisaban: la B
+   * reescribía el blob con su copia antigua y borraba el trabajo de la A.
+   * Ninguna se enteraba y las dos decían «Guardado».
+   */
+  version?: number;
   name: string;
   statusDate?: string;
   tasks: GanttTask[];
@@ -245,11 +253,14 @@ function serializeProjectData(data: ProjectData): SerializedProjectData {
 
 function deserializeProjectData(
   id: string,
-  row: { name: string; project_data: SerializedProjectData },
+  row: { name: string; project_data: SerializedProjectData; version?: number },
 ): ProjectData {
   const pd = row.project_data;
   return {
     id,
+    // Viaja hasta la pantalla para que el guardado sepa contra qué versión
+    // escribe. Sin esto, dos pestañas se pisan en silencio.
+    version: row.version,
     name: row.name,
     statusDate: pd.statusDate,
     tasks: deserializeTasks(pd.tasks ?? []),
@@ -440,7 +451,13 @@ export async function createMatrixPlanFromTemplate({
  */
 export async function saveProject(
   projectData: ProjectData,
-): Promise<{ success: boolean; id?: string; error?: string }> {
+): Promise<{
+  success: boolean;
+  id?: string;
+  error?: string;
+  /** La versión ya incrementada, para que el cliente guarde la siguiente vez. */
+  version?: number;
+}> {
   try {
     const auth = await authorizeProjectAction(
       projectData.id ? "project:update" : "project:create",
@@ -455,14 +472,46 @@ export async function saveProject(
 
     try {
       if (projectData.id) {
-        // UPDATE existing project
-        await client.query(
+        // El `WHERE version = $4` es lo que impide que dos pestañas se pisen:
+        // si otra guardó entre medias, la versión ya no casa y el UPDATE no
+        // toca ninguna fila. Antes se devolvía `{success:true}` sin mirar
+        // `rowCount`, así que un guardado a la nada decía «Guardado» y una
+        // tarde de trabajo se tiraba en silencio.
+        const condicionVersion =
+          projectData.version === undefined ? "" : " AND version = $4";
+        const parametros: unknown[] = [
+          serialized.name,
+          JSON.stringify(serialized),
+          projectData.id,
+        ];
+        if (projectData.version !== undefined) {
+          parametros.push(projectData.version);
+        }
+
+        const res = await client.query(
           `UPDATE projects
-           SET name = $1, project_data = $2, updated_at = NOW()
-           WHERE id = $3`,
-          [serialized.name, JSON.stringify(serialized), projectData.id],
+           SET name = $1, project_data = $2, updated_at = NOW(),
+               version = version + 1
+           WHERE id = $3${condicionVersion}
+           RETURNING version`,
+          parametros,
         );
-        return { success: true, id: projectData.id };
+
+        if (res.rowCount === 0) {
+          return {
+            success: false,
+            error:
+              projectData.version === undefined
+                ? "El proyecto ya no existe: no se guardó nada."
+                : "Otra pestaña guardó este proyecto mientras lo editabas. Recarga para no perder lo suyo ni lo tuyo.",
+          };
+        }
+
+        return {
+          success: true,
+          id: projectData.id,
+          version: res.rows[0]?.version as number | undefined,
+        };
       } else {
         // INSERT new project
         const res = await client.query(
@@ -611,7 +660,7 @@ export async function loadProject(
     const client = await pool.connect();
     try {
       const res = await client.query(
-        `SELECT name, project_data FROM projects WHERE id = $1`,
+        `SELECT name, project_data, version FROM projects WHERE id = $1`,
         [projectId],
       );
       if (res.rows.length === 0) return null;

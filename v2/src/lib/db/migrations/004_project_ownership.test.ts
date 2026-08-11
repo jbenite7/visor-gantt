@@ -15,11 +15,14 @@ function clienteEspia(rows: Record<string, unknown>[] = []) {
 }
 
 describe("004_project_ownership (los proyectos que ya existen necesitan dueño)", () => {
-  test("está registrada y va la última", () => {
+  test("está registrada, y el orden de aplicación es ascendente", () => {
     const ids = ALL_MIGRATIONS.map((m) => m.id);
 
     expect(ids).toContain("004_project_ownership");
-    expect(ids.indexOf("004_project_ownership")).toBe(ids.length - 1);
+    // «Va la última» envejece en cuanto alguien añade la siguiente. Lo que de
+    // verdad importa es que se apliquen en orden: el migrador ejecuta el array
+    // tal cual, así que un id fuera de sitio se aplicaría antes de tiempo.
+    expect([...ids].sort()).toEqual(ids);
   });
 
   test("asigna los proyectos existentes al admin más antiguo", async () => {

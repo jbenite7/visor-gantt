@@ -87,6 +87,7 @@ export default function ProjectView({
   tasks,
   projectName,
   statusDate,
+  version,
   calendar,
   resources,
   assignments,
@@ -120,6 +121,8 @@ export default function ProjectView({
    * en vez de contra el corte del cronograma, y se equivocan en silencio.
    */
   statusDate?: string;
+  /** Con qué versión se cargó, para que el guardado no pise a otra pestaña. */
+  version?: number;
   calendar: ProjectCalendar;
   resources: Resource[];
   assignments: Assignment[];
@@ -214,6 +217,7 @@ export default function ProjectView({
             projectId={projectId}
             projectName={projectName}
             statusDate={statusDate}
+            version={version}
             tasks={deserializedTasks}
             calendar={calendar}
             resources={resources}
