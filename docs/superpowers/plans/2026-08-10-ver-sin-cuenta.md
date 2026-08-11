@@ -15,6 +15,20 @@
 > por token) y **12** (el guardián ahora vigila que ninguna acción toque la base sin comprobar), y a los
 > comentarios de la 9 y la 10. **El plan está al día y se puede ejecutar entero.**
 
+> **Contraste contra `main` del 2026-08-10, después de la auditoría.** `main` incorporó **propiedad de
+> proyectos**: `saveProject`, `loadProject`, `listProjects` y `deleteProject` exigen pertenencia en
+> `project_members`. Eso toca E51 en tres sitios, comprobados con el código delante:
+>
+> 1. **A favor, y bastante:** un proyecto temporal no tiene ninguna fila en `project_members`, así que
+>    **nadie puede escribirlo, listarlo ni cargarlo por la vía normal**. La garantía de solo lectura que era
+>    el punto que decidía este diseño ahora está por partida doble: sin sesión *y* sin pertenencia. La ruta
+>    pública entra por `loadSharedProject`, que autoriza por token.
+> 2. **En contra, y era grave:** la **Task 10 (adopción)** limpiaba las dos columnas y no creaba la
+>    pertenencia. El usuario se habría quedado su cronograma y **lo habría perdido de vista acto seguido**.
+>    Corregido: la adopción inserta la fila en la misma transacción, con test y mutación obligatorios.
+> 3. **A tener presente:** un admin puede editar un temporal ajeno, porque `canAccessProject` le da acceso a
+>    todo. Es coherente con la decisión tomada en la auditoría; queda escrito, no corregido.
+
 **Architecture:** Un proyecto temporal es una fila de `projects` con `share_token` y `expires_at`; la ruta pública `/ver/<token>` lo muestra reutilizando `GanttView`, que ya sabe montarse sin sesión porque `/gantt-demo` lo hace. La garantía de solo lectura **no vive en la interfaz**: quien llega por el enlace **no tiene sesión ninguna**, y toda acción que escribe —el proyecto o sus fotos— exige sesión con permiso, así que ninguna llega a autorizarse. Adoptar es crear cuenta y poner `share_token` y `expires_at` a `NULL`.
 
 **Tech Stack:** Next.js 16 (App Router) · TypeScript · React · PostgreSQL (`pg`) · Jest + Testing Library · Playwright.
@@ -1606,6 +1620,36 @@ export default function SharedProjectView({
 
 `src/app/ver/[token]/page.tsx`:
 
+**Test obligatorio de esta tarea** (va antes que la implementación):
+
+```ts
+test("adoptar deja al usuario como dueño: si no, se queda un proyecto invisible", async () => {
+  query.mockResolvedValue({ rows: [{ id: 42 }], rowCount: 1 });
+
+  await adoptSharedProject("un-token", "user-7");
+
+  const sql = query.mock.calls.map((c) => String(c[0])).join("\n");
+  expect(sql).toContain("INSERT INTO project_members");
+  // En la misma transacción que el UPDATE: un proyecto adoptado sin dueño es un
+  // proyecto perdido, y una pertenencia sin adopción es basura.
+  expect(sql).toContain("BEGIN");
+  expect(sql).toContain("COMMIT");
+});
+
+test("si el enlace ya no vale, no deja pertenencias sueltas", async () => {
+  query.mockResolvedValue({ rows: [], rowCount: 0 });
+
+  const r = await adoptSharedProject("caducado", "user-7");
+
+  expect(r.ok).toBe(false);
+  const sql = query.mock.calls.map((c) => String(c[0])).join("\n");
+  expect(sql).toContain("ROLLBACK");
+  expect(sql).not.toContain("INSERT INTO project_members");
+});
+```
+
+**Mutación obligatoria:** quita el `INSERT INTO project_members` y confirma que el primer test se pone rojo.
+
 ```tsx
 import { notFound } from "next/navigation";
 import { loadSharedProject } from "@/app/actions/project";
@@ -1743,29 +1787,56 @@ En `src/app/actions/project.ts`:
  * Un temporal pasa a ser un proyecto normal.
  *
  * Quitar `share_token` cierra el enlace público, y quitar `expires_at` es lo
- * que impide que el barrido de limpieza se lo lleve. A partir de aquí se entra
- * como a cualquier otro proyecto: con sesión, que es lo que da permiso de
- * escribir. La adopción **exige sesión** —es su primer paso—, así que este es
- * el único sitio donde un temporal cambia de manos.
+ * que impide que el barrido de limpieza se lo lleve. La adopción **exige
+ * sesión** —es su primer paso—, así que este es el único sitio donde un
+ * temporal cambia de manos.
+ *
+ * **Y hay que darle la pertenencia, en la misma transacción.** Desde que un
+ * proyecto tiene dueño (auditoría del 2026-08-10), quitar esas dos columnas no
+ * basta: sin fila en `project_members` el usuario se queda el cronograma y
+ * **acto seguido lo pierde de vista** — no sale en su home, no lo puede abrir y
+ * no lo puede guardar. Sería el peor final posible para el flujo que da sentido
+ * a E51: «prueba con tu obra y quédatela».
  */
 export async function adoptSharedProject(
   token: string,
+  /** Quién se lo queda. Sale de la sesión, no del cliente. */
+  userId: string,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   try {
     const client = await pool.connect();
     try {
-      const res = await client.query(
-        `UPDATE projects
-         SET share_token = NULL, expires_at = NULL, updated_at = NOW()
-         WHERE share_token = $1 AND expires_at > NOW()
-         RETURNING id`,
-        [token],
-      );
-      const id = res.rows[0]?.id as string | undefined;
-      if (!id) {
-        return { ok: false, error: "Ese enlace ya no está disponible." };
+      // Las dos escrituras van juntas: un proyecto adoptado sin dueño es un
+      // proyecto perdido, y un dueño de un proyecto que no se adoptó es una
+      // pertenencia huérfana. O las dos, o ninguna.
+      await client.query("BEGIN");
+      try {
+        const res = await client.query(
+          `UPDATE projects
+           SET share_token = NULL, expires_at = NULL, updated_at = NOW()
+           WHERE share_token = $1 AND expires_at > NOW()
+           RETURNING id`,
+          [token],
+        );
+        const id = res.rows[0]?.id as string | undefined;
+        if (!id) {
+          await client.query("ROLLBACK");
+          return { ok: false, error: "Ese enlace ya no está disponible." };
+        }
+
+        await client.query(
+          `INSERT INTO project_members (project_id, user_id, role_id)
+           VALUES ($1, $2, 'admin')
+           ON CONFLICT (project_id, user_id) DO NOTHING`,
+          [String(id), userId],
+        );
+
+        await client.query("COMMIT");
+        return { ok: true, id };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
       }
-      return { ok: true, id };
     } finally {
       client.release();
     }
