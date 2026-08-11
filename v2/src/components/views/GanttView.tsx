@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { formatProjectDayUTC } from "@/lib/date/projectDate";
 import { ChevronDown, Command as CommandIcon, HelpCircle, Search, SlidersHorizontal, X } from "lucide-react";
 import type { GanttScale, GanttTask } from "@/components/gantt/types";
 import type { PlanningAuditEvent } from "@/types/audit";
@@ -130,13 +131,6 @@ import { dependenciesAfterRemoval } from "@/lib/gantt/networkDependencyEditing";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 const AUTOSAVE_DELAY_MS = 750;
-
-function formatStableDate(date: Date): string {
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const year = date.getUTCFullYear();
-  return `${day}/${month}/${year}`;
-}
 
 interface CommandPaletteAction {
   id: string;
@@ -1899,8 +1893,8 @@ function GanttViewInner({
         <div className="gantt-project-meta-strip__content flex flex-wrap items-center gap-x-[var(--gantt-meta-strip-gap-inline)] gap-y-[var(--gantt-meta-strip-gap-block)] text-[length:var(--gantt-meta-strip-font-size)] text-[var(--color-text-muted)]">
           <span className="gantt-project-meta-strip__name">{projectName}</span>
           <span className="gantt-project-meta-strip__summary">
-            Inicio: {projectInfo.start ? formatStableDate(projectInfo.start) : "s/d"} · Fin:{" "}
-            {projectInfo.finish ? formatStableDate(projectInfo.finish) : "s/d"} ·{" "}
+            Inicio: {projectInfo.start ? formatProjectDayUTC(projectInfo.start) : "s/d"} · Fin:{" "}
+            {projectInfo.finish ? formatProjectDayUTC(projectInfo.finish) : "s/d"} ·{" "}
             {projectInfo.durationDays}d · Avance: {Math.round(projectInfo.averageProgress)}% ·{" "}
             {projectInfo.count} tareas · {projectInfo.dependencyCount} dep.
           </span>

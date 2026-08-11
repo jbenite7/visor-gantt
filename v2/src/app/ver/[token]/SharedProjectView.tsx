@@ -5,6 +5,7 @@ import { Eye, UserPlus } from "lucide-react";
 import GanttView from "@/components/views/GanttView";
 import type { GanttTask } from "@/components/gantt/types";
 import type { ProjectCalendar } from "@/types/calendar";
+import { formatIsoDay } from "@/lib/date/projectDate";
 
 export interface SharedProjectViewProps {
   token: string;
@@ -13,11 +14,6 @@ export interface SharedProjectViewProps {
   calendar?: ProjectCalendar;
   /** ISO de la caducidad. Se enseña: caducar de sorpresa es perder confianza. */
   expiresAt: string;
-}
-
-function enDia(iso: string): string {
-  const fecha = new Date(iso);
-  return `${fecha.getUTCDate()}/${fecha.getUTCMonth() + 1}/${fecha.getUTCFullYear()}`;
 }
 
 /**
@@ -65,7 +61,7 @@ export default function SharedProjectView({
               data-testid="share-expiry"
               className="text-xs text-[var(--color-text-muted)]"
             >
-              Este enlace deja de valer el {enDia(expiresAt)}.
+              Este enlace deja de valer el {formatIsoDay(expiresAt)}.
             </p>
           </div>
         </div>

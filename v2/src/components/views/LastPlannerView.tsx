@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { formatIsoDay } from "@/lib/date/projectDate";
 import { AlertTriangle, Download } from "lucide-react";
 import type { GanttTask } from "@/components/gantt/types";
 import type { LastPlannerPreview } from "@/lib/integrations/lastPlanner";
@@ -21,10 +22,6 @@ function serializeTask(task: GanttTask) {
   };
 }
 
-function formatIsoDay(iso: string): string {
-  const [year, month, day] = iso.split("-");
-  return `${day}/${month}/${year}`;
-}
 
 /**
  * Compromiso semanal al estilo Last Planner.
