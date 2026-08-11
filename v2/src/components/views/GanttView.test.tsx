@@ -25,6 +25,10 @@ import {
 
 jest.mock("@/app/actions/project", () => ({
   saveProject: jest.fn(async () => ({ success: true, id: "test-project" })),
+  // El editor de Matriz pide sus plantillas al servidor desde el 2026-08-11:
+  // antes «Guardar como plantilla» solo tocaba memoria y se perdía al recargar.
+  listMatrixTemplates: jest.fn(async () => []),
+  saveMatrixTemplate: jest.fn(async () => ({ success: true, id: "t1" })),
 }));
 
 const mockedSaveProject = saveProject as jest.MockedFunction<typeof saveProject>;

@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  listMatrixTemplates,
+  saveMatrixTemplate,
+} from "@/app/actions/project";
+import {
   Check,
   CornerDownRight,
   Grid3X3,
@@ -446,6 +450,25 @@ export default function MatrixEditorView({
   const [newScopeName, setNewScopeName] = useState("");
   const [newAreaName, setNewAreaName] = useState("");
   const [ownTemplates, setOwnTemplates] = useState<MatrixTemplate[]>([]);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+
+  // Las plantillas propias se piden al servidor al abrir. Antes vivían solo en
+  // memoria: se guardaban con `setOwnTemplates` y desaparecían al recargar, así
+  // que «Guardar como plantilla» prometía algo que no ocurría.
+  useEffect(() => {
+    let vigente = true;
+    void listMatrixTemplates()
+      .then((guardadas) => {
+        if (vigente) setOwnTemplates(guardadas.map((item) => item.template));
+      })
+      .catch(() => {
+        // No se estorba al usuario: sin plantillas propias la pantalla funciona
+        // igual, y el error de guardar sí se enseña donde importa.
+      });
+    return () => {
+      vigente = false;
+    };
+  }, []);
   const [proposal, setProposal] = useState<MatrixProposal | null>(null);
   const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
   const [selectedCell, setSelectedCell] = useState<SelectedCellRef | null>(() => {
@@ -981,9 +1004,19 @@ export default function MatrixEditorView({
     );
   };
 
-  const saveAsTemplate = () => {
+  const saveAsTemplate = async () => {
     if (!draft) return;
     const template = templateFromPlan(draft, draft.name);
+
+    const resultado = await saveMatrixTemplate(template);
+    if (!resultado.success) {
+      // Antes esto no existía: la plantilla se metía en memoria y se daba por
+      // guardada. Si el servidor la rechaza, el usuario tiene que saberlo.
+      setTemplateError(resultado.error ?? "No pudimos guardar la plantilla.");
+      return;
+    }
+
+    setTemplateError(null);
     setOwnTemplates((current) => [
       ...current.filter((item) => item.id !== template.id),
       template,
@@ -1500,11 +1533,20 @@ export default function MatrixEditorView({
         <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3">
           <button
             type="button"
-            onClick={saveAsTemplate}
+            onClick={() => void saveAsTemplate()}
             className="apple-button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold"
           >
             Guardar como plantilla
           </button>
+          {templateError && (
+            <p
+              data-testid="matrix-template-error"
+              role="alert"
+              className="text-xs font-semibold text-[var(--aia-warn-main)]"
+            >
+              {templateError}
+            </p>
+          )}
           {proposal ? (
             <ProposalReview
               proposal={proposal}
