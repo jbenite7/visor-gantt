@@ -66,3 +66,45 @@ describe("ResourcesEmptyState — la vista Recursos enseña en vez de callar", (
     expect(screen.getByTestId("resources-empty-state")).toHaveTextContent(/crews/i);
   });
 });
+
+/**
+ * Un cronograma puede traer asignaciones y ningún recurso, y decir «no tiene
+ * recursos todavía» ahí es engañoso.
+ *
+ * Medido en la base: el `.mpp` real de obra «20260312 DA PORTO TORRE 3» tiene
+ * **213 asignaciones y 0 recursos**, y las 213 apuntan a `resourceId: 0`, que
+ * no existe. **88 de 297 proyectos** están igual. El importador descarta los
+ * recursos sin nombre, y las asignaciones se quedan colgando.
+ *
+ * La pantalla decía que los recursos «vienen dentro del .mpp y aparecen solos»,
+ * lo que le dice al usuario que su archivo no traía nada. Traía 213.
+ */
+describe("cuando hay asignaciones pero ningún recurso", () => {
+  test("se dice que el archivo sí traía trabajo asignado", () => {
+    render(
+      <ResourcesEmptyState
+        onCreateResource={jest.fn()}
+        onOpenBudget={jest.fn()}
+        orphanAssignments={213}
+      />,
+    );
+
+    const aviso = screen.getByTestId("resources-asignaciones-huerfanas");
+    expect(aviso).toHaveTextContent("213");
+    expect(aviso).toHaveTextContent(/nombre/i);
+  });
+
+  test("sin asignaciones colgando no se inventa el aviso", () => {
+    render(
+      <ResourcesEmptyState
+        onCreateResource={jest.fn()}
+        onOpenBudget={jest.fn()}
+        orphanAssignments={0}
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("resources-asignaciones-huerfanas"),
+    ).not.toBeInTheDocument();
+  });
+})

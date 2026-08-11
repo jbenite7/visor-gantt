@@ -9,6 +9,14 @@ interface ResourcesEmptyStateProps {
   onCreateResource: () => void;
   /** El presupuesto no necesita recursos: se llega igual desde aquí. */
   onOpenBudget: () => void;
+  /**
+   * Asignaciones que apuntan a un recurso que no existe.
+   *
+   * Medido en la base: el `.mpp` real de obra trae 213 asignaciones y 0
+   * recursos, y **88 de 297 proyectos** están igual. Decir «no tiene recursos
+   * todavía» ahí le dice al usuario que su archivo no traía nada, y sí traía.
+   */
+  orphanAssignments?: number;
 }
 
 interface SubTabCopy {
@@ -44,6 +52,7 @@ export default function ResourcesEmptyState({
   locale = "es",
   onCreateResource,
   onOpenBudget,
+  orphanAssignments = 0,
 }: ResourcesEmptyStateProps) {
   const copy: EmptyStateCopy =
     locale === "en"
@@ -86,6 +95,18 @@ export default function ResourcesEmptyState({
       className="apple-module h-full overflow-auto"
     >
       <div className="mx-auto max-w-prose px-6 py-10">
+        {orphanAssignments > 0 && (
+          <p
+            data-testid="resources-asignaciones-huerfanas"
+            className="mb-4 rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-surface-secondary)] px-3 py-2 text-sm text-[var(--color-text-muted)]"
+          >
+            Este cronograma trae <strong>{orphanAssignments}</strong>{" "}
+            asignaciones de trabajo, pero ninguna llegó con un recurso con
+            nombre, así que no hay a quién listar aquí. Suele pasar cuando el
+            archivo de Microsoft Project asigna trabajo sin nombrar la cuadrilla.
+          </p>
+        )}
+
         <div className="flex items-center gap-2">
           <Users size={18} className="text-[var(--aia-corp-main)]" />
           <h2 className="font-[var(--font-heading)] text-lg font-semibold text-[var(--color-text-strong)]">
