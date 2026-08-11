@@ -322,3 +322,37 @@ Y la corrida de pruebas, en el checkout que está en `main`, no en el worktree.
 uno, pero eso fue suerte: si las dos cifras hubieran coincidido por casualidad, no habría habido
 descuadre y el `git log main..<rama>` habría cantado igual. Fiarse del número enseña a no correr
 el comando, que es justo lo contrario de lo que hay que aprender.
+
+## Un script de borrado que llama «marcador» a una subcadena
+
+Salió al decidir si la copia del modo de prueba debía entrar en la limpieza automática. La regla
+era mirar primero qué borra ese script. Lo que borra, `clean-e2e-projects.ts:81`:
+
+```sql
+WHERE name LIKE '%run-%'
+  AND created_at < NOW() - ($1 || ' days')::interval
+```
+
+Y cómo se describe a sí mismo, en su línea 47 y en otros dos mensajes que ve el operador:
+
+> «Solo borra proyectos cuyo nombre **contenga el marcador `run-`** … Proyectos sin ese marcador
+> nunca se listan ni se borran»
+
+**No es un marcador: es una subcadena.** Un marcador identifica; `%run-%` solo dice «en algún sitio
+del nombre aparecen esas cuatro letras». Un cronograma real llamado **«Torre run-off»** —o
+«Prerun-2»— cae en el `DELETE` sin haber salido nunca de una corrida E2E. Basta con que tenga una
+semana.
+
+Lo interesante no es el patrón, que es defendible como heurística. Es **la palabra**: llamarlo
+«marcador» es lo que haría que alguien lo ampliara con confianza —«ya filtra por marcador, meto
+también el proyecto de prueba»— sin volver a mirar el `LIKE`. Es de la misma familia que todo lo
+demás de este censo: **algo que promete más precisión de la que tiene**, y que por eso no se
+comprueba.
+
+Por eso la copia del modo de prueba **no** se metió ahí: habría obligado a ensanchar lo que ese
+script borra. Un script de limpieza que se lleve por delante un proyecto real es un daño que no se
+deshace, y queda un proyecto de más a cambio —que el `seed` reusa en vez de acumular.
+
+Sin tocar: el arreglo honesto es un marcador de verdad —un prefijo propio, o una columna— y que los
+mensajes digan lo que el `WHERE` hace. No se hizo aquí porque cambia lo que ese script borra, y eso
+no se decide de paso.
