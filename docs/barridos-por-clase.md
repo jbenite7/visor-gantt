@@ -228,11 +228,27 @@ dado.** Trabajando con varias sesiones sobre este repo, el hook de publicación 
 con «ejecutor sin frente declarado»: la segunda, cuando ya tenía el visto de la coordinadora. Mi
 fila de `.claude/sesiones.md` había perdido el frente sin que nadie tocara el archivo.
 
-*Medido, no supuesto:* `scripts/session-start.sh:23` llama a `cas_upsert` pasando **`-` como
-frente y `-` como archivos, siempre**, y `cas_upsert` borra la fila y la reescribe entera. No es
-una limpieza periódica ni otra sesión pisando el archivo: **cada `SessionStart` borra el frente
-declarado**. Se repone con `cas-frente.sh`, pero hay que acordarse, y el momento en que se nota es
-el peor: al ir a publicar.
+*Leyendo el código:* `scripts/session-start.sh:23` llama a `cas_upsert` pasando **`-` como frente
+y `-` como archivos, siempre**, y `cas_upsert` borra la fila y la reescribe entera.
+
+*Y reproducido, que es lo que lo convierte en hecho:* declarar el frente, ejecutar ese script con
+la entrada que le pasa el hook, y volver a leer la fila.
+
+```
+ANTES  : frente = a11y-campos
+DESPUES: frente = -
+```
+
+Así que **cada `SessionStart` borra el frente declarado**. No es una limpieza periódica ni otra
+sesión pisando el archivo. Se repone con `cas-frente.sh`, pero hay que acordarse, y el momento en
+que se nota es el peor: al ir a publicar.
+
+**La lectura del código sola no bastaba, y por poco la escribo como prueba.** Enseña el mecanismo,
+no que sea la causa del síntoma. Dos minutos de reproducción cierran la diferencia — y en este
+caso hacía falta doblemente, porque el plugin se sirve desde un directorio distinto del que
+parece: `~/.claude/plugins/data/…` está **vacío**, y el código real vive donde apunta el
+`marketplaces` de `settings.json`. Estuve a punto de leer una copia que no se ejecuta, que es el
+error del preview por tercera vez en un día.
 
 Vive en el plugin `coordinating-agent-sessions`, fuera de este repositorio, así que aquí solo
 queda anotado.
