@@ -55,6 +55,9 @@ que *hay*.
 | Desbordamiento de pila en `Math.max(...)` | limpio — el cronograma mayor tiene **494 tareas**; el spread revienta a las 125.000 |
 | Identificadores de tarea repetidos | limpio — 297 proyectos, ninguno |
 | Dependencias huérfanas | limpio — 297 proyectos, ninguna |
+| **Escuchas de eventos sin retirar** | 1 — `SplitPane` dejaba dos por cada arrastre, para siempre |
+| Claves de lista por índice | limpio — las siete son texto sin estado propio y sin reordenarse |
+| Escuchas sobre `AbortSignal` | limpio — el `signal` muere con su petición; no hay nada que retirar |
 
 ## Guardianes que quedan puestos
 
@@ -71,6 +74,12 @@ Todos probados **rompiéndolos a propósito**; ninguno se dio por bueno naciendo
 | `fechaDeCorteLlega` | que un eslabón deje de pasar la fecha de corte |
 | `projectViewWiring` | que un dato de `ProjectData` no llegue a la pantalla |
 | `check-empty-suites` | que un `describe.skip` apague un fichero en silencio |
+
+**Cómo se encontró la fuga de escuchas, porque el método sirve para más cosas:** contar
+`addEventListener` frente a `removeEventListener` por fichero y por tipo de evento. Salieron 27
+contra 24, y las tres de diferencia con nombre. Dos resultaron correctas —viven en un
+`AbortSignal` que muere con su petición— y una era real. **Contar antes de leer** acota la
+búsqueda a tres sitios en vez de veintisiete.
 
 ## Preguntas abiertas, medibles, que no pude cerrar
 
