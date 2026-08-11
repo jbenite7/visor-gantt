@@ -37,6 +37,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# La plantilla sí se versiona: no lleva secretos —sus valores son los mismos
+# marcadores que el .env.example de la raíz— y es lo único que documenta cómo
+# configurar Next corriendo en el host, fuera de compose.
+!.env.local.example
 
 # vercel
 .vercel
