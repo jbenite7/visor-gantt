@@ -7,6 +7,7 @@ import {
   type PointerEvent,
   type WheelEvent,
 } from "react";
+import { formatLobTickLabel } from "@/lib/charts/lobTickLabel";
 import {
   ChevronLeft,
   ChevronRight,
@@ -204,29 +205,6 @@ function panZoomCenterRatio(
     zoomLevel,
     centerRatio + visibleRatioDelta / zoomLevel,
   );
-}
-
-function formatTickLabel(date: Date, scale: LOBScale): string {
-  if (scale === "day") {
-    const day = date.getDate();
-    const month = date.toLocaleString("es-ES", { month: "short" });
-    return `${day} ${month}`;
-  }
-
-  if (scale === "month") {
-    return date.toLocaleString("es-ES", {
-      month: "short",
-      year: "numeric",
-    });
-  }
-
-  if (scale === "quarter") {
-    return `T${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`;
-  }
-
-  const day = date.getDate();
-  const month = date.toLocaleString("es-ES", { month: "short" });
-  return `S${getISOWeek(date)} - ${day} ${month}`;
 }
 
 function generateDateTicks(min: Date, max: Date, scale: LOBScale): Date[] {
@@ -1099,7 +1077,7 @@ export default function LineOfBalance({
                 data-testid="lob-x-tick-label"
                 className="lob-chart__tick-label"
               >
-                {formatTickLabel(tick, scale)}
+                {formatLobTickLabel(tick, scale)}
               </text>
             );
           })}
