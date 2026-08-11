@@ -43,6 +43,21 @@ describe("los límites que el usuario ve se escriben una sola vez", () => {
     expect(MAX_FILE_SIZE_MB).toBe(50);
   });
 
+  test("ninguna pantalla se escribe su propio formateador de fechas", () => {
+    // Estaba duplicado palabra por palabra en dos pantallas, y una tercera lo
+    // escribía distinto: la misma app enseñando `11/08/2026` y `11/8/2026`.
+    // `formatIsoDay` y `formatProjectDate` viven en `lib/date`.
+    const aMano = FUENTES.filter(
+      ({ f }) => f.startsWith("src/components") || f.startsWith("src/app"),
+    )
+      .filter(({ s }) =>
+        /\$\{day\}\/\$\{month\}\/\$\{year\}|getUTCMonth\(\) \+ 1\}\//.test(s),
+      )
+      .map(({ f }) => f);
+
+    expect(aMano).toEqual([]);
+  });
+
   test("ninguna pantalla escribe el plazo de caducidad a mano", () => {
     // `SHARE_TTL_DAYS` es la fuente; el copy tiene que salir de ahí.
     const aMano = FUENTES.filter(

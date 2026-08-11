@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { formatIsoDay } from "@/lib/date/projectDate";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -22,11 +23,6 @@ interface ExecutivePlanningDashboardProps {
   summary: ExecutivePlanningSummary;
   /** Cada indicador lleva a su detalle: el tablero era un callejón sin salida (M1). */
   onNavigate?: (view: "bottlenecks" | "gantt" | "scurve" | "resources") => void;
-}
-
-function formatIsoDay(iso: string): string {
-  const [year, month, day] = iso.slice(0, 10).split("-");
-  return `${day}/${month}/${year}`;
 }
 
 function healthLabel(health: ExecutiveHealth): string {

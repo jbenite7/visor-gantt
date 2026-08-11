@@ -1,6 +1,7 @@
 "use client";
 
 import BaselineMenu from "./BaselineMenu";
+import { formatProjectDayUTC } from "@/lib/date/projectDate";
 import {
   Undo2,
   Redo2,
@@ -78,14 +79,6 @@ interface ProjectToolbarProps {
   locale?: UILocale;
 }
 
-/* ── Format date for toolbar display ── */
-function formatDateShort(date: Date): string {
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const year = date.getUTCFullYear();
-  return `${day}/${month}/${year}`;
-}
-
 /* ───────────────────── Component ───────────────────── */
 
 export default function ProjectToolbar({
@@ -133,7 +126,7 @@ export default function ProjectToolbar({
           </span>
           <span className="gantt-project-toolbar__project-meta">
             {projectStart && projectFinish
-              ? `${formatDateShort(projectStart)} — ${formatDateShort(projectFinish)}`
+              ? `${formatProjectDayUTC(projectStart)} — ${formatProjectDayUTC(projectFinish)}`
               : t(locale, "noDates")}{" "}
             · {taskCount} {taskCount === 1 ? t(locale, "task") : t(locale, "tasks")}
             {durationDays !== undefined ? ` · ${durationDays}d` : ""}
