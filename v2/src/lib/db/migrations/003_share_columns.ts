@@ -7,10 +7,11 @@ import type { Migration } from "@/lib/db/migrator";
  * enlace. Adoptarlo —crear cuenta y quedárselo— es poner las dos a `NULL`.
  *
  * Va por migración y no por `db.ts`. El plan original decía escribirlas en
- * `ensureProjectsTable`, y al ir a mirar resultó que **esa función no la llama
- * nadie** en todo el repositorio: las columnas no se habrían creado nunca, y
- * los tests del plan habrían pasado igual porque solo leían el texto del
- * archivo. Aquí, en cambio, hay un registro de lo aplicado y un `down`.
+ * `ensureProjectsTable`, y al ir a mirar resultó que **esa función no la
+ * llamaba nadie** en todo el repositorio: las columnas no se habrían creado
+ * nunca, y los tests del plan habrían pasado igual porque solo leían el texto
+ * del archivo. Aquí, en cambio, hay un registro de lo aplicado y un `down`.
+ * Aquella función se retiró después, al crear `000_base_schema`.
  *
  * Y por `ALTER`, no cambiando el `CREATE TABLE`: ese lleva `IF NOT EXISTS`, así
  * que en cualquier base que ya exista no se vuelve a ejecutar y las columnas

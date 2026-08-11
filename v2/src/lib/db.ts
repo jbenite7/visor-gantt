@@ -6,36 +6,15 @@ const pool = new Pool({
 
 export default pool;
 
-/* ── Projects table management (called lazily from project.ts) ── */
-
-export async function ensureProjectsTable(): Promise<void> {
-  try {
-    const client = await pool.connect();
-    try {
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS projects (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          name TEXT NOT NULL,
-          project_data JSONB NOT NULL,
-          created_at TIMESTAMPTZ DEFAULT NOW(),
-          updated_at TIMESTAMPTZ DEFAULT NOW()
-        );
-      `);
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS matrix_templates (
-          id TEXT PRIMARY KEY,
-          name TEXT NOT NULL,
-          project_type TEXT,
-          template_data JSONB NOT NULL,
-          created_at TIMESTAMPTZ DEFAULT NOW(),
-          updated_at TIMESTAMPTZ DEFAULT NOW()
-        );
-      `);
-    } finally {
-      client.release();
-    }
-  } catch (err) {
-    // Non-fatal: table may not exist yet, queries will fail gracefully
-    console.warn("Could not ensure projects table:", (err as Error).message);
-  }
-}
+/**
+ * Aquí vivía `ensureProjectsTable`, retirada el 2026-08-11.
+ *
+ * Decía crear la tabla de proyectos, **no la llamaba ningún sitio**, y de
+ * haberla llamado la habría creado con `id UUID` cuando la real es entera: una
+ * trampa esperando a que alguien la invocara. Además se tragaba cualquier fallo
+ * con un `console.warn`, así que ni siquiera habría avisado.
+ *
+ * Quien crea el esquema base ahora es la migración `000_base_schema`, por el
+ * mismo camino que todo lo demás. Dos mecanismos para crear las mismas tablas es
+ * justo donde vuelven a divergir.
+ */
