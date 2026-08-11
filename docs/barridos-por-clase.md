@@ -123,6 +123,14 @@ cronograma de obra real y se navega como visitante. Con eso salieron los dos hal
 sección siguiente. No cubre lo que solo existe con cuenta —guardar, adoptar, listar—, pero sí las
 once vistas de análisis.
 
+*Y ahora cerrada del todo.* Existe un **modo de prueba** —`VISOR_TEST_MODE=1` y
+`/api/modo-prueba`— que abre sesión en una cuenta de revisión propia sin escribir
+ninguna contraseña, con una copia del cronograma de obra encima. Con él se
+revisaron en navegador **Gantt con cuenta, Matriz, Ejecutivo, Cortes** y el
+listado. Está apagado salvo que se encienda a propósito: apagado responde 404 y
+no toca la base ni firma cookie, y eso está fijado en pruebas que en su mayoría
+son del lado apagado. Cómo se usa y qué lo sostiene: `docs/modo-de-prueba.md`.
+
 **3. ~~Nueve campos sin nombre accesible~~ — cerrada, y la cifra estaba mal por partida doble.**
 
 Al mirarlos a ojo no eran nueve sino diecisiete, y **siete de ellos sí tenían nombre**: los de
