@@ -230,6 +230,7 @@ function AddItemForm({
       </td>
       <td style={{ padding: "6px 8px" }}>
         <input
+                    aria-label="Subcategoría"
           type="text"
           value={subcategory}
           onChange={(e) => setSubcategory(e.target.value)}
@@ -239,6 +240,7 @@ function AddItemForm({
       </td>
       <td style={{ padding: "6px 8px" }}>
         <input
+          aria-label="Presupuestado"
           type="number"
           value={budgeted}
           onChange={(e) => setBudgeted(e.target.value)}
@@ -249,6 +251,7 @@ function AddItemForm({
       </td>
       <td style={{ padding: "6px 8px" }}>
         <input
+          aria-label="Gastado"
           type="number"
           value={spent}
           onChange={(e) => setSpent(e.target.value)}
@@ -260,6 +263,7 @@ function AddItemForm({
       <td style={{ padding: "6px 8px", textAlign: "right" }}>—</td>
       <td style={{ padding: "6px 8px" }}>
         <input
+                    aria-label="ej. Q1-2026"
           type="text"
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
@@ -375,6 +379,7 @@ function EditableRow({
       </td>
       <td style={{ padding: "6px 8px" }}>
         <input
+          aria-label="Subcategoría"
           type="text"
           value={subcategory}
           onChange={(e) => setSubcategory(e.target.value)}
@@ -383,6 +388,7 @@ function EditableRow({
       </td>
       <td style={{ padding: "6px 8px" }}>
         <input
+          aria-label="Presupuestado"
           type="number"
           value={budgeted}
           onChange={(e) => setBudgeted(e.target.value)}
@@ -392,6 +398,7 @@ function EditableRow({
       </td>
       <td style={{ padding: "6px 8px" }}>
         <input
+          aria-label="Gastado"
           type="number"
           value={spent}
           onChange={(e) => setSpent(e.target.value)}
@@ -406,6 +413,7 @@ function EditableRow({
       </td>
       <td style={{ padding: "6px 8px" }}>
         <input
+          aria-label="period"
           type="text"
           value={period}
           onChange={(e) => setPeriod(e.target.value)}

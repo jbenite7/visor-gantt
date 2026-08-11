@@ -58,6 +58,8 @@ que *hay*.
 | **Escuchas de eventos sin retirar** | 1 — `SplitPane` dejaba dos por cada arrastre, para siempre |
 | Claves de lista por índice | limpio — las siete son texto sin estado propio y sin reordenarse |
 | Escuchas sobre `AbortSignal` | limpio — el `signal` muere con su petición; no hay nada que retirar |
+| Enlaces externos sin `rel="noopener"` | limpio |
+| **Campos de formulario sin nombre accesible** | 16 arreglados en las dos tablas editables; 9 quedan en otros seis ficheros |
 
 ## Guardianes que quedan puestos
 
@@ -98,7 +100,18 @@ salieron de mirar la app funcionando. No pude: la cookie de sesión es `httpOnly
 desde JS, y no escribo contraseñas en formularios. Hace falta otra vía —una sesión ya abierta, o
 un modo de prueba— para revisar Gantt, Matriz, Ejecutivo y Cortes con datos reales.
 
-**3. Dos rarezas del `.mpp` real, de una tarea cada una:** un resumen sin hijos y un hito con
+**3. Nueve campos sin nombre accesible**, repartidos en `MatrixEditorView`, `GanttTable`,
+`DependencyPopover`, `DependencyPanel`, `SnapshotsBoardView` y `EditableCell`. Arreglé los 16 de
+las dos tablas editables —donde estaban concentrados— y dejé estos porque cada uno necesita mirar
+su contexto para darle un nombre que signifique algo, y ponerle una etiqueta genérica sería
+cambiar «campo mudo» por «campo que miente».
+
+**Aviso sobre la medición:** la heurística que los cuenta es frágil. Con una ventana de 400
+caracteres decía 33 e incluía la página de login, cuyos campos **sí** están dentro de un
+`<label>`; con 2.500 dijo 25. Verifiqué a ojo antes de tocar. Quien siga: comprobar la muestra
+antes de arreglar en bloque.
+
+**4. Dos rarezas del `.mpp` real, de una tarea cada una:** un resumen sin hijos y un hito con
 duración mayor que cero. Poco alcance; sin comprobar cómo los dibuja el Gantt.
 
 ## Dos errores míos de este día, para que no se repitan
