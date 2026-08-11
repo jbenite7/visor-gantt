@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { saveProject } from "@/app/actions/project";
 import { getCurrentUser } from "@/lib/auth/session";
 import { humanParserError } from "@/lib/import/parserErrors";
+import {
+  MAX_FILE_SIZE_MB,
+  archivoDemasiadoGrande,
+} from "@/lib/import/uploadLimits";
 import { buildProjectDataFromMpp } from "@/lib/import/mpp-project";
 import { captureImportSnapshot } from "@/lib/import/importSnapshot";
 import type { ProjectData as ParsedMppProject } from "@/lib/parser/mpp-parser";
 
 const DEFAULT_PARSER_URL = "http://mpp-parser:8000";
-const MAX_FILE_SIZE_MB = 50;
 
 function buildPublicUrl(request: NextRequest, pathname: string): URL {
   const forwardedProto = request.headers.get("x-forwarded-proto");
@@ -59,7 +62,7 @@ export async function POST(request: NextRequest) {
   }
   if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
     return NextResponse.json(
-      { error: `El archivo supera el máximo de ${MAX_FILE_SIZE_MB} MB` },
+      { error: archivoDemasiadoGrande() },
       { status: 413 },
     );
   }

@@ -1,10 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
+import {
+  MAX_FILE_SIZE_MB,
+  archivoDemasiadoGrande,
+} from "@/lib/import/uploadLimits";
 import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
 
-const MAX_FILE_SIZE_MB = 50;
 const IMPORT_TIMEOUT_MS = 180000;
 
 /** Traduce el motivo del aborto a un mensaje para el usuario. */
@@ -20,7 +23,7 @@ function validateMppFile(file: File): string | null {
     return "Selecciona un archivo de Microsoft Project con extensión .mpp";
   }
   if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-    return `El archivo supera el máximo de ${MAX_FILE_SIZE_MB} MB`;
+    return archivoDemasiadoGrande();
   }
   return null;
 }
