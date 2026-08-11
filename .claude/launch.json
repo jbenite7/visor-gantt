@@ -24,6 +24,16 @@
       ],
       "cwd": "v2",
       "port": 3100
+    },
+    {
+      "name": "visor-gantt-modo-prueba",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:modo-prueba"
+      ],
+      "cwd": "v2",
+      "port": 3001
     }
   ]
 }
