@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { adoptSharedProject } from "@/lib/share/adoptSharedProject";
-import { SHARE_TTL_DAYS } from "@/lib/share/shareToken";
+import { SHARE_TTL_DAYS } from "@/lib/share/shareTtl";
 
 /**
  * Quedarse el cronograma que se abrió sin cuenta.

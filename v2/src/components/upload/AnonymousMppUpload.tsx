@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileUp, Loader2 } from "lucide-react";
-import { SHARE_TTL_DAYS } from "@/lib/share/shareToken";
+import { SHARE_TTL_DAYS } from "@/lib/share/shareTtl";
 import {
   MAX_FILE_SIZE_MB,
   archivoDemasiadoGrande,

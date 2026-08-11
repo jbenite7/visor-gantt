@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { SHARE_TTL_DAYS } from "./shareTtl";
 
 /**
  * El enlace de un cronograma que se ve sin cuenta.
@@ -19,7 +20,9 @@ import { randomBytes } from "node:crypto";
  */
 export const SHARE_TOKEN_BYTES = 32;
 
-export const SHARE_TTL_DAYS = 7;
+// La constante vive aparte para que las pantallas de cliente puedan enseñar el
+// plazo sin arrastrar `node:crypto` al navegador.
+export { SHARE_TTL_DAYS } from "./shareTtl";
 
 export function createShareToken(): string {
   return randomBytes(SHARE_TOKEN_BYTES).toString("base64url");
