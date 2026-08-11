@@ -4,8 +4,14 @@
 
 import "@testing-library/jest-dom";
 import type { ComponentProps } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+jest.mock("@/app/actions/project", () => ({
+  saveMatrixTemplate: jest.fn(async () => ({ success: true, id: "t1" })),
+  listMatrixTemplates: jest.fn(async () => []),
+}));
+
 import MatrixEditorView from "./MatrixEditorView";
+import { listMatrixTemplates, saveMatrixTemplate } from "@/app/actions/project";
 import MatrixEditorViewDefault, { MATRIX_VISIBLE_ROWS } from "./MatrixEditorView";
 import type { MatrixPlan } from "@/types/matrix";
 import type { ProjectCalendar } from "@/types/calendar";
@@ -784,7 +790,7 @@ describe("MatrixEditorView · pantallas enchufadas", () => {
     );
   });
 
-  test("guardar como plantilla deja la matriz en las plantillas propias", () => {
+  test("guardar como plantilla deja la matriz en las plantillas propias", async () => {
     renderConPlanPorDefecto();
 
     fireEvent.click(screen.getByRole("button", { name: "Plantillas" }));
@@ -794,8 +800,14 @@ describe("MatrixEditorView · pantallas enchufadas", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Guardar como plantilla" }));
 
-    expect(screen.getByTestId("template-picker-own")).toHaveTextContent(
-      "Matriz montaje",
+    // Se espera: desde el 2026-08-11 el guardado va al servidor y no solo a
+    // memoria, así que la lista se actualiza cuando el servidor confirma. Antes
+    // era síncrono porque no salía de la pestaña — y por eso se perdía al
+    // recargar.
+    await waitFor(() =>
+      expect(screen.getByTestId("template-picker-own")).toHaveTextContent(
+        "Matriz montaje",
+      ),
     );
   });
 
@@ -1380,5 +1392,60 @@ describe("Generar matriz desde el cronograma cumple lo que promete", () => {
     fireEvent.click(screen.getByTestId("matrix-create-blank"));
 
     expect(screen.queryByTestId("proposal-review")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * «Guardar como plantilla» no guardaba nada en ninguna parte.
+ *
+ * `saveAsTemplate` solo hacía `setOwnTemplates(...)`: estado local de React. La
+ * plantilla desaparecía al recargar, y `listMatrixTemplates` tampoco se llamaba
+ * nunca, así que aunque se hubiera guardado no habría vuelto. El botón decía
+ * «Guardar» y no había nada guardado: pérdida de trabajo disfrazada de éxito.
+ *
+ * Las dos acciones de servidor existían desde el principio, escritas y sin un
+ * solo llamador.
+ */
+describe("Guardar como plantilla guarda de verdad", () => {
+  beforeEach(() => {
+    (saveMatrixTemplate as jest.Mock).mockClear();
+    (listMatrixTemplates as jest.Mock).mockClear();
+    (saveMatrixTemplate as jest.Mock).mockResolvedValue({ success: true, id: "t1" });
+    (listMatrixTemplates as jest.Mock).mockResolvedValue([]);
+  });
+
+  test("al abrir, se piden las plantillas guardadas: si no, nunca vuelven", async () => {
+    renderEditor();
+
+    await waitFor(() => expect(listMatrixTemplates).toHaveBeenCalled());
+  });
+
+  test("guardar como plantilla llama al servidor, no solo a la memoria", async () => {
+    renderEditor();
+
+    fireEvent.click(screen.getByRole("button", { name: /plantillas/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /guardar como plantilla/i }),
+    );
+
+    await waitFor(() => expect(saveMatrixTemplate).toHaveBeenCalled());
+  });
+
+  test("si el servidor rechaza, se dice: no se finge que quedó guardada", async () => {
+    (saveMatrixTemplate as jest.Mock).mockResolvedValue({
+      success: false,
+      error: "No tienes permisos para esta acción",
+    });
+
+    renderEditor();
+
+    fireEvent.click(screen.getByRole("button", { name: /plantillas/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /guardar como plantilla/i }),
+    );
+
+    expect(
+      await screen.findByTestId("matrix-template-error"),
+    ).toHaveTextContent(/no tienes permisos/i);
   });
 });
