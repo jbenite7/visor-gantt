@@ -110,20 +110,14 @@ let importedProjectId: string | undefined;
 let matrixProjectId: string | undefined;
 
 test.describe("E2E app completa con evidencia visual y logs", () => {
-  // Warm-up: Next.js dev server compiles routes on demand, on their first request. Every route
-  // below except /login gets its first hit inside the two full-flow tests, so by the time the
-  // later "app module"/"project module" tests run those routes are already compiled — but /login
-  // is never visited by either flow (both authenticate via cookie), so it stays uncompiled until
-  // the "Login" module test is the very first to request it. Once the full flows stopped racing
-  // an artificial 180s timeout, that module test started running while /login's on-demand
-  // compile was still in flight, aborting the main-app.js chunk request mid-navigation. Visiting
-  // it once here, with no assertions attached, lets the dev server finish compiling before any
-  // test relies on it.
-  test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage();
-    await page.goto("/login", { waitUntil: "load" });
-    await page.close();
-  });
+  // Aquí vivía un calentamiento de `/login`: una visita sin assertions cuyo
+  // único fin era que el servidor de desarrollo terminara de compilar esa ruta
+  // antes de que el test "Login" fuera el primero en pedirla. Era un parche por
+  // ruta, y había más rutas.
+  //
+  // La suite ya no corre contra `next dev` sino contra el build de producción,
+  // donde todas las rutas vienen compiladas de antemano. La carrera que el
+  // parche esquivaba no puede ocurrir, así que el parche sobra.
 
   test("flow import-mpp-full-flow", async ({ page }, testInfo) => {
     const logger = createEvidenceLogger(page);
