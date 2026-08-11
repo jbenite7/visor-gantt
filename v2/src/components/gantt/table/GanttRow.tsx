@@ -18,6 +18,7 @@ import {
 } from "@/lib/gantt/editValidation";
 import type { ColumnConfig } from "./ColumnSelector";
 import type { UILocale } from "@/types/ui";
+import { columnLabelForLocale } from "@/lib/gantt/columnLabel";
 import { t } from "@/lib/i18n";
 import { getMppRecordValue } from "@/lib/mpp/recordValues";
 import { dependencyTokenForTaskId, findTaskByRowId, taskRowId } from "@/lib/gantt/taskIds";
@@ -327,6 +328,16 @@ export default function GanttRow({
     /** Identificador estable por celda, para poder apuntar a una en las pruebas. */
     const testId = `cell-${column.key}-${task.id}`;
     /**
+     * Qué se está editando, dicho en voz alta: «Duración de MOVIMIENTO DE
+     * TIERRA». Sin esto, quien usa lector de pantalla oye «edición de texto» y
+     * nada más, en una tabla de cientos de campos iguales.
+     *
+     * Sale del título de la columna y no de un texto escrito aquí: así el
+     * campo sigue a la columna el día que se renombre, en vez de separarse de
+     * ella sin que nadie lo note.
+     */
+    const nombreDelCampo = `${columnLabelForLocale(column, locale)} de ${task.name}`;
+    /**
      * Una fila resumen es la suma de sus hijas: el motor la recalcula en cuanto
      * cambia cualquiera. Dejarla editable es prometer un control que el
      * siguiente recálculo deshace (E27).
@@ -349,6 +360,7 @@ export default function GanttRow({
           >
         {canEdit ? (
           <EditableCell
+            label={nombreDelCampo}
             value={`${namePrefix}${task.name}`}
             type="text"
             align="left"
@@ -393,6 +405,7 @@ export default function GanttRow({
         return <td key={column.key} {...cellAttributes("right")} data-testid={testId}>
         {canEdit ? (
           <EditableCell
+            label={nombreDelCampo}
             value={task.duration}
             type="number"
             align="right"
@@ -418,6 +431,7 @@ export default function GanttRow({
         return <td key={column.key} {...cellAttributes("left", "gantt-row-cell--date")} data-testid={testId}>
         {canEdit ? (
           <EditableCell
+            label={nombreDelCampo}
             value={toISODate(task.start)}
             displayValue={formatCompactDate(task.start)}
             type="date"
@@ -440,6 +454,7 @@ export default function GanttRow({
         return <td key={column.key} {...cellAttributes("left", "gantt-row-cell--date")} data-testid={testId}>
         {canEdit ? (
           <EditableCell
+            label={nombreDelCampo}
             value={toISODate(task.finish)}
             displayValue={formatCompactDate(task.finish)}
             type="date"
@@ -479,6 +494,7 @@ export default function GanttRow({
           <div className="gantt-row-dependencies">
             <div className="gantt-row-dependencies__editor">
               <EditableCell
+                label={nombreDelCampo}
                 value={predecessorValue}
                 displayValue={renderDependencyDisplay(predecessorValue, locale)}
                 type="text"
@@ -516,6 +532,7 @@ export default function GanttRow({
         return <td key={column.key} {...cellAttributes("right")} data-testid={testId}>
         {canEdit ? (
           <EditableCell
+            label={nombreDelCampo}
             value={progress}
             displayValue={formatProgressNumber(progress)}
             type="slider"
@@ -578,6 +595,7 @@ export default function GanttRow({
           return (
             <td key={column.key} {...cellAttributes(column.align)} data-testid={testId}>
               <EditableCell
+                label={nombreDelCampo}
                 value={getMppEditValue(value, column.dataType)}
                 type={mppEditableCellType(column.dataType)}
                 align={column.align}

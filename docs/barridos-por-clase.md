@@ -117,8 +117,21 @@ caracteres decía 33 e incluía la página de login, cuyos campos **sí** están
 `<label>`; con 2.500 dijo 25. Verifiqué a ojo antes de tocar. Quien siga: comprobar la muestra
 antes de arreglar en bloque.
 
-**4. Dos rarezas del `.mpp` real, de una tarea cada una:** un resumen sin hijos y un hito con
-duración mayor que cero. Poco alcance; sin comprobar cómo los dibuja el Gantt.
+**4. ~~Dos rarezas del `.mpp` real~~ — cerrada: no eran rarezas, era mi medición.** Decía «un
+resumen sin hijos y un hito con duración mayor que cero». Las dos se deshacen al medirlas bien:
+
+- El «resumen sin hijos» lo conté buscando `parentId`, **campo que este modelo no tiene**: la
+  jerarquía va por `wbs` y `outlineLevel`. Con el criterio bueno queda uno solo, y es **la fila
+  raíz del proyecto** —la que Microsoft Project pone arriba—, no una tarea mal formada.
+- El «hito con duración 1» tiene **inicio y fin el mismo día y a la misma hora**. Es la convención
+  de Project de contar el día propio.
+
+Comprobado además en pantalla por el mirador: la raíz se dibuja como barra de resumen abarcando
+el proyecto entero, y el hito como rombo. Los dos, bien.
+
+**Es el error del eje de la Línea de Balance otra vez, en otra forma:** deducir de un campo sin
+comprobar antes qué campos existen de verdad. La diferencia es que esta vez lo cacé antes de
+tocar código.
 
 **5. Las migraciones no levantan una base nueva.** El migrador está bien montado —una transacción
 por migración con `ROLLBACK`, `pg_advisory_lock` para que dos instancias no la apliquen a la vez,

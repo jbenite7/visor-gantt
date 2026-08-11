@@ -21,6 +21,22 @@ export const COLUMN_LABEL_CHAR_WIDTH = 7.2;
 /** Los dos lados del `padding-inline` del encabezado: 10 px cada uno, medidos. */
 export const COLUMN_LABEL_PADDING = 20;
 
+/**
+ * El título de una columna en el idioma activo, **entero y sin abreviar**.
+ *
+ * `pickColumnLabel` decide si cabe la forma corta en el encabezado; esto es lo
+ * otro: el nombre completo, para quien lo escucha en vez de verlo. A un lector
+ * de pantalla «Activid.» no le ahorra espacio, solo le quita la palabra.
+ */
+export function columnLabelForLocale(
+  column: { label: string; labelEn?: string; labelEs?: string },
+  locale: string,
+): string {
+  return locale === "en"
+    ? (column.labelEn ?? column.label)
+    : (column.labelEs ?? column.label);
+}
+
 export function pickColumnLabel(input: {
   label: string;
   shortLabel?: string;
