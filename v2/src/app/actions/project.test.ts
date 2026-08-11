@@ -24,10 +24,18 @@ jest.mock("@/lib/auth/rbac", () => ({
   userHasPermission: (...args: unknown[]) => userHasPermission(...args),
 }));
 
+const canAccessProject = jest.fn(async () => true);
+const projectFilterFor = jest.fn(() => ({ where: "", params: [] as string[] }));
+jest.mock("@/lib/auth/projectAccess", () => ({
+  canAccessProject: (...args: unknown[]) => canAccessProject(...args),
+  projectFilterFor: (...args: unknown[]) => projectFilterFor(...args),
+}));
+
 import {
   createMatrixPlanFromTemplate,
   deleteProject,
   loadProject,
+  listProjects,
   listMatrixTemplates,
   saveProject,
   saveMatrixTemplate,
@@ -291,8 +299,13 @@ describe("matrix template actions", () => {
     const loaded = await loadProject("project-1");
 
     expect(saveResult).toEqual({ success: true, id: "project-1" });
-    expect(query.mock.calls[0][0]).toContain("INSERT INTO projects");
-    expect(query.mock.calls[1][0]).toContain("SELECT name, project_data");
+    // Por nombre y no por posición: entre el alta y la lectura se coló el
+    // INSERT de `project_members` -quien crea un proyecto queda como miembro-,
+    // y un test que cuenta llamadas se rompe con cualquier paso intermedio
+    // legítimo. Lo que importa es que ambas consultas ocurrieron.
+    const sqlEjecutado = query.mock.calls.map((c) => String(c[0]));
+    expect(sqlEjecutado.some((q) => q.includes("INSERT INTO projects"))).toBe(true);
+    expect(sqlEjecutado.some((q) => q.includes("SELECT name, project_data"))).toBe(true);
     expect(loaded?.matrixPlan).toEqual(importedMatrixPlan);
     expect(loaded?.planningAuditEvents).toEqual([
       {
@@ -455,5 +468,117 @@ describe("loadProject exige sesión y permiso de lectura", () => {
 
     await expect(loadProject("project-1")).resolves.toBeNull();
     expect(query).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * El fallo más caro de la auditoría del 2026-08-10.
+ *
+ * `authorizeProjectAction` comprobaba el permiso **global** del rol y devolvía
+ * un `userId` que **nunca llegaba a un `WHERE`**. El `UPDATE` de `saveProject`
+ * filtraba solo por el id que mandaba el cliente, así que cualquier usuario con
+ * rol `member` abría el proyecto de otro y el autoguardado le reemplazaba el
+ * blob entero. Sin forjar nada y sin dejar rastro.
+ */
+describe("un proyecto tiene dueño: no se toca el de otro", () => {
+  const proyectoAjeno = {
+    id: "project-de-otro",
+    name: "Torre 3",
+    tasks: [],
+    resources: [],
+    assignments: [],
+    budgetItems: [],
+    budgetMappings: [],
+    baselines: [],
+    calendar,
+  };
+
+  beforeEach(() => {
+    query.mockReset();
+    release.mockClear();
+    connect.mockClear();
+    query.mockResolvedValue({ rows: [] });
+    canAccessProject.mockResolvedValue(true);
+  });
+
+  test("quien no es miembro NO puede guardar encima, y no se toca la base", async () => {
+    canAccessProject.mockResolvedValue(false);
+
+    const resultado = await saveProject(proyectoAjeno);
+
+    expect(resultado.success).toBe(false);
+    expect(resultado.error).toBeTruthy();
+    // Lo que de verdad importa: el UPDATE no llegó a ejecutarse.
+    const sql = query.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(sql).not.toContain("UPDATE projects");
+  });
+
+  test("quien no es miembro NO puede leerlo", async () => {
+    // La base SÍ tiene el proyecto: si no, este test pasaría en vacío —
+    // devolvería null por no encontrarlo, no por rechazar al intruso.
+    query.mockResolvedValue({
+      rows: [{ name: "Torre 3", project_data: { tasks: [] } }],
+      rowCount: 1,
+    });
+    canAccessProject.mockResolvedValue(false);
+
+    await expect(loadProject("project-de-otro")).resolves.toBeNull();
+  });
+
+  test("quien no es miembro NO puede borrarlo", async () => {
+    canAccessProject.mockResolvedValue(false);
+
+    const resultado = await deleteProject("project-de-otro");
+
+    expect(resultado.success).toBe(false);
+    const sql = query.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(sql).not.toContain("DELETE FROM projects");
+  });
+
+  test("el dueño sí puede guardar el suyo", async () => {
+    canAccessProject.mockResolvedValue(true);
+    query.mockResolvedValue({ rows: [{ id: "project-de-otro" }], rowCount: 1 });
+
+    const resultado = await saveProject(proyectoAjeno);
+
+    expect(resultado.success).toBe(true);
+  });
+
+  test("crear un proyecto te deja como miembro: si no, no podrías reabrirlo", async () => {
+    query.mockResolvedValue({ rows: [{ id: "nuevo-1" }], rowCount: 1 });
+
+    await saveProject({ ...proyectoAjeno, id: undefined });
+
+    const sql = query.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(sql).toContain("INSERT INTO project_members");
+  });
+});
+
+describe("listProjects · la home solo enseña lo tuyo", () => {
+  beforeEach(() => {
+    query.mockReset();
+    release.mockClear();
+    query.mockResolvedValue({ rows: [] });
+    projectFilterFor.mockReturnValue({
+      where: "WHERE id::text IN (SELECT project_id FROM project_members WHERE user_id = $1)",
+      params: ["user-1"],
+    });
+  });
+
+  test("filtra por pertenencia en vez de traerlos todos", async () => {
+    await listProjects();
+
+    const [sql, params] = query.mock.calls[0];
+    expect(String(sql)).toContain("project_members");
+    expect(params).toEqual(["user-1"]);
+  });
+
+  test("al admin no le pone filtro", async () => {
+    projectFilterFor.mockReturnValue({ where: "", params: [] });
+
+    await listProjects();
+
+    const [sql] = query.mock.calls[0];
+    expect(String(sql)).not.toContain("project_members");
   });
 });

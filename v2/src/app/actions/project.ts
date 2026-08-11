@@ -39,6 +39,7 @@ import {
   createMatrixPlanFromTemplate as buildMatrixPlanFromTemplate,
 } from "@/lib/matrix/templates";
 import type { PermissionKey } from "@/types/auth";
+import { canAccessProject, projectFilterFor } from "@/lib/auth/projectAccess";
 
 /* ── ProjectData interface ── */
 
@@ -277,9 +278,24 @@ function deserializeProjectData(
 
 /* ── Server Actions ── */
 
-async function authorizeProjectAction(permission: PermissionKey): Promise<
-  { ok: true; userId: string } | { ok: false; error: string }
-> {
+/**
+ * Permiso **y** propiedad. Hacen falta las dos.
+ *
+ * Hasta el 2026-08-10 esto solo comprobaba el permiso global del rol: devolvía
+ * el `userId` y **nunca llegaba a un `WHERE`**. Cualquier usuario con rol
+ * `member` abría el proyecto de otro y el autoguardado le reemplazaba el blob
+ * entero. El permiso dice qué clase de cosas puede hacer alguien; `projectId`
+ * dice sobre cuál.
+ *
+ * Sin `projectId` la comprobación sigue siendo solo de permiso, y eso es
+ * correcto para lo que no cuelga de un proyecto —las plantillas de matriz son
+ * de la instalación, no de un proyecto— y para crear uno nuevo, que todavía no
+ * tiene dueño porque no existe.
+ */
+async function authorizeProjectAction(
+  permission: PermissionKey,
+  projectId?: string,
+): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
   const user = await getCurrentUser();
   if (!user) {
     return { ok: false, error: "No autenticado" };
@@ -287,6 +303,15 @@ async function authorizeProjectAction(permission: PermissionKey): Promise<
   const allowed = await userHasPermission(user.id, permission);
   if (!allowed) {
     return { ok: false, error: "No tienes permisos para esta acción" };
+  }
+  if (projectId) {
+    const suyo = await canAccessProject(
+      { userId: user.id, roles: user.roles ?? [] },
+      projectId,
+    );
+    if (!suyo) {
+      return { ok: false, error: "Este proyecto no es tuyo" };
+    }
   }
   return { ok: true, userId: user.id };
 }
@@ -419,6 +444,7 @@ export async function saveProject(
   try {
     const auth = await authorizeProjectAction(
       projectData.id ? "project:update" : "project:create",
+      projectData.id,
     );
     if (!auth.ok) {
       return { success: false, error: auth.error };
@@ -445,7 +471,16 @@ export async function saveProject(
            RETURNING id`,
           [serialized.name, JSON.stringify(serialized)],
         );
-        return { success: true, id: res.rows[0].id as string };
+        const nuevoId = res.rows[0].id as string;
+        // Quien lo crea queda como miembro. Sin esta fila, el propio autor no
+        // podría reabrir el proyecto que acaba de guardar.
+        await client.query(
+          `INSERT INTO project_members (project_id, user_id, role_id)
+           VALUES ($1, $2, 'admin')
+           ON CONFLICT (project_id, user_id) DO NOTHING`,
+          [String(nuevoId), auth.userId],
+        );
+        return { success: true, id: nuevoId };
       }
     } finally {
       client.release();
@@ -569,7 +604,7 @@ export async function createMatrixProject({
 export async function loadProject(
   projectId: string,
 ): Promise<ProjectData | null> {
-  const auth = await authorizeProjectAction("project:read");
+  const auth = await authorizeProjectAction("project:read", projectId);
   if (!auth.ok) return null;
 
   try {
@@ -597,13 +632,25 @@ export async function listProjects(): Promise<
   { id: string; name: string; updatedAt: Date }[]
 > {
   try {
+    const user = await getCurrentUser();
     const auth = await authorizeProjectAction("project:read");
-    if (!auth.ok) return [];
+    if (!auth.ok || !user) return [];
+
+    // El listado enseñaba TODOS los proyectos de la instalación a cualquiera
+    // con permiso de lectura. Ahora enseña aquellos de los que se es miembro;
+    // al admin, todos, que es la decisión tomada.
+    const filtro = projectFilterFor({
+      userId: user.id,
+      roles: user.roles ?? [],
+    });
 
     const client = await pool.connect();
     try {
       const res = await client.query(
-        `SELECT id, name, updated_at FROM projects ORDER BY updated_at DESC`,
+        `SELECT id, name, updated_at FROM projects
+         ${filtro.where}
+         ORDER BY updated_at DESC`,
+        filtro.params,
       );
       return res.rows.map(
         (row: { id: string; name: string; updated_at: string }) => ({
@@ -628,7 +675,7 @@ export async function deleteProject(
   projectId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const auth = await authorizeProjectAction("project:delete");
+    const auth = await authorizeProjectAction("project:delete", projectId);
     if (!auth.ok) {
       return { success: false, error: auth.error };
     }

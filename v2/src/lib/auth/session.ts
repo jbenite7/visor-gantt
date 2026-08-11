@@ -9,6 +9,8 @@ import type { LoginErrorCode } from "./loginErrors";
 
 const SESSION_COOKIE = "vg_session";
 const SESSION_DAYS = 7;
+import { roleForMicrosoftUser } from "./initialAdmin";
+
 const INITIAL_ADMIN_EMAIL = process.env.INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
 const INITIAL_ADMIN_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD;
 
@@ -137,7 +139,15 @@ export async function upsertMicrosoftUser({
     [normalized, name || normalized, microsoftOid],
   );
   const userId = result.rows[0].id as string;
-  await assignRole(userId, existingUsers === 0 ? "admin" : "member");
+  // Ser el primero ya no basta para llevarse el control de la instalación.
+  await assignRole(
+    userId,
+    roleForMicrosoftUser({
+      esPrimerUsuario: existingUsers === 0,
+      email: normalized,
+      correoSemilla: INITIAL_ADMIN_EMAIL,
+    }),
+  );
   return userId;
 }
 
