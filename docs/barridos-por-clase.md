@@ -120,6 +120,20 @@ antes de arreglar en bloque.
 **4. Dos rarezas del `.mpp` real, de una tarea cada una:** un resumen sin hijos y un hito con
 duración mayor que cero. Poco alcance; sin comprobar cómo los dibuja el Gantt.
 
+**5. Las migraciones no levantan una base nueva.** El migrador está bien montado —una transacción
+por migración con `ROLLBACK`, `pg_advisory_lock` para que dos instancias no la apliquen a la vez,
+y las seis son idempotentes, comprobado ejecutándolas dos veces—. Pero **cuatro de las seis fallan
+en una base virgen**: 002, 003, 005 y 006 dan `relation "projects" does not exist`, porque las
+tablas base no las crea ninguna migración. La función que las crearía, `ensureProjectsTable`, **no
+la llama nadie**, y además crearía `projects` con `id UUID` cuando la real es `integer`.
+
+*Medido, no leído:* base virgen, las seis migraciones una a una.
+
+**No afecta al despliegue sobre la base actual**, que ya tiene las seis aplicadas y las cuatro
+tablas base. Afecta a una instalación nueva, que hoy no arranca sola. No lo arreglé porque decidir
+cómo se crea el esquema base —y con qué tipo de `id`— es un contrato, no un detalle: queda
+consultado.
+
 ## Lo que se vio al mirar la app funcionando
 
 Dos hallazgos, los dos de la clase «la app promete algo que no cumple», los dos **invisibles

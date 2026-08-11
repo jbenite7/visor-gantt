@@ -98,6 +98,15 @@ async function createAuthSchema(): Promise<void> {
         PRIMARY KEY (project_id, user_id)
       );
     `);
+    // La home filtra por `user_id`, que es la **segunda** columna de la clave
+    // primaria, y un índice compuesto no sirve para buscar por su segunda
+    // columna. Lo pone también la migración 006, para las bases que ya existen;
+    // aquí porque en una instalación nueva esa migración corre antes de que
+    // esta tabla exista y se quedaría sin efecto y sin avisar.
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_project_members_user
+        ON project_members (user_id);
+    `);
 
     for (const permission of PERMISSIONS) {
       await client.query(
