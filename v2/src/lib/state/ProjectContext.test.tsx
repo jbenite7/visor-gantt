@@ -662,6 +662,45 @@ describe("ProjectProvider · un proyecto que llega con enlaces rotos", () => {
 
     expect(ctx().loadedOrphanCount).toBe(0);
   });
+
+  test("al llegar otro proyecto, el contador deja de hablar del anterior", () => {
+    // Este test **pasaba ya antes de arreglar nada**, y merece explicarse.
+    //
+    // `loadedOrphanCount` faltaba en las dependencias del `useMemo` que arma el
+    // contexto, y aun así el número llegaba bien: dos `useCallback` que sí lo
+    // llevan —`updateTask` y los suyos— cambian de identidad cuando cambia, y
+    // esos sí están en la lista, así que arrastran al memo. Llegaba **por
+    // rebote**, no por derecho.
+    //
+    // Por eso el test se queda aunque hoy no falle: el día que alguien saque
+    // `loadedOrphanCount` de las dependencias de esos callbacks, el rebote
+    // desaparece y un proyecto sano heredaría el aviso de enlaces rotos del
+    // anterior. Entonces este test se pone rojo y dice por qué.
+    let ctx: ProjectContextValue | undefined;
+    const conRotas = [
+      task({ id: 1 }),
+      task({ id: 2, dependencies: [{ from: 99, to: 2, type: "FS" }] }),
+    ];
+    const sanas = [
+      task({ id: 1 }),
+      task({ id: 2, dependencies: [{ from: 1, to: 2, type: "FS" }] }),
+    ];
+
+    const { rerender } = render(
+      <ProjectProvider initialTasks={conRotas}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+    expect(ctx!.loadedOrphanCount).toBe(1);
+
+    rerender(
+      <ProjectProvider initialTasks={sanas}>
+        <Harness onValue={(value) => (ctx = value)} />
+      </ProjectProvider>,
+    );
+
+    expect(ctx!.loadedOrphanCount).toBe(0);
+  });
 });
 
 describe("deleteTasks · el aviso dice el impacto en dependencias", () => {

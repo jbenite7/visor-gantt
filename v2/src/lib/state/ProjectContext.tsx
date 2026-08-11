@@ -998,6 +998,12 @@ export function ProjectProvider({
       toggleObservation,
       deleteObservation,
       lastAction,
+      // Faltaba, y el compilador de React lo marcaba como error: «Existing
+      // memoization could not be preserved». El número llegaba bien igualmente,
+      // pero de rebote —`updateTask` y compañía sí lo llevan y cambian de
+      // identidad con él—. Depender de un rebote es depender de que nadie toque
+      // la lista de al lado.
+      loadedOrphanCount,
       lastRejection,
       lastChange,
       reportInvalidEdit,
