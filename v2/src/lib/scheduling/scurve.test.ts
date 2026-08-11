@@ -524,3 +524,62 @@ describe("sin datos no se inventa un semáforo verde (M1)", () => {
     expect(r.cpi).toBeNull();
   });
 });
+
+/**
+ * El diagnóstico medía contra **hoy**, no contra la fecha de corte del `.mpp`.
+ *
+ * `diagnoseSCurve` decidía qué tareas «ya empezaron» con `new Date()`. En un
+ * cronograma cortado en el pasado —que es el caso normal: se importa el corte
+ * de obra de hace dos semanas— contaba como iniciadas tareas que en la fecha
+ * del corte todavía no habían empezado, y las acusaba de no reportar avance.
+ *
+ * Es la misma familia del fallo de `statusDate`: el dato correcto existía y el
+ * cálculo usaba otro.
+ */
+describe("diagnoseSCurve mide contra la fecha de corte", () => {
+  function tareaIniciada(id: number, inicio: string): GanttTask {
+    return {
+      id,
+      name: `Tarea ${id}`,
+      start: new Date(inicio),
+      finish: new Date("2026-12-31T00:00:00.000Z"),
+      duration: 10,
+      progress: 0,
+      isCritical: false,
+      isMilestone: false,
+      isSummary: false,
+      outlineLevel: 1,
+      dependencies: [],
+    } as unknown as GanttTask;
+  }
+
+  const tareas = [
+    tareaIniciada(1, "2026-01-01T00:00:00.000Z"),
+    tareaIniciada(2, "2026-01-02T00:00:00.000Z"),
+    // La clave del test: empieza DESPUÉS del corte pero ANTES de hoy. Con el
+    // corte no cuenta; midiendo contra hoy, sí. Si el fixture no distinguiera
+    // los dos casos, este test pasaría con el cálculo viejo y no probaría nada.
+    tareaIniciada(3, "2026-05-01T00:00:00.000Z"),
+  ];
+
+  test("no acusa de «sin avance» a lo que aún no había empezado en el corte", () => {
+    const corte = new Date("2026-01-03T00:00:00.000Z");
+
+    const diagnostico = diagnoseSCurve([...tareas], [], [], corte).find(
+      (d) => d.kind === "missingProgress",
+    );
+
+    // Solo las dos que ya habían empezado al corte.
+    expect(diagnostico?.taskIds).toEqual([1, 2]);
+  });
+
+  test("sin fecha de corte sigue midiendo contra hoy, como antes", () => {
+    const diagnostico = diagnoseSCurve([...tareas], [], []).find(
+      (d) => d.kind === "missingProgress",
+    );
+
+    // Contra hoy las tres han empezado. Este test es el control: si diera lo
+    // mismo que el de arriba, el de arriba no probaría nada.
+    expect(diagnostico?.taskIds).toEqual([1, 2, 3]);
+  });
+});

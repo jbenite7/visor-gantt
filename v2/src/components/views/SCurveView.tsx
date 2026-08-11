@@ -252,8 +252,19 @@ export default function SCurveView({
     [evData],
   );
   const diagnostics = useMemo(
-    () => diagnoseSCurve(tasks, budgetMappings, budgetItems),
-    [tasks, budgetMappings, budgetItems],
+    () =>
+      diagnoseSCurve(
+        tasks,
+        budgetMappings,
+        budgetItems,
+        // La misma fecha que usa el resto de la vista: el diagnóstico medía
+        // contra hoy mientras la curva medía contra el corte.
+        statusDate ? createProjectDate(statusDate) : undefined,
+      ),
+    // `statusDate` va aquí o el diagnóstico se queda con la fecha vieja: es el
+    // mismo fallo que el contador de huérfanas del 2026-08-10, y reaparece con
+    // cada dato nuevo que entre en un cálculo memorizado.
+    [tasks, budgetMappings, budgetItems, statusDate],
   );
 
   // ── Projection ──
