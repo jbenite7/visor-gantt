@@ -15,11 +15,14 @@ function clienteEspia() {
 }
 
 describe("003_share_columns (E51: la tabla admite proyectos temporales)", () => {
-  test("está registrada, y después de las dos que ya había", () => {
+  test("está registrada, y el orden de aplicación es ascendente", () => {
     const ids = ALL_MIGRATIONS.map((m) => m.id);
 
     expect(ids).toContain("003_share_columns");
-    expect(ids.indexOf("003_share_columns")).toBe(ids.length - 1);
+    // «Va la última» envejece en cuanto alguien añade la siguiente — pasó justo
+    // aquí al traer las migraciones 004 y 005. Lo que importa es que se
+    // apliquen en orden: el migrador ejecuta el array tal cual.
+    expect([...ids].sort()).toEqual(ids);
   });
 
   test("añade el enlace con ALTER, no tocando el CREATE TABLE", async () => {

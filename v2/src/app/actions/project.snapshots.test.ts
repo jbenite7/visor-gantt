@@ -24,6 +24,13 @@ jest.mock("@/lib/auth/session", () => ({
   getCurrentUser: jest.fn(async () => ({ id: "user-1", email: "aia@example.com" })),
 }));
 
+// Esta valla mide qué SQL escribe el guardado, no quién puede guardar. La
+// propiedad del proyecto tiene sus propios tests en `project.test.ts`.
+jest.mock("@/lib/auth/projectAccess", () => ({
+  canAccessProject: jest.fn(async () => true),
+  projectFilterFor: () => ({ where: "", params: [] }),
+}));
+
 jest.mock("@/lib/auth/rbac", () => ({
   userHasPermission: jest.fn(async () => true),
 }));
