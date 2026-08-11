@@ -116,6 +116,7 @@ import {
   roleViewPresetLabel,
 } from "@/lib/gantt/roleViewPresets";
 import { normalizeTaskStructure } from "@/lib/gantt/taskStructure";
+import { downloadScheduleCsv } from "@/lib/gantt/scheduleExchange";
 import { saveStatusLabel } from "@/lib/gantt/saveStatusLabel";
 import { shouldStartSave } from "@/lib/gantt/saveGuard";
 import { shouldWarnBeforeUnload } from "@/lib/gantt/pendingChanges";
@@ -1545,8 +1546,10 @@ function GanttViewInner({
         setActiveView("settings");
         break;
       case "export-schedule":
-        setActiveView("gantt");
-        // El export vive junto a la tabla, donde está lo que se va a exportar.
+        // Antes esto solo cambiaba de vista: el comando anunciaba «descarga en
+        // CSV» y no descargaba nada. Ahora descarga, con el mismo código que el
+        // botón de la tabla.
+        downloadScheduleCsv(calculatedTasks, observations);
         break;
       case "view-executive":
         setActiveView("executive");

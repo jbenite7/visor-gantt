@@ -584,6 +584,9 @@ export default function MatrixEditorView({
     draft?.recipes[0];
 
   const createDraft = () => {
+    // Sin esto, una propuesta abandonada reaparece dentro de la matriz recién
+    // creada como un ProposalReview fantasma.
+    setProposal(null);
     const firstTaskStart = tasks[0]?.start.toISOString().slice(0, 10);
     const plan = createDefaultMatrixPlan({
       name: "Programación Matricial",
@@ -1190,6 +1193,26 @@ export default function MatrixEditorView({
         </div>
       );
     });
+
+  // Sin borrador pero CON propuesta: se enseña la propuesta.
+  //
+  // Antes no existía esta rama, y el resultado era que «Generar matriz desde el
+  // cronograma» guardaba una propuesta que la pantalla no pintaba nunca: el
+  // retorno de abajo se disparaba igual y el usuario veía la portada otra vez,
+  // como si el botón no hiciera nada.
+  if (!draft && proposal) {
+    return (
+      <div data-testid="matrix-editor-proposal" className="apple-module h-full overflow-auto">
+        <div className="mx-auto max-w-3xl p-6">
+          <ProposalReview
+            proposal={proposal}
+            onAccept={acceptProposal}
+            onCancel={() => setProposal(null)}
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (!draft) {
     return (

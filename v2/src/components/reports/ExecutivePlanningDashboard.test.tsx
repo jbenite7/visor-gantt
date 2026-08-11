@@ -81,7 +81,11 @@ describe("ExecutivePlanningDashboard", () => {
     fireEvent.click(screen.getByTestId("executive-report-copy"));
 
     await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
-    expect(writeText.mock.calls[0][0]).toContain("KPI,Avance,45.0%,SPI 0.82");
+    // Al portapapeles va TSV desde el 2026-08-11: con comas, Excel pegaba todo
+    // en una sola columna. Las columnas son las mismas.
+    expect(writeText.mock.calls[0][0]).toContain(
+      "KPI\tAvance\t45.0%\tSPI 0.82",
+    );
     await waitFor(() =>
       expect(screen.getByTestId("executive-report-export-status")).toHaveTextContent("Copiado"),
     );
@@ -148,5 +152,76 @@ describe("el tablero informa bien o dice que no sabe (M1, M3, M8)", () => {
     expect(screen.getAllByTestId("executive-signal")[0].tagName).not.toBe(
       "BUTTON",
     );
+  });
+});
+
+/**
+ * «Copiar para Excel» mandaba el CSV con comas, y Excel al pegar lo dejaba
+ * **todo en una columna**. Y el CSV descargado salía sin marca de orden de
+ * bytes, así que las tildes se rompían al abrirlo.
+ */
+describe("el informe llega a Excel como una tabla, no como un churro", () => {
+  const summary = {
+    health: "warning",
+    kpis: [
+      {
+        id: "progress",
+        label: "Avance",
+        value: "45.0%",
+        detail: "SPI 0.82",
+        health: "warning",
+      },
+    ],
+    signals: [
+      {
+        dimension: "schedule",
+        health: "warning",
+        title: "Cronograma",
+        detail: "2 tareas críticas",
+        recommendation: "Priorizar restricciones.",
+      },
+    ],
+  } as unknown as ExecutivePlanningSummary;
+
+  test("copiar manda tabuladores, que es lo que Excel reparte en columnas", async () => {
+    const copiado: string[] = [];
+    // `navigator.clipboard` es de solo lectura, igual que en el test de arriba.
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: jest.fn(async (t: string) => {
+          copiado.push(t);
+        }),
+      },
+    });
+
+    render(<ExecutivePlanningDashboard summary={summary} />);
+    fireEvent.click(screen.getByTestId("executive-report-copy"));
+
+    await waitFor(() => expect(copiado.length).toBe(1));
+    expect(copiado[0]).toContain("\t");
+    expect(copiado[0].split("\n")[0]).not.toContain(",");
+  });
+
+  test("la descarga lleva la marca que hace que Excel respete las tildes", () => {
+    let contenido = "";
+    const BlobOriginal = global.Blob;
+    global.Blob = class extends BlobOriginal {
+      constructor(partes: BlobPart[], opciones?: BlobPropertyBag) {
+        contenido = String(partes[0]);
+        super(partes, opciones);
+      }
+    } as unknown as typeof Blob;
+    global.URL.createObjectURL = jest.fn(() => "blob:x");
+    global.URL.revokeObjectURL = jest.fn();
+    jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    render(<ExecutivePlanningDashboard summary={summary} />);
+    fireEvent.click(screen.getByTestId("executive-report-download"));
+
+    expect(contenido.startsWith("﻿")).toBe(true);
+
+    global.Blob = BlobOriginal;
+    jest.restoreAllMocks();
   });
 });

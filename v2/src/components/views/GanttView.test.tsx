@@ -2814,3 +2814,34 @@ describe("GanttView en solo lectura (E51)", () => {
     expect(screen.getByTestId("sidebar-view-executive")).toBeInTheDocument();
   });
 });
+
+/**
+ * El comando ⌘K «Exportar el cronograma — descarga en CSV» era un no-op:
+ * cambiaba de vista y no descargaba nada. Un comando que no hace lo que anuncia
+ * es peor que no tenerlo.
+ */
+describe("el comando de exportar descarga de verdad", () => {
+  test("al ejecutarlo, se dispara la descarga", () => {
+    const descargas: string[] = [];
+    jest
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        descargas.push(this.download);
+      });
+    global.URL.createObjectURL = jest.fn(() => "blob:x");
+    global.URL.revokeObjectURL = jest.fn();
+
+    render(<GanttView tasks={[makeTask({ id: 1 })]} />);
+
+    fireEvent.click(screen.getByTestId("command-palette-open"));
+    fireEvent.change(screen.getByTestId("command-palette-input"), {
+      target: { value: "Exportar" },
+    });
+    fireEvent.keyDown(window, { key: "Enter" });
+
+    expect(descargas.length).toBeGreaterThan(0);
+    expect(descargas[0]).toMatch(/\.csv$/);
+
+    jest.restoreAllMocks();
+  });
+});

@@ -1307,3 +1307,78 @@ describe("MatrixEditorView · la portada de la Matriz (R8)", () => {
     expect(screen.getByTestId("matrix-editor")).toBeInTheDocument();
   });
 });
+
+/**
+ * «Generar matriz desde el cronograma» guardaba una propuesta que la propia
+ * pantalla no pintaba nunca.
+ *
+ * `MatrixIntro` —la portada que R0 acababa de construir— llamaba a
+ * `setProposal`, pero `ProposalReview` solo se pinta dentro de la rama que
+ * exige `draft`, y el retorno temprano de «sin borrador» se dispara antes. El
+ * usuario pulsaba y no pasaba nada. Y si después creaba una matriz en blanco,
+ * aparecía un `ProposalReview` fantasma con la propuesta olvidada.
+ */
+describe("Generar matriz desde el cronograma cumple lo que promete", () => {
+  function renderConTareas() {
+    render(
+      <MatrixEditorView
+        tasks={cronogramaRepetido()}
+        onApplyMatrixPlan={jest.fn()}
+        onSyncFromGantt={jest.fn()}
+      />,
+    );
+  }
+
+  test("al generar desde la portada, la propuesta se ve", () => {
+    renderConTareas();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /generar matriz desde el cronograma/i }),
+    );
+
+    expect(screen.getByTestId("proposal-review")).toBeInTheDocument();
+  });
+
+  test("y la portada deja paso: no se quedan las dos a la vez", () => {
+    renderConTareas();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /generar matriz desde el cronograma/i }),
+    );
+
+    expect(screen.queryByTestId("matrix-editor-empty")).not.toBeInTheDocument();
+  });
+
+  test("se puede volver atrás sin quedarse encerrado", () => {
+    renderConTareas();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /generar matriz desde el cronograma/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /cancelar|descartar/i }));
+
+    expect(screen.getByTestId("matrix-editor-empty")).toBeInTheDocument();
+  });
+
+  // El `ProposalReview` fantasma que motivó esto ya no se puede provocar: con la
+  // rama nueva, mientras hay propuesta pendiente la portada no se pinta, así que
+  // no hay botón de «crear en blanco» que pulsar. `createDraft` limpia la
+  // propuesta igualmente, como defensa para el día que aparezca otro camino —y
+  // por eso ninguna mutación de esa línea pone rojo a nadie: es inalcanzable
+  // hoy, y conviene decirlo en vez de fingir que está cubierta.
+  //
+  // Lo que este test sí comprueba, y es alcanzable: tras descartar la
+  // propuesta, crear en blanco entra limpio.
+  test("tras descartar la propuesta, crear en blanco entra sin restos", () => {
+    renderConTareas();
+
+    // Se genera una propuesta, se vuelve atrás, y se crea en blanco.
+    fireEvent.click(
+      screen.getByRole("button", { name: /generar matriz desde el cronograma/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /cancelar|descartar/i }));
+    fireEvent.click(screen.getByTestId("matrix-create-blank"));
+
+    expect(screen.queryByTestId("proposal-review")).not.toBeInTheDocument();
+  });
+});

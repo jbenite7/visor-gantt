@@ -134,3 +134,27 @@ export function exportedScheduleFileName(baseName = "cronograma"): string {
   const today = formatProjectDate(new Date()).replace(/\//g, "-");
   return `${baseName}-${today}.csv`;
 }
+
+/**
+ * Descarga el cronograma como CSV.
+ *
+ * Vivía dentro de `GanttTable`, y por eso el comando ⌘K «Exportar el cronograma
+ * — descarga en CSV» **no descargaba nada**: solo cambiaba de vista. Aquí lo
+ * usan los dos caminos, en vez de duplicar la lógica del BOM y del nombre.
+ */
+export function downloadScheduleCsv(
+  tasks: GanttTask[],
+  observations: Observation[],
+): void {
+  // La marca de orden de bytes hace que Excel abra el CSV con las tildes bien.
+  const blob = new Blob([`﻿${tasksToCsv(tasks, observations)}`], {
+    type: "text/csv;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = exportedScheduleFileName();
+  link.click();
+  // Sin esto el blob se queda en memoria hasta que se recargue la página.
+  URL.revokeObjectURL(url);
+}

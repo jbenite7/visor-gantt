@@ -30,6 +30,14 @@ export interface SnapshotsBoardViewProps {
   isLoading: boolean;
   loadSnapshot: (snapshotId: string) => Promise<ProjectSnapshot | null>;
   onMarkSnapshot: (name: string) => void;
+  /**
+   * Por qué falló el último intento de marcar un corte.
+   *
+   * Antes no existía: `SCurveView` descartaba el motivo que venía del servidor
+   * con un `if (!result.success) return;`, así que el usuario pulsaba y no
+   * pasaba nada. Un fallo mudo es peor que un fallo.
+   */
+  markError?: string | null;
 }
 
 function shiftLabel(days: number): string {
@@ -43,6 +51,7 @@ export default function SnapshotsBoardView({
   isLoading,
   loadSnapshot,
   onMarkSnapshot,
+  markError = null,
 }: SnapshotsBoardViewProps) {
   const [selected, setSelected] = useState<ProjectSnapshot | null>(null);
   const [markName, setMarkName] = useState("");
@@ -116,6 +125,15 @@ export default function SnapshotsBoardView({
         >
           Marcar corte
         </button>
+        {markError && (
+          <p
+            data-testid="snapshot-mark-error"
+            role="alert"
+            className="w-full text-xs font-semibold text-[var(--aia-warn-main)]"
+          >
+            {markError}
+          </p>
+        )}
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto p-4">

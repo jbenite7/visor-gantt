@@ -26,6 +26,7 @@ import { t } from "@/lib/i18n";
 import { filterTasks, normalizeTaskFilter } from "@/lib/gantt/taskFilters";
 import {
   exportedScheduleFileName,
+  downloadScheduleCsv,
   tasksToCsv,
   tasksToExcelTsv,
 } from "@/lib/gantt/scheduleExchange";
@@ -662,18 +663,11 @@ export default function GanttTable({
   }, [exportText]);
 
   const handleDownloadExport = useCallback(() => {
-    // La marca de orden de bytes hace que Excel abra el CSV con las tildes bien.
-    const blob = new Blob([`\ufeff${csvText}`], {
-      type: "text/csv;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = exportedScheduleFileName();
-    link.click();
-    URL.revokeObjectURL(url);
+    // El mismo camino que usa el comando ⌘K: una sola copia de la lógica del
+    // BOM y del nombre de archivo, para que no se separen.
+    downloadScheduleCsv(visibleTasks, observations ?? []);
     setExportStatus("downloaded");
-  }, [csvText]);
+  }, [visibleTasks, observations]);
 
   const handleRowDragStart = useCallback(
     (taskId: string | number, event: React.DragEvent<HTMLTableRowElement>) => {
