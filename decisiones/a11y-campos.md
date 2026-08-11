@@ -10,6 +10,17 @@ alcanzable**.
 Queda encolado aquí, que es lo que manda la regla. No se fuerza el gate: `CAS_SKIP_GATE=1` existe
 para una emergencia real, y esto no lo es.
 
+**La cola encargada está terminada entera**, no solo el frente de accesibilidad:
+
+- Campos sin nombre: cerrado (ver abajo).
+- Rarezas del `.mpp`: cerradas — no eran rarezas, era la medición.
+- **Recursos del `.mpp`: cerrada.** Los tres archivos traen un solo recurso sin nombre, que es el
+  recurso nulo de Project. El de obra no trae ninguno más; el de Estación 16 trae diecisiete y el
+  importador los conserva. **No hay nada que rescatar y el importador no se toca.**
+
+Lo único que sigue bloqueado por fuera es la revisión de las vistas con sesión, que espera al modo
+de prueba. No se buscaron credenciales.
+
 
 Formato de cada entrada: qué se decide · qué se midió · opciones reales · recomendación.
 
