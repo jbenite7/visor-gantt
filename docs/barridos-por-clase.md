@@ -464,6 +464,39 @@ Tres cosas que deja esto, y valen más que el parche:
   hallazgo salió de que alguien se pusiera a intentar burlar el control a propósito —y de que la
   propia función llevara escrita la regla que lo condenaba—.
 
+**La lista de receptores inertes es blanca a propósito**, y esa vuelta de tuerca importa: la
+propuesta inicial era «si el receptor es un shell, mira el cuerpo», o sea **enumerar los peligros**,
+que siempre se queda corta —falta un intérprete y ya hay agujero—. Enumerando **lo seguro**
+(`cat`, `tee`, `git`, `jq`…), un receptor que nadie previó cae del lado correcto: se mira.
+
+### El falso positivo que queda, y por qué no se arregla
+
+Reproducido, en sus dos variantes, para que nadie lo persiga creyendo que es un fallo nuevo:
+
+```
+git commit -m "cierra el rodeo: bash <<'EOF' con git push origin main dentro"   → no detecta
+git commit -m "ejemplo:
+bash <<'EOF'
+git push origin main
+EOF"                                                                            → DETECTA
+```
+
+En una línea pasa; **multilínea salta**, porque cada línea del mensaje se lee como posición de
+comando. Es el que bloqueó el commit del propio arreglo.
+
+**Se deja a propósito.** Distinguir un heredoc escrito dentro de un `-m` entrecomillado de uno de
+verdad obliga a **empezar a interpretar comillas** — que es exactamente el camino que abría el
+agujero de la sección anterior. La compensación está escrita en el propio código y decide sola: *un
+falso positivo cuesta un rodeo; un falso negativo deja publicar sin visto*. El precio de este es
+escribir el mensaje en un archivo; el precio del otro camino es que cualquiera publique sin visto.
+
+**La salida práctica**, cuando toque: `git commit -F <archivo>`, o quitar el ejemplo del mensaje.
+
+*Y una nota sobre cómo se cerró este cabo: lo di por suelto **sin diagnosticarlo**, porque mi
+reproducción en frío decía «no es publicación» — la había escrito en una sola línea. La reprodujo
+quien lo buscó multilínea. Anotar «no sé por qué» y no inventar la causa es lo que permitió que otro
+lo encontrara en diez minutos.*
+
 *Y un aviso que no es del censo pero conviene aquí: `~/.claude/cas` es un **symlink** al repositorio
 del plugin, así que un cambio guardado ahí queda **vivo para todas las sesiones al instante, sin que
 nadie publique nada**. Los tres arreglos estuvieron un rato en ese estado —vivos y sin publicar— y
