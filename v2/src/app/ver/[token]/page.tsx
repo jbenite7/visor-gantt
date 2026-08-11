@@ -28,8 +28,7 @@ export default async function VerCronogramaPage({
     <SharedProjectView
       token={token}
       projectName={compartido.name}
-      tasks={compartido.data.tasks}
-      calendar={compartido.data.calendar}
+      data={compartido.data}
       expiresAt={compartido.expiresAt.toISOString()}
     />
   );

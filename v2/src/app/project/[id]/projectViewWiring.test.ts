@@ -90,4 +90,40 @@ describe("todo dato del proyecto llega desde la página hasta el Gantt", () => {
 
     expect(olvidados).toEqual([]);
   });
+
+  /**
+   * El mismo camino, por la puerta de E51.
+   *
+   * **Encontrado mirando la app funcionando, no leyendo el código.** La ruta
+   * pública `/ver/<token>` monta el mismo Gantt, con su barra lateral entera:
+   * Recursos, Matriz, Presupuesto, Curva S. Pero solo le pasaba las tareas y el
+   * calendario, así que quien abría el enlace veía media docena de pantallas
+   * vacías y creía que el cronograma venía sin esos datos. La base los tenía.
+   *
+   * Es la misma forma de fallo que este trabajo lleva semanas cerrando: la app
+   * ofreciendo algo que no cumple. Y el guardián de arriba no lo veía porque
+   * solo miraba la página con sesión.
+   */
+  describe("y también por el enlace público, que monta el mismo Gantt", () => {
+    const pagePublica = readFileSync("src/app/ver/[token]/page.tsx", "utf8");
+    const vistaPublica = readFileSync(
+      "src/app/ver/[token]/SharedProjectView.tsx",
+      "utf8",
+    );
+
+    test("la página pública entrega el proyecto entero, sin elegir campos", () => {
+      // Aquí no se comprueba campo a campo a propósito: la página pasa el
+      // objeto completo (`data={compartido.data}`), y eso es *más* fuerte que
+      // una lista, porque no hay dónde olvidarse un campo. Lo que sí se
+      // comprueba es que siga siendo así y nadie vuelva a desmenuzarlo.
+      expect(pagePublica).toContain("data={compartido.data}");
+      expect(pagePublica).not.toContain("compartido.data.tasks");
+    });
+
+    test("SharedProjectView los pasa al Gantt", () => {
+      const olvidados = AVIAJAR.filter((dato) => !viaja(dato, vistaPublica));
+
+      expect(olvidados).toEqual([]);
+    });
+  });
 });
