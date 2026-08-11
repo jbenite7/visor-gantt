@@ -9,6 +9,12 @@ import {
 } from "react";
 import { formatLobTickLabel } from "@/lib/charts/lobTickLabel";
 import {
+  inicioDeDiaUTC,
+  inicioDeMesUTC,
+  inicioDeSemanaUTC,
+  inicioDeTrimestreUTC,
+} from "@/lib/charts/lobTicks";
+import {
   ChevronLeft,
   ChevronRight,
   RotateCcw,
@@ -66,38 +72,6 @@ function unitToY(unitIndex: number, maxUnit: number, height: number): number {
   );
 }
 
-function startOfDay(date: Date): Date {
-  const result = new Date(date);
-  result.setHours(0, 0, 0, 0);
-  return result;
-}
-
-function startOfWeek(date: Date): Date {
-  const result = startOfDay(date);
-  const day = result.getDay() || 7;
-  result.setDate(result.getDate() - day + 1);
-  return result;
-}
-
-function startOfMonth(date: Date): Date {
-  const result = startOfDay(date);
-  result.setDate(1);
-  return result;
-}
-
-function startOfQuarter(date: Date): Date {
-  const result = startOfMonth(date);
-  result.setMonth(Math.floor(result.getMonth() / 3) * 3);
-  return result;
-}
-
-function getISOWeek(date: Date): number {
-  const result = startOfDay(date);
-  result.setDate(result.getDate() + 4 - (result.getDay() || 7));
-  const yearStart = new Date(result.getFullYear(), 0, 1);
-  return Math.ceil(((result.getTime() - yearStart.getTime()) / MS_PER_DAY + 1) / 7);
-}
-
 function getScaledDateDomain(min: Date, max: Date, scale: LOBScale): { min: Date; max: Date } {
   const minTime = min.getTime();
   const maxTime = max.getTime();
@@ -106,12 +80,12 @@ function getScaledDateDomain(min: Date, max: Date, scale: LOBScale): { min: Date
   const padding = Math.max(range * 0.08, minimumPadding);
   const domainMin =
     scale === "day"
-      ? startOfDay(min)
+      ? inicioDeDiaUTC(min)
       : scale === "week"
-        ? startOfWeek(min)
+        ? inicioDeSemanaUTC(min)
         : scale === "month"
-          ? startOfMonth(min)
-          : startOfQuarter(min);
+          ? inicioDeMesUTC(min)
+          : inicioDeTrimestreUTC(min);
 
   return {
     min: domainMin,
@@ -222,35 +196,35 @@ function generateDateTicks(min: Date, max: Date, scale: LOBScale): Date[] {
   };
   const current =
     scale === "day"
-      ? startOfDay(min)
+      ? inicioDeDiaUTC(min)
       : scale === "week"
-        ? startOfWeek(min)
+        ? inicioDeSemanaUTC(min)
         : scale === "month"
-          ? startOfMonth(min)
-          : startOfQuarter(min);
+          ? inicioDeMesUTC(min)
+          : inicioDeTrimestreUTC(min);
 
   while (current < min) {
     if (scale === "day") {
-      current.setDate(current.getDate() + dayStep);
+      current.setUTCDate(current.getUTCDate() + dayStep);
     } else if (scale === "week") {
-      current.setDate(current.getDate() + 7);
+      current.setUTCDate(current.getUTCDate() + 7);
     } else if (scale === "month") {
-      current.setMonth(current.getMonth() + 1);
+      current.setUTCMonth(current.getUTCMonth() + 1);
     } else {
-      current.setMonth(current.getMonth() + 3);
+      current.setUTCMonth(current.getUTCMonth() + 3);
     }
   }
 
   while (current <= max) {
     pushTick(current);
     if (scale === "day") {
-      current.setDate(current.getDate() + dayStep);
+      current.setUTCDate(current.getUTCDate() + dayStep);
     } else if (scale === "week") {
-      current.setDate(current.getDate() + 7);
+      current.setUTCDate(current.getUTCDate() + 7);
     } else if (scale === "month") {
-      current.setMonth(current.getMonth() + 1);
+      current.setUTCMonth(current.getUTCMonth() + 1);
     } else {
-      current.setMonth(current.getMonth() + 3);
+      current.setUTCMonth(current.getUTCMonth() + 3);
     }
   }
   if (ticks.length === 0) ticks.push(new Date(min));
