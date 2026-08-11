@@ -3,7 +3,7 @@
  */
 
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import SplitPane from "./SplitPane";
 
 // ---------------------------------------------------------------------------
@@ -102,5 +102,78 @@ describe("SplitPane", () => {
     );
 
     expect(screen.getByTestId("split-pane")).toBeInTheDocument();
+  });
+});
+
+/**
+ * El divisor dejaba escuchas pegadas a `document` en cada arrastre.
+ *
+ * `handleDividerMouseDown` añadía `mousemove` y `mouseup` **y nadie los
+ * retiraba**: ni al soltar el ratón, ni al desmontar. Cada arrastre dejaba dos
+ * más, para siempre, y seguían corriendo en cada movimiento del ratón por toda
+ * la página aunque el componente ya no estuviera.
+ *
+ * No se ve —los manejadores salen enseguida por `isDraggingRef`—, que es
+ * exactamente lo que lo hacía sobrevivir.
+ */
+describe("el divisor no deja escuchas pegadas", () => {
+  function contarEscuchas() {
+    const original = { add: document.addEventListener, remove: document.removeEventListener };
+    const vivas = new Map<string, number>();
+    document.addEventListener = ((ev: string, ...resto: unknown[]) => {
+      vivas.set(ev, (vivas.get(ev) ?? 0) + 1);
+      // `.call(document, ...)`: sin el enlace, el navegador rechaza la llamada.
+      return (original.add as never as (...a: unknown[]) => void).call(
+        document,
+        ev,
+        ...resto,
+      );
+    }) as typeof document.addEventListener;
+    document.removeEventListener = ((ev: string, ...resto: unknown[]) => {
+      vivas.set(ev, (vivas.get(ev) ?? 0) - 1);
+      return (original.remove as never as (...a: unknown[]) => void).call(
+        document,
+        ev,
+        ...resto,
+      );
+    }) as typeof document.removeEventListener;
+    return {
+      vivas,
+      restaurar: () => {
+        document.addEventListener = original.add;
+        document.removeEventListener = original.remove;
+      },
+    };
+  }
+
+  test("al soltar el ratón, las escuchas del arrastre se retiran", () => {
+    const { vivas, restaurar } = contarEscuchas();
+
+    render(
+      <SplitPane left={<div>izq</div>} right={<div>der</div>} />,
+    );
+    fireEvent.mouseDown(screen.getByTestId("split-divider"));
+    fireEvent.mouseUp(document);
+
+    expect(vivas.get("mousemove") ?? 0).toBe(0);
+    expect(vivas.get("mouseup") ?? 0).toBe(0);
+
+    restaurar();
+  });
+
+  test("tres arrastres no dejan seis escuchas acumuladas", () => {
+    const { vivas, restaurar } = contarEscuchas();
+
+    render(
+      <SplitPane left={<div>izq</div>} right={<div>der</div>} />,
+    );
+    for (let i = 0; i < 3; i += 1) {
+      fireEvent.mouseDown(screen.getByTestId("split-divider"));
+      fireEvent.mouseUp(document);
+    }
+
+    expect(vivas.get("mousemove") ?? 0).toBe(0);
+
+    restaurar();
   });
 });

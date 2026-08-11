@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useImperativeHandle, forwardRef } from "react";
+import { useState, useRef, useCallback, useEffect, useImperativeHandle, forwardRef } from "react";
 
 /** Props for the SplitPane component. */
 interface SplitPaneProps {
@@ -64,18 +64,45 @@ const SplitPane = forwardRef<SplitPaneRef, SplitPaneProps>(function SplitPane(
     [clampRatio],
   );
 
+  /**
+   * Guardadas para poder retirarlas: `removeEventListener` exige la MISMA
+   * referencia de función, y las de `useCallback` cambian con sus dependencias.
+   */
+  const escuchasRef = useRef<{
+    move: (e: MouseEvent) => void;
+    up: () => void;
+  } | null>(null);
+
+  const soltarEscuchas = useCallback(() => {
+    const escuchas = escuchasRef.current;
+    if (!escuchas) return;
+    document.removeEventListener("mousemove", escuchas.move);
+    document.removeEventListener("mouseup", escuchas.up);
+    escuchasRef.current = null;
+  }, []);
+
   const handleMouseUp = useCallback(() => {
     isDraggingRef.current = false;
     document.body.style.cursor = "";
     document.body.style.userSelect = "";
-  }, []);
+    // Sin esto, cada arrastre dejaba dos escuchas pegadas a `document` para
+    // siempre, corriendo en cada movimiento del ratón por toda la página.
+    soltarEscuchas();
+  }, [soltarEscuchas]);
+
+  // Y si el componente se va a mitad de arrastre, tampoco quedan sueltas.
+  useEffect(() => soltarEscuchas, [soltarEscuchas]);
 
   // Attach global listeners once on the first mousedown
   const handleDividerMouseDown = useCallback(() => {
     handleMouseDown();
+    // Se retiran las del arrastre anterior por si acaso: un `mouseup` fuera de
+    // la ventana no siempre llega, y sin esto se acumularían igual.
+    soltarEscuchas();
+    escuchasRef.current = { move: handleMouseMove, up: handleMouseUp };
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
-  }, [handleMouseDown, handleMouseMove, handleMouseUp]);
+  }, [handleMouseDown, handleMouseMove, handleMouseUp, soltarEscuchas]);
 
   const handleLeftScroll = useCallback(() => {
     if (isScrollingRef.current || !leftScrollRef.current || !rightScrollRef.current) return;
