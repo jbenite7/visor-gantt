@@ -34,6 +34,13 @@ const ZOOM_BUTTONS: ZoomButton[] = [
 ];
 
 interface ProjectToolbarProps {
+  /**
+   * Modo mirador (E51): se ve todo, no se toca nada.
+   *
+   * Es cortesía, no cerradura — la garantía vive en el servidor—, pero un botón
+   * que no puede hacer nada es peor que un botón ausente.
+   */
+  readOnly?: boolean;
   /* ── View tabs ── */
   activeView: ViewType;
   onViewChange: (view: ViewType) => void;
@@ -82,6 +89,7 @@ function formatDateShort(date: Date): string {
 /* ───────────────────── Component ───────────────────── */
 
 export default function ProjectToolbar({
+  readOnly = false,
   scale,
   onScaleChange,
   canUndo,
@@ -165,7 +173,7 @@ export default function ProjectToolbar({
           type="button"
           data-testid="toolbar-add"
           onClick={onAddTask}
-          disabled={!onAddTask}
+          disabled={readOnly || !onAddTask}
           title={t(locale, "addTask")}
           className="gantt-project-toolbar__button gantt-project-toolbar__button--icon"
         >
@@ -180,7 +188,7 @@ export default function ProjectToolbar({
           type="button"
           data-testid="toolbar-delete"
           onClick={onDeleteTask}
-          disabled={!hasSelection}
+          disabled={readOnly || !hasSelection}
           title={t(locale, "deleteSelectedTasks")}
           className="gantt-project-toolbar__button gantt-project-toolbar__button--text gantt-project-toolbar__button--danger"
         >

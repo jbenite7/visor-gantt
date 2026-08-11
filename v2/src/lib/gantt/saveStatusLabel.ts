@@ -12,7 +12,16 @@ function timeOfDay(at: Date): string {
  * Decir la hora del último guardado —y no solo «Guardado»— es lo que permite
  * distinguir «mi último cambio está a salvo» de «esto se guardó hace una hora».
  */
-export function saveStatusLabel(status: SaveStatus, lastSavedAt: Date | null): string {
+export function saveStatusLabel(
+  status: SaveStatus,
+  lastSavedAt: Date | null,
+  opciones: { readOnly?: boolean } = {},
+): string {
+  // En modo mirador (E51) no se guarda nada, así que ninguno de los mensajes de
+  // abajo es cierto. Decía «Guardado automático activo» en la única pantalla
+  // donde el guardado no existe: un control que promete y no cumple.
+  if (opciones.readOnly) return "Solo lectura · no se guardan cambios";
+
   if (status === "saving") return "Guardando…";
   if (status === "error") return "No se pudo guardar";
 

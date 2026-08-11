@@ -4,26 +4,32 @@
 
 **Goal:** Que alguien sin cuenta vea su `.mpp` en **3 pasos**, en solo lectura, con un enlace que caduca a los 7 días y la opción de quedárselo creando cuenta — cerrando la única fila que separa la app del 10/10.
 
-> ## ⚠️ NO EJECUTAR EL BLOQUE B TODAVÍA — el plan va por detrás de la spec
+> **Reescrito el 2026-08-10, después de contrastar el spec contra el código.** La primera versión ponía la
+> garantía de solo lectura dentro de `saveProject`, «por donde pasa todo guardado». **No era cierto**:
+> `snapshots.ts` escribía por su cuenta. Y al ir a mirar apareció algo peor — cuatro acciones de servidor no
+> comprobaban ni sesión ni permiso, agujero que se cerró aparte en `fix/acciones-sin-autorizar` antes de
+> tocar este plan.
 >
-> **El 2026-08-10, después de escribir este plan, la spec cambió de sitio la garantía de solo lectura.** El
-> plan de abajo —en particular la **Task 4**, y las referencias a la invariante en las tareas 9, 10 y 12— la
-> pone dentro de `saveProject`, con el argumento de que por ahí «pasa todo guardado».
->
-> **Eso es falso, y está verificado en el código:** `src/app/actions/snapshots.ts:120` inserta en
-> `project_snapshots` sin pasar por `saveProject`. Las escrituras sobre `projects` sí son solo tres, todas en
-> `project.ts`, pero la tabla de fotos quedaba fuera de la invariante.
->
-> **La decisión vigente es la de la spec:** la comprobación va **donde se canjea el token**, de modo que una
-> sesión de `/ver/<token>` nunca llega a tener permiso de escritura, y una tabla nueva nace protegida sin que
-> nadie tenga que acordarse. Ver «La garantía de solo lectura» en
-> [la spec](../specs/2026-08-10-ver-sin-cuenta-design.md).
->
-> **Qué hacer:** el Bloque A (tareas 1-3) no está afectado y se puede ejecutar. El Bloque B necesita
-> reescribirse contra la decisión nueva antes de tocarlo. Quien retome esto: reescribe primero, implementa
-> después.
+> Con eso cerrado, la garantía cambió de sitio y de forma: **`/ver/<token>` no crea sesión ninguna**, y toda
+> escritura exige sesión con permiso. Afecta a las tareas **4** (reescrita entera: ahora es la puerta que lee
+> por token) y **12** (el guardián ahora vigila que ninguna acción toque la base sin comprobar), y a los
+> comentarios de la 9 y la 10. **El plan está al día y se puede ejecutar entero.**
 
-**Architecture:** Un proyecto temporal es una fila de `projects` con `share_token` y `expires_at`; la ruta pública `/ver/<token>` lo muestra reutilizando `GanttView`, que ya sabe montarse sin sesión porque `/gantt-demo` lo hace. La garantía de solo lectura **no vive en la interfaz**: la sesión que sale de canjear el token es de solo lectura, así que ninguna escritura —ni la del proyecto ni la de las fotos— llega a autorizarse. Adoptar es poner `share_token` y `expires_at` a `NULL`.
+> **Contraste contra `main` del 2026-08-10, después de la auditoría.** `main` incorporó **propiedad de
+> proyectos**: `saveProject`, `loadProject`, `listProjects` y `deleteProject` exigen pertenencia en
+> `project_members`. Eso toca E51 en tres sitios, comprobados con el código delante:
+>
+> 1. **A favor, y bastante:** un proyecto temporal no tiene ninguna fila en `project_members`, así que
+>    **nadie puede escribirlo, listarlo ni cargarlo por la vía normal**. La garantía de solo lectura que era
+>    el punto que decidía este diseño ahora está por partida doble: sin sesión *y* sin pertenencia. La ruta
+>    pública entra por `loadSharedProject`, que autoriza por token.
+> 2. **En contra, y era grave:** la **Task 10 (adopción)** limpiaba las dos columnas y no creaba la
+>    pertenencia. El usuario se habría quedado su cronograma y **lo habría perdido de vista acto seguido**.
+>    Corregido: la adopción inserta la fila en la misma transacción, con test y mutación obligatorios.
+> 3. **A tener presente:** un admin puede editar un temporal ajeno, porque `canAccessProject` le da acceso a
+>    todo. Es coherente con la decisión tomada en la auditoría; queda escrito, no corregido.
+
+**Architecture:** Un proyecto temporal es una fila de `projects` con `share_token` y `expires_at`; la ruta pública `/ver/<token>` lo muestra reutilizando `GanttView`, que ya sabe montarse sin sesión porque `/gantt-demo` lo hace. La garantía de solo lectura **no vive en la interfaz**: quien llega por el enlace **no tiene sesión ninguna**, y toda acción que escribe —el proyecto o sus fotos— exige sesión con permiso, así que ninguna llega a autorizarse. Adoptar es crear cuenta y poner `share_token` y `expires_at` a `NULL`.
 
 **Tech Stack:** Next.js 16 (App Router) · TypeScript · React · PostgreSQL (`pg`) · Jest + Testing Library · Playwright.
 
@@ -51,7 +57,8 @@ Spec: [2026-08-10-ver-sin-cuenta-design.md](../specs/2026-08-10-ver-sin-cuenta-d
 | `src/lib/share/shareToken.ts` | **Nuevo.** Generar el token y decidir si un temporal caducó | 1 |
 | `src/lib/share/uploadThrottle.ts` | **Nuevo.** El contador de subidas por IP | 2 |
 | `src/lib/db.ts` | Las dos columnas nuevas de `projects` | 3 |
-| `src/app/actions/project.ts` | La invariante: no se escribe sobre un temporal. Alta, carga y adopción | 4, 5, 8 |
+| `src/lib/share/loadSharedProject.ts` | La puerta del enlace: lee por token, sin sesión y solo para leer | 4 |
+| `src/app/actions/project.ts` | Alta de un temporal y adopción | 5, 10 |
 | `src/app/api/ver-mpp/route.ts` | **Nuevo.** Subida sin sesión: analiza, guarda temporal, devuelve token | 6 |
 | `src/components/upload/AnonymousMppUpload.tsx` | **Nuevo.** El botón de la home que no pide cuenta | 7 |
 | `src/app/page.tsx` | Ofrece la entrada sin cuenta | 7 |
@@ -60,7 +67,9 @@ Spec: [2026-08-10-ver-sin-cuenta-design.md](../specs/2026-08-10-ver-sin-cuenta-d
 | `src/app/api/adoptar/[token]/route.ts` | **Nuevo.** Adoptar con sesión | 11 |
 | `scripts/clean-expired-shares.ts` | **Nuevo.** Higiene de temporales caducados | 12 |
 
-**Orden y dependencias:** 1 y 2 son independientes. 3 antes que 4-6. La 4 (la invariante) antes que la 9 y la 10. La 11 necesita la 5 y la 8. La 13 cierra.
+**Orden y dependencias:** 1 y 2 son independientes. 3 antes que 4-6. La 4 (la puerta del token) antes que la 9 y la 10. La 11 necesita la 5 y la 8. La 13 cierra.
+
+**Requisito previo, ya cumplido:** este plan da por hecho que **toda acción de servidor comprueba sesión y permiso**. No era cierto hasta el 2026-08-10 —`loadProject` y las tres de `snapshots.ts` no comprobaban nada—; se cerró en `fix/acciones-sin-autorizar` antes de empezar aquí. Sin eso, «sin sesión no se puede escribir» sería una suposición y no una garantía.
 
 ---
 
@@ -73,10 +82,12 @@ Spec: [2026-08-10-ver-sin-cuenta-design.md](../specs/2026-08-10-ver-sin-cuenta-d
 - Create: `src/lib/share/shareToken.test.ts`
 
 **Interfaces:**
-- Consumes: `randomBytes` de `node:crypto`.
+- Consumes: `randomBytes` de `node:crypto`. **No vale `Math.random()`, ni el reloj, ni nada derivado
+  del nombre del archivo:** el token es lo único que separa un cronograma privado de internet.
 - Produces:
+  - `export const SHARE_TOKEN_BYTES = 32` — 256 bits. En base64url son 43 caracteres.
   - `export const SHARE_TTL_DAYS = 7`
-  - `export function createShareToken(): string`
+  - `export function createShareToken(): string` — `randomBytes(SHARE_TOKEN_BYTES).toString("base64url")`
   - `export function shareExpiryFrom(now: Date): Date`
   - `export function isShareExpired(expiresAt: Date | string | null | undefined, now: Date): boolean`
 
@@ -106,6 +117,34 @@ describe("shareToken (E51: el enlace no se adivina y no dura para siempre)", () 
     for (let i = 0; i < 20; i += 1) {
       expect(createShareToken()).toMatch(/^[A-Za-z0-9_-]+$/);
     }
+  });
+
+  // Los tres tests de arriba —largo, distintos, y caracteres de URL— los pasa
+  // también un token derivado del reloj: `Date.now().toString(36)` es único,
+  // es único y casa con `[A-Za-z0-9_-]`. Y un token derivado del reloj **se
+  // adivina**: quien sube un archivo sabe a qué hora subió el de al lado.
+  //
+  // Estos dos sí separan lo fuerte de lo débil, y sin atarse a la
+  // implementación (no comprueban que se llame a `randomBytes`, comprueban que
+  // el resultado no se comporte como un contador).
+  test("los tokens no salen ordenados en el tiempo: no vienen del reloj", () => {
+    const generados = Array.from({ length: 50 }, () => createShareToken());
+    const ordenados = [...generados].sort();
+
+    // Un token derivado del reloj crece monótonamente, así que ordenarlo
+    // alfabéticamente lo devuelve en el orden en que se generó.
+    expect(ordenados).not.toEqual(generados);
+  });
+
+  test("dos tokens seguidos no comparten un prefijo largo", () => {
+    const a = createShareToken();
+    const b = createShareToken();
+
+    let comunes = 0;
+    while (comunes < a.length && a[comunes] === b[comunes]) comunes += 1;
+
+    // Los derivados del tiempo comparten casi todo menos los últimos dígitos.
+    expect(comunes).toBeLessThan(4);
   });
 
   test("caduca siete días después de subirlo", () => {
@@ -346,7 +385,7 @@ git add v2/src/lib/share/uploadThrottle.ts v2/src/lib/share/uploadThrottle.test.
 
 ---
 
-# BLOQUE B — La invariante del servidor
+# BLOQUE B — La puerta del enlace
 
 ## Task 3: Las dos columnas de proyecto temporal
 
@@ -428,127 +467,194 @@ git add v2/src/lib/db.ts v2/src/lib/db.schema.test.ts && git commit -m "feat(ver
 
 ---
 
-## Task 4: La invariante — un temporal no se puede modificar
+## Task 4: La puerta del enlace — leer por token, sin sesión y sin permisos
 
-Es **la tarea que sostiene todo el diseño**. Si esta regla existe, la interfaz puede fallar sin consecuencias.
+Es **la tarea que sostiene todo el diseño**, y cambió de forma respecto a la primera versión del plan.
+
+> **Por qué ya no va dentro de `saveProject`.** El plan original ponía aquí una invariante: «`saveProject`
+> rechaza escribir sobre una fila con `expires_at IS NOT NULL`», con el argumento de que por ahí pasa todo
+> guardado. **Se comprobó contra el código y era falso**: `snapshots.ts` escribía por su cuenta. Y al ir a
+> mirar apareció algo peor — cuatro acciones de servidor no comprobaban **nada**, ni sesión ni permiso.
+> Eso se cerró aparte, antes de esta tarea (`fix/acciones-sin-autorizar`).
+>
+> Con esas puertas cerradas, la garantía sale gratis y es más fuerte: **`/ver/<token>` no crea sesión**, y
+> toda escritura exige sesión con permiso. Nadie tiene que acordarse de añadir una regla nueva cuando
+> aparezca una tabla nueva — si su acción autoriza como las demás, nace protegida.
 
 **Files:**
-- Modify: `src/app/actions/project.ts:416-452` (`saveProject`, la rama de `UPDATE`)
-- Test: `src/app/actions/project.test.ts`
+- Create: `src/lib/share/loadSharedProject.ts`
+- Create: `src/lib/share/loadSharedProject.test.ts`
 
 **Interfaces:**
-- Consumes: `pool` de `@/lib/db`.
-- Produces: `saveProject` devuelve `{ success: false, error: "..." }` cuando el proyecto destino es temporal.
+- Consumes: `pool` de `@/lib/db`; `isShareExpired` de `./shareToken` (Task 1); `deserializeProjectData` de
+  `@/app/actions/project`.
+- Produces:
+  - `export interface SharedProject { id: string; name: string; data: ProjectData; expiresAt: Date }`
+  - `export async function loadSharedProject(token: string): Promise<SharedProject | null>`
+
+**Lo que esta función NO hace, y es deliberado:** no llama a `getCurrentUser`, no llama a
+`userHasPermission`, y **no devuelve nada que permita escribir**. El token es la autorización, y solo
+autoriza a leer. No se toca `loadProject`, que sigue siendo la puerta con sesión de siempre.
 
 - [ ] **Step 1: Write the failing test**
 
-Se añade a `src/app/actions/project.test.ts`, que ya mockea la base de datos con `query`:
-
 ```ts
-describe("Un proyecto temporal es inmutable (E51)", () => {
-  beforeEach(() => {
-    query.mockReset();
+const query = jest.fn();
+const release = jest.fn();
+const connect = jest.fn(async () => ({ query, release }));
+
+jest.mock("@/lib/db", () => ({ __esModule: true, default: { connect } }));
+
+import { loadSharedProject } from "./loadSharedProject";
+
+beforeEach(() => {
+  query.mockReset();
+  release.mockClear();
+  query.mockResolvedValue({ rows: [] });
+});
+
+const filaViva = {
+  id: 7,
+  name: "Torre 3",
+  project_data: { tasks: [], calendar: null },
+  expires_at: "2099-01-01T00:00:00.000Z",
+};
+
+describe("loadSharedProject (E51: el token es la llave, y solo abre para leer)", () => {
+  test("un token vivo devuelve el proyecto", async () => {
+    query.mockResolvedValue({ rows: [filaViva] });
+
+    const compartido = await loadSharedProject("un-token-valido");
+
+    expect(compartido?.name).toBe("Torre 3");
   });
 
-  function proyectoBase() {
-    return {
-      id: "temp-1",
-      name: "Cronograma de prueba",
-      tasks: [],
-      resources: [],
-      assignments: [],
-      budgetItems: [],
-      budgetMappings: [],
-      baselines: [],
-      calendar,
-    };
-  }
+  test("busca por share_token, nunca por id: el id no abre nada", async () => {
+    query.mockResolvedValue({ rows: [filaViva] });
 
-  test("guardar sobre un temporal se rechaza, con o sin sesión", async () => {
-    // La comprobación mira la fila, no quién pide: un temporal no se toca ni
-    // con sesión. Adoptarlo es la única forma de hacerlo editable.
-    query.mockResolvedValueOnce({ rows: [{ expires_at: "2026-08-17T09:00:00.000Z" }] });
+    await loadSharedProject("un-token-valido");
 
-    const result = await saveProject(proyectoBase());
-
-    expect(result.success).toBe(false);
-    expect(result.error).toMatch(/solo lectura|temporal/i);
+    const sql = String(query.mock.calls[0][0]);
+    expect(sql).toContain("share_token = $1");
+    expect(sql).not.toMatch(/WHERE\s+id\s*=/i);
   });
 
-  test("y no llega a escribir: el UPDATE no se ejecuta", async () => {
-    query.mockResolvedValueOnce({ rows: [{ expires_at: "2026-08-17T09:00:00.000Z" }] });
+  test("un token caducado no devuelve nada, aunque la fila siga en la base", async () => {
+    query.mockResolvedValue({
+      rows: [{ ...filaViva, expires_at: "2020-01-01T00:00:00.000Z" }],
+    });
 
-    await saveProject(proyectoBase());
-
-    const sentencias = query.mock.calls.map((call) => String(call[0]));
-    expect(sentencias.some((sql) => sql.includes("UPDATE projects"))).toBe(false);
+    await expect(loadSharedProject("un-token-viejo")).resolves.toBeNull();
   });
 
-  test("un proyecto normal se sigue guardando igual", async () => {
-    query.mockResolvedValueOnce({ rows: [{ expires_at: null }] });
-    query.mockResolvedValueOnce({ rows: [] });
+  test("un proyecto normal no se abre por esta puerta ni por accidente", async () => {
+    // Sin `expires_at` no es temporal: es el proyecto de alguien con cuenta.
+    query.mockResolvedValue({ rows: [{ ...filaViva, expires_at: null }] });
 
-    const result = await saveProject(proyectoBase());
-
-    expect(result.success).toBe(true);
-    const sentencias = query.mock.calls.map((call) => String(call[0]));
-    expect(sentencias.some((sql) => sql.includes("UPDATE projects"))).toBe(true);
+    await expect(loadSharedProject("lo-que-sea")).resolves.toBeNull();
   });
 
-  test("crear uno nuevo no consulta caducidad: no hay fila que consultar", async () => {
-    query.mockResolvedValueOnce({ rows: [{ id: "nuevo-1" }] });
+  test("un token que no existe devuelve null, no un error", async () => {
+    query.mockResolvedValue({ rows: [] });
 
-    const result = await saveProject({ ...proyectoBase(), id: undefined });
+    await expect(loadSharedProject("no-existe")).resolves.toBeNull();
+  });
 
-    expect(result).toEqual({ success: true, id: "nuevo-1" });
+  test("suelta el cliente aunque la consulta falle", async () => {
+    query.mockRejectedValue(new Error("base caída"));
+
+    await expect(loadSharedProject("t")).resolves.toBeNull();
+    expect(release).toHaveBeenCalled();
   });
 });
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd v2 && npx jest src/app/actions/project.test.ts -t "temporal es inmutable" --runInBand`
-Expected: FAIL — el primero con `expect(received).toBe(false)` recibiendo `true`: hoy `saveProject` actualiza sin mirar si la fila es temporal.
+Run: `cd v2 && npx jest src/lib/share/loadSharedProject.test.ts`
+Expected: FAIL — `Cannot find module './loadSharedProject'`.
 
 - [ ] **Step 3: Write minimal implementation**
 
-En `src/app/actions/project.ts`, dentro de `saveProject`, en la rama `if (projectData.id)` y **antes** del `UPDATE`:
-
 ```ts
-      if (projectData.id) {
-        /**
-         * La cerradura de E51.
-         *
-         * Un proyecto temporal —el que se ve sin cuenta— es inmutable hasta
-         * que alguien lo adopta. La comprobación mira la fila y no quién pide:
-         * así la garantía no depende de que la interfaz recuerde esconder
-         * todos sus controles de edición, que en un componente de 2.000 líneas
-         * es una red con agujeros.
-         */
-        const temporal = await client.query(
-          `SELECT expires_at FROM projects WHERE id = $1`,
-          [projectData.id],
-        );
-        if (temporal.rows[0]?.expires_at != null) {
-          return {
-            success: false,
-            error:
-              "Este cronograma es de solo lectura. Entra con tu cuenta y quédatelo para poder editarlo.",
-          };
-        }
+import pool from "@/lib/db";
+import { deserializeProjectData } from "@/app/actions/project";
+import type { ProjectData } from "@/app/actions/project";
+import { isShareExpired } from "./shareToken";
 
-        // UPDATE existing project
+export interface SharedProject {
+  id: string;
+  name: string;
+  data: ProjectData;
+  expiresAt: Date;
+}
+
+/**
+ * La única puerta del acceso compartido, y solo abre para leer.
+ *
+ * No pregunta por la sesión a propósito: quien llega por `/ver/<token>` no
+ * tiene ninguna, y no se le fabrica. El token es la autorización. Como toda
+ * escritura del proyecto exige sesión con permiso, un visitante no puede
+ * escribir aunque se le escape un control en pantalla — y una tabla que se
+ * añada mañana nace protegida sin que nadie tenga que acordarse de nada.
+ *
+ * Busca por `share_token` y nunca por `id`: si buscara por id, conocer el
+ * número de un proyecto ajeno bastaría para leerlo.
+ */
+export async function loadSharedProject(
+  token: string,
+): Promise<SharedProject | null> {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      `SELECT id, name, project_data, expires_at
+         FROM projects
+        WHERE share_token = $1`,
+      [token],
+    );
+    if (result.rows.length === 0) return null;
+
+    const row = result.rows[0];
+    // Sin caducidad no es un temporal: es el proyecto de alguien con cuenta, y
+    // por esta puerta no se entrega.
+    if (!row.expires_at) return null;
+    if (isShareExpired(row.expires_at, new Date())) return null;
+
+    return {
+      id: String(row.id),
+      name: row.name,
+      data: deserializeProjectData(String(row.id), row),
+      expiresAt: new Date(row.expires_at),
+    };
+  } catch (err) {
+    console.error("loadSharedProject error:", err);
+    return null;
+  } finally {
+    client.release();
+  }
+}
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd v2 && npx jest src/app/actions/project.test.ts --runInBand`
-Expected: PASS — la suite completa de acciones de proyecto, incluidos los tests previos de guardado.
+Run: `cd v2 && npx jest src/lib/share/loadSharedProject.test.ts`
+Expected: PASS, 6 tests.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Romper la comprobación a propósito (obligatorio)**
+
+Es una tarea de seguridad, así que el test no vale hasta que se le vea fallar. Haz **las dos** mutaciones,
+una cada vez, y confirma que se pone rojo:
+
+1. Quita `if (!row.expires_at) return null;` → debe romperse «un proyecto normal no se abre por esta puerta».
+2. Quita la línea de `isShareExpired` → debe romperse «un token caducado no devuelve nada».
+
+Si alguna mutación **no** pone rojo ningún test, el test que la cubría no sirve: arréglalo antes de seguir.
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add v2/src/app/actions/project.ts v2/src/app/actions/project.test.ts && git commit -m "feat(ver-sin-cuenta): un proyecto temporal no se puede modificar, y lo garantiza el servidor"
+git add v2/src/lib/share/loadSharedProject.ts v2/src/lib/share/loadSharedProject.test.ts
+git commit -m "feat(compartir): leer un proyecto por su token, sin sesion y solo para leer"
 ```
 
 ---
@@ -1299,9 +1405,10 @@ En `src/components/views/GanttView.tsx`:
    * Modo mirador: se ve todo, no se toca nada.
    *
    * Es la **cortesía**, no la cerradura: la garantía de que un temporal no se
-   * modifica vive en `saveProject`, que rechaza escribir sobre una fila con
-   * caducidad. Aquí solo se esconde lo que no aplica para no prometer lo que
-   * no se puede hacer (E51).
+   * modifica es que quien llega por `/ver/<token>` **no tiene sesión**, y toda
+   * escritura exige sesión con permiso. Aquí solo se esconde lo que no aplica,
+   * para no prometer lo que no se puede hacer (E51). Si a alguien se le
+   * escapara un control, no pasaría nada: el servidor lo rechaza igual.
    */
   readOnly?: boolean;
 ```
@@ -1513,6 +1620,36 @@ export default function SharedProjectView({
 
 `src/app/ver/[token]/page.tsx`:
 
+**Test obligatorio de esta tarea** (va antes que la implementación):
+
+```ts
+test("adoptar deja al usuario como dueño: si no, se queda un proyecto invisible", async () => {
+  query.mockResolvedValue({ rows: [{ id: 42 }], rowCount: 1 });
+
+  await adoptSharedProject("un-token", "user-7");
+
+  const sql = query.mock.calls.map((c) => String(c[0])).join("\n");
+  expect(sql).toContain("INSERT INTO project_members");
+  // En la misma transacción que el UPDATE: un proyecto adoptado sin dueño es un
+  // proyecto perdido, y una pertenencia sin adopción es basura.
+  expect(sql).toContain("BEGIN");
+  expect(sql).toContain("COMMIT");
+});
+
+test("si el enlace ya no vale, no deja pertenencias sueltas", async () => {
+  query.mockResolvedValue({ rows: [], rowCount: 0 });
+
+  const r = await adoptSharedProject("caducado", "user-7");
+
+  expect(r.ok).toBe(false);
+  const sql = query.mock.calls.map((c) => String(c[0])).join("\n");
+  expect(sql).toContain("ROLLBACK");
+  expect(sql).not.toContain("INSERT INTO project_members");
+});
+```
+
+**Mutación obligatoria:** quita el `INSERT INTO project_members` y confirma que el primer test se pone rojo.
+
 ```tsx
 import { notFound } from "next/navigation";
 import { loadSharedProject } from "@/app/actions/project";
@@ -1649,28 +1786,57 @@ En `src/app/actions/project.ts`:
 /**
  * Un temporal pasa a ser un proyecto normal.
  *
- * Quitar `expires_at` es lo que lo vuelve editable, porque la invariante de
- * `saveProject` mira esa columna. Quitar `share_token` retira el enlace
- * público: a partir de aquí se entra como a cualquier otro proyecto.
+ * Quitar `share_token` cierra el enlace público, y quitar `expires_at` es lo
+ * que impide que el barrido de limpieza se lo lleve. La adopción **exige
+ * sesión** —es su primer paso—, así que este es el único sitio donde un
+ * temporal cambia de manos.
+ *
+ * **Y hay que darle la pertenencia, en la misma transacción.** Desde que un
+ * proyecto tiene dueño (auditoría del 2026-08-10), quitar esas dos columnas no
+ * basta: sin fila en `project_members` el usuario se queda el cronograma y
+ * **acto seguido lo pierde de vista** — no sale en su home, no lo puede abrir y
+ * no lo puede guardar. Sería el peor final posible para el flujo que da sentido
+ * a E51: «prueba con tu obra y quédatela».
  */
 export async function adoptSharedProject(
   token: string,
+  /** Quién se lo queda. Sale de la sesión, no del cliente. */
+  userId: string,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   try {
     const client = await pool.connect();
     try {
-      const res = await client.query(
-        `UPDATE projects
-         SET share_token = NULL, expires_at = NULL, updated_at = NOW()
-         WHERE share_token = $1 AND expires_at > NOW()
-         RETURNING id`,
-        [token],
-      );
-      const id = res.rows[0]?.id as string | undefined;
-      if (!id) {
-        return { ok: false, error: "Ese enlace ya no está disponible." };
+      // Las dos escrituras van juntas: un proyecto adoptado sin dueño es un
+      // proyecto perdido, y un dueño de un proyecto que no se adoptó es una
+      // pertenencia huérfana. O las dos, o ninguna.
+      await client.query("BEGIN");
+      try {
+        const res = await client.query(
+          `UPDATE projects
+           SET share_token = NULL, expires_at = NULL, updated_at = NOW()
+           WHERE share_token = $1 AND expires_at > NOW()
+           RETURNING id`,
+          [token],
+        );
+        const id = res.rows[0]?.id as string | undefined;
+        if (!id) {
+          await client.query("ROLLBACK");
+          return { ok: false, error: "Ese enlace ya no está disponible." };
+        }
+
+        await client.query(
+          `INSERT INTO project_members (project_id, user_id, role_id)
+           VALUES ($1, $2, 'admin')
+           ON CONFLICT (project_id, user_id) DO NOTHING`,
+          [String(id), userId],
+        );
+
+        await client.query("COMMIT");
+        return { ok: true, id };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
       }
-      return { ok: true, id };
     } finally {
       client.release();
     }
@@ -1856,10 +2022,19 @@ git add v2/src/lib/share/cleanExpired.ts v2/src/lib/share/cleanExpired.test.ts v
 
 # BLOQUE F — Cierre
 
-## Task 12: El guardián de la invariante
+## Task 12: El guardián — ninguna acción de servidor sin cerradura
+
+Cambió de forma con el resto del Bloque B, y a mejor: en vez de vigilar **una** regla dentro de
+`saveProject`, vigila **la propiedad de la que depende todo el diseño** — que toda acción de servidor que
+toca la base comprueba sesión y permiso.
+
+> **Este guardián habría cazado el agujero que encontramos el 2026-08-10.** `loadProject`,
+> `saveProjectSnapshot`, `listProjectSnapshots` y `loadProjectSnapshot` no comprobaban nada. No las cazó
+> ningún test porque ningún test miraba esa propiedad; las cazó una persona leyendo el código antes de
+> construir encima. Un guardián existe justo para que la próxima no dependa de eso.
 
 **Files:**
-- Create: `src/app/actions/sharedProjectInvariant.test.ts`
+- Create: `src/app/actions/todasLasAccionesAutorizan.test.ts`
 
 **Interfaces:**
 - Consumes: `node:fs`.
@@ -1868,57 +2043,109 @@ git add v2/src/lib/share/cleanExpired.ts v2/src/lib/share/cleanExpired.test.ts v
 - [ ] **Step 1: Write the failing test**
 
 ```ts
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const DIRECTORIO = "src/app/actions";
 
 /**
- * Toda la seguridad de E51 se apoya en una sola regla: `saveProject` no
- * escribe sobre una fila con caducidad. Si alguien la quita —o añade otro
- * camino de escritura que no la comprueba— el modo sin cuenta pasa a ser
- * modo de edición sin cuenta, en silencio.
+ * Las acciones que pueden saltarse la cerradura, declaradas una a una.
+ *
+ * Declarar es el punto: una excepción con motivo escrito es una decisión;
+ * una excepción silenciosa es el agujero del 2026-08-10 otra vez.
  */
-describe("La cerradura de E51 sigue puesta", () => {
-  const source = readFileSync("src/app/actions/project.ts", "utf8");
+const SIN_CERRADURA_A_PROPOSITO: { funcion: string; porque: string }[] = [
+  {
+    funcion: "createMatrixPlanFromTemplate",
+    porque:
+      "No toca la base: transforma una plantilla en memoria y devuelve el resultado.",
+  },
+];
 
-  test("saveProject comprueba la caducidad antes de actualizar", () => {
-    const antesDelUpdate = source.slice(0, source.indexOf("UPDATE projects"));
+const SEÑALES_DE_CERRADURA = [
+  "authorizeProjectAction",
+  "tienePermiso",
+  "getCurrentUser",
+];
 
-    expect(antesDelUpdate).toContain("SELECT expires_at FROM projects");
+/** Las funciones exportadas de un fichero, con su cuerpo hasta la siguiente. */
+function accionesDe(source: string): { nombre: string; cuerpo: string }[] {
+  const partes = source.split(/export async function /).slice(1);
+  return partes.map((parte) => ({
+    nombre: parte.slice(0, parte.search(/[(<\s]/)),
+    cuerpo: parte,
+  }));
+}
+
+describe("Toda acción de servidor comprueba sesión y permiso", () => {
+  const ficheros = readdirSync(DIRECTORIO).filter(
+    (f) => f.endsWith(".ts") && !f.endsWith(".test.ts"),
+  );
+
+  test("hay ficheros que revisar: el guardián no se quedó mirando al vacío", () => {
+    expect(ficheros.length).toBeGreaterThan(0);
   });
 
-  test("y rechaza en vez de continuar", () => {
-    expect(source).toMatch(/expires_at != null[\s\S]{0,200}success: false/);
-  });
+  for (const fichero of ficheros) {
+    const source = readFileSync(join(DIRECTORIO, fichero), "utf8");
 
-  test("solo la adopción puede quitar la caducidad", () => {
-    const quitanCaducidad = source
-      .split("\n")
-      .filter((line) => /expires_at = NULL/.test(line));
+    for (const { nombre, cuerpo } of accionesDe(source)) {
+      const declarada = SIN_CERRADURA_A_PROPOSITO.find(
+        (e) => e.funcion === nombre,
+      );
+      if (declarada) continue;
 
-    expect(quitanCaducidad).toHaveLength(1);
-  });
+      test(`${fichero} · ${nombre} comprueba antes de tocar la base`, () => {
+        const tocaLaBase = /client\.query|pool\.query/.test(cuerpo);
+        if (!tocaLaBase) return;
+
+        const tieneCerradura = SEÑALES_DE_CERRADURA.some((señal) =>
+          cuerpo.includes(señal),
+        );
+
+        expect(tieneCerradura).toBe(true);
+      });
+    }
+  }
 });
 ```
 
+**Por qué no incluye `loadSharedProject`:** vive en `src/lib/share/`, no en `src/app/actions/`, y su
+cerradura es el token, no la sesión. Si algún día se moviera a `actions/`, este guardián lo marcaría — y
+tendría razón en pedir que se declare como excepción con su motivo.
+
 - [ ] **Step 2: Run test to verify it fails**
 
-Este test **pasa** si las tareas 4 y 10 quedaron completas. Para verlo fallar por el motivo esperado, comentar temporalmente la comprobación de `expires_at` en `saveProject` y correr:
+A diferencia del resto, este test **pasa** desde el primer momento: la rama `fix/acciones-sin-autorizar` ya
+cerró las cuatro acciones que faltaban. Un test que nace verde no vale nada hasta que se le ve fallar, así
+que **hay que romperlo a propósito**:
 
-Run: `cd v2 && npx jest src/app/actions/sharedProjectInvariant.test.ts`
-Expected: FALLA con `expect(received).toContain("SELECT expires_at FROM projects")`. Restaurar acto seguido.
+```bash
+cd v2
+# Quita la comprobación de loadProject en src/app/actions/project.ts y corre:
+npx jest src/app/actions/todasLasAccionesAutorizan.test.ts
+```
+
+Expected: FALLA en `project.ts · loadProject comprueba antes de tocar la base`, con `expect(false).toBe(true)`.
+Restaurar acto seguido y confirmar que vuelve a verde.
+
+Si al romperlo **no** falla, el guardián no sirve: revisa que `accionesDe` esté partiendo bien el fichero
+antes de seguir.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Restaurar la comprobación que la tarea 4 escribió. No hay código nuevo: el entregable es el guardián.
+No hay código de producción nuevo. El entregable es el guardián.
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd v2 && npx jest src/app/actions --runInBand`
+Run: `cd v2 && npx jest src/app/actions/todasLasAccionesAutorizan.test.ts`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add v2/src/app/actions/sharedProjectInvariant.test.ts && git commit -m "test(ver-sin-cuenta): la cerradura no se puede quitar sin que salte la suite"
+git add v2/src/app/actions/todasLasAccionesAutorizan.test.ts
+git commit -m "test(guardian): ninguna accion de servidor toca la base sin comprobar sesion"
 ```
 
 ---

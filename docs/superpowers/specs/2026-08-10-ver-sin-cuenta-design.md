@@ -81,9 +81,15 @@ todos es la clase de red con agujeros que este trabajo lleva semanas encontrando
 
 La garantía **no vive en la interfaz**:
 
-1. **La cerradura está donde se canjea el enlace, no en cada escritura.** Quien llega por `/ver/<token>`
-   obtiene una sesión de **solo lectura**: se comprueba una vez, al resolver el token, y ninguna escritura
-   posterior necesita acordarse de nada.
+1. **La cerradura es que no hay sesión.** Quien llega por `/ver/<token>` **no obtiene ninguna**: el token
+   autoriza a leer ese proyecto y nada más. Como toda acción que escribe exige sesión con permiso, ninguna
+   escritura llega a autorizarse, y ninguna necesita acordarse de comprobar la caducidad.
+
+   > No existe «sesión de solo lectura» que canjear, y conviene decirlo porque la primera versión de este
+   > diseño la daba por hecha: `user_sessions` es `(user_id, token_hash, expires_at)` — una sesión **es** un
+   > usuario, y los permisos salen de su rol. Fabricar un usuario anónimo por visitante era la alternativa;
+   > se descartó porque crea filas que alguien tendría que limpiar, para conseguir lo que la ausencia de
+   > sesión ya da gratis.
 
    > **Corregido el 2026-08-10.** El diseño ponía la invariante dentro de `saveProject`, «por donde pasa todo
    > guardado». El carril B verificó que **eso no era cierto**: `snapshots.ts` inserta en `project_snapshots`
@@ -96,11 +102,18 @@ La garantía **no vive en la interfaz**:
    > porque el permiso de escribir nunca llegó a existir.
 2. **La interfaz es la cortesía.** `GanttView` recibe `readOnly` y esconde lo que no aplica —editar, deshacer,
    línea base, observaciones, aplicar matriz— para no prometer lo que no da.
-3. **Un guardián** comprueba que la regla del servidor existe, no que alguien se acordó de tapar los botones.
+3. **Un guardián** recorre `src/app/actions/` y exige que **ninguna acción toque la base sin comprobar sesión
+   y permiso**, con las excepciones declaradas una a una y con su motivo. No vigila que alguien se acordara de
+   tapar los botones: vigila la propiedad de la que depende todo lo demás.
 
-La diferencia importa: la capa 1 es una invariante comprobable en un test de servidor; la capa 2 es una lista
+La diferencia importa: la capa 1 es una propiedad comprobable en un test de servidor; la capa 2 es una lista
 que envejece. Si algún día alguien añade un botón nuevo y olvida el `readOnly`, el resultado es un control
 que no hace nada — molesto, no peligroso.
+
+Y el guardián de la capa 3 **habría cazado el agujero que encontramos el 2026-08-10**: `loadProject` y las
+tres acciones de `snapshots.ts` no comprobaban nada. No las cazó ningún test porque ninguno miraba esa
+propiedad; las cazó una persona leyendo el código antes de construir encima. El guardián existe para que la
+próxima vez no dependa de eso.
 
 ### La adopción
 

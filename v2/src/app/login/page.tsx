@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AnonymousMppUpload from "@/components/upload/AnonymousMppUpload";
 import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { loginAction } from "@/app/actions/auth";
 import { safeNextPath } from "@/lib/auth/nextPath";
@@ -130,10 +131,19 @@ export default async function LoginPage({
           </div>
         )}
 
-        <p className="mt-5 rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-surface-secondary)] px-3 py-2 text-xs text-[var(--color-text-muted)]">
-          ¿Primera vez en este servidor? La primera persona que entra queda como
-          administradora del equipo.
-        </p>
+        {/*
+          El texto anterior decía que la primera persona en entrar quedaba como
+          administradora. Dejó de ser cierto en la auditoría del 2026-08-10: el
+          rol de administrador ya no se da por llegar primero, solo al correo
+          configurado como semilla. Prometer lo que no ocurre es peor que no
+          decir nada.
+        */}
+        <div className="mt-5 rounded-lg border border-[var(--color-hairline)] bg-[var(--color-bg-surface-secondary)] px-3 py-3">
+          <p className="text-xs text-[var(--color-text-muted)]">
+            ¿Solo quieres mirar un cronograma? No hace falta cuenta.
+          </p>
+          <AnonymousMppUpload className="mt-2" />
+        </div>
       </section>
     </main>
   );
