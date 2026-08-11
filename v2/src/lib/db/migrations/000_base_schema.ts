@@ -7,9 +7,10 @@ import type { Migration } from "@/lib/db/migrator";
  * `relation "projects" does not exist`: 002, 003, 005 y 006. Las tablas de
  * usuarios y pertenencias las levanta `ensureAuthTables` en cuanto alguien toca
  * la sesión, pero `projects` no la creaba ninguna ruta del arranque. La función
- * que parecía hacerlo, `ensureProjectsTable`, **no la llama ningún sitio**, y de
- * haberla llamado habría creado `id UUID` mientras el resto del código trata los
- * identificadores como enteros.
+ * que parecía hacerlo, `ensureProjectsTable`, **no la llamaba ningún sitio**, y
+ * de haberla llamado habría creado `id UUID` mientras el resto del código trata
+ * los identificadores como enteros. Se retiró al escribir esta migración: dos
+ * mecanismos para crear las mismas tablas es donde vuelven a divergir.
  *
  * Resultado: la app funcionaba en la base que ya estaba en uso y no se podía
  * instalar en una nueva. Esto lo cierra.
