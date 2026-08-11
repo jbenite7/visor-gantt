@@ -20,7 +20,14 @@ import { readFileSync } from "node:fs";
 describe("todo dato del proyecto llega desde la página hasta el Gantt", () => {
   const page = readFileSync("src/app/project/[id]/page.tsx", "utf8");
   const view = readFileSync("src/app/project/[id]/ProjectView.tsx", "utf8");
-  const actions = readFileSync("src/app/actions/project.ts", "utf8");
+  // `ProjectData` se mudó a su propio módulo el 2026-08-10: `project.ts` es
+  // `"use server"` y no podía exportar las funciones de serialización que E51
+  // necesita. La autocomprobación de abajo cazó la mudanza en el momento, que
+  // es justo para lo que está.
+  const actions = readFileSync(
+    "src/lib/project/projectSerialization.ts",
+    "utf8",
+  );
 
   /**
    * Campos que a propósito no viajan a la pantalla, uno a uno y con su motivo.
