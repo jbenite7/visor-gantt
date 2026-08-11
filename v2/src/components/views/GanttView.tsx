@@ -117,6 +117,7 @@ import {
 } from "@/lib/gantt/roleViewPresets";
 import { normalizeTaskStructure } from "@/lib/gantt/taskStructure";
 import { downloadScheduleCsv } from "@/lib/gantt/scheduleExchange";
+import { humanSaveError } from "@/lib/gantt/saveErrors";
 import { saveStatusLabel } from "@/lib/gantt/saveStatusLabel";
 import { shouldStartSave } from "@/lib/gantt/saveGuard";
 import { shouldWarnBeforeUnload } from "@/lib/gantt/pendingChanges";
@@ -1318,7 +1319,11 @@ function GanttViewInner({
         isDirtyRef.current = true;
         // El rechazo por versión no es un fallo de red: hay que decirlo, porque
         // recargar sin saberlo tiraría el trabajo del usuario.
-        setSaveError(result.error ?? null);
+        // Traducido: `saveProject` puede devolver el error crudo de la base, y
+        // esto se pinta tal cual en pantalla. Los mensajes que la app escribió
+        // para el usuario -el del conflicto entre pestañas, el de permisos-
+        // pasan intactos.
+        setSaveError(humanSaveError(result.error));
         updateSaveStatus("error");
         setTimeout(() => updateSaveStatus("idle"), 3000);
       }
