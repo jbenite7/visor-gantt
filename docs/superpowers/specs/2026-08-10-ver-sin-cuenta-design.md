@@ -118,6 +118,30 @@ a la adopción — el retorno al destino que ya construyó E18.
 
 Las dos piezas son necesarias: la primera es la garantía, la segunda es la higiene.
 
+> **Ajuste del 2026-08-10 — quién ejecuta el script.** Tal como estaba, el borrado real solo ocurría **al
+> abrir** un enlace caducado. Un temporal que nadie vuelve a abrir —el caso mayoritario: alguien prueba la
+> app, cierra la pestaña y no vuelve— **no se borra nunca**. El script existiría sin que nada lo llame, que
+> es el patrón exacto de `scripts/init-schema.sql`, escrito y jamás ejecutado por la aplicación, y el de la
+> suite E2E que acumuló 268 proyectos y 25 MB por no limpiar lo que creaba.
+>
+> El script **debe tener disparador declarado**, y la tarea no está hecha hasta que lo tenga. Tres opciones
+> aceptables, por orden de preferencia:
+>
+> 1. **Un barrido perezoso en `POST /api/ver-mpp`**: antes de crear un temporal nuevo, borra los caducados.
+>    Se autolimpia con el propio uso, no necesita infraestructura, y quien crea temporales es exactamente
+>    quien los acumula. Con un tope de filas por barrido para no encarecer la subida.
+> 2. **Tarea programada en el despliegue** (cron del contenedor), si el proyecto ya tiene dónde ponerla.
+> 3. **Ejecución manual documentada**, y solo si se acepta explícitamente que la base crecerá entre
+>    ejecuciones. En ese caso hay que **escribirlo como límite conocido**, no dejarlo implícito.
+>
+> Lo que no vale es dejar el script sin llamador y dar la caducidad por resuelta: el spec prometería un
+> borrado automático que no ocurre. En una app cuyo primer proyecto se llamó «no perder trabajo», prometer
+> que algo se borra solo y que no pase es la otra cara del mismo fallo.
+>
+> **Cómo se prueba**: un test que crea un temporal con `expires_at` en el pasado, dispara el mecanismo
+> elegido **sin abrir el enlace**, y comprueba que la fila ya no está. Si el test necesita abrir el enlace
+> para que se borre, el disparador no existe.
+
 ### El freno
 
 Contador en memoria por IP, ventana de una hora, tope de 5. Al pasarse, **429** con el minuto en que puede
