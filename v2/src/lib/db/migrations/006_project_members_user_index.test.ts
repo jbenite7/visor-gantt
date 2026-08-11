@@ -1,13 +1,16 @@
 import { migration006ProjectMembersUserIndex } from "./006_project_members_user_index";
 import { ALL_MIGRATIONS } from "./index";
 
-function clienteEspia() {
+function clienteEspia({ hayTabla = true } = {}) {
   const sql: string[] = [];
   return {
     sql,
     client: {
       query: async (text: string) => {
         sql.push(text);
+        if (text.includes("to_regclass")) {
+          return { rows: hayTabla ? [{ existe: "project_members" }] : [{}] };
+        }
         return { rows: [] };
       },
     },
@@ -43,6 +46,17 @@ describe("006_project_members_user_index", () => {
     const todo = sql.join("\n");
     expect(todo).toContain("CREATE INDEX IF NOT EXISTS");
     expect(todo).toContain("project_members (user_id)");
+  });
+
+  test("en una base sin esa tabla todavía, no revienta el arranque", async () => {
+    // `project_members` la crea `ensureAuthTables`, no el migrador. En una
+    // instalación nueva esta migración corre antes, y sin esta guarda tumbaba
+    // el arranque entero. Medido sobre una base virgen.
+    const { sql, client } = clienteEspia({ hayTabla: false });
+
+    await migration006ProjectMembersUserIndex.up(client);
+
+    expect(sql.join("\n")).not.toContain("CREATE INDEX");
   });
 
   test("deshacerla solo quita el índice", async () => {
