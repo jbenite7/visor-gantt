@@ -74,6 +74,13 @@ va marcada como `secure`, así que no hay una señal nueva que mantener. En loca
 no estorba —nadie configura `https://` para `next dev`— y atrapa el caso que de
 verdad importa: la variable filtrada a un despliegue real.
 
+**Hasta dónde cierra, dicho claro: depende de que la URL esté configurada.** Un
+despliegue **sin** `PUBLIC_SITE_URL` (ni sus alternativas) y **con**
+`VISOR_TEST_MODE=1` seguiría abriendo la puerta. Son dos errores a la vez, y el
+cerrojo principal sigue siendo la variable —este es el segundo, no el primero—,
+pero conviene saberlo: un candado del que se cree que cierra siempre es peor que
+uno del que se sabe cuándo cierra.
+
 **Límite conocido y deliberado:** el candado es una variable de entorno, no
 `NODE_ENV`. La suite e2e y la revisión en navegador corren contra un build de
 producción (`next build && next start`), así que atar el modo a
