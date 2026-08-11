@@ -2214,6 +2214,18 @@ function GanttViewInner({
             !resourcesIntroDismissed && (
               <ResourcesEmptyState
                 locale={locale}
+                // Asignaciones que no encontraron recurso. Sin esto la pantalla
+                // dice «no tiene recursos todavía» a un cronograma que trajo 213
+                // asignaciones de trabajo dentro del .mpp.
+                orphanAssignments={
+                  calculatedAssignments.filter(
+                    (asignacion) =>
+                      !namedResources.some(
+                        (recurso) =>
+                          String(recurso.uid) === String(asignacion.resourceId),
+                      ),
+                  ).length
+                }
                 onCreateResource={() => {
                   setResourceSubView("sheet");
                   setResourcesIntroDismissed(true);
