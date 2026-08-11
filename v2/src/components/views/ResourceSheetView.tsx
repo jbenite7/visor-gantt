@@ -430,6 +430,7 @@ export default function ResourceSheetView({
                 </td>
                 <td style={{ padding: "6px 10px" }}>
                   <input
+                    aria-label="Nombre"
                     type="text"
                     placeholder="Nombre"
                     value={addForm.name}
@@ -453,6 +454,7 @@ export default function ResourceSheetView({
                 </td>
                 <td style={{ padding: "6px 10px" }}>
                   <input
+                    aria-label="$"
                     type="number"
                     placeholder="$"
                     step="0.01"
@@ -464,6 +466,7 @@ export default function ResourceSheetView({
                 </td>
                 <td style={{ padding: "6px 10px" }}>
                   <input
+                    aria-label="%"
                     type="number"
                     placeholder="%"
                     min="0"
@@ -475,6 +478,7 @@ export default function ResourceSheetView({
                 </td>
                 <td style={{ padding: "6px 10px" }}>
                   <input
+                    aria-label="Grupo"
                     type="text"
                     placeholder="Grupo"
                     value={addForm.group}
@@ -550,6 +554,7 @@ export default function ResourceSheetView({
                   </td>
                   <td style={{ padding: "6px 10px" }}>
                     <input
+                    aria-label="Nombre"
                       type="text"
                       value={editForm.name}
                       onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
@@ -572,6 +577,7 @@ export default function ResourceSheetView({
                   </td>
                   <td style={{ padding: "6px 10px" }}>
                     <input
+                    aria-label="Tarifa"
                       type="number"
                       step="0.01"
                       min="0"
@@ -582,6 +588,7 @@ export default function ResourceSheetView({
                   </td>
                   <td style={{ padding: "6px 10px" }}>
                     <input
+                    aria-label="Disponibilidad"
                       type="number"
                       min="0"
                       max="100"
@@ -592,6 +599,7 @@ export default function ResourceSheetView({
                   </td>
                   <td style={{ padding: "6px 10px" }}>
                     <input
+                    aria-label="Grupo"
                       type="text"
                       value={editForm.group}
                       onChange={(e) => setEditForm((f) => ({ ...f, group: e.target.value }))}
