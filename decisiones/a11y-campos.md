@@ -1,5 +1,16 @@
 # Decisiones pendientes — frente a11y-campos
 
+## 0. BLOQUEANTE: falta el visto para publicar
+
+El frente está terminado y verde —213 suites, 1.921 pruebas, 0 errores de lint, build
+compilando—, `main` local ya tiene el merge, y el `push` lo frena el hook: pide `/visto
+a11y-campos`, que solo puede correr la coordinadora. Intenté avisarla por mensaje y **no es
+alcanzable**.
+
+Queda encolado aquí, que es lo que manda la regla. No se fuerza el gate: `CAS_SKIP_GATE=1` existe
+para una emergencia real, y esto no lo es.
+
+
 Formato de cada entrada: qué se decide · qué se midió · opciones reales · recomendación.
 
 ---

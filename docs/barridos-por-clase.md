@@ -59,7 +59,7 @@ que *hay*.
 | Claves de lista por índice | limpio — las siete son texto sin estado propio y sin reordenarse |
 | Escuchas sobre `AbortSignal` | limpio — el `signal` muere con su petición; no hay nada que retirar |
 | Enlaces externos sin `rel="noopener"` | limpio |
-| **Campos de formulario sin nombre accesible** | 16 arreglados en las dos tablas editables; 9 quedan en otros seis ficheros |
+| **Campos de formulario sin nombre accesible** | 16 + 10 arreglados; **7 de los «pendientes» no lo estaban** (ver abajo) |
 
 ## Guardianes que quedan puestos
 
@@ -85,15 +85,32 @@ búsqueda a tres sitios en vez de veintisiete.
 
 ## Preguntas abiertas, medibles, que no pude cerrar
 
-**1. Los recursos del `.mpp` real.** El archivo de obra produce 240 tareas, **0 recursos y 213
-asignaciones**, todas con `resourceId: 0`. 88 de 297 proyectos están igual. El `.mpp` trae
-`ASSIGNMENT_RESOURCE_GUID` pero ningún identificador numérico, y el importador solo busca cuatro
-nombres de campo.
+**1. ~~Los recursos del `.mpp` real~~ — cerrada: el archivo no los trae, y el importador está
+bien.**
 
-No toqué el importador: para saber si el archivo trae recursos **sin nombre** —que el importador
-descarta— o no trae ninguno, hay que correr el analizador contra el archivo. Arreglarlo a ciegas
-sería inventarse datos de una obra real. **Quien tenga el `.mpp` delante puede cerrarlo en diez
-minutos.**
+Se corrieron los tres `.mpp` del repositorio contra el analizador de verdad:
+
+| Archivo | Recursos | Con nombre | Asignaciones | Al recurso nulo |
+|---|---|---|---|---|
+| DA PORTO TORRE 3 (obra) | 1 | **0** | 213 | 213 |
+| Estación 16 | 18 | **17** | 449 | 18 |
+| Plan de acción | 2 | **1** | 1.475 | — |
+
+Los tres traen **exactamente uno** con el nombre vacío y `UID 0`. No es una cuadrilla a la que se
+le olvidó el nombre: es el **recurso nulo** que Microsoft Project incluye siempre. El de obra no
+trae ninguna otra; el de Estación 16 trae diecisiete de verdad —«Ayudante armado», «Oficial
+acero»— y el importador **las conserva todas**.
+
+Así que la respuesta a «¿descarta recursos sin nombre que deberíamos rescatar?» es **no hay nada
+que rescatar**. El importador se queda como está.
+
+Lo que sí queda, y es fiel al archivo: 213 asignaciones con trabajo real dentro —96 horas la
+primera— apuntando al recurso nulo. **No se descartan a propósito**: tirarlas sería inventarse que
+ese trabajo no existe para que un número cuadre. Quedan huérfanas, y quien abre Recursos ve el
+aviso que lo explica. Fijado en `recursoNulo.test.ts` con los números de arriba.
+
+*Y una vuelta de tuerca sobre el aviso:* decía «ninguna llegó con un recurso con nombre», lo cual
+resultó **exacto** — pero se escribió antes de saber por qué. Ahora se sabe.
 
 **2. Las vistas autenticadas, sin revisar en navegador.** Los mejores hallazgos de esta semana
 salieron de mirar la app funcionando. No pude: la cookie de sesión es `httpOnly` y no se inyecta
@@ -106,16 +123,37 @@ cronograma de obra real y se navega como visitante. Con eso salieron los dos hal
 sección siguiente. No cubre lo que solo existe con cuenta —guardar, adoptar, listar—, pero sí las
 once vistas de análisis.
 
-**3. Nueve campos sin nombre accesible**, repartidos en `MatrixEditorView`, `GanttTable`,
-`DependencyPopover`, `DependencyPanel`, `SnapshotsBoardView` y `EditableCell`. Arreglé los 16 de
-las dos tablas editables —donde estaban concentrados— y dejé estos porque cada uno necesita mirar
-su contexto para darle un nombre que signifique algo, y ponerle una etiqueta genérica sería
-cambiar «campo mudo» por «campo que miente».
+**3. ~~Nueve campos sin nombre accesible~~ — cerrada, y la cifra estaba mal por partida doble.**
 
-**Aviso sobre la medición:** la heurística que los cuenta es frágil. Con una ventana de 400
-caracteres decía 33 e incluía la página de login, cuyos campos **sí** están dentro de un
-`<label>`; con 2.500 dijo 25. Verifiqué a ojo antes de tocar. Quien siga: comprobar la muestra
-antes de arreglar en bloque.
+Al mirarlos a ojo no eran nueve sino diecisiete, y **siete de ellos sí tenían nombre**: los de
+`MatrixEditorView` viven dentro de un `<label>` que los envuelve —«Nombre», «Inicio»,
+«Cantidad»—, y esa asociación implícita ya nombra el campo. La heurística solo buscaba
+`aria-label`, `title` y `placeholder`, así que **no veía la forma más común y más correcta de
+nombrar un campo**. Otro marcado era un comentario que mencionaba `<input type="date">`.
+
+Los reales, arreglados:
+
+- **La celda editable de la tabla**, que es la de más alcance: 240 tareas × 7 columnas editables
+  son más de mil seiscientos campos. El nombre lo pone la fila —«Duración de MOVIMIENTO DE
+  TIERRA»— porque la celda no sabe de qué columna ni de qué tarea es, y sale del **título de la
+  columna** en vez de un texto aparte, para que no se separen al renombrarla. También la celda en
+  reposo, que lleva `tabindex` y solo decía «Doble clic o Enter para editar»: una instrucción
+  repetida en cientos de celdas, no un nombre.
+- **Filtro por tipo** y **avance masivo** (su etiqueta visible era un «%»).
+- **Los seis controles de dependencias**, donde el nombre dice además si es la predecesora o la
+  sucesora: el panel dibuja dos bloques idénticos.
+
+Donde no había contexto del que sacar un nombre, **no se inventó uno**, y hay una prueba de
+control que fija esa decisión. Un campo que miente es peor que uno mudo.
+
+Los siete falsos positivos quedan **probados por su nombre**, no anotados: «lo comprobé y estaba
+bien» no impide que mañana alguien saque un campo de su `<label>` al recolocar el diseño.
+
+**Aviso sobre la medición, ahora con dos pruebas detrás:** la heurística que los cuenta es frágil
+en las dos direcciones. Con una ventana de 400 caracteres decía 33 e incluía la página de login,
+cuyos campos **sí** están dentro de un `<label>`; con 2.500 dijo 25; y buscando solo atributos
+marcó siete que estaban bien. **Mirar la muestra a ojo antes de tocar nada no es prudencia, es
+parte del método.**
 
 **4. ~~Dos rarezas del `.mpp` real~~ — cerrada: no eran rarezas, era mi medición.** Decía «un
 resumen sin hijos y un hito con duración mayor que cero». Las dos se deshacen al medirlas bien:
