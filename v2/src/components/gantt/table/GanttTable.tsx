@@ -1066,6 +1066,13 @@ export default function GanttTable({
               />
               <select
                 data-testid="gantt-task-filter-type"
+                // Va pegado al buscador y sin etiqueta visible: quien no ve la
+                // pareja solo oye «lista desplegable» y no sabe qué filtra.
+                aria-label={
+                  effectiveLocale === "en"
+                    ? "Filter by activity type"
+                    : "Filtrar por tipo de actividad"
+                }
                 value={normalizedTaskFilter.type}
                 onChange={(event) =>
                   updateTaskFilter({ type: event.target.value as TaskFilterType })
@@ -1182,6 +1189,14 @@ export default function GanttTable({
               %
               <input
                 data-testid="bulk-progress-input"
+                // Su `<label>` visible es un «%», que como nombre no dice nada:
+                // se oiría «por ciento, campo numérico» sin saber a qué se
+                // aplica ni a cuántas tareas.
+                aria-label={
+                  effectiveLocale === "en"
+                    ? `Progress to apply to the ${selectedTasks.length} selected activities`
+                    : `Avance que se aplicará a las ${selectedTasks.length} actividades seleccionadas`
+                }
                 type="number"
                 min={0}
                 max={100}

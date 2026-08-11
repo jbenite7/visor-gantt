@@ -26,6 +26,16 @@ interface EditableCellProps {
   /** Restricciones nativas del input numérico o de fecha. */
   min?: string | number;
   step?: string | number;
+  /**
+   * Qué se está editando, en palabras: «Duración de MOVIMIENTO DE TIERRA».
+   *
+   * Lo pone quien usa la celda, porque la celda no sabe de qué columna ni de
+   * qué tarea es. Sin esto, un lector de pantalla anuncia el campo y se calla.
+   *
+   * Si no llega, **no se inventa uno**: un nombre genérico convertiría un campo
+   * mudo en un campo que miente.
+   */
+  label?: string;
 }
 
 /**
@@ -45,6 +55,7 @@ export default function EditableCell({
   readOnly = false,
   min,
   step: stepOverride,
+  label,
 }: EditableCellProps) {
   const [isEditing, setIsEditing] = useState(false);
   /** Confirmación de que el cambio entró: se apaga sola (E44). */
@@ -124,6 +135,7 @@ export default function EditableCell({
             onKeyDown={handleKeyDown}
             onBlur={(e) => commit(e.currentTarget.value)}
             autoFocus
+            aria-label={label}
             data-testid="editable-cell"
           />
           <span className="gantt-editable-cell-slider__value">
@@ -147,6 +159,7 @@ export default function EditableCell({
         inputMode={inputMode}
         min={min}
         step={stepOverride ?? step}
+        aria-label={label}
         data-testid="editable-cell"
       />
     );
@@ -170,6 +183,13 @@ export default function EditableCell({
         }
       }}
       title={readOnly ? undefined : "Doble clic o Enter para editar"}
+      /**
+       * Con `tabIndex` esta celda se enfoca tabulando, así que necesita nombre
+       * propio: sin él, lo único que se oía era el `title` —«Doble clic o Enter
+       * para editar»—, la misma frase en las cientos de celdas de la tabla, sin
+       * decir nunca sobre cuál se está.
+       */
+      aria-label={readOnly ? undefined : label}
       data-testid="editable-cell"
     >
       {prefix}

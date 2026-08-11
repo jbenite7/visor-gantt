@@ -221,6 +221,9 @@ export default function DependencyPopover({
           <div className="gantt-dependency-popover__composer">
             <select
               data-testid="dependency-task-select"
+              // Sin etiqueta visible: la fila de tres controles se lee entera
+              // mirándola, pero de oído son tres listas sin nombre.
+              aria-label={locale === "en" ? "Predecessor activity" : "Actividad predecesora"}
               className="gantt-dependency-popover__control"
               value={selectedTaskId}
               onChange={(event) => setSelectedTaskId(event.target.value)}
@@ -233,6 +236,7 @@ export default function DependencyPopover({
             </select>
             <select
               data-testid="dependency-type-select"
+              aria-label={locale === "en" ? "Link type (FS, SS, FF, SF)" : "Tipo de vínculo (FS, SS, FF, SF)"}
               className="gantt-dependency-popover__control"
               value={type}
               onChange={(event) => setType(event.target.value as GanttDependency["type"])}
@@ -245,6 +249,7 @@ export default function DependencyPopover({
             </select>
             <input
               data-testid="dependency-lag-input"
+              aria-label={locale === "en" ? "Lead or lag, in days" : "Adelanto o retraso, en días"}
               className="gantt-dependency-popover__control"
               type="number"
               value={lag}

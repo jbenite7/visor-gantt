@@ -370,6 +370,9 @@ export default function DependencyPanel({
     >
       <select
         data-testid={`dependency-panel-${direction}-task-select`}
+        aria-label={`${locale === "en" ? "Activity" : "Actividad"} ${direction === "predecessor"
+            ? (locale === "en" ? "predecessor" : "predecesora")
+            : (locale === "en" ? "successor" : "sucesora")}`}
         value={selectedTaskId}
         onChange={(event) => setSelectedTaskId(event.target.value)}
         style={{ minWidth: 0, padding: "4px", fontSize: "0.75rem" }}
@@ -382,6 +385,9 @@ export default function DependencyPanel({
       </select>
       <select
         data-testid={`dependency-panel-${direction}-type-select`}
+        aria-label={`${locale === "en" ? "Link type with the" : "Tipo de vínculo con la"} ${direction === "predecessor"
+            ? (locale === "en" ? "predecessor" : "predecesora")
+            : (locale === "en" ? "successor" : "sucesora")}`}
         value={type}
         onChange={(event) => setType(event.target.value as GanttDependency["type"])}
         style={{ minWidth: 0, padding: "4px", fontSize: "0.75rem" }}
@@ -394,6 +400,9 @@ export default function DependencyPanel({
       </select>
       <input
         data-testid={`dependency-panel-${direction}-lag-input`}
+        aria-label={`${locale === "en" ? "Lead or lag with the" : "Adelanto o retraso con la"} ${direction === "predecessor"
+            ? (locale === "en" ? "predecessor" : "predecesora")
+            : (locale === "en" ? "successor" : "sucesora")}`}
         type="number"
         value={lag}
         onChange={(event) => setLag(event.target.value)}
