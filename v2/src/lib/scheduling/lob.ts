@@ -29,6 +29,15 @@ export interface LOBLine {
   points: LOBPoint[];
   color: string;
   isCritical: boolean;
+  /**
+   * Es la línea de avance **real**, no la planificada.
+   *
+   * Es un dato y no una pista en el nombre a propósito: el gráfico lo deducía
+   * con `activityName.includes("(Real)")`, así que un renombrado o una
+   * traducción bastaba para pintar lo planificado como real — justo en la
+   * pantalla que sirve para ver si la obra va atrasada.
+   */
+  isActual?: boolean;
 }
 
 export interface LOBLayoutResult {
@@ -163,6 +172,7 @@ export function computeLOBLayout(
         lines.push({
           activityId: `${activity.id}-actual`,
           activityName: `${activity.name} (Real)`,
+          isActual: true,
           points: actualPoints,
           color,
           isCritical: hasDeviation,

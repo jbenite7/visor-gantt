@@ -855,3 +855,54 @@ describe("generateAutomaticLOBFromTasks · correcciones a mano (R4)", () => {
     expect(resultado.units).toHaveLength(2);
   });
 });
+
+/**
+ * Lo real y lo planificado se distinguen por un dato, no por el nombre.
+ *
+ * `computeLOBLayout` construía `"${nombre} (Real)"` y el gráfico lo desarmaba
+ * con `activityName.includes("(Real)")`, más un `.replace(" (Real)", "")` para
+ * volver a pintarlo. El dato se perdía al construir la línea y la interfaz lo
+ * reconstruía adivinando sobre el texto.
+ *
+ * Basta un renombrado o una traducción para que el gráfico pinte lo
+ * planificado como real, justo en la pantalla que sirve para ver si la obra va
+ * atrasada.
+ */
+describe("las líneas dicen si son reales sin leerles el nombre", () => {
+  const actividad: LOBActivity = {
+    id: "act-actual",
+    name: "Finishing",
+    taskIds: ["1"],
+    plannedRate: 1,
+    unitLabel: "Floor",
+    plannedStart: new Date("2026-01-01"),
+    plannedFinish: new Date("2026-01-10"),
+  };
+
+  const unidades: LOBUnit[] = [
+    { activityId: "act-actual", unitIndex: 0, plannedDate: new Date("2026-01-01"), actualDate: new Date("2026-01-02") },
+    { activityId: "act-actual", unitIndex: 1, plannedDate: new Date("2026-01-05"), actualDate: new Date("2026-01-06") },
+  ];
+
+  it("la línea de avance real se marca como tal", () => {
+    const resultado = computeLOBLayout([actividad], unidades);
+    const real = resultado.lines.find((l) => l.activityId === "act-actual-actual");
+
+    expect(real?.isActual).toBe(true);
+  });
+
+  it("la planificada no", () => {
+    const resultado = computeLOBLayout([actividad], unidades);
+    const planificada = resultado.lines.find((l) => l.activityId === "act-actual");
+
+    expect(planificada?.isActual).toBeFalsy();
+  });
+
+  it("el nombre sigue siendo legible para la leyenda", () => {
+    const resultado = computeLOBLayout([actividad], unidades);
+    const real = resultado.lines.find((l) => l.activityId === "act-actual-actual");
+
+    // El texto se conserva: lo que cambia es que ya no DECIDE nada.
+    expect(real?.activityName).toContain("Finishing");
+  });
+});

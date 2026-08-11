@@ -415,8 +415,10 @@ export default function LineOfBalance({
   const toleranceBandHeight = chartHeight * 0.1;
 
   // ── Group lines by activityId (planned + actual share color) ───
-  const plannedLines = layout.lines.filter((l) => !l.activityName.includes("(Real)"));
-  const actualLines = layout.lines.filter((l) => l.activityName.includes("(Real)"));
+  // Por el dato, no por el nombre: antes esto se decidía buscando «(Real)»
+  // dentro del texto de la actividad.
+  const plannedLines = layout.lines.filter((l) => !l.isActual);
+  const actualLines = layout.lines.filter((l) => l.isActual);
 
   // ── Map activityId → activity, to look up family classification per line ──
   const activityById = useMemo(() => {
